@@ -1,0 +1,792 @@
+/* Liquid Glass Design System - Must be at the very top */
+@import './styles/liquid-glass.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @layer utilities {
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+  }
+
+  :root {
+    /* --- LIQUID GLASS DARK MODE PALETTE (Vision Pro Inspired) --- */
+    --background: 240 10% 4%;
+    /* Deepest Onyx */
+    --foreground: 0 0% 98%;
+    /* Pure White text */
+
+    --card: 240 10% 6%;
+    /* Slightly lighter onyx for cards */
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 5%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%;
+    /* Ceramic White generic primary */
+    --primary-foreground: 240 10% 4%;
+
+    --secondary: 240 5% 15%;
+    /* Glassy Gray */
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 5% 15%;
+    --muted-foreground: 240 5% 65%;
+
+    --accent: 240 5% 15%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 15%;
+    --input: 240 5% 10%;
+    --ring: 0 0% 100%;
+
+    --radius: 1rem;
+
+    /* --- GLASS & PREMIUM TOKENS --- */
+    --glass-bg: rgba(20, 20, 25, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shiny: rgba(255, 255, 255, 0.03);
+    --mesh-color: 0 0% 100%;
+
+    --shadow-premium: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+    /* Deep black shadow, no glow */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  /* --- LIGHT MODE (Ceramic White / Professional Monochrome) --- */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 98.5%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 240 10% 3.9%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 3.9%;
+
+    --muted: 240 5% 94%;
+    --muted-foreground: 240 5% 45%;
+
+    --accent: 240 5% 92%;
+    --accent-foreground: 240 10% 3.9%;
+
+    --border: 240 5% 88%;
+    --input: 240 5% 90%;
+    --ring: 240 10% 3.9%;
+
+    --glass-bg: rgba(255, 255, 255, 0.75);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    /* Liquid border for light mode */
+    --glass-shiny: rgba(0, 0, 0, 0.02);
+    --mesh-color: 240 10% 20%;
+    /* Darker for better contrast in pulsing in light mode */
+
+    --shadow-premium: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+    transition: background-color 0.8s cubic-bezier(0.4, 0, 0.2, 1), color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Apple-style typography refinement */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply tracking-tighter leading-tight font-semibold;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1 {
+    @apply tracking-[-0.04em];
+  }
+
+  h2 {
+    @apply tracking-[-0.03em];
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/10 selection:text-primary;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.011em;
+    line-height: 1.5;
+  }
+
+  /* --- Rubber Interaction --- */
+  .active-rubber:active {
+    transform: scale(0.95);
+    transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* --- Premium Scrollbar --- */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(161, 161, 170, 0.4);
+    border-radius: 10px;
+    transition: background-color 0.2s ease;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: rgba(161, 161, 170, 0.2);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(161, 161, 170, 0.7);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(161, 161, 170, 0.4);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(161, 161, 170, 0.4) transparent;
+  }
+
+  .dark * {
+    scrollbar-color: rgba(161, 161, 170, 0.2) transparent;
+  }
+}
+
+@layer utilities {
+  .glass-capsule {
+    @apply bg-background/80 border border-border/50 shadow-lg backdrop-blur-xl text-foreground;
+  }
+
+  .glass-panel {
+    @apply bg-card/80 border border-border/50 shadow-sm backdrop-blur-md text-foreground;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Botão Padrão da Nova Identidade */
+  .btn-primary-clean {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm font-semibold;
+  }
+
+  /* ===== DESKTOP UI POLISH UTILITIES ===== */
+
+  /* Page Container - consistent padding for all main pages */
+  .page-container {
+    @apply px-6 lg:px-8 xl:px-10 py-6 w-full mx-auto;
+    max-width: 1800px;
+  }
+
+  /* Content area with breathing room */
+  .content-area {
+    @apply p-6 lg:p-8 space-y-6;
+  }
+
+  /* Card with consistent padding and gaps */
+  .card-premium {
+    @apply bg-card border border-border/50 rounded-2xl p-5 lg:p-6 shadow-premium text-foreground;
+  }
+
+  /* Grid gaps standardized */
+  .grid-gap-standard {
+    @apply gap-4 lg:gap-6;
+  }
+
+  /* Modal sizing utility */
+  .modal-content {
+    @apply p-6 max-h-[85vh] overflow-y-auto;
+  }
+
+  /* Form sections */
+  .form-section {
+    @apply space-y-4 lg:space-y-5;
+  }
+
+  /* Responsive text that scales with viewport */
+  .text-responsive-sm {
+    @apply text-xs lg:text-sm;
+  }
+
+  .text-responsive-base {
+    @apply text-sm lg:text-base;
+  }
+
+  /* Panel with sidebar layout */
+  .panel-with-sidebar {
+    @apply flex flex-1 gap-0 lg:gap-1 overflow-hidden;
+  }
+
+  /* Sidebar standard width */
+  .sidebar-standard {
+    @apply w-64 lg:w-72 xl:w-80 shrink-0 border-r border-white/5;
+  }
+
+  /* Main content area next to sidebar */
+  .main-content {
+    @apply flex-1 min-w-0 overflow-auto;
+  }
+
+  /* GPU Optimization for smooth scroll */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: transform, opacity;
+  }
+
+  .premium-noise {
+    @apply absolute inset-0 pointer-events-none z-0;
+    background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+    opacity: 0.02;
+    mix-blend-mode: overlay;
+    /* Removed animation to prevent rendering jitter/breaking on high-res displays */
+  }
+
+  .brand-neutral-gradient {
+    @apply absolute inset-0 pointer-events-none z-0;
+    background: radial-gradient(circle at 50% -20%, hsl(var(--foreground)/0.06) 0%, transparent 70%);
+  }
+
+  .brand-high-contrast-gradient {
+    @apply absolute inset-0 pointer-events-none z-0;
+    background: linear-gradient(to bottom,
+        hsl(var(--background)) 0%,
+        hsl(var(--foreground)/0.03) 50%,
+        hsl(var(--background)) 100%);
+  }
+
+  .pulsing-gradient-surface {
+    @apply absolute inset-0 pointer-events-none;
+    background: radial-gradient(circle at 50% 50%, hsl(var(--mesh-color) / 0.1), transparent 80%);
+    animation: pulse-organic 10s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+
+  .liquid-mesh-bg {
+    @apply absolute inset-0 pointer-events-none opacity-20 dark:opacity-40;
+    background:
+      radial-gradient(at 0% 0%, hsl(var(--mesh-color) / 0.08) 0, transparent 40%),
+      radial-gradient(at 100% 0%, hsl(var(--mesh-color) / 0.04) 0, transparent 40%),
+      radial-gradient(at 100% 100%, hsl(var(--mesh-color) / 0.08) 0, transparent 40%),
+      radial-gradient(at 0% 100%, hsl(var(--mesh-color) / 0.04) 0, transparent 40%);
+    filter: blur(100px);
+    will-change: opacity;
+  }
+
+  /* === STANDARDIZED SYSTEM BACKGROUND === */
+  /* Use this class on all main page containers for consistent background */
+  .neuronex-bg {
+    @apply bg-background text-foreground;
+    position: relative;
+  }
+
+  .neuronex-bg::before {
+    content: '';
+    @apply fixed inset-0 pointer-events-none;
+    background: radial-gradient(ellipse at top, rgba(0, 0, 0, 0.02), transparent);
+    z-index: 0;
+  }
+
+  .dark .neuronex-bg::before {
+    background: radial-gradient(ellipse at top, rgba(255, 255, 255, 0.02), transparent);
+  }
+
+  /* Page spacing utility - consistent margins from edges */
+  .page-spacing {
+    @apply px-4 md:px-6 lg:px-8 xl:px-10;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+
+  /* Card standard following CommandSearch design */
+  .card-neuronex {
+    @apply bg-white/60 dark:bg-[#0D0D0E] backdrop-blur-xl border border-black/5 dark:border-white/[0.08] rounded-[28px] shadow-lg;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .card-neuronex:hover {
+    @apply shadow-xl border-black/10 dark:border-white/[0.12];
+  }
+}
+
+@keyframes noise-float {
+  0% {
+    transform: translate(0, 0);
+  }
+
+  100% {
+    transform: translate(-5%, -5%);
+  }
+}
+
+@keyframes pulse-organic {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.1;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 0.2;
+  }
+}
+
+@keyframes pulse-slow {
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(1);
+    filter: blur(180px);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+    filter: blur(200px);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s ease-in-out infinite;
+}
+
+/* Tiptap Table Styles */
+.ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.ProseMirror table td,
+.ProseMirror table th {
+  min-width: 1em;
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.ProseMirror table th {
+  font-weight: bold;
+  text-align: left;
+  background-color: var(--secondary);
+}
+
+.ProseMirror table .selectedCell:after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: hsl(var(--primary) / 0.1);
+  /* Primary color accent */
+  pointer-events: none;
+}
+
+.ProseMirror table .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background-color: var(--border);
+  pointer-events: none;
+}
+
+/* ===== PREMIUM LISTS (UL/OL) ===== */
+.ProseMirror ul:not([data-type="taskList"]),
+.ProseMirror ol {
+  padding: 0 0 0 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.ProseMirror ul:not([data-type="taskList"]) li,
+.ProseMirror ol li {
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+
+.ProseMirror ul:not([data-type="taskList"]) {
+  list-style: none;
+}
+
+.ProseMirror ul:not([data-type="taskList"]) li::before {
+  content: "";
+  position: absolute;
+  left: -1.25rem;
+  top: 0.65rem;
+  width: 5px;
+  height: 5px;
+  background: var(--primary);
+  border-radius: 50%;
+  opacity: 0.4;
+  box-shadow: 0 0 8px hsl(var(--primary) / 0.5);
+}
+
+.ProseMirror ol {
+  counter-reset: list-counter;
+}
+
+.ProseMirror ol li {
+  counter-increment: list-counter;
+}
+
+.ProseMirror ol li::before {
+  content: counter(list-counter);
+  position: absolute;
+  left: -1.75rem;
+  top: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--primary);
+  opacity: 0.5;
+  font-family: 'Inter', sans-serif;
+}
+
+.ProseMirror p {
+  margin: 0;
+}
+
+/* ===== PREMIUM TASK LIST (CHECKLIST) ===== */
+.ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.ProseMirror ul[data-type="taskList"] li>label {
+  flex: 0 0 auto;
+  user-select: none;
+  margin-top: 0.25rem;
+}
+
+.ProseMirror ul[data-type="taskList"] li>div {
+  flex: 1 1 auto;
+}
+
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+  appearance: none;
+  background-color: transparent;
+  margin: 0;
+  font: inherit;
+  color: currentColor;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"]:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  transform: scale(1.05);
+}
+
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"]::before {
+  content: "";
+  width: 0.65rem;
+  height: 0.65rem;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  box-shadow: inset 1rem 1rem var(--primary);
+  background-color: CanvasText;
+  transform-origin: center;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 15px hsl(var(--primary) / 0.3);
+}
+
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked::before {
+  transform: scale(1);
+  box-shadow: inset 1rem 1rem hsl(var(--primary-foreground));
+}
+
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"]>div {
+  color: rgba(255, 255, 255, 0.3);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  transition: all 0.3s ease;
+}
+
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] {
+  opacity: 0.7;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.resize-cursor {
+  cursor: ew-resize;
+  cursor: col-resize;
+}
+
+/* ===== NEUROVIEW PREMIUM ANIMATIONS (Obsidian-style) ===== */
+
+@keyframes fadeInBlur {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(20px);
+  }
+}
+
+@keyframes fadeOutBlur {
+  0% {
+    opacity: 1;
+    backdrop-filter: blur(20px);
+  }
+
+  100% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+}
+
+@keyframes slideInFromRight {
+  0% {
+    opacity: 0;
+    transform: translateX(100px) scale(0.96);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translateX(-8px) scale(1.01);
+  }
+
+  80% {
+    transform: translateX(3px) scale(0.995);
+  }
+
+  100% {
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes premiumBeam {
+  0% {
+    transform: translateY(-100%) scaleX(0.5);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.5;
+  }
+
+  80% {
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: translateY(200%) scaleX(2);
+    opacity: 0;
+  }
+}
+
+.animate-premium-beam {
+  animation: premiumBeam 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes slideOutToRight {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(80px) scale(0.95);
+  }
+}
+
+@keyframes floatIn {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+    filter: blur(8px);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.02);
+    filter: blur(0px);
+  }
+
+  80% {
+    transform: translateY(2px) scale(0.99);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulseGlow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 60px -15px hsl(var(--primary) / 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 80px -10px hsl(var(--primary) / 0.35);
+  }
+}
+
+@keyframes organicFloat {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes flowDash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.animate-flow-dash {
+  animation: flowDash 1s linear infinite;
+}
+
+/* Utility class for organic float animation */
+.animate-organic-float {
+  animation: organicFloat 4s ease-in-out infinite;
+}
+
+/* Utility class for pulse glow */
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+/* Custom scrollbar for NeuroView panels */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--secondary);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* --- Tiptap Table Premium Interactions --- */
+.ProseMirror {
+  .tableWrapper {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    overflow-x: auto;
+    border-radius: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(64px);
+    box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.4);
+
+
+    table {
+      @apply border-collapse w-full m-0;
+
+      td,
+      th {
+        @apply min-w-[100px] border border-white/10 p-4 text-sm relative transition-colors duration-200;
+
+        &:hover {
+          @apply bg-white/[0.02];
+        }
+      }
+
+      th {
+        @apply bg-white/[0.04] font-black uppercase tracking-[0.2em] text-[10px] text-white/60;
+      }
+
+      .selectedCell:after {
+        @apply z-10 bg-primary/10 content-[''] absolute inset-0 pointer-events-none border-2 border-primary/50;
+      }
+
+      .column-resize-handle {
+        @apply absolute right-[-2px] top-0 bottom-0 w-1 bg-primary/40 cursor-col-resize opacity-0 transition-opacity;
+
+        &:hover {
+          @apply opacity-100;
+        }
+      }
+    }
+  }
+}

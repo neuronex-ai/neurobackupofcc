@@ -1,0 +1,96 @@
+import { useState, useEffect } from 'react';
+import { useAppointments } from '@/hooks/use-appointments';
+import { UpcomingSessionsPanel } from '@/components/teleconsulta/UpcomingSessionsPanel';
+import { ActiveSessionPanel } from '@/components/teleconsulta/ActiveSessionPanel';
+import { startOfWeek, endOfWeek, addMonths } from 'date-fns';
+import { useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileTeleconsulta } from '@/mobile/pages/MobileTeleconsulta';
+import { FeatureGate, LockedFeatureScreen } from '@/components/subscription';
+
+const TeleconsultaCore = () => {
+  const queryClient = useQueryClient();
+  const location = useLocation();
+  const isMobile = useIsMobile();
+  const [activeAppointmentId, setActiveAppointmentId] = useState<string | undefined>(undefined);
+
+  const [dateRange] = useState(() => {
+    const start = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const end = addMonths(endOfWeek(new Date(), { weekStartsOn: 1 }), 3);
+    return { start, end };
+  });
+
+  const { data: appointments, isLoading } = useAppointments({
+    startDate: dateRange.start,
+    endDate: dateRange.end
+  });
+
+  useEffect(() => {
+    if (location.state?.activeAppointmentId && appointments) {
+      const targetApt = appointments.find(a => a.id === location.state.activeAppointmentId);
+      if (targetApt) {
+        setActiveAppointmentId(targetApt.id);
+        window.history.replaceState({}, document.title, location.pathname);
+      }
+    }
+  }, [location.state, appointments]);
+
+  const activeAppointment = appointments?.find(apt => apt.id === activeAppointmentId);
+  const upcomingSessions = appointments?.filter(apt => apt.id !== activeAppointmentId) || [];
+
+  const startSession = (appointmentId: string) => {
+    setActiveAppointmentId(appointmentId);
+  };
+
+  const endSession = () => {
+    setActiveAppointmentId(undefined);
+    queryClient.invalidateQueries({ queryKey: ['appointments'] });
+  };
+
+  if (isMobile) {
+    return <MobileTeleconsulta />;
+  }
+
+  if (activeAppointment) {
+    return (
+      <div className="min-h-screen bg-background overflow-hidden relative">
+        <ActiveSessionPanel
+          activeAppointment={activeAppointment}
+          patientName={activeAppointment.patient_name || 'Paciente'}
+          onSessionEnd={endSession}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen pb-12 page-spacing relative overflow-hidden">
+      <UpcomingSessionsPanel
+        upcomingSessions={upcomingSessions}
+        activeAppointment={activeAppointment}
+        isLoading={isLoading}
+        startSession={startSession}
+      />
+    </div>
+  );
+};
+
+const Teleconsulta = () => {
+  return (
+    <FeatureGate
+      feature="telemedicine"
+      fallback={
+        <LockedFeatureScreen
+          feature="telemedicine"
+          title="Telemedicina HD"
+          description="Realize consultas por videochamada com qualidade HD, transcrição automática e integração total com o prontuário. Disponível a partir do plano Professional."
+        />
+      }
+    >
+      <TeleconsultaCore />
+    </FeatureGate>
+  );
+};
+
+export default Teleconsulta;

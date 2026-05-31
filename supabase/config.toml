@@ -1,0 +1,107 @@
+
+[functions.scientific-updater]
+enabled = true
+verify_jwt = true
+import_map = "./functions/scientific-updater/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/scientific-updater/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/scientific-updater/*.html" ]
+
+[functions.ingest-normative]
+enabled = true
+verify_jwt = true
+import_map = "./functions/ingest-normative/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/ingest-normative/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/ingest-normative/*.html" ]
+
+[functions.sync-cfp-norms]
+enabled = true
+verify_jwt = true
+import_map = "./functions/sync-cfp-norms/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/sync-cfp-norms/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/sync-cfp-norms/*.html" ]
+
+# ─── NEUROBANK (ASAAS BaaS) EDGE FUNCTIONS ──────────────────
+
+[functions.asaas-webhook]
+enabled = true
+verify_jwt = false # Webhooks are authenticated via Asaas access token header
+entrypoint = "./functions/asaas-webhook/index.ts"
+
+[functions.asaas-connect-onboarding]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-connect-onboarding/index.ts"
+
+[functions.asaas-account-sync]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-account-sync/index.ts"
+
+[functions.asaas-account-update]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-account-update/index.ts"
+
+[functions.asaas-upload-file]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-upload-file/index.ts"
+
+[functions.asaas-submit-kyc]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-submit-kyc/index.ts"
+
+[functions.asaas-create-payment]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-create-payment/index.ts"
+
+[functions.asaas-payment-link]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-payment-link/index.ts"
+
+[functions.asaas-refund]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-refund/index.ts"
+
+[functions.asaas-payout]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-payout/index.ts"
+
+[functions.asaas-pix-out]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-pix-out/index.ts"
+
+[functions.asaas-balance-details]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-balance-details/index.ts"
+
+
+[functions.n8n-agent-gateway]
+enabled = true
+verify_jwt = true
+import_map = "./functions/n8n-agent-gateway/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/n8n-agent-gateway/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/n8n-agent-gateway/*.html" ]

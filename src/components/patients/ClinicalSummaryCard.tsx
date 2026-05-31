@@ -1,0 +1,413 @@
+import { SessionNote, Patient, AISummary } from "@/types";
+import { Sparkles, TrendingUp, TrendingDown, Meh, Edit, Trash2, FileDown, Mail, MessageSquare, NotebookPen, ListTodo, Plus, Loader2, Check, MoreVertical, ChevronUp, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { useProfile } from "@/hooks/use-profile";
+import { useCreatePersonalNote } from "@/hooks/use-create-personal-note";
+import { useCreateReminder } from "@/hooks/use-create-reminder";
+import { downloadDocumentPDF, DocumentPDFData, generateDocumentPDFBase64 } from "@/lib/pdf-generator";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+
+interface ClinicalSummaryCardProps {
+  latestNote: SessionNote | undefined;
+  patient: Patient;
+}
+
+const sentimentConfig = {
+  Positivo: { icon: TrendingUp, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
+  Estável: { icon: TrendingUp, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
+  Neutro: { icon: Meh, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
+  Negativo: { icon: TrendingDown, color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10" },
+  Ansioso: { icon: TrendingDown, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
+  Depressivo: { icon: TrendingDown, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/10" },
+};
+
+const ExpandableText = ({ text, className, limit = 150 }: { text: string, className?: string, limit?: number }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!text) return null;
+
+  const shouldTruncate = text.length > limit;
+
+  return (
+    <div className="relative">
+      <p className={cn(className, !isExpanded && shouldTruncate ? "line-clamp-3" : "")}>
+        {text}
+      </p>
+      {shouldTruncate && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
+          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-primary hover:text-primary/80 mt-2 transition-colors cursor-pointer"
+        >
+          {isExpanded ? (
+            <>Recolher <ChevronUp className="h-3 w-3" /></>
+          ) : (
+            <>Ler mais <ChevronDown className="h-3 w-3" /></>
+          )}
+        </button>
+      )}
+    </div>
+  );
+};
+
+export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCardProps) => {
+  const { data: profile } = useProfile();
+  const { mutate: createNote } = useCreatePersonalNote();
+  const { mutate: createReminder } = useCreateReminder();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editType, setEditType] = useState<"summary" | "next_steps" | "topics" | null>(null);
+  const [editedSummary, setEditedSummary] = useState("");
+  const [editedSteps, setEditedSteps] = useState<string[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+
+  if (!latestNote?.ai_summary) {
+    return (
+      <div className="p-8 rounded-[32px] bg-card/40 border border-dashed border-border/10 text-center text-xs text-muted-foreground italic tracking-tight">
+        Nenhum registro de análise clínica disponível para a sessão mais recente.
+      </div>
+    );
+  }
+
+  const summary = latestNote.ai_summary;
+  const sentiment = sentimentConfig[summary.sentiment as keyof typeof sentimentConfig] || sentimentConfig.Neutro;
+  const SentimentIcon = sentiment.icon;
+
+  const psychologistName = profile ? `${profile.first_name} ${profile.last_name}` : "Psicólogo(a)";
+  const nowStr = format(new Date(), "HH:mm, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+
+  const getHeaderInfo = () => {
+    return `Paciente: ${patient.name}\nPsicólogo: ${psychologistName}\nData: ${nowStr}\n\n`;
+  };
+
+  const getPDFData = (content: string, title: string): DocumentPDFData => ({
+    type: "Análise Clínica",
+    title,
+    content: `<p>${content}</p>`,
+    patientName: patient.name,
+    professionalName: psychologistName,
+    professionalRegistry: profile?.crp || "",
+    date: nowStr,
+    clinicName: profile?.clinic_name || "NeuroNex"
+  });
+
+  const handleExportToNotes = () => {
+    createNote({
+      patientId: patient.id,
+      title: `Resumo Clínico - ${format(new Date(), 'dd/MM/yyyy')}`,
+      content: summary.summary
+    });
+  };
+
+  const handleExportToReminders = () => {
+    summary.next_steps?.forEach(step => {
+      createReminder({
+        title: `Conduta: ${step}`,
+        dueDate: new Date()
+      });
+    });
+  };
+
+  const handleDownloadPDF = async () => {
+    const data = getPDFData(summary.summary, "RESUMO CLÍNICO DA ÚLTIMA SESSáO");
+    await downloadDocumentPDF(data, `resumo_${patient.name}.pdf`);
+  };
+
+  const handleSendEmail = async () => {
+    if (!patient.email) {
+      toast.error("Paciente não possui e-mail cadastrado.");
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const pdfBase64 = await generateDocumentPDFBase64(getPDFData(summary.summary, "RESUMO CLÍNICO"));
+      const { error } = await supabase.functions.invoke('send-document-email', {
+        body: {
+          to: patient.email,
+          subject: `Resumo Clínico - ${patient.name}`,
+          htmlBody: `Olá ${patient.name}, segue o resumo da nossa última sessão analisada.\n\n${summary.summary}`,
+          documentType: "Resumo Clínico",
+          pdfAttachment: {
+            filename: `resumo_clinico_${patient.name}.pdf`,
+            content: pdfBase64,
+            contentType: 'application/pdf'
+          }
+        }
+      });
+      if (error) throw error;
+      toast.success("E-mail enviado com sucesso!");
+    } catch (e: any) {
+      toast.error(`Erro ao enviar e-mail: ${e.message}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleWhatsApp = () => {
+    if (!patient.phone) {
+      toast.error("Paciente não possui telefone cadastrado.");
+      return;
+    }
+    const message = encodeURIComponent(`*NeuroNex - Resumo Clínico*\n\n${getHeaderInfo()}${summary.summary}\n\n_Documento PDF enviado via sistema._`);
+    window.open(`https://wa.me/${patient.phone.replace(/\D/g, '')}?text=${message}`, '_blank');
+  };
+
+  const handleUpdate = async () => {
+    setIsUpdating(true);
+    try {
+      const updatedSummary: AISummary = {
+        ...summary,
+        summary: editType === "summary" ? editedSummary : summary.summary,
+        next_steps: editType === "next_steps" ? editedSteps : (summary.next_steps || []),
+        topics: editType === "topics" ? editedSteps : (summary.topics || [])
+      };
+
+      const { error } = await supabase
+        .from('session_notes')
+        .update({ ai_summary: updatedSummary })
+        .eq('id', latestNote.id);
+
+      if (error) throw error;
+      toast.success("Análise atualizada com sucesso!");
+      setIsEditing(false);
+    } catch (e: any) {
+      toast.error("Erro ao atualizar: " + e.message);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Tem certeza que deseja remover esta análise clínica?")) return;
+    try {
+      const { error } = await supabase
+        .from('session_notes')
+        .update({ ai_summary: null })
+        .eq('id', latestNote.id);
+
+      if (error) throw error;
+      toast.success("Resumo removido com sucesso.");
+    } catch (e: any) {
+      toast.error("Erro ao remover: " + e.message);
+    }
+  };
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative p-6 sm:p-10 rounded-[40px] bg-white dark:bg-zinc-900/40 backdrop-blur-3xl border border-zinc-200 dark:border-white/5 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.05)] dark:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden group/card"
+      >
+        <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 blur-[120px] rounded-full pointer-events-none opacity-50 group-hover/card:opacity-70 transition-opacity duration-700" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 blur-[100px] rounded-full pointer-events-none opacity-30" />
+
+        <div className="flex items-start justify-between mb-6 relative z-10">
+          <div className="flex flex-col gap-2">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400 dark:text-zinc-500 block mb-1">Synapse AI</span>
+              <span className="text-xl font-bold text-zinc-900 dark:text-white block tracking-tight">Resumo da Sessão</span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 text-[10px] font-bold uppercase tracking-widest w-fit backdrop-blur-md mb-1">
+              <SentimentIcon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
+              <span>{summary.sentiment}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 glass-panel border-white/10 bg-zinc-950/90 backdrop-blur-2xl p-2 shadow-2xl">
+                <DropdownMenuItem onClick={handleDownloadPDF} className="gap-3 rounded-xl py-3 cursor-pointer text-zinc-300 focus:bg-white/10 focus:text-white">
+                  <FileDown className="h-4 w-4 text-blue-400" /> Baixar PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSendEmail} disabled={isSending} className="gap-3 rounded-xl py-3 cursor-pointer text-zinc-300 focus:bg-white/10 focus:text-white">
+                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4 text-emerald-400" />}
+                  Enviar por E-mail
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleWhatsApp} className="gap-3 rounded-xl py-3 cursor-pointer text-zinc-300 focus:bg-white/10 focus:text-white">
+                  <MessageSquare className="h-4 w-4 text-green-400" /> WhatsApp
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-white/10 my-1" />
+                <DropdownMenuItem onClick={handleExportToNotes} className="gap-3 rounded-xl py-3 cursor-pointer text-zinc-300 focus:bg-white/10 focus:text-white">
+                  <NotebookPen className="h-4 w-4 text-amber-400" /> Mover para Notas
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportToReminders} className="gap-3 rounded-xl py-3 cursor-pointer text-zinc-300 focus:bg-white/10 focus:text-white">
+                  <ListTodo className="h-4 w-4 text-purple-400" /> Criar Lembretes
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-white/10 my-1" />
+                <DropdownMenuItem onClick={handleDelete} className="gap-3 rounded-xl py-3 text-rose-400 focus:text-rose-300 focus:bg-rose-500/10 cursor-pointer">
+                  <Trash2 className="h-4 w-4" /> Excluir Análise
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        <div className="relative z-10 mb-2 group/summary pt-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-0 right-0 h-6 w-6 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-900 dark:hover:text-white opacity-0 group-hover/summary:opacity-100 transition-all z-20"
+            onClick={() => {
+              setEditType("summary");
+              setEditedSummary(summary.summary);
+              setIsEditing(true);
+            }}
+          >
+            <Edit className="h-3 w-3" />
+          </Button>
+          <ExpandableText
+            text={`"${summary.summary}"`}
+            className="text-lg md:text-xl text-zinc-800 dark:text-zinc-200 leading-relaxed font-light italic select-text pl-1 pr-6"
+          />
+        </div>
+
+        {summary.topics && summary.topics.length > 0 && (
+          <div className="relative z-10 mb-10 group/topics">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest px-2 py-0.5">Tópicos Identificados</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-lg hover:bg-white/10 hover:text-white text-zinc-500 opacity-0 group-hover/topics:opacity-100 transition-opacity"
+                onClick={() => {
+                  setEditType("topics");
+                  setEditedSteps([...(summary.topics || [])]);
+                  setIsEditing(true);
+                }}
+              >
+                <Edit className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2.5">
+              {summary.topics.map((topic) => (
+                <div key={topic} className="px-4 py-1.5 rounded-full bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 transition-colors text-xs text-zinc-600 dark:text-zinc-300 font-medium cursor-default">
+                  {topic}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {summary.next_steps && summary.next_steps.length > 0 && (
+          <div className="relative z-10 pt-8 border-t border-white/5 group/steps">
+            <div className="flex justify-between items-center mb-6">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-400 flex items-center gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                Intervencoes Sugeridas
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-lg hover:bg-white/10 hover:text-white text-zinc-500 opacity-0 group-hover/steps:opacity-100 transition-opacity"
+                onClick={() => {
+                  setEditType("next_steps");
+                  setEditedSteps([...summary.next_steps]);
+                  setIsEditing(true);
+                }}
+              >
+                <Edit className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {summary.next_steps.map((step) => (
+                <div
+                  key={step}
+                  className="flex items-start gap-4 p-5 rounded-3xl bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/10 hover:border-zinc-200 dark:hover:border-white/10 transition-all select-text group/item"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 group-hover/item:bg-emerald-400 transition-colors mt-2 shrink-0" />
+                  <span className="text-sm text-zinc-600 dark:text-zinc-300 font-light leading-relaxed">{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </motion.div>
+
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="sm:max-w-[600px] glass-panel border-border/10 p-0 overflow-hidden">
+          <DialogHeader className="p-6 border-b border-border/10 bg-secondary/20">
+            <DialogTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+              {editType === "summary" ? <Sparkles className="h-4 w-4 text-primary" /> : <ListTodo className="h-4 w-4 text-primary" />}
+              {editType === "summary" ? "Editar Resumo Clínico" : editType === "topics" ? "Editar Tópicos Chave" : "Editar Condutas Sugeridas"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="p-6 space-y-4">
+            {editType === "summary" ? (
+              <Textarea
+                value={editedSummary}
+                onChange={(e) => setEditedSummary(e.target.value)}
+                className="min-h-[250px] bg-secondary/20 border-border/10 rounded-xl focus:ring-primary/20 text-sm leading-relaxed"
+                placeholder="Edite o resumo da IA aqui..."
+              />
+            ) : (
+              <div className="space-y-3">
+                {editedSteps.map((step, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <Textarea
+                      value={step}
+                      onChange={(e) => {
+                        const newSteps = [...editedSteps];
+                        newSteps[idx] = e.target.value;
+                        setEditedSteps(newSteps);
+                      }}
+                      className="min-h-[80px] bg-secondary/20 border-border/10 rounded-xl text-xs py-2 h-auto"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditedSteps(editedSteps.filter((_, i) => i !== idx))}
+                      className="text-rose-500 hover:bg-rose-500/10 shrink-0 cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  onClick={() => setEditedSteps([...editedSteps, ""])}
+                  className="w-full border-dashed border-border/20 bg-transparent hover:bg-secondary/10 text-xs font-bold uppercase tracking-wider cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-2" /> {editType === "topics" ? "Adicionar Tópico" : "Adicionar Conduta"}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="p-4 border-t border-border/10 bg-secondary/10 flex sm:justify-between items-center">
+            <span className="text-[10px] text-muted-foreground italic ml-2">As alterações afetam apenas o prontuário deste paciente.</span>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setIsEditing(false)} className="rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer">Cancelar</Button>
+              <Button
+                onClick={handleUpdate}
+                disabled={isUpdating}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-6 text-xs font-bold uppercase tracking-wider min-w-[120px] cursor-pointer"
+              >
+                {isUpdating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Check className="h-3 w-3 mr-2" />}
+                Salvar Alterações
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};

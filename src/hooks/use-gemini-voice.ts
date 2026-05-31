@@ -1,0 +1,391 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+interface UseGeminiVoiceOptions {
+    /** Gemini API Key */
+    apiKey: string | null;
+    /** Model to use */
+    model?: string;
+    /** System instruction for the AI */
+    systemInstruction?: string;
+    /** Voice name for responses */
+    voiceName?: string;
+    /** Language code */
+    language?: string;
+    /** Callback when AI response audio starts */
+    onSpeakingStart?: () => void;
+    /** Callback when AI response audio ends */
+    onSpeakingEnd?: () => void;
+    /** Callback when transcript is received */
+    onTranscript?: (text: string, isFinal: boolean) => void;
+    /** Callback when AI responds with text */
+    onResponseText?: (text: string) => void;
+    /** Callback for audio intensity (0-1) */
+    onAudioIntensity?: (intensity: number) => void;
+}
+
+interface UseGeminiVoiceReturn {
+    /** Whether the session is active */
+    isConnected: boolean;
+    /** Whether the AI is currently speaking */
+    isSpeaking: boolean;
+    /** Whether we are listening to user input */
+    isListening: boolean;
+    /** Whether the AI is processing/thinking */
+    isProcessing: boolean;
+    /** Current audio intensity (0-1) from microphone (Reactive) */
+    audioIntensity: number;
+    /** Function to get raw audio intensity instantly without re-rendering */
+    getAudioVolume: () => number;
+    /** Last transcript from user */
+    transcript: string;
+    /** Last response from AI */
+    lastResponse: string;
+    /** Start the voice session */
+    startSession: () => Promise<void>;
+    /** End the voice session */
+    endSession: () => void;
+    /** Toggle listening on/off */
+    toggleListening: () => void;
+    /** Send a text message instead of voice */
+    sendTextMessage: (text: string) => void;
+    /** Any error that occurred */
+    error: string | null;
+}
+
+// Audio worklet for processing microphone input
+const AUDIO_WORKLET_CODE = `
+class AudioProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.bufferSize = 4096;
+        this.buffer = new Float32Array(this.bufferSize);
+        this.bufferIndex = 0;
+    }
+
+    process(inputs, outputs, parameters) {
+        const input = inputs[0];
+        if (input.length > 0) {
+            const channelData = input[0];
+            for (let i = 0; i < channelData.length; i++) {
+                this.buffer[this.bufferIndex++] = channelData[i];
+                if (this.bufferIndex >= this.bufferSize) {
+                    // Convert to 16-bit PCM
+                    const pcm16 = new Int16Array(this.bufferSize);
+                    for (let j = 0; j < this.bufferSize; j++) {
+                        pcm16[j] = Math.max(-32768, Math.min(32767, Math.floor(this.buffer[j] * 32768)));
+                    }
+                    this.port.postMessage({ type: 'audio', data: pcm16.buffer });
+                    this.bufferIndex = 0;
+                }
+            }
+            
+            // Calculate intensity
+            let sum = 0;
+            for (let i = 0; i < channelData.length; i++) {
+                sum += Math.abs(channelData[i]);
+            }
+            const intensity = Math.min(1, (sum / channelData.length) * 10);
+            this.port.postMessage({ type: 'intensity', value: intensity });
+        }
+        return true;
+    }
+}
+registerProcessor('audio-processor', AudioProcessor);
+`;
+
+export function useGeminiVoice({
+    apiKey,
+    model = 'gemini-3.1-flash-live-preview',
+    systemInstruction = 'Você é o Synapse AI, um assistente de voz inteligente e empático. Responda de forma conversacional, natural e concisa em português brasileiro. Seja prestativo e amigável.',
+    voiceName = 'Puck',
+    language: _language = 'pt-BR',
+    onSpeakingStart,
+    onSpeakingEnd,
+    onTranscript: _onTranscript,
+    onResponseText,
+    onAudioIntensity,
+}: UseGeminiVoiceOptions): UseGeminiVoiceReturn {
+    const [isConnected, setIsConnected] = useState(false);
+    const [isSpeaking, setIsSpeaking] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [audioIntensity, setAudioIntensity] = useState(0);
+    const audioIntensityRef = useRef(0);
+    const lastIntensityUpdateRef = useRef(0);
+    const [transcript, _setTranscript] = useState('');
+    const [lastResponse, setLastResponse] = useState('');
+    const [error, setError] = useState<string | null>(null);
+
+    const wsRef = useRef<WebSocket | null>(null);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const workletNodeRef = useRef<AudioWorkletNode | null>(null);
+    const audioQueueRef = useRef<ArrayBuffer[]>([]);
+    const isPlayingRef = useRef(false);
+
+    // Play queued audio responses
+    const playAudioQueue = useCallback(async () => {
+        if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
+
+        isPlayingRef.current = true;
+        setIsSpeaking(true);
+        onSpeakingStart?.();
+
+        while (audioQueueRef.current.length > 0) {
+            const audioData = audioQueueRef.current.shift();
+            if (!audioData || !audioContextRef.current) continue;
+
+            try {
+                // Decode audio data (assuming PCM 16-bit at 24kHz)
+                const audioBuffer = await audioContextRef.current.decodeAudioData(audioData.slice(0));
+                const source = audioContextRef.current.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContextRef.current.destination);
+
+                await new Promise<void>((resolve) => {
+                    source.onended = () => resolve();
+                    source.start();
+                });
+            } catch (e) {
+                console.error('[GeminiVoice] Audio decode error:', e);
+            }
+        }
+
+        isPlayingRef.current = false;
+        setIsSpeaking(false);
+        onSpeakingEnd?.();
+    }, [onSpeakingStart, onSpeakingEnd]);
+
+    // Handle WebSocket messages
+    const handleMessage = useCallback((event: MessageEvent) => {
+        try {
+            const data = JSON.parse(event.data);
+
+            if (data.serverContent) {
+                const content = data.serverContent;
+
+                // Handle model turn (AI response)
+                if (content.modelTurn) {
+                    const parts = content.modelTurn.parts || [];
+                    for (const part of parts) {
+                        if (part.text) {
+                            setLastResponse(prev => prev + part.text);
+                            onResponseText?.(part.text);
+                        }
+                        if (part.inlineData?.mimeType?.startsWith('audio/')) {
+                            // Decode base64 audio and queue for playback
+                            const audioBytes = atob(part.inlineData.data);
+                            const audioArray = new Uint8Array(audioBytes.length);
+                            for (let i = 0; i < audioBytes.length; i++) {
+                                audioArray[i] = audioBytes.charCodeAt(i);
+                            }
+                            audioQueueRef.current.push(audioArray.buffer);
+                            playAudioQueue();
+                        }
+                    }
+                }
+
+                // Handle turn complete
+                if (content.turnComplete) {
+                    setIsProcessing(false);
+                }
+            }
+
+            // Handle tool calls if needed
+            if (data.toolCall) {
+                console.log('[GeminiVoice] Tool call:', data.toolCall);
+            }
+
+        } catch (e) {
+            console.error('[GeminiVoice] Message parse error:', e);
+        }
+    }, [onResponseText, playAudioQueue]);
+
+    // Start voice session
+    const startSession = useCallback(async () => {
+        if (isConnected) return;
+        if (!apiKey) {
+            setError('API key not available');
+            return;
+        }
+
+        try {
+            setError(null);
+
+            // Create audio context
+            audioContextRef.current = new AudioContext({ sampleRate: 16000 });
+
+            // Create audio worklet
+            const workletBlob = new Blob([AUDIO_WORKLET_CODE], { type: 'application/javascript' });
+            const workletUrl = URL.createObjectURL(workletBlob);
+            await audioContextRef.current.audioWorklet.addModule(workletUrl);
+            URL.revokeObjectURL(workletUrl);
+
+            // Get microphone access
+            streamRef.current = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    sampleRate: 16000,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                },
+            });
+
+            // Connect microphone to worklet
+            const source = audioContextRef.current.createMediaStreamSource(streamRef.current);
+            workletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'audio-processor');
+
+            workletNodeRef.current.port.onmessage = (event) => {
+                if (event.data.type === 'intensity') {
+                    audioIntensityRef.current = event.data.value;
+                    const now = Date.now();
+                    // Throttle React state updates to 100ms to avoid breaking the UI
+                    if (now - lastIntensityUpdateRef.current > 100) {
+                        setAudioIntensity(event.data.value);
+                        lastIntensityUpdateRef.current = now;
+                    }
+                    onAudioIntensity?.(event.data.value);
+                } else if (event.data.type === 'audio' && wsRef.current?.readyState === WebSocket.OPEN && isListening) {
+                    // Send audio to Gemini
+                    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(event.data.data)));
+                    wsRef.current.send(JSON.stringify({
+                        realtimeInput: {
+                            mediaChunks: [{
+                                mimeType: 'audio/pcm;rate=16000',
+                                data: base64Audio,
+                            }],
+                        },
+                    }));
+                }
+            };
+
+            source.connect(workletNodeRef.current);
+
+            // Connect to Gemini Live API via WebSocket
+            const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+            wsRef.current = new WebSocket(wsUrl);
+
+            wsRef.current.onopen = () => {
+                // Send setup message
+                wsRef.current?.send(JSON.stringify({
+                    setup: {
+                        model: `models/${model}`,
+                        generationConfig: {
+                            responseModalities: ['AUDIO'],
+                            speechConfig: {
+                                voiceConfig: {
+                                    prebuiltVoiceConfig: {
+                                        voiceName: voiceName,
+                                    },
+                                },
+                            },
+                        },
+                        systemInstruction: {
+                            parts: [{ text: systemInstruction }],
+                        },
+                    },
+                }));
+
+                setIsConnected(true);
+                setIsListening(true);
+            };
+
+            wsRef.current.onmessage = handleMessage;
+
+            wsRef.current.onerror = (e) => {
+                console.error('[GeminiVoice] WebSocket error:', e);
+                setError('Connection error');
+            };
+
+            wsRef.current.onclose = () => {
+                setIsConnected(false);
+                setIsListening(false);
+            };
+
+        } catch (e: any) {
+            console.error('[GeminiVoice] Start error:', e);
+            setError(e.message || 'Failed to start voice session');
+        }
+    }, [apiKey, model, systemInstruction, voiceName, isConnected, isListening, handleMessage, onAudioIntensity]);
+
+    // End voice session
+    const endSession = useCallback(() => {
+        if (wsRef.current) {
+            wsRef.current.close();
+            wsRef.current = null;
+        }
+
+        if (workletNodeRef.current) {
+            workletNodeRef.current.disconnect();
+            workletNodeRef.current = null;
+        }
+
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
+        }
+
+        setIsConnected(false);
+        setIsListening(false);
+        setIsSpeaking(false);
+        setIsProcessing(false);
+        setAudioIntensity(0);
+        audioIntensityRef.current = 0;
+    }, []);
+
+    // Toggle listening
+    const toggleListening = useCallback(() => {
+        if (!isConnected) {
+            startSession();
+        } else {
+            setIsListening(prev => !prev);
+        }
+    }, [isConnected, startSession]);
+
+    // Send text message
+    const sendTextMessage = useCallback((text: string) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+        setIsProcessing(true);
+        setLastResponse('');
+
+        wsRef.current.send(JSON.stringify({
+            clientContent: {
+                turns: [{
+                    role: 'user',
+                    parts: [{ text }],
+                }],
+                turnComplete: true,
+            },
+        }));
+    }, []);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            endSession();
+        };
+    }, [endSession]);
+
+    return {
+        isConnected,
+        isSpeaking,
+        isListening,
+        isProcessing,
+        audioIntensity,
+        getAudioVolume: useCallback(() => audioIntensityRef.current, []),
+        transcript,
+        lastResponse,
+        startSession,
+        endSession,
+        toggleListening,
+        sendTextMessage,
+        error,
+    };
+}

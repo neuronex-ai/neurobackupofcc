@@ -1,0 +1,167 @@
+import { forwardRef, memo, useEffect, useImperativeHandle, useRef } from 'react';
+
+interface JitsiMeetProps {
+  roomName: string;
+  jwt?: string;
+  userName: string;
+  userEmail?: string;
+  userAvatarUrl?: string;
+  subject?: string;
+  onMeetingEnd: () => void;
+  onTranscriptUpdate?: (entry: { participant: { name: string }, text: string }) => void;
+  onMuteStatusChanged?: (status: { audio: boolean, video: boolean }) => void;
+  onConferenceJoined?: () => void;
+}
+
+export interface JitsiRef {
+  toggleAudio: () => void;
+  toggleVideo: () => void;
+  toggleScreenShare: () => void;
+  toggleChat: () => void;
+  executeCommand: (command: string, ...args: any[]) => void;
+}
+
+const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({ 
+  roomName, 
+  jwt, 
+  userName, 
+  userEmail,
+  userAvatarUrl,
+  subject,
+  onMeetingEnd,
+  onTranscriptUpdate,
+  onMuteStatusChanged,
+  onConferenceJoined
+}, ref) => {
+  const jitsiContainerRef = useRef<HTMLDivElement>(null);
+  const apiRef = useRef<any>(null);
+
+  useImperativeHandle(ref, () => ({
+    toggleAudio: () => apiRef.current?.executeCommand('toggleAudio'),
+    toggleVideo: () => apiRef.current?.executeCommand('toggleVideo'),
+    toggleScreenShare: () => apiRef.current?.executeCommand('toggleShareScreen'),
+    toggleChat: () => apiRef.current?.executeCommand('toggleChat'),
+    executeCommand: (command: string, ...args: any[]) => apiRef.current?.executeCommand(command, ...args),
+  }));
+
+  useEffect(() => {
+    if (!window.JitsiMeetExternalAPI) {
+      const script = document.createElement('script');
+      script.src = 'https://8x8.vc/vpaas-magic-cookie-dc267e44c7014498a3a128625367fc67/external_api.js';
+      script.async = true;
+      script.onload = initJitsi;
+      document.body.appendChild(script);
+    } else {
+      initJitsi();
+    }
+
+    function initJitsi() {
+      if (!jitsiContainerRef.current || apiRef.current) return;
+
+      const domain = '8x8.vc';
+      const options = {
+        roomName: roomName,
+        width: '100%',
+        height: '100%',
+        parentNode: jitsiContainerRef.current,
+        jwt: jwt,
+        lang: 'pt-BR',
+        userInfo: {
+          displayName: userName,
+          email: userEmail,
+          avatarUrl: userAvatarUrl
+        },
+        configOverwrite: {
+          // Configurações CRÍTICAS para pular o Pre-Join
+          prejoinPageEnabled: false, // Método antigo
+          prejoinConfig: {
+            enabled: false // Método novo (JaaS/Versões recentes)
+          },
+          startWithAudioMuted: false,
+          startWithVideoMuted: false,
+          requireDisplayName: false,
+          skipMeetingPrejoin: true,
+          
+          // UI Geral
+          disableDeepLinking: true, 
+          enableWelcomePage: false,
+          enableClosePage: false,
+          toolbarButtons: [], 
+          notifications: [],
+          disable1On1Mode: true,
+          disableProfile: true,
+          hideConferenceTimer: true,
+          hideConferenceSubject: false,
+          subject: subject || "Teleconsulta NeuroNex",
+        },
+        interfaceConfigOverwrite: {
+          TOOLBAR_BUTTONS: [], 
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          SHOW_BRAND_WATERMARK: false,
+          SHOW_POWERED_BY: false,
+          DEFAULT_BACKGROUND: '#050505',
+          DISABLE_VIDEO_BACKGROUND: true,
+          filmStripOnly: false,
+          VERTICAL_FILMSTRIP: true,
+          HIDE_INVITE_MORE_HEADER: true,
+          recentListEnabled: false,
+          launchInWebOptionEnabled: false,
+        }
+      };
+
+      // @ts-ignore
+      const api = new window.JitsiMeetExternalAPI(domain, options);
+      apiRef.current = api;
+
+      if (subject) {
+        setTimeout(() => {
+            api.executeCommand('subject', subject);
+        }, 1000);
+      }
+
+      api.addEventListeners({
+        readyToClose: onMeetingEnd,
+        videoConferenceJoined: () => {
+            if (onConferenceJoined) onConferenceJoined();
+        },
+        transcriptionChunkReceived: (data: any) => {
+            if (onTranscriptUpdate) {
+                const participantName = data.participantName || "Participante";
+                const transcriptText = data.transcript?.map((t: any) => t.text).join(' ') || "";
+                if (transcriptText) {
+                    onTranscriptUpdate({ 
+                        participant: { name: participantName }, 
+                        text: transcriptText 
+                    });
+                }
+            }
+        },
+        audioMuteStatusChanged: (data: any) => {
+            if (onMuteStatusChanged) onMuteStatusChanged({ audio: data.muted, video: false });
+        },
+        videoMuteStatusChanged: (data: any) => {
+            if (onMuteStatusChanged) onMuteStatusChanged({ audio: false, video: data.muted });
+        }
+      });
+    }
+
+    return () => {
+      if (apiRef.current) {
+        apiRef.current.dispose();
+        apiRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); 
+
+  return (
+    <div 
+        ref={jitsiContainerRef} 
+        className="w-full h-full rounded-[24px] overflow-hidden bg-[#050505]"
+        style={{ pointerEvents: 'auto' }}
+    />
+  );
+});
+
+export const JitsiMeet = memo(JitsiMeetComponent);

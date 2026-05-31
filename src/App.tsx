@@ -1,0 +1,212 @@
+import { Routes, Route, Navigate, HashRouter, BrowserRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
+import { SessionContextProvider } from "@/components/auth/SessionContextProvider";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { PatientProtectedRoute } from "@/components/auth/PatientProtectedRoute";
+import { AIProvider } from "@/context/AIContext";
+import { SynapseProvider } from "@/context/SynapseProvider";
+import { SubscriptionProvider } from "@/context/SubscriptionContext";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import { TourProvider } from "@/components/onboarding/TourContext";
+import { CookieConsent } from "@/components/landing/CookieConsent";
+import { ScrollToTop } from "@/components/layout/ScrollToTop";
+import { isElectron } from "@/lib/electron";
+import { ElectronTitleBar } from "@/components/electron/ElectronTitleBar";
+import { ElectronUpdateManager } from "@/components/electron/ElectronUpdateManager";
+import { useEffect, lazy, Suspense } from "react";
+import { Loader2 } from "lucide-react";
+
+// [SWARM] Auditado pelo Agente 2 — Todos os imports estão em uso.
+
+// Pages
+// Lazy Loaded Public Page (Landing)
+const Index = lazy(() => import("@/pages/Index"));
+
+import AuthPage from "./pages/auth/AuthPage";
+import EmailConfirmedPage from "./pages/auth/EmailConfirmedPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+import CreateAccount from "./pages/auth/CreateAccount";
+import AccountCreated from "./pages/auth/AccountCreated";
+import GoogleConnectionSuccess from "./pages/auth/GoogleConnectionSuccess";
+import ConfirmAppointment from "./pages/ConfirmAppointment";
+import JoinSession from "./pages/JoinSession";
+import PaymentCallback from "./pages/PaymentCallback";
+import NotFound from "./pages/public/NotFound";
+
+// Lazy Loaded Internal Pages (Optimized)
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Agenda = lazy(() => import("@/pages/Agenda"));
+const Pacientes = lazy(() => import("@/pages/patients-view"));
+const PatientDetail = lazy(() => import("@/pages/patients-view/PatientDetail"));
+const Notes = lazy(() => import("@/pages/Notes"));
+const Financeiro = lazy(() => import("@/pages/Financeiro"));
+
+import Ajustes from "./pages/Ajustes";
+const AIChat = lazy(() => import("./pages/AIChat"));
+const Teleconsulta = lazy(() => import("./pages/Teleconsulta"));
+const PatientPortal = lazy(() => import("./pages/PatientPortal"));
+
+// Lazy Loaded Public Pages (web only - excluded from main bundle)
+const Contact = lazy(() => import("@/pages/public/Contact"));
+const HelpCenter = lazy(() => import("@/pages/public/HelpCenter"));
+const Legal = lazy(() => import("@/pages/legal/Legal"));
+const PoliticaDePrivacidade = lazy(() => import("@/pages/legal/PoliticaDePrivacidade"));
+const TermosDeUso = lazy(() => import("@/pages/legal/TermosDeUso"));
+const ConfiguracoesDeCookies = lazy(() => import("@/pages/legal/ConfiguracoesDeCookies"));
+const Newsletter = lazy(() => import("@/pages/public/Newsletter"));
+const FinanceLanding = lazy(() => import("@/pages/FinanceLanding"));
+const Funcionalidades = lazy(() => import("@/pages/Funcionalidades"));
+const SynapseLanding = lazy(() => import("@/pages/SynapseLanding"));
+
+// Desktop Help (Electron only - Lazy loaded)
+const DesktopHelpCenter = lazy(() => import("./pages/desktop/DesktopHelpCenter"));
+const AnamnesisPublic = lazy(() => import("./pages/public/AnamnesisPublic"));
+const SynapseGlobalShell = lazy(() => import("@/components/synapse/SynapseGlobalShell").then(m => ({ default: m.SynapseGlobalShell })));
+
+const queryClient = new QueryClient();
+
+// ─── Loading State ────────────────────────────────────────────────────
+const PageLoader = () => (
+  <div className="h-screen w-full flex items-center justify-center bg-background">
+    <div className="relative">
+      <div className="absolute inset-0 bg-foreground/10 blur-2xl animate-pulse rounded-full" />
+      <Loader2 className="h-8 w-8 animate-spin text-foreground/20 relative z-10" />
+    </div>
+  </div>
+);
+
+// ─── Electron body offset for custom title bar ────────────────────────
+const ElectronBodyOffset = () => {
+  useEffect(() => {
+    if (isElectron()) {
+      document.body.style.paddingTop = '32px';
+    }
+    return () => {
+      document.body.style.paddingTop = '';
+    };
+  }, []);
+  return null;
+};
+
+// ─── Shared Routes (available in both web and Electron) ───────────────
+const SharedRoutes = () => {
+  const electronMode = isElectron();
+
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        {/* ─── Root Route ─────────────────────────────────── */}
+        {electronMode ? (
+          <Route path="/" element={<Navigate to="/auth" replace />} />
+        ) : (
+          <Route path="/" element={<Index />} />
+        )}
+
+        {/* ─── Auth Routes ────────────────────────────────── */}
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/email-confirmed" element={<EmailConfirmedPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/create-account" element={<CreateAccount />} />
+        <Route path="/account-created" element={<AccountCreated />} />
+        <Route path="/google-connection-success" element={<GoogleConnectionSuccess />} />
+
+        {/* ─── Semi-Public Routes ─────────────────────────── */}
+        <Route path="/confirmar-agendamento/:token" element={<ConfirmAppointment />} />
+        <Route path="/join/:appointmentId" element={<JoinSession />} />
+        <Route path="/payment/callback" element={<PaymentCallback />} />
+        <Route path="/anamnese-externa/:id" element={<AnamnesisPublic />} />
+
+        {/* ─── Public Pages (web only) ────────────────────── */}
+        {!electronMode && (
+          <>
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/help" element={<HelpCenter />} />
+            <Route path="/legal" element={<Legal />} />
+            <Route path="/politica-de-privacidade" element={<PoliticaDePrivacidade />} />
+            <Route path="/termos-de-uso" element={<TermosDeUso />} />
+            <Route path="/configuracoes-de-cookies" element={<ConfiguracoesDeCookies />} />
+            <Route path="/newsletter" element={<Newsletter />} />
+            <Route path="/neurofinance" element={<FinanceLanding />} />
+            <Route path="/neurobank" element={<Navigate to="/neurofinance" replace />} />
+            <Route path="/funcionalidades" element={<Funcionalidades />} />
+            <Route path="/synapse" element={<SynapseLanding />} />
+          </>
+        )}
+
+        {/* ─── Desktop Help (Electron only) ───────────────── */}
+        {electronMode && (
+          <Route path="/help" element={<ProtectedRoute><DesktopHelpCenter /></ProtectedRoute>} />
+        )}
+
+        {/* ─── Protected Professional Routes ──────────────── */}
+        <Route path="/synapse-ai" element={<ProtectedRoute><AIChat /></ProtectedRoute>} />
+
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/agenda" element={<ProtectedRoute><Agenda /></ProtectedRoute>} />
+        <Route path="/pacientes" element={<ProtectedRoute><Pacientes /></ProtectedRoute>} />
+        <Route path="/pacientes/:id" element={<ProtectedRoute><PatientDetail /></ProtectedRoute>} />
+        <Route path="/notas" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
+        <Route path="/financeiro" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
+
+        <Route path="/ajustes" element={<ProtectedRoute><Ajustes /></ProtectedRoute>} />
+        <Route path="/teleconsulta" element={<ProtectedRoute><Teleconsulta /></ProtectedRoute>} />
+
+        {/* ─── Patient Portal Routes (Web Only) ──────────────────────── */}
+        {!electronMode && (
+          <Route path="/portal" element={<PatientProtectedRoute><PatientPortal /></PatientProtectedRoute>} />
+        )}
+
+        {/* ─── Fallback ───────────────────────────────────── */}
+        <Route path="/404" element={<NotFound />} />
+        <Route path="*" element={<Navigate to={electronMode ? "/auth" : "/"} replace />} />
+      </Routes>
+    </Suspense>
+  );
+};
+
+function App() {
+  const electronMode = isElectron();
+  const Router = electronMode ? HashRouter : BrowserRouter;
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+        <SessionContextProvider>
+          <Router>
+            <ScrollToTop />
+            <AIProvider>
+              <SynapseProvider>
+                <SubscriptionProvider>
+                  <TourProvider>
+                    <TooltipProvider>
+                      {/* Electron-only components */}
+                      {electronMode && <ElectronTitleBar />}
+                      {electronMode && <ElectronBodyOffset />}
+                      {electronMode && <ElectronUpdateManager />}
+
+                      {/* Synapse Global Shell — Desktop only (browser + Electron), gated by SynapseProvider.isVisible */}
+                      <Suspense fallback={null}>
+                        <SynapseGlobalShell />
+                      </Suspense>
+
+                      <SharedRoutes />
+
+                      <Toaster position="top-right" />
+
+                      {/* CookieConsent only on web */}
+                      {!electronMode && <CookieConsent />}
+                    </TooltipProvider>
+                  </TourProvider>
+                </SubscriptionProvider>
+              </SynapseProvider>
+            </AIProvider>
+          </Router>
+        </SessionContextProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;

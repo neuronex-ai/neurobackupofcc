@@ -1,0 +1,278 @@
+/**
+ * ─── PixGerarQrCode — Gerar QR Code Pix ─────────────────────────
+ * Generates a PIX QR Code (immediate charge) via NeuroFinance / Asaas.
+ * Uses asaas-create-payment Edge Function.
+ * ─────────────────────────────────────────────────────────────────
+ */
+
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    QrCode,
+    Loader2,
+    Copy,
+    DollarSign,
+    FileText,
+    User,
+    RefreshCw,
+} from "lucide-react";
+import { useNeuroFinancePix } from "@/hooks/use-neurofinance-pix";
+import { toast } from "sonner";
+
+export function PixGerarQrCode() {
+    const [valor, setValor] = useState("");
+    const [descricao, setDescricao] = useState("");
+    const [nomeDevedor, setNomeDevedor] = useState("");
+    const [cpfDevedor, setCpfDevedor] = useState("");
+    const [expiracao, setExpiracao] = useState("3600");
+    const [generatedCharge, setGeneratedCharge] = useState<any>(null);
+    const [step, setStep] = useState<"form" | "result">("form");
+    const { createCharge } = useNeuroFinancePix();
+
+    const handleGenerate = async () => {
+        if (!valor || parseFloat(valor) <= 0) {
+            toast.error("Informe um valor válido.");
+            return;
+        }
+
+        try {
+            const devedor = nomeDevedor.trim() ? {
+                nome: nomeDevedor,
+                ...(cpfDevedor.trim() ? { cpf: cpfDevedor.replace(/\D/g, "") } : {}),
+            } : undefined;
+
+            const result = await createCharge.mutateAsync({
+                valor: parseFloat(valor),
+                descricao: descricao || "Cobrança Pix NeuroFinance",
+                expiracao: Math.round((parseInt(expiracao) || 3600) / 60),
+                devedor,
+            });
+
+            setGeneratedCharge(result);
+            setStep("result");
+        } catch {
+            // Error handled by mutation
+        }
+    };
+
+    const handleCopyPixCode = () => {
+        const code = generatedCharge?.checkout_url || generatedCharge?.payment_id || "";
+        if (code) {
+            navigator.clipboard.writeText(code);
+            toast.success("Link de pagamento copiado!");
+        }
+    };
+
+    const handleReset = () => {
+        setValor("");
+        setDescricao("");
+        setNomeDevedor("");
+        setCpfDevedor("");
+        setGeneratedCharge(null);
+        setStep("form");
+    };
+
+    const expiracaoOptions = [
+        { value: "1800", label: "30 min" },
+        { value: "3600", label: "1 hora" },
+        { value: "7200", label: "2 horas" },
+        { value: "86400", label: "24 horas" },
+    ];
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="p-6 rounded-[28px] bg-zinc-900 dark:bg-white border border-zinc-800 dark:border-zinc-200">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-white/10 dark:bg-black/5 text-white dark:text-zinc-900 flex items-center justify-center shadow-lg">
+                        <QrCode className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-black uppercase tracking-tight text-white dark:text-zinc-900">
+                            Gerar QR Code Pix
+                        </h3>
+                        <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mt-0.5">
+                            Crie um QR Code e receba pagamentos na hora • NeuroFinance API
+                        </p>
+                    </div>
+                    <div className="ml-auto px-3 py-1 rounded-full bg-white/10 dark:bg-black/5 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900">
+                        Sandbox
+                    </div>
+                </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+                {step === "form" && (
+                    <motion.div
+                        key="form"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="space-y-4"
+                    >
+                        {/* Valor */}
+                        <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
+                            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
+                                <DollarSign className="w-3 h-3 inline mr-1.5 -mt-0.5" />
+                                Valor da cobrança (R$)
+                            </label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                value={valor}
+                                onChange={(e) => setValor(e.target.value)}
+                                placeholder="0,00"
+                                className="w-full h-16 px-4 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-3xl font-black text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
+                            />
+                        </div>
+
+                        {/* Expiração */}
+                        <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
+                            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
+                                Validade do QR Code
+                            </label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {expiracaoOptions.map((opt) => (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => setExpiracao(opt.value)}
+                                        className={cn(
+                                            "h-10 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all",
+                                            expiracao === opt.value
+                                                ? "bg-zinc-900 dark:bg-white text-white dark:text-black shadow-lg"
+                                                : "bg-zinc-100 dark:bg-white/5 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-white/10"
+                                        )}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Devedor (optional) */}
+                        <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
+                            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
+                                <User className="w-3 h-3 inline mr-1.5 -mt-0.5" />
+                                Identificar pagador (Opcional)
+                            </label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <input
+                                    value={nomeDevedor}
+                                    onChange={(e) => setNomeDevedor(e.target.value)}
+                                    placeholder="Nome completo"
+                                    className="h-10 px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
+                                />
+                                <input
+                                    value={cpfDevedor}
+                                    onChange={(e) => setCpfDevedor(e.target.value)}
+                                    placeholder="CPF"
+                                    className="h-10 px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Descrição */}
+                        <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
+                            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
+                                <FileText className="w-3 h-3 inline mr-1.5 -mt-0.5" />
+                                Descrição (Opcional)
+                            </label>
+                            <input
+                                value={descricao}
+                                onChange={(e) => setDescricao(e.target.value)}
+                                placeholder="Ex: Pagamento consulta Dr. João"
+                                className="w-full h-10 px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
+                            />
+                        </div>
+
+                        {/* Generate */}
+                        <button
+                            onClick={handleGenerate}
+                            disabled={createCharge.isPending || !valor}
+                            className={cn(
+                                "w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300",
+                                valor
+                                    ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 shadow-2xl"
+                                    : "bg-zinc-100 dark:bg-white/5 text-zinc-400 cursor-not-allowed"
+                            )}
+                        >
+                            {createCharge.isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <>
+                                    <QrCode className="w-4 h-4" />
+                                    Gerar QR Code
+                                </>
+                            )}
+                        </button>
+                    </motion.div>
+                )}
+
+                {step === "result" && generatedCharge && (
+                    <motion.div
+                        key="result"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="space-y-5"
+                    >
+                        {/* QR Code Display */}
+                        <div className="p-8 rounded-[28px] bg-white dark:bg-white/[0.03] border border-zinc-200/50 dark:border-white/[0.06] flex flex-col items-center text-center">
+                            <div className="w-52 h-52 rounded-[32px] bg-white p-4 shadow-2xl flex items-center justify-center mb-6 border border-zinc-100 dark:border-white/5 relative group transition-transform hover:scale-[1.02] duration-500">
+                                {generatedCharge?.pix_qr_code ? (
+                                    <img
+                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(generatedCharge.pix_qr_code)}`}
+                                        alt="PIX QR Code"
+                                        className="w-full h-full object-contain"
+                                    />
+                                ) : (
+                                    <div className="text-center">
+                                        <QrCode className="w-16 h-16 text-zinc-900 mx-auto mb-2 opacity-20" />
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">
+                                            QR Code Indisponível
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="text-3xl font-black text-zinc-900 dark:text-white mb-1">
+                                R$ {parseFloat(valor).toFixed(2)}
+                            </div>
+
+                            {generatedCharge?.payment_id && (
+                                <p className="text-[9px] font-mono text-zinc-400 mt-2">
+                                    ID: {generatedCharge.payment_id}
+                                </p>
+                            )}
+
+                            {generatedCharge?.status && (
+                                <span className="mt-3 px-3 py-1 rounded-full bg-zinc-100 dark:bg-white/10 text-[8px] font-black uppercase tracking-widest text-zinc-900 dark:text-white">
+                                    {generatedCharge.status}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Copy & Actions */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleCopyPixCode}
+                                className="flex-1 h-12 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-black font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                            >
+                                <Copy className="w-3.5 h-3.5" />
+                                Copiar Pix Copia e Cola
+                            </button>
+                            <button
+                                onClick={handleReset}
+                                className="h-12 px-5 rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all"
+                            >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                Novo
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}

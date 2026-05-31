@@ -1,0 +1,254 @@
+# COLEÇÃO DE ENDPOINTS DA API DO CFP (TRANSPARÊNCIA)
+# ---------------------------------------------------------
+# Cole aqui os comandos cURL ou as URLs dos endpoints que você encontrou.
+# Estamos procurando principalmente por "Legislação", "Normas", "Resoluções" ou "Código de Ética".
+#
+# Exemplo (baseado nas suas imagens):
+# curl https://transparencia.cfp.org.br/crp01/wp-json/wp/v2/ata
+#
+# Cole abaixo os cURLs de "Legislação" e "Normas":
+# ------------------------------------------------------------------------------------------------------
+# URL Base: 'https://transparencia.cfp.org.br/'. O que mudam são os endpoints. Todas operações cURL são método GET - No estilo do exemplo abaixo:
+# curl -X 'GET' \
+#   'https://transparencia.cfp.org.br/wp-json/wp/v2/pages?slug=agenda' \
+#   -H 'accept: application/json'
+# ------------------------------------------------------------------------------------------------------
+Endpoints do módulo Institucional:
+
+Ata
+GET
+/crp01/wp-json/wp/v2/ata
+Atas das reuniões do Conselho
+
+GET
+/crp01/wp-json/wp/v2/ata/{id}
+Obter ata por ID
+
+Comissão
+GET
+/crp01/wp-json/wp/v2/comissao
+Composição das Comissões do Conselho
+
+GET
+/crp01/wp-json/wp/v2/comissao/{id}
+Obter comissão por ID
+
+Eleição
+GET
+/crp01/wp-json/wp/v2/eleicao
+Eleições do Conselho
+
+GET
+/crp01/wp-json/wp/v2/eleicao/{id}
+Obter eleição por ID
+
+Gestão
+GET
+/crp01/wp-json/wp/v2/gestao
+Gestões do Conselho
+
+GET
+/crp01/wp-json/wp/v2/gestao/{id}
+Obter uma Gestão Específica do Conselho
+
+Serviços
+GET
+/crp01/wp-json/wp/v2/servicos
+Serviços disponibilizados pelo Conselho
+
+GET
+/crp01/wp-json/wp/v2/servicos/{id}
+Serviço por ID
+
+Agenda
+GET
+/wp-json/wp/v2/pages?slug=agenda
+Retorna dados da página Agenda
+
+Apresentação
+GET
+/wp-json/wp/v2/pages?slug=apresentacao
+Retorna dados da página Apresentação
+
+----------------------------------------------------------------------------------------------------------
+Endpoints do módulo Legislação:
+GET
+/crp01/wp-json/wp/v2/legislacao
+Legislações do Conselho
+
+GET
+/crp01/wp-json/wp/v2/legislacao/{id}
+Obter uma Legislação Específica
+
+
+GET
+/crp01/wp-json/wp/v2/legislacao_categoria
+Categorias das legislações do Conselho
+-----------------------------------------------------------------------------------------------------------
+Endpoints do módulo Planejamento e Controle:
+GET
+/crp01/wp-json/wp/v2/planejamento
+Planejamento e controle do Conselho
+
+GET
+/crp01/wp-json/wp/v2/planejamento/{id}
+Obter um Planejamento Específico
+-----------------------------------------------------------------------------------------------------------
+Endpoints do módulo de Licitações e Contratos:
+
+GET
+/crp01/wp-json/wp/v2/contratos_e_convenios
+Obter Relação de Contratos e Convênios
+
+GET
+/crp01/wp-json/wp/v2/editais_e_avisos_de_contratacoes
+Obter Relação de editais e avisos de contratacoes
+
+GET
+/crp01/wp-json/wp/v2/ata_registro_preco
+Obter Relação de Atas de Registro de Preços
+
+GET
+/crp01/wp-json/wp/v2/chamada_publica
+Chamadas públicas do Conselho
+
+GET
+/crp01/wp-json/wp/v2/chamada_publica/{id}
+Obter uma Chamada Pública Específica
+
+GET
+/crp01/wp-json/wp/v2/pca
+Plano de Contratações Anuais do Conselho
+
+GET
+/crp01/wp-json/wp/v2/pca/{id}
+Obter um Plano de Contratação Anual Específico
+
+GET
+/crp01/wp-json/wp/v2/chamada_publica
+Obter uma lista das chamadas públicas do Conselho
+----------------------------------------------------------------------------------------------------------
+Endpoints do módulo de Finanças
+
+GET
+/crp01/wp-json/wp/v2/financa
+Finanças do Conselho
+
+GET
+/crp01/wp-json/wp/v2/financa/{id}
+Obter uma Finança Específica
+
+GET
+/crp01/wp-json/wp/v2/despesas
+Obter Despesas por Mês e Ano
+
+GET
+/crp01/wp-json/wp/v2/receitas
+Obter Receitas por Mês e Ano
+
+GET
+/crp01/wp-json/wp/v2/relacao_pagamentos
+Obter Relação de Pagamentos por Mês, Ano e Tipo de Pagamento
+----------------------------------------------------------------------------------------------------------
+Endpoints do módulo de Gestão de Pessoas
+
+Concurso
+
+GET
+/crp01/wp-json/wp/v2/concurso
+Concursos públicos do Conselho
+
+GET
+/crp01/wp-json/wp/v2/concurso/{id}
+Obter um Concurso Público Específico
+
+Finança
+
+GET
+/crp01/wp-json/wp/v2/folhas_de_pagamento
+Obter Relação das folhas de pagamento
+
+Passagens e Diárias
+
+GET
+/crp01/wp-json/wp/v2/diarias_e_auxilios_de_representacao
+Obter Relação das diárias e auxílios de Representação
+
+GET
+/crp01/wp-json/wp/v2/passagem_e_diaria
+Relatórios de passagens e diárias do Conselho
+
+GET
+/crp01/wp-json/wp/v2/passagem_e_diaria/{id}
+Obter Relatório de Passagem e Diária Específico
+
+Plano de Carreira
+
+GET
+/wp-json/wp/v2/pages?slug=plano-de-carreira
+Retorna dados da página Plano de Carreira
+
+Acordo Coletivo de Trabalho
+
+GET
+/wp-json/wp/v2/pages?slug=acordo-coletivo-de-trabalho
+Retorna dados da página Acordo Coletivo de Trabalho
+
+Organograma
+
+GET
+/wp-json/wp/v2/pages?slug=organograma
+Retorna dados da página Organograma
+
+Quadro de Empregados
+
+GET
+/wp-json/wp/v2/pages?slug=quadro-de-empregados
+-----------------------------------------------------------------------------------------------------------
+Endpoints do módulo de Psicóloga(o)
+
+Concurso
+GET
+/crp01/wp-json/wp/v2/concurso_titulo
+Concursos públicos para especialistas do Conselho
+
+Testes Psicológicos
+GET
+/wp-json/wp/v2/testes_psicologicos_xml
+Retorna os dados de testes psicológicos em XML
+
+Profissionais por regional
+
+GET
+/wp-json/wp/v2/profissionais_por_regional_xml
+Retorna os dados do quantitativo de profissionais em XML
+
+Cadastro de Denúncia
+GET
+/wp-json/wp/v2/pages?slug=cadastro-de-denuncia
+-----------------------------------------------------------------------------------------------------------
+Endpoints do módulo de Informação ao Cidadão
+
+Perguntas Frequentes
+GET
+/crp01/wp-json/wp/v2/pergunta_frequente
+Perguntas frequentes feitas ao Conselho
+
+GET
+/crp01/wp-json/wp/v2/pergunta_frequente/{id}
+Obter uma Pergunta Frequente Específica
+
+Serviço de Informação ao Cidadão
+GET
+/wp-json/wp/v2/pages?slug=servico-de-informacao-ao-cidadao-sic
+Obter dados do Serviço de Informação ao Cidadão (SIC)
+
+Registre o seu Pedido
+GET
+/wp-json/wp/v2/pages?slug=registre-o-seu-pedido
+Obter dados da página 'Registre o seu Pedido'
+
+Informações Sigilosas
+GET
+/wp-json/wp/v2/pages?slug=informacoes-sigilosas
+-----------------------------------------------------------------------------------------------------------
