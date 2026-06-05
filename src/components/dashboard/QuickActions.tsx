@@ -8,10 +8,51 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface QuickActionsProps {
-    variant?: 'compact' | 'grid' | 'dropdown';
+    variant?: 'compact' | 'grid' | 'dropdown' | 'dashboard-card';
 }
 
 export const QuickActions = ({ variant = 'compact' }: QuickActionsProps) => {
+    if (variant === 'dashboard-card') {
+        return (
+            <div className="flex flex-col p-6 lg:p-8 rounded-[24px] bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200/60 dark:border-white/[0.06] transition-all duration-500 hover:border-zinc-300 dark:hover:border-white/10">
+                {/* Card Header */}
+                <div className="flex items-center justify-between mb-6">
+                    <div className="space-y-0.5">
+                        <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.25em]">Atalhos</p>
+                        <h4 className="text-sm font-black text-black dark:text-white uppercase tracking-tight">Ações Rápidas</h4>
+                    </div>
+                    <div className="w-9 h-9 rounded-xl bg-zinc-900 dark:bg-white flex items-center justify-center text-white dark:text-zinc-900 shadow-lg">
+                        <Plus className="h-4 w-4" strokeWidth={2.5} />
+                    </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-3">
+                    <NewAppointmentModal>
+                        <button className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-white dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/[0.08] hover:border-zinc-300 dark:hover:border-white/[0.12] transition-all duration-300 group cursor-pointer">
+                            <Plus className="h-4 w-4 text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors" />
+                            <span className="text-[11px] font-bold uppercase tracking-[0.15em]">Agendar Sessão</span>
+                        </button>
+                    </NewAppointmentModal>
+
+                    <NewPatientModal>
+                        <button className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-white dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/[0.08] hover:border-zinc-300 dark:hover:border-white/[0.12] transition-all duration-300 group cursor-pointer">
+                            <UserPlus className="h-4 w-4 text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors" />
+                            <span className="text-[11px] font-bold uppercase tracking-[0.15em]">Novo Paciente</span>
+                        </button>
+                    </NewPatientModal>
+
+                    <NewTransactionModal>
+                        <button className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-white dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/[0.08] hover:border-zinc-300 dark:hover:border-white/[0.12] transition-all duration-300 group cursor-pointer">
+                            <CreditCard className="h-4 w-4 text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors" />
+                            <span className="text-[11px] font-bold uppercase tracking-[0.15em]">Lançar Taxa</span>
+                        </button>
+                    </NewTransactionModal>
+                </div>
+            </div>
+        );
+    }
+
     if (variant === 'dropdown') {
         return (
             <DropdownMenu>

@@ -21,8 +21,8 @@ import { Loader2 } from "lucide-react";
 // [SWARM] Auditado pelo Agente 2 — Todos os imports estão em uso.
 
 // Pages
-// Lazy Loaded Public Page (Landing)
-const Index = lazy(() => import("@/pages/Index"));
+// Lazy Loaded Public Page (Landing) - REMOVED FOR LEAN MVP
+// const Index = lazy(() => import("@/pages/Index"));
 
 import AuthPage from "./pages/auth/AuthPage";
 import EmailConfirmedPage from "./pages/auth/EmailConfirmedPage";
@@ -48,17 +48,8 @@ const AIChat = lazy(() => import("./pages/AIChat"));
 const Teleconsulta = lazy(() => import("./pages/Teleconsulta"));
 const PatientPortal = lazy(() => import("./pages/PatientPortal"));
 
-// Lazy Loaded Public Pages (web only - excluded from main bundle)
-const Contact = lazy(() => import("@/pages/public/Contact"));
+// Lazy Loaded Public Pages (web only - excluded from main bundle) - REMOVED FOR LEAN MVP
 const HelpCenter = lazy(() => import("@/pages/public/HelpCenter"));
-const Legal = lazy(() => import("@/pages/legal/Legal"));
-const PoliticaDePrivacidade = lazy(() => import("@/pages/legal/PoliticaDePrivacidade"));
-const TermosDeUso = lazy(() => import("@/pages/legal/TermosDeUso"));
-const ConfiguracoesDeCookies = lazy(() => import("@/pages/legal/ConfiguracoesDeCookies"));
-const Newsletter = lazy(() => import("@/pages/public/Newsletter"));
-const FinanceLanding = lazy(() => import("@/pages/FinanceLanding"));
-const Funcionalidades = lazy(() => import("@/pages/Funcionalidades"));
-const SynapseLanding = lazy(() => import("@/pages/SynapseLanding"));
 
 // Desktop Help (Electron only - Lazy loaded)
 const DesktopHelpCenter = lazy(() => import("./pages/desktop/DesktopHelpCenter"));
@@ -98,11 +89,7 @@ const SharedRoutes = () => {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* ─── Root Route ─────────────────────────────────── */}
-        {electronMode ? (
-          <Route path="/" element={<Navigate to="/auth" replace />} />
-        ) : (
-          <Route path="/" element={<Index />} />
-        )}
+        <Route path="/" element={<Navigate to="/auth" replace />} />
 
         {/* ─── Auth Routes ────────────────────────────────── */}
         <Route path="/auth" element={<AuthPage />} />
@@ -121,17 +108,7 @@ const SharedRoutes = () => {
         {/* ─── Public Pages (web only) ────────────────────── */}
         {!electronMode && (
           <>
-            <Route path="/contact" element={<Contact />} />
             <Route path="/help" element={<HelpCenter />} />
-            <Route path="/legal" element={<Legal />} />
-            <Route path="/politica-de-privacidade" element={<PoliticaDePrivacidade />} />
-            <Route path="/termos-de-uso" element={<TermosDeUso />} />
-            <Route path="/configuracoes-de-cookies" element={<ConfiguracoesDeCookies />} />
-            <Route path="/newsletter" element={<Newsletter />} />
-            <Route path="/neurofinance" element={<FinanceLanding />} />
-            <Route path="/neurobank" element={<Navigate to="/neurofinance" replace />} />
-            <Route path="/funcionalidades" element={<Funcionalidades />} />
-            <Route path="/synapse" element={<SynapseLanding />} />
           </>
         )}
 
@@ -160,7 +137,7 @@ const SharedRoutes = () => {
 
         {/* ─── Fallback ───────────────────────────────────── */}
         <Route path="/404" element={<NotFound />} />
-        <Route path="*" element={<Navigate to={electronMode ? "/auth" : "/"} replace />} />
+        <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
     </Suspense>
   );

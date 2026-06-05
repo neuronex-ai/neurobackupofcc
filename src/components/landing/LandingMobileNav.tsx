@@ -16,13 +16,11 @@ export const LandingMobileNav = () => {
 
     const faviconSrc = theme === "dark" ? "/favicon-light.png" : "/favicon-dark.png";
 
-    // Eagerly prefetch public pages for instant load on mobile
+    // Eagerly prefetch public pages for instant load on mobile - REMOVED FOR LEAN MVP
     useEffect(() => {
         const prefetchPages = () => {
             const prefetchQueue = [
-                () => import("@/pages/Index"),
-                () => import("@/pages/Funcionalidades"),
-                () => import("@/pages/FinanceLanding"),
+                // Pages removed
             ];
             if ('requestIdleCallback' in window) {
                 // @ts-ignore
@@ -40,11 +38,7 @@ export const LandingMobileNav = () => {
     }, []);
 
     const extendedNavItems = [
-        { label: "Início", path: "/" },
-        { label: "Sistema", path: "/funcionalidades" },
-        { label: "NeuroFinance", path: "/neurofinance" },
-        { label: "Sobre a NeuroNex", path: "/public/about" },
-        { label: "Contato e Suporte", path: "/public/contact" },
+        { label: "Ajuda", path: "/help" },
     ];
 
     return (

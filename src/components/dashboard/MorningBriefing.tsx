@@ -4,7 +4,7 @@ import { useAuth } from "@/components/auth/SessionContextProvider";
 import { Appointment } from "@/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Sun, CloudSun, Moon, Zap, Activity, X, ArrowRight } from "lucide-react";
+import { Sun, CloudSun, Moon, X, ArrowRight } from "lucide-react";
 import { SmartInsightsWidget } from "./SmartInsightsWidget";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
@@ -46,33 +46,31 @@ export const MorningBriefing = ({ appointments, pendingPatients }: MorningBriefi
     }, [user]);
 
     return (
-        <div className="relative p-6 lg:p-10 space-y-12 animate-fade-in bg-white dark:bg-[#080809]">
+        <div className="relative p-6 lg:p-10 space-y-10 animate-fade-in bg-white dark:bg-[#080809]">
             {/* Header Greeting */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div className="space-y-6">
-                    <div className="flex items-center gap-3">
-                        <div className="px-4 py-2 rounded-full bg-zinc-100 dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.06] flex items-center gap-3 shadow-sm">
-                            <GreetingIcon className="h-3.5 w-3.5 text-zinc-500/80/80 dark:text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500/80/80 dark:text-zinc-400">
-                                {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
-                            </span>
-                        </div>
-                        <SubscriptionBadge plan={plan} />
+            <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                    <div className="px-4 py-2 rounded-full bg-zinc-100 dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.06] flex items-center gap-3 shadow-sm">
+                        <GreetingIcon className="h-3.5 w-3.5 text-zinc-500/80 dark:text-zinc-400" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500/80 dark:text-zinc-400">
+                            {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+                        </span>
                     </div>
-
-                    <h2 className="text-5xl md:text-[4.5rem] font-black text-black dark:text-white tracking-tighter leading-[0.9]">
-                        {greeting.text}, <span className="text-zinc-400 dark:text-zinc-700">{firstName}.</span>
-                    </h2>
+                    <SubscriptionBadge plan={plan} />
                 </div>
 
-                <div className="flex-shrink-0">
-                    <QuickActions variant="dropdown" />
-                </div>
+                <h2 className="text-5xl md:text-[4.5rem] font-black text-black dark:text-white tracking-tighter leading-[0.9]">
+                    {greeting.text}, <span className="text-zinc-400 dark:text-zinc-700">{firstName}.</span>
+                </h2>
             </div>
 
-            {/* Smart Insights Widget */}
-            <div className="w-full">
-                <SmartInsightsWidget />
+            {/* Mini-Cards Row: Quick Actions (left) + NeuroInsights (right) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Left Card - Ações Rápidas */}
+                <QuickActions variant="dashboard-card" />
+
+                {/* Right Card - NeuroInsights (scrollable) */}
+                <SmartInsightsWidget variant="dashboard-card" />
             </div>
 
             {/* Details Modal remains available via other triggers if needed */}
@@ -94,7 +92,7 @@ export const MorningBriefing = ({ appointments, pendingPatients }: MorningBriefi
                                 <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-10">
                                     <div className="space-y-3">
                                         <h3 className="text-3xl font-black text-black dark:text-white tracking-tighter uppercase">Ciclo Diário</h3>
-                                        <p className="text-[10px] text-zinc-500/80/80 dark:text-zinc-500/80/80 font-black uppercase tracking-[0.3em]">Resumo de Performance Clínica</p>
+                                        <p className="text-[10px] text-zinc-500/80 dark:text-zinc-500/80 font-black uppercase tracking-[0.3em]">Resumo de Performance Clínica</p>
                                     </div>
 
                                     <div className="p-8 rounded-[32px] bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 space-y-6">
@@ -107,7 +105,7 @@ export const MorningBriefing = ({ appointments, pendingPatients }: MorningBriefi
                                             <span className="text-xl font-black text-emerald-500">{todayAppointments.filter(a => a.status === 'confirmed').length}</span>
                                         </div>
                                         <div className="h-px bg-zinc-200 dark:bg-white/10" />
-                                        <p className="text-sm text-zinc-500/80/80 font-bold leading-relaxed italic text-center">"Sua agenda está operando em capacidade otimizada hoje."</p>
+                                        <p className="text-sm text-zinc-500/80 font-bold leading-relaxed italic text-center">"Sua agenda está operando em capacidade otimizada hoje."</p>
                                     </div>
 
                                     <Button onClick={() => setModalStep(2)} className="w-full h-16 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-2xl font-black uppercase tracking-[0.3em] text-[10px] shadow-2xl transition-all">
@@ -118,7 +116,7 @@ export const MorningBriefing = ({ appointments, pendingPatients }: MorningBriefi
                                 <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-8">
                                     <div className="space-y-3">
                                         <h3 className="text-3xl font-black text-black dark:text-white tracking-tighter uppercase">Cronograma</h3>
-                                        <p className="text-[10px] text-zinc-500/80/80 dark:text-zinc-500/80/80 font-black uppercase tracking-[0.3em]">Atendimentos Confirmados</p>
+                                        <p className="text-[10px] text-zinc-500/80 dark:text-zinc-500/80 font-black uppercase tracking-[0.3em]">Atendimentos Confirmados</p>
                                     </div>
 
                                     <div className="space-y-4 max-h-[40vh] overflow-y-auto custom-scrollbar pr-4 -mr-4">
@@ -128,7 +126,7 @@ export const MorningBriefing = ({ appointments, pendingPatients }: MorningBriefi
                                                     <span className="text-lg font-black text-black dark:text-white tracking-tighter tabular-nums">
                                                         {format(new Date(app.start_time), "HH:mm")}
                                                     </span>
-                                                    <span className="text-[8px] uppercase font-black text-zinc-500/80/80 px-3 py-1.5 rounded-lg bg-white dark:bg-black/40 border border-zinc-200 dark:border-white/5">
+                                                    <span className="text-[8px] uppercase font-black text-zinc-500/80 px-3 py-1.5 rounded-lg bg-white dark:bg-black/40 border border-zinc-200 dark:border-white/5">
                                                         {app.type}
                                                     </span>
                                                 </div>

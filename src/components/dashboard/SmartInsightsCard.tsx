@@ -219,8 +219,8 @@ export const SmartInsightsCard = () => {
                     <Brain className="h-4.5 w-4.5 text-white dark:text-zinc-900" strokeWidth={2} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.35em]">Inteligência</p>
-                    <h4 className="text-sm font-bold text-black dark:text-zinc-200 tracking-tight">Insights da Clínica</h4>
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.35em]">IA Clínica</p>
+                    <h4 className="text-sm font-bold text-black dark:text-zinc-200 tracking-tight">NeuroInsights</h4>
                   </div>
                 </div>
 

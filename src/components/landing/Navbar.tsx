@@ -36,9 +36,7 @@ export const Navbar = () => {
   };
 
   const navItems = [
-    { id: '/funcionalidades', label: 'Funcionalidades' },
-    { id: 'ecosystem', label: 'Ecossistema' },
-    { id: 'waitlist', label: 'Lista de espera' },
+    { id: '/help', label: 'Ajuda' },
   ];
 
   return (
