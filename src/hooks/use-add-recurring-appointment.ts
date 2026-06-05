@@ -4,6 +4,7 @@ import { NewRecurringAppointmentFormValues } from '@/lib/validation';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { addWeeks, addMonths, isBefore, setHours, setMinutes, addMinutes, isSameDay, startOfDay } from 'date-fns';
+import { buildSessionMetadata } from '@/lib/appointment-metadata';
 
 interface RecurringAppointmentData {
   patient_id: string;
@@ -112,7 +113,12 @@ const addRecurringAppointments = async (values: NewRecurringAppointmentFormValue
         id: 'temp', 
         user_id: userId,
         created_at: new Date().toISOString(),
-        status: 'confirmed',
+        status: 'unscored',
+        metadata: buildSessionMetadata({
+          modality: firstAppointment.type,
+          durationMinutes: parseInt(values.duration, 10),
+          syncStatus: 'pending',
+        }),
         patient_name: patientData.name,
         patient_initials: patientData.name.substring(0, 2).toUpperCase(),
       } as any, 
@@ -138,7 +144,13 @@ const addRecurringAppointments = async (values: NewRecurringAppointmentFormValue
     type: apt.type,
     notes: apt.notes || null,
     location: apt.location || null,
-    status: 'confirmed',
+    status: 'unscored',
+    metadata: buildSessionMetadata({
+      modality: apt.type,
+      durationMinutes: parseInt(values.duration, 10),
+      origin: 'neuronex',
+      syncStatus: apt === appointmentsToCreate[0] && googleEventId ? 'synced' : 'pending',
+    }),
     // Apenas o primeiro evento terá o ID do Google, os demais serão locais
     google_event_id: apt === appointmentsToCreate[0] ? googleEventId : null,
     google_meet_link: apt === appointmentsToCreate[0] ? googleMeetLink : null,
@@ -171,6 +183,8 @@ export const useAddRecurringAppointment = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['appointmentsByDateRange'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-session-metrics'] });
     },
   });
 };

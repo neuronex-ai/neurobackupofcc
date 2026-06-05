@@ -1,4 +1,12 @@
 import { differenceInMinutes } from "date-fns";
+import type { Appointment } from "@/types";
+
+export interface AppointmentEventDetails {
+  title: string;
+  category?: string;
+  categoryLabel?: string;
+  location?: string;
+}
 
 export const getDurationString = (start: string, end: string) => {
   const minutes = differenceInMinutes(new Date(end), new Date(start));
@@ -18,4 +26,45 @@ export const getInitials = (name: string) => {
     return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
   }
   return name.substring(0, 2).toUpperCase();
+};
+
+export const parseAppointmentEventDetails = (notes?: string | null): AppointmentEventDetails | null => {
+  if (!notes) return null;
+
+  const eventLine = notes
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.startsWith("[EVENT]"));
+
+  if (!eventLine) return null;
+
+  try {
+    const parsed = JSON.parse(eventLine.replace("[EVENT]", ""));
+    if (!parsed?.title) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+export const getAppointmentDisplayTitle = (
+  appointment: Pick<Appointment, "metadata" | "notes" | "patient_name" | "type" | "patient_id" | "start_time" | "end_time" | "location">
+) => {
+  if (appointment.patient_name) return appointment.patient_name;
+
+  if (appointment.metadata?.kind === "event" && appointment.metadata.eventTitle) {
+    return appointment.metadata.eventTitle;
+  }
+
+  const eventDetails = parseAppointmentEventDetails(appointment.notes);
+  if (eventDetails?.title) return eventDetails.title;
+
+  if (appointment.type === "block" && appointment.notes) {
+    return appointment.notes
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line && !line.startsWith("[EVENT]")) || "Compromisso";
+  }
+
+  return "Paciente não identificado";
 };

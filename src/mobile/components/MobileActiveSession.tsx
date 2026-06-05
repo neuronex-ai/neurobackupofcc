@@ -97,7 +97,7 @@ export const MobileActiveSession = ({
       {
         onSuccess: () => {
           updateAppointment(
-            { id: appointmentId, updates: { status: "completed" } },
+            { id: appointmentId, updates: { status: "attended" } },
             {
               onSuccess: () => {
                 toast.success("Sessão salva com sucesso!");
@@ -109,7 +109,7 @@ export const MobileActiveSession = ({
         },
         onError: () => {
           updateAppointment(
-            { id: appointmentId, updates: { status: "completed" } },
+            { id: appointmentId, updates: { status: "attended" } },
             { onSuccess: () => { onSessionEnd(); } }
           );
         },

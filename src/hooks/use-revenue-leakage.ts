@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { subMonths, format } from 'date-fns';
+import { isAttendedAppointmentStatus } from '@/lib/appointment-status';
+import { getAppointmentKind } from '@/lib/appointment-metadata';
 
 export interface UnpaidSession {
   id: string;
@@ -18,15 +20,18 @@ const fetchRevenueLeakage = async (userId: string): Promise<UnpaidSession[]> => 
   // 1. Buscar agendamentos concluídos
   const { data: appointments, error: aptError } = await supabase
     .from('appointments')
-    .select('id, start_time, patient:patient_id(name, id)')
+    .select('id, start_time, status, notes, type, patient_id, metadata, patient:patient_id(name, id)')
     .eq('user_id', userId)
-    .eq('status', 'completed')
     .gte('start_time', startDate);
 
   if (aptError) throw new Error(aptError.message);
 
   // 2. Buscar IDs de agendamentos que JÁ possuem transação
-  const appointmentIds = appointments.map(a => a.id);
+  const billableAppointments = (appointments || []).filter((appointment: any) =>
+    getAppointmentKind(appointment) === 'session' &&
+    isAttendedAppointmentStatus(appointment.status, appointment.notes)
+  );
+  const appointmentIds = billableAppointments.map(a => a.id);
 
   if (appointmentIds.length === 0) return [];
 
@@ -41,7 +46,7 @@ const fetchRevenueLeakage = async (userId: string): Promise<UnpaidSession[]> => 
   const paidAppointmentIds = new Set(transactions.map(t => t.appointment_id));
 
   // 3. Filtrar apenas os que NÃO estão no set de pagos
-  let unpaid: UnpaidSession[] = appointments
+  let unpaid: UnpaidSession[] = billableAppointments
     .filter(apt => !paidAppointmentIds.has(apt.id))
     .map(apt => {
       const patient = Array.isArray(apt.patient) ? apt.patient[0] : apt.patient;

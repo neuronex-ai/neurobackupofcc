@@ -1,24 +1,20 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 async function refreshAccessToken(supabaseService: any, userId: string, refreshToken: string) {
-  const tokenUrl = 'https://oauth2.googleapis.com/token';
-  const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID');
-  const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET');
-
-  const tokenResponse = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID!,
-      client_secret: GOOGLE_CLIENT_SECRET!,
+      client_id: Deno.env.get("GOOGLE_CLIENT_ID")!,
+      client_secret: Deno.env.get("GOOGLE_CLIENT_SECRET")!,
       refresh_token: refreshToken,
-      grant_type: 'refresh_token',
+      grant_type: "refresh_token",
     }).toString(),
   });
 
@@ -27,35 +23,84 @@ async function refreshAccessToken(supabaseService: any, userId: string, refreshT
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
   await supabaseService
-    .from('user_google_tokens')
+    .from("user_google_tokens")
     .update({ access_token: tokens.access_token, expires_at: expiresAt.toISOString() })
-    .eq('user_id', userId);
+    .eq("user_id", userId);
 
   return tokens.access_token;
 }
 
+const metadataOf = (appointment: any) => appointment?.metadata || {};
+const titleOf = (appointment: any) => {
+  const metadata = metadataOf(appointment);
+  if (metadata.kind === "event") return metadata.eventTitle || appointment.notes?.split("\n")?.[0] || "Compromisso";
+  return `Consulta: ${appointment.patient?.name || appointment.patient_name || "Paciente"}`;
+};
+
+const descriptionOf = (appointment: any) => {
+  const metadata = metadataOf(appointment);
+  if (metadata.kind === "event") {
+    return [
+      `Categoria: ${metadata.eventCategoryLabel || metadata.eventCategory || "Compromisso"}`,
+      `Notas: ${metadata.eventNotes || appointment.notes || "Nenhuma"}`,
+      "",
+      "---",
+      "Compromisso sincronizado pelo NeuroNex.",
+    ].join("\n");
+  }
+
+  return [
+    `Tipo: ${appointment.type === "online" ? "Teleconsulta (Online)" : "Presencial"}`,
+    `Sessão: ${metadata.sessionType || "follow_up"}`,
+    `Notas: ${appointment.notes || "Nenhuma"}`,
+    "",
+    "---",
+    "Evento sincronizado pelo NeuroNex.",
+  ].join("\n");
+};
+
+const patchFromAppointment = (appointment: any) => {
+  const metadata = metadataOf(appointment);
+  const patch: any = {
+    summary: titleOf(appointment),
+    description: descriptionOf(appointment),
+    start: { dateTime: appointment.start_time, timeZone: "America/Sao_Paulo" },
+    end: { dateTime: appointment.end_time, timeZone: "America/Sao_Paulo" },
+  };
+
+  const location = metadata.kind === "event"
+    ? metadata.eventLocation || appointment.location
+    : appointment.location;
+  if (location) patch.location = location;
+
+  return patch;
+};
+
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const supabaseService = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Missing auth header');
-    const { data: { user }, error: userError } = await supabaseService.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (userError || !user) throw new Error('Invalid token');
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Missing auth header");
+
+    const { data: { user }, error: userError } = await supabaseService.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (userError || !user) throw new Error("Invalid token");
 
     const { action, googleEventId, appointmentData } = await req.json();
-
     if (!googleEventId) {
-        return new Response(JSON.stringify({ message: "No Google Event ID provided, skipping sync." }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ message: "No Google Event ID provided, skipping sync." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Auth Google
-    const { data: tokenData } = await supabaseService.from('user_google_tokens').select('*').eq('user_id', user.id).single();
+    const { data: tokenData } = await supabaseService
+      .from("user_google_tokens")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
     if (!tokenData) throw new Error("Google not connected");
 
     let accessToken = tokenData.access_token;
@@ -63,54 +108,35 @@ serve(async (req) => {
       accessToken = await refreshAccessToken(supabaseService, user.id, tokenData.refresh_token);
     }
 
-    const calendarId = 'primary';
-    const baseUrl = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${googleEventId}`;
+    const baseUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`;
+    let response: Response | undefined;
 
-    let response;
-
-    if (action === 'delete') {
-        // Deletar evento no Google
-        response = await fetch(baseUrl, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-    } else if (action === 'update' && appointmentData) {
-        // Atualizar evento no Google (PATCH para atualizar apenas campos enviados)
-        // Precisamos formatar o body para o padrão Google
-        const eventPatch: any = {
-            start: { dateTime: appointmentData.start_time },
-            end: { dateTime: appointmentData.end_time }
-        };
-
-        // Se tiver notas/descrição, atualiza também
-        if (appointmentData.notes) {
-            // Mantemos a descrição original e adicionamos/atualizamos a nota se possível, 
-            // mas aqui vamos simplificar atualizando a descrição
-            eventPatch.description = appointmentData.notes;
-        }
-
-        response = await fetch(baseUrl, {
-            method: 'PATCH',
-            headers: { 
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(eventPatch)
-        });
+    if (action === "delete") {
+      response = await fetch(`${baseUrl}?sendUpdates=all`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${accessToken}` },
+      });
+    } else if (action === "update" && appointmentData) {
+      response = await fetch(`${baseUrl}?conferenceDataVersion=1`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(patchFromAppointment(appointmentData)),
+      });
     }
 
-    if (response && !response.ok) {
-        const errText = await response.text();
-        console.error("Google Calendar API Error:", errText);
-        // Não lançamos erro fatal para não quebrar a UI, mas logamos
-        return new Response(JSON.stringify({ error: "Failed to sync with Google", details: errText }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (response && !response.ok && response.status !== 410) {
+      const errText = await response.text();
+      console.error("Google Calendar API Error:", errText);
+      return new Response(JSON.stringify({ error: "Failed to sync with Google", details: errText }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ success: true }), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

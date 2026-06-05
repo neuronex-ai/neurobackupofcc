@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { format, isSameDay } from 'date-fns';
+import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
 
 export interface DashboardAlert {
   id: string;
@@ -115,13 +116,13 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const { data: recentReschedules } = await supabase
       .from('appointments')
-      .select('id, start_time, created_at, updated_at, patient:patient_id(name)')
+      .select('id, start_time, created_at, updated_at, status, notes, patient:patient_id(name)')
       .eq('user_id', userId)
-      .neq('status', 'cancelled')
       .gte('updated_at', yesterday.toISOString());
 
     // Filter: only appointments where updated_at > created_at (meaning they were modified)
     const rescheduled = recentReschedules?.filter(apt => {
+      if (isCancelledAppointmentStatus(apt.status, apt.notes)) return false;
       const created = new Date(apt.created_at).getTime();
       const updated = new Date(apt.updated_at).getTime();
       return (updated - created) > 60000; // Modified at least 1 minute after creation
@@ -143,18 +144,21 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
   if (settings?.in_app_system_updates ?? true) {
     const { data: upcomingAppointments, error: aptError } = await supabase
       .from('appointments')
-      .select('id, start_time, patient:patient_id(name)')
+      .select('id, start_time, status, notes, patient:patient_id(name)')
       .eq('user_id', userId)
       .gte('start_time', now.toISOString())
-      .neq('status', 'cancelled')
       .neq('type', 'block')
       .order('start_time', { ascending: true })
-      .limit(3);
+      .limit(10);
+
+    const visibleUpcoming = (upcomingAppointments || [])
+      .filter((apt) => !isCancelledAppointmentStatus(apt.status, apt.notes))
+      .slice(0, 3);
 
     if (aptError) {
       console.error("Error fetching upcoming appointments for alerts:", aptError);
-    } else if (upcomingAppointments && upcomingAppointments.length > 0) {
-      upcomingAppointments.forEach((apt, index) => {
+    } else if (visibleUpcoming.length > 0) {
+      visibleUpcoming.forEach((apt, index) => {
         const startTime = new Date(apt.start_time);
         const isToday = isSameDay(now, startTime);
         const timeStr = format(startTime, 'HH:mm');

@@ -1,22 +1,27 @@
 import { useAuth } from '@/components/auth/SessionContextProvider';
+import { buildEventMetadata, getAppointmentMetadata, type AppointmentMetadata } from '@/lib/appointment-metadata';
 import { supabase } from '@/integrations/supabase/client';
 import { Appointment, Patient } from '@/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 interface NewAppointmentData {
-  patient_id: string | null; // Nullable for blocks
+  patient_id: string | null;
   start_time: Date;
   end_time: Date;
   type: 'presencial' | 'online' | 'block';
   notes: string;
   location: string | null;
+  metadata?: AppointmentMetadata;
 }
 
-// URL da Edge Function para sincronizar com Google Calendar
 const GOOGLE_CALENDAR_SYNC_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/google-calendar-sync";
 
-const syncAppointmentToGoogle = async (appointment: Partial<Appointment>, patient: Partial<Patient>, accessToken: string) => {
+const syncAppointmentToGoogle = async (
+  appointment: Partial<Appointment>,
+  patient: Partial<Patient>,
+  accessToken: string
+) => {
   const response = await fetch(GOOGLE_CALENDAR_SYNC_URL, {
     method: 'POST',
     headers: {
@@ -34,8 +39,27 @@ const syncAppointmentToGoogle = async (appointment: Partial<Appointment>, patien
   return response.json();
 };
 
+const resolveMetadata = (appointmentData: NewAppointmentData): AppointmentMetadata => {
+  if (appointmentData.metadata) return appointmentData.metadata;
+
+  if (appointmentData.type === 'block' && !appointmentData.patient_id) {
+    return buildEventMetadata({
+      title: appointmentData.notes || 'Compromisso',
+      location: appointmentData.location,
+      notes: appointmentData.notes,
+      syncStatus: 'pending',
+    });
+  }
+
+  return getAppointmentMetadata({
+    ...appointmentData,
+    patient_id: appointmentData.patient_id,
+    start_time: appointmentData.start_time.toISOString(),
+    end_time: appointmentData.end_time.toISOString(),
+  } as Appointment);
+};
+
 const addAppointment = async (appointmentData: NewAppointmentData, userId: string, accessToken: string) => {
-  // 1. Check for conflicts
   const { data: hasConflict, error: conflictError } = await supabase.rpc('check_appointment_overlap', {
     p_user_id: userId,
     p_start_time: appointmentData.start_time.toISOString(),
@@ -43,17 +67,19 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
   });
 
   if (conflictError) throw new Error(conflictError.message);
-
   if (hasConflict) {
-    throw new Error("Conflito de horário detectado! Já existe um agendamento neste período.");
+    throw new Error("Conflito de horario detectado. Ja existe um agendamento neste periodo.");
   }
 
-  let patientData: Partial<Patient> = { name: "Bloqueio de Agenda" };
-  let googleEventId = null;
-  let googleMeetLink = null;
+  const metadata = resolveMetadata(appointmentData);
+  const shouldSyncToGoogle = metadata.kind !== 'block';
+  let patientData: Partial<Patient> = {
+    name: metadata.kind === 'event' ? metadata.eventTitle || "Compromisso" : "Bloqueio de Agenda",
+  };
+  let googleEventId: string | null = null;
+  let googleMeetLink: string | null = null;
 
-  // Only fetch patient and sync if NOT a block
-  if (appointmentData.type !== 'block' && appointmentData.patient_id) {
+  if (appointmentData.patient_id) {
     const { data: fetchedPatient, error: patientError } = await supabase
       .from('patients')
       .select('*')
@@ -61,31 +87,36 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
       .single();
 
     if (patientError || !fetchedPatient) {
-      throw new Error("Paciente não encontrado.");
+      throw new Error("Paciente nao encontrado.");
     }
-    patientData = fetchedPatient;
 
+    patientData = fetchedPatient;
+  }
+
+  if (shouldSyncToGoogle) {
     try {
       toast.info("Tentando sincronizar com o Google Calendar...");
       const syncResult = await syncAppointmentToGoogle(
         {
           ...appointmentData,
+          metadata,
           id: 'temp',
           user_id: userId,
           created_at: new Date().toISOString(),
-          status: 'confirmed',
+          status: 'unscored',
           patient_name: patientData.name,
         } as unknown as Appointment,
         patientData,
         accessToken
       );
 
-      googleEventId = syncResult.googleEventId;
-      googleMeetLink = syncResult.googleMeetLink;
+      googleEventId = syncResult.googleEventId || null;
+      googleMeetLink = syncResult.googleMeetLink || null;
       toast.success("Agendamento sincronizado com Google Calendar!");
     } catch (e: any) {
       console.warn("Google Sync Failed:", e.message);
-      toast.warning(`Agendamento criado, mas falha na sincronização com Google: ${e.message}`);
+      metadata.syncStatus = 'failed';
+      toast.warning(`Agendamento criado, mas falha na sincronizacao com Google: ${e.message}`);
     }
   }
 
@@ -99,7 +130,13 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
       type: appointmentData.type,
       notes: appointmentData.notes || null,
       location: appointmentData.location || null,
-      status: 'confirmed',
+      status: 'unscored',
+      metadata: {
+        ...metadata,
+        origin: metadata.origin || 'neuronex',
+        syncStatus: googleEventId ? 'synced' : metadata.syncStatus || 'pending',
+        lastSyncedAt: googleEventId ? new Date().toISOString() : metadata.lastSyncedAt,
+      },
       google_event_id: googleEventId,
       google_meet_link: googleMeetLink,
     })
@@ -122,18 +159,22 @@ export const useAddAppointment = () => {
 
   return useMutation({
     mutationFn: (data: NewAppointmentData) => {
-      if (!userId || !accessToken) throw new Error("Usuário não autenticado ou sessão inválida.");
+      if (!userId || !accessToken) throw new Error("Usuario nao autenticado ou sessao invalida.");
       return addAppointment(data, userId, accessToken);
     },
-    onSuccess: ({ patientData }) => {
-      if (patientData.name !== "Bloqueio de Agenda") {
+    onSuccess: ({ newAppointment, patientData }) => {
+      if (newAppointment.metadata?.kind === 'event') {
+        toast.success("Compromisso registrado com sucesso!");
+      } else if (patientData.name !== "Bloqueio de Agenda") {
         toast.success(`Consulta para ${patientData.name} agendada com sucesso!`);
       } else {
-        toast.success("Bloqueio de horário criado.");
+        toast.success("Bloqueio de horario criado.");
       }
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointmentsByDateRange'] });
       queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-session-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-activities'] });
     },
     onError: (error) => {
       toast.error(`Erro: ${error.message}`);

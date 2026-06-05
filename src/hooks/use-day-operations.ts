@@ -4,6 +4,8 @@ import { format, differenceInCalendarDays, addDays } from 'date-fns';
 import { Appointment } from '@/types';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
+import { useUpdateAppointment } from './use-update-appointment';
 
 interface MoveOperation {
   original: Appointment;
@@ -15,6 +17,7 @@ interface MoveOperation {
 
 export const useDayOperations = () => {
   const queryClient = useQueryClient();
+  const updateAppointment = useUpdateAppointment();
   const [isCalculating, setIsCalculating] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
 
@@ -34,24 +37,30 @@ export const useDayOperations = () => {
       }
 
       // Buscar agendamentos do dia de origem
-      const { data: sourceAppts } = await supabase
+      const { data: sourceApptsRaw } = await supabase
         .from('appointments')
         .select('*, patient:patient_id(name)')
         .eq('user_id', userId)
         .gte('start_time', `${sourceStr}T00:00:00`)
-        .lte('start_time', `${sourceStr}T23:59:59`)
-        .neq('status', 'cancelled');
+        .lte('start_time', `${sourceStr}T23:59:59`);
+
+      const sourceAppts = (sourceApptsRaw || []).filter((appointment) =>
+        !isCancelledAppointmentStatus(appointment.status, appointment.notes)
+      );
 
       if (!sourceAppts || sourceAppts.length === 0) return [];
 
       // Buscar agendamentos do dia de destino (para checar conflito)
-      const { data: targetAppts } = await supabase
+      const { data: targetApptsRaw } = await supabase
         .from('appointments')
         .select('*')
         .eq('user_id', userId)
         .gte('start_time', `${targetStr}T00:00:00`)
-        .lte('start_time', `${targetStr}T23:59:59`)
-        .neq('status', 'cancelled');
+        .lte('start_time', `${targetStr}T23:59:59`);
+
+      const targetAppts = (targetApptsRaw || []).filter((appointment) =>
+        !isCancelledAppointmentStatus(appointment.status, appointment.notes)
+      );
 
       // Calcular propostas
       const operations: MoveOperation[] = sourceAppts.map((apt: any) => {
@@ -110,25 +119,25 @@ export const useDayOperations = () => {
     try {
       // Executar updates SEQUENCIALMENTE para garantir cada um completa
       for (const op of validOps) {
-        const { data, error } = await supabase
-          .from('appointments')
-          .update({
-            start_time: op.proposedStart,
-            end_time: op.proposedEnd,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', op.original.id)
-          .select() // Force return to verify update actually happened
-          .single();
+        try {
+          const data = await updateAppointment.mutateAsync({
+            id: op.original.id,
+            updates: {
+              start_time: op.proposedStart,
+              end_time: op.proposedEnd,
+            },
+          });
 
-        if (error) {
-          console.error("Falha individual ao mover:", op.original.id, error);
-          failCount++;
-        } else if (data) {
+          if (!data) {
+            console.error("Update retornou vazio para:", op.original.id);
+            failCount++;
+            continue;
+          }
+
           console.log("Agendamento movido com sucesso:", data.id, "para", data.start_time);
           successCount++;
-        } else {
-          console.error("Update retornou vazio para:", op.original.id);
+        } catch (error) {
+          console.error("Falha individual ao mover:", op.original.id, error);
           failCount++;
         }
       }

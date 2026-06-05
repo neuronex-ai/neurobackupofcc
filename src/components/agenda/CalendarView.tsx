@@ -33,6 +33,9 @@ import { createPortal } from "react-dom";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { useNavigate } from "react-router-dom";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
+import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from "@/lib/appointment-status";
+import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
+import { useUpdateAppointment } from "@/hooks/use-update-appointment";
 
 // Generate time labels from 00:00 to 23:00
 const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
@@ -58,6 +61,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
     const navigate = useNavigate();
     const { isConnected: isGoogleConnected, isLoading: isLoadingGoogle } = useGoogleAuth();
     const { refetch } = useAppointments();
+    const updateAppointment = useUpdateAppointment();
     const [activeId, setActiveId] = useState<string | null>(null);
     const [overId, setOverId] = useState<string | null>(null);
     const [newAppointmentDate, setNewAppointmentDate] = useState<Date | undefined>();
@@ -137,7 +141,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
 
         const hasConflict = appointments.some(app => {
             if (app.id === appointment.id) return false;
-            if (app.status === 'cancelled') return false;
+            if (isCancelledAppointmentStatus(app.status, app.notes)) return false;
             const appStart = new Date(app.start_time);
             const appEnd = new Date(app.end_time);
             return newStart < appEnd && newEnd > appStart;
@@ -149,15 +153,13 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
         }
 
         try {
-            const { error } = await supabase
-                .from('appointments')
-                .update({
+            await updateAppointment.mutateAsync({
+                id: appointmentId,
+                updates: {
                     start_time: newStart.toISOString(),
                     end_time: newEnd.toISOString()
-                })
-                .eq('id', appointmentId);
-
-            if (error) throw error;
+                }
+            });
             toast.success("Agendamento reagendado");
             refetch();
         } catch (err) {
@@ -632,11 +634,8 @@ const DraggableGridItem = ({ app }: { app: Appointment }) => {
                     <div className={cn(
                         "w-full h-full rounded-xl text-left overflow-hidden transition-all duration-200 group/card",
                         "hover:shadow-lg hover:z-30 border",
-                        app.status === 'confirmed'
-                            ? "bg-emerald-500/10 dark:bg-emerald-500/10 border-emerald-500/20 dark:border-emerald-500/20 hover:bg-emerald-500/15"
-                            : app.status === 'cancelled'
-                                ? "bg-rose-500/10 dark:bg-rose-500/10 border-rose-500/20 dark:border-rose-500/20 hover:bg-rose-500/15"
-                                : "bg-amber-500/10 dark:bg-amber-500/10 border-amber-500/20 dark:border-amber-500/20 hover:bg-amber-500/15"
+                        getAppointmentStatusMeta(app.status, app.notes).bgClass,
+                        getAppointmentStatusMeta(app.status, app.notes).borderClass
                     )}>
                         <div className="px-2.5 py-1.5 flex flex-col gap-0.5 pointer-events-none">
                             <div className="flex items-center gap-1.5">
@@ -645,7 +644,7 @@ const DraggableGridItem = ({ app }: { app: Appointment }) => {
                                     : <MapPin className="h-3 w-3 shrink-0 text-zinc-500 dark:text-zinc-400" />
                                 }
                                 <span className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100 truncate">
-                                    {app.patient_name}
+                                    {getAppointmentDisplayTitle(app)}
                                 </span>
                             </div>
                             {heightPx > 36 && (
@@ -760,10 +759,10 @@ const MonthDroppableColumn = ({
                                             <div className="flex items-center gap-2">
                                                 <div className={cn(
                                                     "w-1.5 h-1.5 rounded-full shrink-0",
-                                                    app.status === 'confirmed' ? "bg-emerald-500" : app.status === 'cancelled' ? "bg-rose-500" : "bg-amber-500"
+                                                    getAppointmentStatusMeta(app.status, app.notes).dotClass
                                                 )} />
                                                 <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 truncate group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
-                                                    {app.patient_name}
+                                                    {getAppointmentDisplayTitle(app)}
                                                 </span>
                                                 <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-600 ml-auto shrink-0">
                                                     {formatTimeBrazil(app.start_time)}
@@ -822,7 +821,7 @@ const AppointmentCard = ({ app, isOverlay, isMonthly, isGhost }: { app: Appointm
         {!isMonthly && (
             <div className={cn(
                 "absolute top-4 right-4 w-1.5 h-1.5 rounded-full transition-all duration-500",
-                app.status === 'confirmed' ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : app.status === 'cancelled' ? "bg-rose-500" : "bg-amber-500"
+                getAppointmentStatusMeta(app.status, app.notes).dotClass
             )} />
         )}
 
@@ -835,7 +834,7 @@ const AppointmentCard = ({ app, isOverlay, isMonthly, isGhost }: { app: Appointm
 
             <div className={cn("space-y-0.5", isMonthly && "flex items-center gap-1.5")}>
                 <h4 className={cn("font-medium tracking-tight leading-tight line-clamp-1 text-zinc-900 dark:text-white", isMonthly ? "text-[10px]" : "text-[13px] font-bold")}>
-                    {app.patient_name}
+                    {getAppointmentDisplayTitle(app)}
                 </h4>
                 <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
                     {!isMonthly && <Clock className="h-3 w-3" />}

@@ -3,13 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { Appointment } from '@/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/SessionContextProvider';
+import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
 
 interface UpdateAppointmentData {
   id: string;
   updates: Partial<Omit<Appointment, 'id' | 'user_id' | 'created_at'>>;
 }
 
-const syncGoogleUpdate = async (googleEventId: string, updates: any, accessToken: string) => {
+const syncGoogleUpdate = async (
+  googleEventId: string,
+  action: 'update' | 'delete',
+  appointmentData: any,
+  accessToken: string
+) => {
   try {
     await fetch("https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/google-calendar-manage", {
       method: 'POST',
@@ -18,13 +24,9 @@ const syncGoogleUpdate = async (googleEventId: string, updates: any, accessToken
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        action: 'update',
+        action,
         googleEventId,
-        appointmentData: {
-          start_time: updates.start_time,
-          end_time: updates.end_time,
-          notes: updates.notes
-        }
+        appointmentData,
       }),
     });
   } catch (e) {
@@ -33,7 +35,6 @@ const syncGoogleUpdate = async (googleEventId: string, updates: any, accessToken
 };
 
 const updateAppointmentFn = async ({ id, updates }: UpdateAppointmentData, userId: string, accessToken: string) => {
-  // Check for conflicts if time is changing
   if (updates.start_time && updates.end_time) {
     const { data: hasConflict, error: conflictError } = await supabase.rpc('check_appointment_overlap', {
       p_user_id: userId,
@@ -44,7 +45,7 @@ const updateAppointmentFn = async ({ id, updates }: UpdateAppointmentData, userI
 
     if (conflictError) throw new Error(conflictError.message);
     if (hasConflict) {
-      throw new Error("Conflito de horário! Já existe um agendamento neste novo período.");
+      throw new Error("Conflito de horario. Ja existe um agendamento neste novo periodo.");
     }
   }
 
@@ -55,11 +56,22 @@ const updateAppointmentFn = async ({ id, updates }: UpdateAppointmentData, userI
     .eq('user_id', userId)
     .single();
 
-  if (fetchError || !existingAppointment) throw new Error("Agendamento não encontrado.");
+  if (fetchError || !existingAppointment) throw new Error("Agendamento nao encontrado.");
+
+  const updatePayload = {
+    ...updates,
+    metadata: updates.metadata
+      ? {
+          ...(existingAppointment.metadata || {}),
+          ...updates.metadata,
+          localUpdatedAt: new Date().toISOString(),
+        }
+      : existingAppointment.metadata,
+  };
 
   const { data: updatedAppointment, error: updateError } = await supabase
     .from('appointments')
-    .update(updates)
+    .update(updatePayload)
     .eq('id', id)
     .eq('user_id', userId)
     .select()
@@ -67,8 +79,14 @@ const updateAppointmentFn = async ({ id, updates }: UpdateAppointmentData, userI
 
   if (updateError) throw new Error(updateError.message);
 
-  if (existingAppointment.google_event_id && (updates.start_time || updates.end_time || updates.notes)) {
-    syncGoogleUpdate(existingAppointment.google_event_id, updates, accessToken);
+  if (
+    existingAppointment.google_event_id &&
+    (updates.start_time || updates.end_time || updates.notes || updates.location || updates.status || updates.metadata)
+  ) {
+    const action = isCancelledAppointmentStatus(updates.status, updates.notes || existingAppointment.notes)
+      ? 'delete'
+      : 'update';
+    syncGoogleUpdate(existingAppointment.google_event_id, action, updatedAppointment, accessToken);
   }
 
   return updatedAppointment;
@@ -82,19 +100,16 @@ export const useUpdateAppointment = () => {
 
   return useMutation({
     mutationFn: (data: UpdateAppointmentData) => {
-      if (!userId || !accessToken) throw new Error("Usuário não autenticado.");
+      if (!userId || !accessToken) throw new Error("Usuario nao autenticado.");
       return updateAppointmentFn(data, userId, accessToken);
     },
-    // --- OPTIMISTIC UI LOGIC ---
     onMutate: async (newData) => {
-      // 1. Cancelar queries em andamento para não sobrescrever nosso update otimista
       await queryClient.cancelQueries({ queryKey: ['appointmentsByDateRange'] });
       await queryClient.cancelQueries({ queryKey: ['appointments'] });
 
-      // 2. Snapshot do estado anterior (para rollback em caso de erro)
-      const previousAppointments = queryClient.getQueryData(['appointmentsByDateRange']);
+      const previousDateRangeAppointments = queryClient.getQueryData(['appointmentsByDateRange']);
+      const previousAppointments = queryClient.getQueryData(['appointments']);
 
-      // 3. Atualizar o cache otimisticamente
       queryClient.setQueriesData({ queryKey: ['appointmentsByDateRange'] }, (old: any) => {
         if (!old) return [];
         return old.map((apt: Appointment) =>
@@ -102,20 +117,34 @@ export const useUpdateAppointment = () => {
         );
       });
 
-      return { previousAppointments };
+      queryClient.setQueriesData({ queryKey: ['appointments'] }, (old: any) => {
+        if (!old) return old;
+        return old.map((apt: Appointment) =>
+          apt.id === newData.id ? { ...apt, ...newData.updates } : apt
+        );
+      });
+
+      return { previousDateRangeAppointments, previousAppointments };
     },
     onError: (error, _, context) => {
-      // 4. Se der erro, reverter para o snapshot
+      if (context?.previousDateRangeAppointments) {
+        queryClient.setQueriesData({ queryKey: ['appointmentsByDateRange'] }, context.previousDateRangeAppointments);
+      }
       if (context?.previousAppointments) {
-        queryClient.setQueriesData({ queryKey: ['appointmentsByDateRange'] }, context.previousAppointments);
+        queryClient.setQueriesData({ queryKey: ['appointments'] }, context.previousAppointments);
       }
       toast.error(`Erro ao atualizar: ${error.message}`);
     },
     onSettled: (data) => {
-      // 5. Sempre refetch para garantir consistência final
       queryClient.invalidateQueries({ queryKey: ['appointmentsByDateRange'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['monthly-session-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-activities'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardAlerts'] });
+      queryClient.invalidateQueries({ queryKey: ['smartInsights'] });
+      queryClient.invalidateQueries({ queryKey: ['churnAlerts'] });
+      queryClient.invalidateQueries({ queryKey: ['patientAppointments'] });
 
       if (data?.patient_id) {
         queryClient.invalidateQueries({ queryKey: ['patients', data.patient_id] });

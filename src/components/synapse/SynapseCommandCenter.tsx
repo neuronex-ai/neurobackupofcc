@@ -8,6 +8,7 @@ import { useSynapseChat } from "@/hooks/use-synapse-chat";
 import { useSynapse } from "@/context/SynapseProvider";
 import { useAppointmentsByDateRange } from "@/hooks/use-appointments-by-date-range";
 import { usePendingPatientsCount } from "@/hooks/use-pending-patients-count";
+import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
 import { startOfDay, endOfDay, addDays, isSameDay, format, isAfter } from "date-fns";
 import {
     Sparkles,
@@ -74,7 +75,7 @@ export const SynapseCommandCenter = () => {
 
         // Next appointment patient
         const nextApt = appointments
-            ?.filter((a) => isAfter(new Date(a.start_time), new Date()) && a.status !== "cancelled")
+            ?.filter((a) => isAfter(new Date(a.start_time), new Date()) && !isCancelledAppointmentStatus(a.status, a.notes))
             ?.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())?.[0];
 
         if (nextApt?.patient_name) {
@@ -93,7 +94,10 @@ export const SynapseCommandCenter = () => {
         }
 
         // Today appointment count
-        const todayCount = appointments?.filter((a) => isSameDay(new Date(a.start_time), today) && a.status !== "cancelled")?.length || 0;
+        const todayCount = appointments?.filter((a) =>
+            isSameDay(new Date(a.start_time), today) &&
+            !isCancelledAppointmentStatus(a.status, a.notes)
+        )?.length || 0;
         if (todayCount > 0) {
             pills.push({
                 label: `Resumo dos ${todayCount} atendimentos de hoje`,

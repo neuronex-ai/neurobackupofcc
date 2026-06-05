@@ -23,12 +23,15 @@ import { useGoogleCalendarSync } from "@/hooks/use-google-calendar-sync";
 import { usePendingPatientsCount } from "@/hooks/use-pending-patients-count";
 import { useSynapse } from "@/context/SynapseProvider";
 import { cn } from "@/lib/utils";
+import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from "@/lib/appointment-status";
+import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 
 const PremiumTimelineItem = ({ appointment, index }: { appointment: any, index: number }) => {
     const navigate = useNavigate();
     const isOnline = appointment.type === 'teleconsulta' || !!appointment.google_meet_link;
     const startTime = new Date(appointment.start_time);
     const isToday = isSameDay(startTime, new Date());
+    const statusMeta = getAppointmentStatusMeta(appointment.status, appointment.notes);
 
     return (
         <motion.div
@@ -75,7 +78,7 @@ const PremiumTimelineItem = ({ appointment, index }: { appointment: any, index: 
                         </div>
                         <div className="space-y-0.5">
                             <h4 className="text-base font-bold text-black dark:text-white tracking-tight">
-                                {appointment.patient_name || "Paciente Particular"}
+                                {getAppointmentDisplayTitle(appointment) || "Paciente Particular"}
                             </h4>
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-1.5 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
@@ -90,12 +93,11 @@ const PremiumTimelineItem = ({ appointment, index }: { appointment: any, index: 
                 <div className="mt-6 md:mt-0 flex items-center gap-4">
                     <div className={cn(
                         "px-5 py-2 rounded-full text-[9px] font-bold uppercase tracking-wider border shadow-sm transition-all duration-300",
-                        appointment.status === 'confirmed' || appointment.status === 'completed'
-                            ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 border-transparent"
-                            : "bg-white dark:bg-white/[0.04] text-zinc-400 dark:text-zinc-500 border-zinc-100 dark:border-white/5"
+                        statusMeta.bgClass,
+                        statusMeta.borderClass,
+                        statusMeta.textClass
                     )}>
-                        {appointment.status === 'confirmed' ? "Confirmado" :
-                            appointment.status === 'completed' ? "Concluído" : "Aguardando"}
+                        {statusMeta.label}
                     </div>
 
                     <Button
@@ -134,14 +136,15 @@ const DesktopDashboard = () => {
         if (!allUpcomingAppointments) return undefined;
         const now = new Date();
         return allUpcomingAppointments
-            .filter((apt: any) => isAfter(new Date(apt.end_time), now) && apt.status !== 'cancelled')
+            .filter((apt: any) => isAfter(new Date(apt.end_time), now) && !isCancelledAppointmentStatus(apt.status, apt.notes))
             .sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
     }, [allUpcomingAppointments]);
 
     const displayedTimeline = useMemo(() => {
         if (!allUpcomingAppointments) return [];
         // Show only 3 when collapsed, show all when expanded
-        return isTimelineExpanded ? allUpcomingAppointments : allUpcomingAppointments.slice(0, 3);
+        const visible = allUpcomingAppointments.filter((apt: any) => !isCancelledAppointmentStatus(apt.status, apt.notes));
+        return isTimelineExpanded ? visible : visible.slice(0, 3);
     }, [allUpcomingAppointments, isTimelineExpanded]);
 
     return (

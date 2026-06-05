@@ -14,6 +14,8 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { QuickActions } from "./QuickActions";
+import { getAppointmentStatusMeta, isCancelledAppointmentStatus, normalizeAppointmentStatus } from "@/lib/appointment-status";
+import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 
 interface MorningBriefingProps {
     appointments: Appointment[];
@@ -35,7 +37,7 @@ export const MorningBriefing = ({ appointments, pendingPatients }: MorningBriefi
     const GreetingIcon = greeting.icon;
 
     const todayAppointments = useMemo(() =>
-        appointments.filter(a => a.status !== 'cancelled' && a.type !== 'block')
+        appointments.filter(a => !isCancelledAppointmentStatus(a.status, a.notes) && a.type !== 'block')
             .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()),
         [appointments]
     );
@@ -101,8 +103,8 @@ export const MorningBriefing = ({ appointments, pendingPatients }: MorningBriefi
                                             <span className="text-xl font-black text-black dark:text-white">{todayAppointments.length}</span>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Confirmadas</span>
-                                            <span className="text-xl font-black text-emerald-500">{todayAppointments.filter(a => a.status === 'confirmed').length}</span>
+                                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Não pontuadas</span>
+                                            <span className="text-xl font-black text-zinc-500">{todayAppointments.filter(a => normalizeAppointmentStatus(a.status, a.notes) === 'unscored').length}</span>
                                         </div>
                                         <div className="h-px bg-zinc-200 dark:bg-white/10" />
                                         <p className="text-sm text-zinc-500/80 font-bold leading-relaxed italic text-center">"Sua agenda está operando em capacidade otimizada hoje."</p>
@@ -132,11 +134,11 @@ export const MorningBriefing = ({ appointments, pendingPatients }: MorningBriefi
                                                 </div>
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-base text-zinc-800 dark:text-zinc-200 font-black tracking-tight uppercase truncate mr-4">
-                                                        {app.patient_name || "Paciente"}
+                                                        {getAppointmentDisplayTitle(app) || "Paciente"}
                                                     </span>
                                                     <div className={cn(
                                                         "w-2 h-2 rounded-full",
-                                                        app.status === 'confirmed' ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-800"
+                                                        getAppointmentStatusMeta(app.status, app.notes).dotClass
                                                     )} />
                                                 </div>
                                             </div>

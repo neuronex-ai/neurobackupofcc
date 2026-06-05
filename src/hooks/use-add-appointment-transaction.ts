@@ -11,6 +11,11 @@ interface NewAppointmentTransactionData {
   type: 'income' | 'expense';
   category: string;
   date: Date;
+  payment_method?: string;
+  installments?: number;
+  patient_id?: string | null;
+  package_id?: string | null;
+  status?: string;
 }
 
 const addAppointmentTransaction = async (data: NewAppointmentTransactionData, userId: string) => {
@@ -24,6 +29,11 @@ const addAppointmentTransaction = async (data: NewAppointmentTransactionData, us
       type: data.type,
       category: data.category || 'Sessão',
       date: format(data.date, 'yyyy-MM-dd'),
+      payment_method: data.payment_method || 'pix',
+      installments: data.installments || 1,
+      patient_id: data.patient_id || null,
+      package_id: data.package_id || null,
+      status: data.status || 'pending',
     })
     .select()
     .single();
@@ -51,6 +61,8 @@ export const useAddAppointmentTransaction = () => {
       // Invalida queries de transações gerais e do paciente
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['patientTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
     },
     onError: (error) => {
       toast.error(`Erro ao registrar transação: ${error.message}`);

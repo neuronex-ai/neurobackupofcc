@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import { AppointmentDetailModal } from "./AppointmentDetailModal";
 import { Lock, Video, MapPin } from "lucide-react";
 import { format } from "date-fns";
+import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
+import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
 
 interface DraggableAppointmentItemProps {
   appointment: Appointment;
@@ -39,12 +41,12 @@ export const DraggableAppointmentItem = ({
   };
 
   const isBlock = appointment.type === 'block';
-  const isCancelled = appointment.status === 'cancelled';
+  const isCancelled = isCancelledAppointmentStatus(appointment.status, appointment.notes);
   const isSmall = geometry.height < 50;
 
   if (isCancelled) return null;
 
-  const title = isBlock ? (appointment.notes || "Bloqueio") : (privacyMode ? "Paciente" : appointment.patient_name);
+  const title = privacyMode && !isBlock ? "Paciente" : getAppointmentDisplayTitle(appointment);
   const timeRange = `${format(new Date(appointment.start_time), 'HH:mm')} - ${format(new Date(appointment.end_time), 'HH:mm')}`;
 
   const InnerContent = (

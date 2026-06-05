@@ -158,7 +158,7 @@ export const ActiveSessionPanel = ({
             chatHistory: fullTranscript,
         }, {
             onSuccess: () => {
-                updateAppointment({ id: appointmentId, updates: { status: 'completed' } }, {
+                updateAppointment({ id: appointmentId, updates: { status: 'attended' } }, {
                     onSuccess: () => {
                         if (isFocusMode) toggleFocusMode();
                         toast.success("Sessão salva com sucesso!");
@@ -169,7 +169,7 @@ export const ActiveSessionPanel = ({
             },
             onError: () => {
                 // Fallback: Just mark as completed if AI fails, but don't lose data
-                updateAppointment({ id: appointmentId, updates: { status: 'completed' } }, {
+                updateAppointment({ id: appointmentId, updates: { status: 'attended' } }, {
                     onSuccess: () => {
                         if (isFocusMode) toggleFocusMode();
                         toast.warning("Sessão salva, mas IA indisponível. Dados mantidos.");

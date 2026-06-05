@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useAppointmentsByDateRange } from "@/hooks/use-appointments-by-date-range";
+import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
 import { cn } from "@/lib/utils";
 import { endOfDay, format, isAfter, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -34,11 +35,14 @@ export const MobileDashboard = () => {
         if (!todayAppointments) return undefined;
         const now = new Date();
         return todayAppointments
-            .filter(apt => isAfter(new Date(apt.end_time), now) && apt.status !== 'cancelled')
+            .filter(apt => isAfter(new Date(apt.end_time), now) && !isCancelledAppointmentStatus(apt.status, apt.notes))
             .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
     }, [todayAppointments]);
 
-    const remainingCount = todayAppointments?.filter(apt => isAfter(new Date(apt.end_time), new Date()) && apt.status !== 'cancelled').length || 0;
+    const remainingCount = todayAppointments?.filter(apt =>
+        isAfter(new Date(apt.end_time), new Date()) &&
+        !isCancelledAppointmentStatus(apt.status, apt.notes)
+    ).length || 0;
 
     const getInitials = (name: string) => name.substring(0, 2).toUpperCase();
 

@@ -10,6 +10,8 @@ import { endOfDay, format, isSameDay, startOfDay } from "date-fns";
 import { ArrowRight, Calendar, ChevronDown, Loader2, MapPin, Video, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AppointmentDetailModal } from "../agenda/AppointmentDetailModal";
+import { getAppointmentStatusMeta } from "@/lib/appointment-status";
+import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 
 export const MiniDailyAgenda = () => {
     const today = new Date();
@@ -65,7 +67,7 @@ export const MiniDailyAgenda = () => {
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-center mb-1.5">
                                     <span className="text-sm font-black text-black dark:text-white truncate pr-3 tracking-tight group-hover:text-black dark:group-hover:text-white transition-colors">
-                                        {apt.patient_name}
+                                        {getAppointmentDisplayTitle(apt)}
                                     </span>
                                     <span className="text-[10px] font-black text-zinc-500/80/80 dark:text-zinc-400 bg-white dark:bg-black/40 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-white/5 tabular-nums shadow-sm">
                                         {format(new Date(apt.start_time), 'HH:mm')}
@@ -74,9 +76,7 @@ export const MiniDailyAgenda = () => {
                                 <div className="flex items-center gap-3">
                                     <div className={cn(
                                         "w-2 h-2 rounded-full",
-                                        apt.status === 'confirmed' 
-                                            ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" 
-                                            : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
+                                        getAppointmentStatusMeta(apt.status, apt.notes).dotClass
                                     )} />
                                     <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest flex items-center gap-2">
                                         {apt.type === 'online' ? <Video className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
@@ -121,14 +121,14 @@ export const MiniDailyAgenda = () => {
                                                     <span className="text-lg font-black text-black dark:text-white tracking-tighter tabular-nums">
                                                         {format(new Date(app.start_time), "HH:mm")}
                                                     </span>
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                                    <div className={cn("w-1.5 h-1.5 rounded-full mt-2", getAppointmentStatusMeta(app.status, app.notes).dotClass)} />
                                                 </div>
                                                 
                                                 <div className="h-10 w-px bg-zinc-100 dark:bg-white/10 mx-2" />
 
                                                 <div className="flex-1 min-w-0">
                                                     <h4 className="text-base font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-tight truncate">
-                                                        {app.patient_name || "Paciente"}
+                                                        {getAppointmentDisplayTitle(app) || "Paciente"}
                                                     </h4>
                                                     <p className="text-[10px] text-zinc-500/80/80 dark:text-zinc-500/80/80 font-bold uppercase tracking-widest mt-1">
                                                         {app.type === 'presencial' ? 'Consultório' : 'Teleconsulta'}
@@ -137,12 +137,11 @@ export const MiniDailyAgenda = () => {
 
                                                 <div className={cn(
                                                     "px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border shadow-lg transition-all",
-                                                    app.status === 'confirmed' ? 'text-white bg-zinc-900 dark:text-black dark:bg-white border-transparent' :
-                                                    app.status === 'cancelled' ? 'text-rose-500 bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20' :
-                                                    'text-zinc-500/80/80 bg-zinc-100 dark:bg-white/5 border-zinc-200 dark:border-white/5'
+                                                    getAppointmentStatusMeta(app.status, app.notes).textClass,
+                                                    getAppointmentStatusMeta(app.status, app.notes).bgClass,
+                                                    getAppointmentStatusMeta(app.status, app.notes).borderClass
                                                 )}>
-                                                    {app.status === 'confirmed' ? 'Confirmado' :
-                                                        app.status === 'cancelled' ? 'Cancelado' : 'Aguardando'}
+                                                    {getAppointmentStatusMeta(app.status, app.notes).label}
                                                 </div>
                                             </div>
                                         ))}

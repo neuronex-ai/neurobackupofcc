@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Appointment } from "@/types";
+import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
+import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
 
 interface UseAppointmentsProps {
   startDate?: Date;
@@ -22,10 +24,6 @@ export const useAppointments = ({ startDate, endDate, patientId, includeCancelle
           )
         `);
 
-      if (!includeCancelled) {
-        query = query.neq("status", "cancelled");
-      }
-
       query = query.order("start_time", { ascending: true });
 
       if (startDate) {
@@ -44,10 +42,17 @@ export const useAppointments = ({ startDate, endDate, patientId, includeCancelle
 
       if (error) throw error;
 
-      return data.map((app: any) => ({
-        ...app,
-        patient_name: app.patients?.name || "Paciente não identificado",
-      })) as Appointment[];
+      return data.map((app: any) => {
+        const appointment = {
+          ...app,
+          patient_name: app.patients?.name,
+        } as Appointment;
+
+        return {
+          ...appointment,
+          patient_name: getAppointmentDisplayTitle(appointment),
+        };
+      }).filter((app: Appointment) => includeCancelled || !isCancelledAppointmentStatus(app.status, app.notes)) as Appointment[];
     },
   });
 };

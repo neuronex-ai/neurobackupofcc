@@ -5,6 +5,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AppointmentDetailModal } from "../agenda/AppointmentDetailModal";
 import { Appointment } from "@/types";
+import { getAppointmentStatusMeta } from "@/lib/appointment-status";
+import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 
 interface AppointmentsListProps {
   appointments: Appointment[] | undefined;
@@ -75,7 +77,9 @@ export const AppointmentsList = ({ appointments, isLoading, error }: Appointment
 
             {/* Day Appointments Grid */}
             <div className="ml-[3.5rem] grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {dayAppointments.map((apt) => (
+              {dayAppointments.map((apt) => {
+                const statusMeta = getAppointmentStatusMeta(apt.status, apt.notes);
+                return (
                 <AppointmentDetailModal key={apt.id} appointment={apt}>
                   <div className={cn(
                     "group flex items-center gap-3 p-3.5 rounded-[18px] cursor-pointer transition-all duration-300 ease-apple",
@@ -100,7 +104,7 @@ export const AppointmentsList = ({ appointments, isLoading, error }: Appointment
 
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center">
-                        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate pr-2">{apt.patient_name}</p>
+                        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate pr-2">{getAppointmentDisplayTitle(apt)}</p>
                         <div className="flex items-center gap-1 text-[10px] text-zinc-500/80/80 bg-zinc-100/60 dark:bg-white/[0.03] px-1.5 py-0.5 rounded-lg border border-zinc-200/60 dark:border-white/[0.03]">
                           <Clock className="h-2.5 w-2.5" />
                           {format(new Date(apt.start_time), 'HH:mm')}
@@ -109,15 +113,16 @@ export const AppointmentsList = ({ appointments, isLoading, error }: Appointment
                       <div className="flex items-center gap-2 mt-1 text-[10px] text-zinc-500/80/80 dark:text-zinc-500/80/80">
                         <span className={cn(
                           "w-1.5 h-1.5 rounded-full",
-                          apt.status === 'confirmed' ? "bg-emerald-400" : apt.status === 'pending' ? "bg-amber-400" : "bg-zinc-400 dark:bg-zinc-600"
+                          statusMeta.dotClass
                         )} />
-                        <span>{apt.status === 'confirmed' ? 'Confirmada' : apt.status === 'pending' ? 'Pendente' : apt.status}</span>
+                        <span>{statusMeta.label}</span>
                         {apt.type === 'presencial' && <MapPin className="h-2.5 w-2.5 ml-auto opacity-40" />}
                       </div>
                     </div>
                   </div>
                 </AppointmentDetailModal>
-              ))}
+                );
+              })}
             </div>
           </div>
         );

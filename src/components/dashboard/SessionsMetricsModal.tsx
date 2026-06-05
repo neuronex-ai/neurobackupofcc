@@ -85,7 +85,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
                 <KPICard title="Sessões ausentes" value={data.kpis.absent} icon={<Users className="w-4 h-4 text-amber-500" />} color="amber" />
                 <KPICard title="Cliente Cancelou" value={data.kpis.clientCancelled} icon={<X className="w-4 h-4 text-red-500" />} color="red" />
                 <KPICard title="Profissional cancelou" value={data.kpis.proCancelled} icon={<X className="w-4 h-4 text-red-600" />} color="red-dark" />
-                <KPICard title="Sessões confirmadas" value={data.kpis.confirmed} icon={<ChevronRight className="w-4 h-4" />} color="blue-light" />
+                <KPICard title="Reagendamentos" value={data.patients.reschedules} icon={<ChevronRight className="w-4 h-4" />} color="blue-light" />
                 <KPICard title="Frequência não pontuada" value={data.kpis.unscored} icon={<HelpCircle className="w-4 h-4" />} color="zinc" />
               </div>
 

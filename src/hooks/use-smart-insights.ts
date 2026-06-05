@@ -2,6 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { subDays, subMonths } from 'date-fns';
+import {
+  isAttendedAppointmentStatus,
+  isCancelledAppointmentStatus,
+} from '@/lib/appointment-status';
+import { getAppointmentKind } from '@/lib/appointment-metadata';
 
 export interface SmartInsight {
   id: string;
@@ -29,13 +34,19 @@ const fetchSmartInsights = async (userId: string): Promise<SmartInsight[]> => {
     const patientIds = activePatients.map(p => p.id);
     const { data: recentApts } = await supabase
       .from('appointments')
-      .select('patient_id, start_time')
+      .select('patient_id, start_time, status, notes, type, metadata')
       .eq('user_id', userId)
       .in('patient_id', patientIds)
-      .in('status', ['completed', 'confirmed'])
       .gte('start_time', thirtyDaysAgo.toISOString());
 
-    const patientsWithRecentSession = new Set(recentApts?.map(a => a.patient_id) || []);
+    const patientsWithRecentSession = new Set(
+      recentApts
+        ?.filter((appointment: any) =>
+          getAppointmentKind(appointment) === 'session' &&
+          isAttendedAppointmentStatus(appointment.status, appointment.notes)
+        )
+        .map(a => a.patient_id) || []
+    );
     const dormantPatients = activePatients.filter(p => !patientsWithRecentSession.has(p.id));
 
     if (dormantPatients.length > 0) {
@@ -55,13 +66,17 @@ const fetchSmartInsights = async (userId: string): Promise<SmartInsight[]> => {
   const twoMonthsAgo = subMonths(now, 2);
   const { data: completedApts } = await supabase
     .from('appointments')
-    .select('id')
+    .select('id, status, notes, type, metadata')
     .eq('user_id', userId)
-    .eq('status', 'completed')
     .gte('start_time', twoMonthsAgo.toISOString());
 
-  if (completedApts && completedApts.length > 0) {
-    const completedIds = completedApts.map(a => a.id);
+  const attendedApts = (completedApts || []).filter((appointment: any) =>
+    getAppointmentKind(appointment) === 'session' &&
+    isAttendedAppointmentStatus(appointment.status, appointment.notes)
+  );
+
+  if (attendedApts.length > 0) {
+    const completedIds = attendedApts.map(a => a.id);
     const { data: billed } = await supabase
       .from('transactions')
       .select('appointment_id')
@@ -84,13 +99,13 @@ const fetchSmartInsights = async (userId: string): Promise<SmartInsight[]> => {
     }
   }
 
-  // ── 3. Taxa de confirmação da semana ──
+  // ── 3. Taxa de presença da semana ──
   const sevenDaysAgo = subDays(now, 7);
   const fourteenDaysAgo = subDays(now, 14);
 
   const { data: thisWeekApts } = await supabase
     .from('appointments')
-    .select('id, status')
+    .select('id, status, notes')
     .eq('user_id', userId)
     .gte('start_time', sevenDaysAgo.toISOString())
     .lte('start_time', now.toISOString())
@@ -98,15 +113,15 @@ const fetchSmartInsights = async (userId: string): Promise<SmartInsight[]> => {
 
   const { data: lastWeekApts } = await supabase
     .from('appointments')
-    .select('id, status')
+    .select('id, status, notes')
     .eq('user_id', userId)
     .gte('start_time', fourteenDaysAgo.toISOString())
     .lt('start_time', sevenDaysAgo.toISOString())
     .neq('type', 'block');
 
   if (thisWeekApts && lastWeekApts && lastWeekApts.length > 0) {
-    const thisWeekConfirmed = thisWeekApts.filter(a => a.status === 'confirmed' || a.status === 'completed').length;
-    const lastWeekConfirmed = lastWeekApts.filter(a => a.status === 'confirmed' || a.status === 'completed').length;
+    const thisWeekConfirmed = thisWeekApts.filter(a => isAttendedAppointmentStatus(a.status, a.notes)).length;
+    const lastWeekConfirmed = lastWeekApts.filter(a => isAttendedAppointmentStatus(a.status, a.notes)).length;
     const thisWeekRate = thisWeekApts.length > 0 ? thisWeekConfirmed / thisWeekApts.length : 0;
     const lastWeekRate = lastWeekApts.length > 0 ? lastWeekConfirmed / lastWeekApts.length : 0;
 
@@ -115,8 +130,8 @@ const fetchSmartInsights = async (userId: string): Promise<SmartInsight[]> => {
       insights.push({
         id: 'confirmation-drop',
         type: 'pattern',
-        title: 'Queda nas Confirmações',
-        message: `A taxa de confirmação caiu ${dropPercent}% esta semana. Considere enviar lembretes automáticos.`,
+        title: 'Queda nas presenças',
+        message: `A taxa de presença caiu ${dropPercent}% esta semana. Considere revisar faltas e reagendamentos.`,
         icon: 'trend-down',
         actionLabel: 'Ver Agenda',
         actionLink: '/agenda',
@@ -125,8 +140,8 @@ const fetchSmartInsights = async (userId: string): Promise<SmartInsight[]> => {
       insights.push({
         id: 'confirmation-up',
         type: 'pattern',
-        title: 'Confirmações em Alta',
-        message: `A taxa de confirmação subiu ${Math.round((thisWeekRate / lastWeekRate - 1) * 100)}% esta semana! Continue assim.`,
+        title: 'Presenças em alta',
+        message: `A taxa de presença subiu ${Math.round((thisWeekRate / lastWeekRate - 1) * 100)}% esta semana.`,
         icon: 'trend-up',
       });
     }
@@ -153,14 +168,17 @@ const fetchSmartInsights = async (userId: string): Promise<SmartInsight[]> => {
 
   // ── 5. Agenda vazia nos próximos 3 dias ──
   const threeDaysFromNow = subDays(now, -3);
-  const { count: upcomingCount } = await supabase
+  const { data: upcomingAppointments } = await supabase
     .from('appointments')
-    .select('*', { count: 'exact', head: true })
+    .select('id, status, notes')
     .eq('user_id', userId)
     .gte('start_time', now.toISOString())
     .lte('start_time', threeDaysFromNow.toISOString())
-    .neq('status', 'cancelled')
     .neq('type', 'block');
+
+  const upcomingCount = upcomingAppointments?.filter((appointment) =>
+    !isCancelledAppointmentStatus(appointment.status, appointment.notes)
+  ).length || 0;
 
   if (upcomingCount === 0) {
     insights.push({

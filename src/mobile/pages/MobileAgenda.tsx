@@ -2,6 +2,7 @@ import { NewAppointmentModal } from "@/components/agenda/NewAppointmentModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppointmentsByDateRange } from "@/hooks/use-appointments-by-date-range";
+import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from "@/lib/appointment-status";
 import { cn } from "@/lib/utils";
 import {
   addDays,
@@ -66,7 +67,7 @@ export const MobileAgenda = () => {
 
   const filteredAppointments = useMemo(() => {
     let result = appointments
-      ?.filter((apt) => apt.status !== "cancelled" && apt.type !== "block")
+      ?.filter((apt) => !isCancelledAppointmentStatus(apt.status, apt.notes) && apt.type !== "block")
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()) || [];
 
     if (searchTerm) {
@@ -87,7 +88,7 @@ export const MobileAgenda = () => {
       .filter(
         (apt) =>
           isSameDay(new Date(apt.start_time), selectedDate) &&
-          apt.status !== "cancelled" &&
+          !isCancelledAppointmentStatus(apt.status, apt.notes) &&
           apt.type !== "block"
       )
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
@@ -98,7 +99,7 @@ export const MobileAgenda = () => {
     if (!monthAppointments) return {};
     const map: Record<string, number> = {};
     monthAppointments
-      .filter((apt) => apt.status !== "cancelled" && apt.type !== "block")
+      .filter((apt) => !isCancelledAppointmentStatus(apt.status, apt.notes) && apt.type !== "block")
       .forEach((apt) => {
         const key = format(new Date(apt.start_time), "yyyy-MM-dd");
         map[key] = (map[key] || 0) + 1;
@@ -186,6 +187,7 @@ export const MobileAgenda = () => {
   const renderAppointmentCard = (apt: any, i: number, compact = false) => {
     const isPast = new Date(apt.end_time) < new Date();
     const isOngoing = new Date(apt.start_time) <= new Date() && new Date(apt.end_time) > new Date();
+    const statusMeta = getAppointmentStatusMeta(apt.status, apt.notes);
 
     return (
       <motion.div
@@ -271,11 +273,10 @@ export const MobileAgenda = () => {
                 {apt.type === "online" ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
                 {apt.type === "online" ? "Online" : "Presencial"}
               </span>
-              {apt.status === "confirmed" && (
-                <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-secondary/50 border border-border/10 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/80">
-                  Confirmado
-                </span>
-              )}
+              <span className={cn("flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border text-[9px] font-bold uppercase tracking-wider", statusMeta.softClassName, statusMeta.textClassName)}>
+                <span className={cn("w-1.5 h-1.5 rounded-full", statusMeta.dotClassName)} />
+                {statusMeta.label}
+              </span>
             </div>
 
             {/* Footer */}

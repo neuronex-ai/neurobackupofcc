@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { useSendReminder } from "@/hooks/use-send-reminder";
 import { Appointment } from "@/types";
+import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Users, X } from "lucide-react";
 import { useState } from "react";
@@ -21,7 +22,7 @@ export const MassReminderModal = ({ appointments, children }: MassReminderModalP
     const [sentIds, setSentIds] = useState<string[]>([]);
     const { mutateAsync: sendEmail } = useSendReminder();
 
-    const validAppointments = appointments.filter(apt => apt.status !== 'cancelled' && apt.type !== 'block');
+    const validAppointments = appointments.filter(apt => !isCancelledAppointmentStatus(apt.status, apt.notes) && apt.type !== 'block');
     const pendingCount = validAppointments.filter(apt => !sentIds.includes(apt.id)).length;
 
     const handleSendAllEmails = async () => {

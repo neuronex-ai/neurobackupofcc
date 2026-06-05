@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNavigation } from "react-day-picker";
+import { normalizeAppointmentStatus } from "@/lib/appointment-status";
 
 interface SidebarProps {
   selectedDate: Date;
@@ -117,8 +118,8 @@ export const Sidebar = ({
     isSameDay(new Date(app.start_time), selectedDate)
   );
 
-  const confirmed = todayAppointments.filter(a => a.status === 'confirmed').length;
-  const pending = todayAppointments.filter(a => a.status === 'pending').length;
+  const attended = todayAppointments.filter(a => normalizeAppointmentStatus(a.status, a.notes) === 'attended').length;
+  const unscored = todayAppointments.filter(a => normalizeAppointmentStatus(a.status, a.notes) === 'unscored').length;
 
   return (
     <div className="h-full flex flex-col overflow-y-auto custom-scrollbar pr-4 pb-8 space-y-6">
@@ -173,8 +174,8 @@ export const Sidebar = ({
 
       {/* 2. Metrics Section - Unified Monochrome */}
       <div className="grid grid-cols-2 gap-4 shrink-0 px-0.5">
-        <MetricCard label="Confirmados" value={confirmed} />
-        <MetricCard label="Pendentes" value={pending} />
+        <MetricCard label="Presenças" value={attended} />
+        <MetricCard label="Não pontuados" value={unscored} />
       </div>
 
       {/* 3. Search & Filters - Minimalist Area */}

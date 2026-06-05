@@ -7,6 +7,7 @@ import { useAppointments } from "@/hooks/use-appointments";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import { useAgendaRealtime } from "@/hooks/use-agenda-realtime";
+import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
 
 export default function DesktopAgenda() {
     useAgendaRealtime();
@@ -30,7 +31,7 @@ export default function DesktopAgenda() {
 
     const filteredAppointments = useMemo(() => {
         return appointments.filter(app => {
-            if (app.status === 'cancelled') return false;
+            if (isCancelledAppointmentStatus(app.status, app.notes)) return false;
             const matchesSearch = (app.patient_name || "").toLowerCase().includes(searchQuery.toLowerCase());
             const matchesTag = !selectedTag ||
                 (selectedTag === 'Online' && app.type === 'online') ||

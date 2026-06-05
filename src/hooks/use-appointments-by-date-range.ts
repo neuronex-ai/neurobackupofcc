@@ -4,6 +4,7 @@ import { Appointment } from '@/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatISO } from 'date-fns';
 import { useEffect } from 'react';
+import { getAppointmentDisplayTitle } from '@/lib/appointment-utils';
 
 interface FetchAppointmentsByDateRangeParams {
   startDate: Date;
@@ -31,13 +32,20 @@ const fetchAppointmentsByDateRange = async ({ startDate, endDate, userId }: Fetc
     throw new Error(error.message);
   }
 
-  return data.map(apt => ({
-    ...apt,
-    patient_name: apt.patient?.name,
-    patient_email: apt.patient?.email,
-    patient_phone: apt.patient?.phone,
-    patient_initials: apt.patient?.name ? apt.patient.name.substring(0, 2).toUpperCase() : '??'
-  })) as Appointment[];
+  return data.map(apt => {
+    const appointment = {
+      ...apt,
+      patient_name: apt.patient?.name,
+      patient_email: apt.patient?.email,
+      patient_phone: apt.patient?.phone,
+      patient_initials: apt.patient?.name ? apt.patient.name.substring(0, 2).toUpperCase() : '??'
+    } as Appointment;
+
+    return {
+      ...appointment,
+      patient_name: getAppointmentDisplayTitle(appointment),
+    };
+  }) as Appointment[];
 };
 
 export const useAppointmentsByDateRange = (startDate: Date, endDate: Date) => {

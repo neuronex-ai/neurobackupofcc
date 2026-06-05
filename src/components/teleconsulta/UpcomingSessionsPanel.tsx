@@ -1,5 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    isAttendedAppointmentStatus,
+    isCancelledAppointmentStatus,
+} from "@/lib/appointment-status";
 import { getInitials } from "@/lib/appointment-utils";
 import { cn } from "@/lib/utils";
 import { Appointment } from "@/types";
@@ -27,12 +31,20 @@ export const UpcomingSessionsPanel = ({
     // Logic to find "Next Session"
     const sortedSessions = [...upcomingSessions].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
     const nextSessionIndex = sortedSessions.findIndex(s =>
-        (s.status === 'confirmed' || s.status === 'pending') &&
+        !isCancelledAppointmentStatus(s.status, s.notes) &&
+        !isAttendedAppointmentStatus(s.status, s.notes) &&
         (isToday(new Date(s.start_time)) || isFuture(new Date(s.start_time)))
     );
     const nextSession = nextSessionIndex !== -1 ? sortedSessions[nextSessionIndex] : null;
-    const futureSessions = sortedSessions.filter((s, idx) => idx > nextSessionIndex && s.status !== 'completed' && s.status !== 'cancelled');
-    const pastSessions = sortedSessions.filter(s => s.status === 'completed' || (isPast(new Date(s.end_time)) && s.id !== nextSession?.id));
+    const futureSessions = sortedSessions.filter((s, idx) =>
+        idx > nextSessionIndex &&
+        !isAttendedAppointmentStatus(s.status, s.notes) &&
+        !isCancelledAppointmentStatus(s.status, s.notes)
+    );
+    const pastSessions = sortedSessions.filter(s =>
+        isAttendedAppointmentStatus(s.status, s.notes) ||
+        (isPast(new Date(s.end_time)) && s.id !== nextSession?.id)
+    );
 
     if (isLoading) {
         return (
@@ -105,7 +117,7 @@ export const UpcomingSessionsPanel = ({
                                     </div>
 
                                     {/* Right Content (Button) */}
-                                    {nextSession.status === 'confirmed' ? (
+                                    {!isCancelledAppointmentStatus(nextSession.status, nextSession.notes) ? (
                                         <div className="flex-shrink-0">
                                             <Button
                                                 onClick={() => startSession(nextSession.id)}

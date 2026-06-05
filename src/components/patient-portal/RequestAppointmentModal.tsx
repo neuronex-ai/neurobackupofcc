@@ -75,8 +75,16 @@ export const RequestAppointmentModal = ({ children }: RequestAppointmentModalPro
             start_time: startTime.toISOString(),
             end_time: endTime.toISOString(),
             type: values.type,
-            status: 'pending',
-            notes: 'Solicitação via Portal do Paciente'
+            status: 'unscored',
+            notes: 'Solicitação via Portal do Paciente',
+            metadata: {
+              kind: 'session',
+              sessionType: 'acompanhamento',
+              modality: values.type,
+              durationMinutes: 50,
+              origin: 'neuronex',
+              syncStatus: 'pending',
+            }
         });
 
         if (error) throw error;

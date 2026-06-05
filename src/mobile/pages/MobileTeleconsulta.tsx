@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAppointments } from "@/hooks/use-appointments";
 import { Appointment } from "@/types";
+import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
 import { format, isAfter, isBefore, startOfDay, endOfDay, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -70,7 +71,7 @@ export const MobileTeleconsulta = () => {
     // Filtering Logic
     const filteredAppointments = useMemo(() => {
         if (!appointments) return [];
-        let filtered = appointments.filter(apt => apt.status !== 'cancelled' && apt.type !== 'block');
+        let filtered = appointments.filter(apt => !isCancelledAppointmentStatus(apt.status, apt.notes) && apt.type !== 'block');
 
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();

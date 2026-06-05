@@ -1,3 +1,6 @@
+import type { AppointmentMetadata } from "@/lib/appointment-metadata";
+import type { AppointmentStatus, LegacyAppointmentStatus } from "@/lib/appointment-status";
+
 export interface Patient {
   id: string;
   user_id: string;
@@ -62,12 +65,14 @@ export interface Appointment {
   /** Modalidade do atendimento ou tipo de bloqueio administrativo */
   type: 'presencial' | 'online' | 'block';
   /** Estado atual do agendamento no workflow clínico */
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  status: AppointmentStatus | LegacyAppointmentStatus;
   /** Observações privadas do profissional sobre o agendamento */
   notes: string | null;
   /** Endereço físico ou link da videochamada */
   location: string | null;
   created_at: string;
+  updated_at?: string;
+  metadata?: AppointmentMetadata | null;
   /** Preço da sessão individual se não for pacote */
   price?: number | null;
   /** Nome do paciente persistido para performance em listagens */

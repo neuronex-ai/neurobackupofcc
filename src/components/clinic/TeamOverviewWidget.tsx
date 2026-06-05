@@ -5,6 +5,7 @@ import {
     useOrganizationMembers
 } from "@/hooks/use-organization";
 import { supabase } from "@/integrations/supabase/client";
+import { isAttendedAppointmentStatus } from "@/lib/appointment-status";
 import { useQuery } from "@tanstack/react-query";
 import { endOfDay, startOfDay, startOfMonth } from "date-fns";
 import { motion } from "framer-motion";
@@ -34,20 +35,18 @@ const useTeamPerformance = (memberIds: string[]) => {
             // Fetch today's appointments for all members
             const { data: todayAppts } = await supabase
                 .from('appointments')
-                .select('user_id')
+                .select('user_id, status, notes')
                 .in('user_id', memberIds)
                 .gte('start_time', todayStart)
-                .lte('start_time', todayEnd)
-                .in('status', ['confirmed', 'completed']);
+                .lte('start_time', todayEnd);
 
             // Fetch this month's appointments for all members
             const { data: monthAppts } = await supabase
                 .from('appointments')
-                .select('user_id')
+                .select('user_id, status, notes')
                 .in('user_id', memberIds)
                 .gte('start_time', monthStart)
-                .lte('start_time', todayEnd)
-                .in('status', ['confirmed', 'completed']);
+                .lte('start_time', todayEnd);
 
             const perfMap = new Map<string, { today: number; month: number }>();
 
@@ -57,13 +56,13 @@ const useTeamPerformance = (memberIds: string[]) => {
             }
 
             // Count today's appointments per member
-            todayAppts?.forEach(apt => {
+            todayAppts?.filter(apt => isAttendedAppointmentStatus(apt.status, apt.notes)).forEach(apt => {
                 const existing = perfMap.get(apt.user_id)!;
                 existing.today += 1;
             });
 
             // Count this month's appointments per member
-            monthAppts?.forEach(apt => {
+            monthAppts?.filter(apt => isAttendedAppointmentStatus(apt.status, apt.notes)).forEach(apt => {
                 const existing = perfMap.get(apt.user_id)!;
                 existing.month += 1;
             });

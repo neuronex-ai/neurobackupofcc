@@ -2,6 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { subDays, differenceInDays } from 'date-fns';
+import {
+  isAbsentAppointmentStatus,
+  isAttendedAppointmentStatus,
+  isCancelledAppointmentStatus,
+} from '@/lib/appointment-status';
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -27,15 +32,15 @@ const calculateChurnRisk = async (patientId: string, userId: string): Promise<Ch
   // 1. Cancelamentos e faltas nos últimos 90 dias (peso: 30%)
   const { data: appointments } = await supabase
     .from('appointments')
-    .select('id, status, start_time')
+    .select('id, status, notes, start_time')
     .eq('user_id', userId)
     .eq('patient_id', patientId)
     .gte('start_time', ninetyDaysAgo.toISOString())
     .order('start_time', { ascending: false });
 
   const total = appointments?.length || 0;
-  const cancelled = appointments?.filter(a => a.status === 'cancelled').length || 0;
-  const noShow = appointments?.filter(a => a.status === 'no_show').length || 0;
+  const cancelled = appointments?.filter(a => isCancelledAppointmentStatus(a.status, a.notes)).length || 0;
+  const noShow = appointments?.filter(a => isAbsentAppointmentStatus(a.status, a.notes)).length || 0;
   if (total > 0) {
     const cancelRate = (cancelled + noShow) / total;
     const cancelScore = Math.min(cancelRate * 100, 30);
@@ -46,15 +51,18 @@ const calculateChurnRisk = async (patientId: string, userId: string): Promise<Ch
   // 2. Tempo desde a última sessão (peso: 25%)
   const { data: lastSession } = await supabase
     .from('appointments')
-    .select('start_time')
+    .select('start_time, status, notes')
     .eq('user_id', userId)
     .eq('patient_id', patientId)
-    .in('status', ['completed', 'confirmed'])
     .order('start_time', { ascending: false })
-    .limit(1);
+    .limit(20);
 
-  if (lastSession && lastSession.length > 0) {
-    const daysSinceLastSession = differenceInDays(now, new Date(lastSession[0].start_time));
+  const lastCompletedSession = lastSession?.find((appointment) =>
+    isAttendedAppointmentStatus(appointment.status, appointment.notes)
+  );
+
+  if (lastCompletedSession) {
+    const daysSinceLastSession = differenceInDays(now, new Date(lastCompletedSession.start_time));
     if (daysSinceLastSession > 60) {
       score += 25;
       factors.push(`${daysSinceLastSession} dias sem sessão`);
@@ -91,12 +99,12 @@ const calculateChurnRisk = async (patientId: string, userId: string): Promise<Ch
   const sixtyDaysAgo = subDays(now, 60);
 
   const currentMonthSessions = appointments?.filter(a =>
-    new Date(a.start_time) >= thirtyDaysAgo && (a.status === 'completed' || a.status === 'confirmed')
+    new Date(a.start_time) >= thirtyDaysAgo && isAttendedAppointmentStatus(a.status, a.notes)
   ).length || 0;
 
   const previousMonthSessions = appointments?.filter(a => {
     const d = new Date(a.start_time);
-    return d >= sixtyDaysAgo && d < thirtyDaysAgo && (a.status === 'completed' || a.status === 'confirmed');
+    return d >= sixtyDaysAgo && d < thirtyDaysAgo && isAttendedAppointmentStatus(a.status, a.notes);
   }).length || 0;
 
   if (previousMonthSessions > 0 && currentMonthSessions < previousMonthSessions) {
@@ -107,15 +115,18 @@ const calculateChurnRisk = async (patientId: string, userId: string): Promise<Ch
   }
 
   // 5. Sem agendamento futuro (peso: 10%)
-  const { count: futureCount } = await supabase
+  const { data: futureAppointments } = await supabase
     .from('appointments')
-    .select('*', { count: 'exact', head: true })
+    .select('id, status, notes')
     .eq('user_id', userId)
     .eq('patient_id', patientId)
-    .gte('start_time', now.toISOString())
-    .neq('status', 'cancelled');
+    .gte('start_time', now.toISOString());
 
-  if (!futureCount || futureCount === 0) {
+  const futureCount = futureAppointments?.filter((appointment) =>
+    !isCancelledAppointmentStatus(appointment.status, appointment.notes)
+  ).length || 0;
+
+  if (futureCount === 0) {
     score += 10;
     factors.push('Sem agendamento futuro');
   }

@@ -29,6 +29,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppointments } from "@/hooks/use-appointments";
 import { toast } from "sonner";
+import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
 
 const FormSchema = z.object({
   type: z.enum(["presencial", "online", "block"], { required_error: "O tipo é obrigatório." }),
@@ -199,7 +200,7 @@ export const NewAppointmentForm = ({ onSuccess, initialDate }: NewAppointmentFor
     }
 
     const hasConflict = allAppointments?.some(app => {
-      if (app.status === 'cancelled') return false;
+      if (isCancelledAppointmentStatus(app.status, app.notes)) return false;
       const appStart = new Date(app.start_time);
       const appEnd = new Date(app.end_time);
       return startTime < appEnd && endTime > appStart;

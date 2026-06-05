@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from '@/lib/appointment-status';
+import type React from 'react';
 
 interface SynapseWidgetProps {
     widgetData: {
@@ -54,17 +56,13 @@ const toBrazilDate = (iso: string) => {
 };
 
 // ─── Status badge ──────────────────────────────────────────────────
-const StatusBadge = ({ status }: { status: string }) => {
-    const config: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-        confirmed: { icon: <CheckCircle2 className="w-3 h-3" />, label: 'Confirmada', color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20' },
-        cancelled: { icon: <XCircle className="w-3 h-3" />, label: 'Cancelada', color: 'text-red-600 bg-red-500/10 border-red-500/20 dark:text-red-400 dark:bg-red-500/10 dark:border-red-500/20' },
-        pending: { icon: <Clock className="w-3 h-3" />, label: 'Pendente', color: 'text-amber-600 bg-amber-500/10 border-amber-500/20 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/20' },
-    };
-    const c = config[status] || config.pending;
+const StatusBadge = ({ status, notes }: { status: string; notes?: string | null }) => {
+    const meta = getAppointmentStatusMeta(status, notes);
+    const Icon = meta.icon;
     return (
-        <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border', c.color)}>
-            {c.icon}
-            {c.label}
+        <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border', meta.softClassName, meta.textClassName)}>
+            <Icon className="w-3 h-3" />
+            {meta.label}
         </div>
     );
 };
@@ -143,7 +141,7 @@ export const SynapseWidgetRenderer = ({ widgetData }: SynapseWidgetProps) => {
                     ? `${toBrazilTime(apt.start_time)} às ${toBrazilTime(apt.end_time)}`
                     : apt.time || '');
                 const patientName = apt.patient_name || apt.patient?.name || 'Horário Bloqueado';
-                const status = apt.status || 'confirmed';
+                const status = apt.status || 'unscored';
                 const appointmentType = apt.type || 'presencial';
 
                 return (
@@ -162,7 +160,7 @@ export const SynapseWidgetRenderer = ({ widgetData }: SynapseWidgetProps) => {
                             'hover:bg-zinc-100 dark:hover:bg-white/[0.06]',
                             'transition-all duration-300 group/item text-left',
                             'active:scale-[0.98]',
-                            status === 'cancelled' && 'opacity-60'
+                            isCancelledAppointmentStatus(status, apt.notes) && 'opacity-60'
                         )}
                     >
                         <div className="flex items-center gap-3.5">
@@ -180,7 +178,7 @@ export const SynapseWidgetRenderer = ({ widgetData }: SynapseWidgetProps) => {
                                     <span className="text-[10px] font-mono text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                                         {time}
                                     </span>
-                                    <StatusBadge status={status} />
+                                    <StatusBadge status={status} notes={apt.notes} />
                                 </div>
                             </div>
                         </div>

@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
 import { addDays, addMinutes, endOfDay, isBefore, isSameDay, setHours, setMinutes, startOfDay } from 'date-fns';
 import { useCallback, useState } from 'react';
 
@@ -44,14 +45,16 @@ export const useSmartAvailability = () => {
       // 1. Buscar todos os agendamentos no intervalo
       const { data: appointments, error } = await supabase
         .from('appointments')
-        .select('start_time, end_time')
+        .select('start_time, end_time, status, notes')
         .eq('user_id', userId)
         .gte('start_time', startOfDay(startDate).toISOString())
-        .lte('end_time', endOfDay(endDate).toISOString())
-        .neq('status', 'cancelled');
+        .lte('end_time', endOfDay(endDate).toISOString());
 
       if (error) throw error;
 
+      const visibleAppointments = (appointments || []).filter((appointment) =>
+        !isCancelledAppointmentStatus(appointment.status, appointment.notes)
+      );
       const foundSlots: AvailableSlot[] = [];
 
       // 2. Iterar pelos dias
@@ -77,7 +80,7 @@ export const useSmartAvailability = () => {
           const potentialEnd = addMinutes(scanTime, durationMinutes);
 
           // Verificar conflito
-          const hasConflict = appointments?.some(apt => {
+          const hasConflict = visibleAppointments.some(apt => {
             const aptStart = new Date(apt.start_time);
             const aptEnd = new Date(apt.end_time);
 

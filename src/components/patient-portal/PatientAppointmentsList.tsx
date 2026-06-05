@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePatientAppointments } from "@/hooks/use-patient-appointments";
+import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from "@/lib/appointment-status";
 import { cn } from "@/lib/utils";
 import { Appointment } from "@/types";
 import { differenceInMinutes, format, isFuture } from "date-fns";
@@ -60,9 +61,12 @@ export const PatientAppointmentsList = ({ patientId }: PatientAppointmentsListPr
       </div>
 
       <div className="space-y-3">
-        {appointments && appointments.length > 0 ? (
-          appointments.map((appointment: Appointment) => {
-            const isConfirmedOnline = appointment.type === 'online' && appointment.status === 'confirmed';
+        {appointments && appointments.filter((appointment: Appointment) => !isCancelledAppointmentStatus(appointment.status, appointment.notes)).length > 0 ? (
+          appointments
+            .filter((appointment: Appointment) => !isCancelledAppointmentStatus(appointment.status, appointment.notes))
+            .map((appointment: Appointment) => {
+            const statusMeta = getAppointmentStatusMeta(appointment.status, appointment.notes);
+            const isOnlineSession = appointment.type === 'online';
             const isNearStart = isFuture(new Date(appointment.start_time)) && differenceInMinutes(new Date(appointment.start_time), new Date()) <= 15;
             const isToday = new Date(appointment.start_time).getDate() === new Date().getDate();
 
@@ -71,13 +75,13 @@ export const PatientAppointmentsList = ({ patientId }: PatientAppointmentsListPr
                 key={appointment.id}
                 className={cn(
                   "group flex flex-col relative p-5 rounded-2xl border transition-all duration-300 overflow-hidden",
-                  appointment.status === 'confirmed'
-                    ? "bg-[#0F0F11] border-emerald-500/20 hover:border-emerald-500/30"
+                  statusMeta.value === 'unscored'
+                    ? "bg-[#0F0F11] border-zinc-500/20 hover:border-zinc-500/30"
                     : "bg-white/[0.02] border-white/5 hover:bg-white/[0.04] hover:border-white/10"
                 )}
               >
-                {isToday && appointment.status === 'confirmed' && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 animate-pulse" />
+                {isToday && (
+                  <div className={cn("absolute left-0 top-0 bottom-0 w-1 animate-pulse", statusMeta.dotClassName)} />
                 )}
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -96,11 +100,9 @@ export const PatientAppointmentsList = ({ patientId }: PatientAppointmentsListPr
                           <p className="font-bold text-white text-base">
                             {format(new Date(appointment.start_time), 'EEEE', { locale: ptBR })}
                           </p>
-                          {appointment.status === "pending" && (
-                            <Badge variant="outline" className="text-[9px] uppercase tracking-wider bg-amber-500/10 text-amber-400 border-amber-500/20 px-1.5 py-0">
-                              Pendente
-                            </Badge>
-                          )}
+                          <Badge variant="outline" className={cn("text-[9px] uppercase tracking-wider px-1.5 py-0", statusMeta.softClassName, statusMeta.textClassName)}>
+                            {statusMeta.label}
+                          </Badge>
                         </div>
 
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
@@ -128,7 +130,7 @@ export const PatientAppointmentsList = ({ patientId }: PatientAppointmentsListPr
                       )}
                     </div>
 
-                    {isConfirmedOnline ? (
+                    {isOnlineSession ? (
                       isNearStart ? (
                         <JoinSessionModal appointment={appointment}>
                           <Button size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/20 rounded-xl h-9 px-4 text-xs font-bold uppercase tracking-wider w-full sm:w-auto">

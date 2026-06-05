@@ -88,15 +88,13 @@ export const DashboardKpiCards = () => {
         isOpen={isSessionsModalOpen} 
         onClose={() => setIsSessionsModalOpen(false)} 
       />
-
-      <BirthdaysModal 
-        isOpen={isBirthdaysModalOpen} 
+      <BirthdaysModal
+        isOpen={isBirthdaysModalOpen}
         onClose={() => setIsBirthdaysModalOpen(false)}
         birthdays={data?.monthlyBirthdays || []}
       />
-
-      <PatientActivitiesModal 
-        isOpen={isActivitiesModalOpen} 
+      <PatientActivitiesModal
+        isOpen={isActivitiesModalOpen}
         onClose={() => setIsActivitiesModalOpen(false)}
       />
     </>

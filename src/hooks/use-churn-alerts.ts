@@ -2,6 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { subDays, differenceInDays } from 'date-fns';
+import {
+  isAbsentAppointmentStatus,
+  isAttendedAppointmentStatus,
+  isCancelledAppointmentStatus,
+} from '@/lib/appointment-status';
 
 export type ChurnRiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -58,7 +63,7 @@ const fetchTopChurnRisks = async (userId: string): Promise<ChurnAlert[]> => {
 
   const { data: allAppointments } = await supabase
     .from('appointments')
-    .select('id, status, start_time, patient_id')
+    .select('id, status, notes, start_time, patient_id')
     .eq('user_id', userId)
     .in('patient_id', patientIds)
     .gte('start_time', ninetyDaysAgo.toISOString())
@@ -85,14 +90,16 @@ const fetchTopChurnRisks = async (userId: string): Promise<ChurnAlert[]> => {
     // Cancelamento/falta rate
     const total = patientApts.length;
     if (total > 0) {
-      const badCount = patientApts.filter(a => a.status === 'cancelled' || a.status === 'no_show').length;
+      const badCount = patientApts.filter(a =>
+        isCancelledAppointmentStatus(a.status, a.notes) || isAbsentAppointmentStatus(a.status, a.notes)
+      ).length;
       const cancelRate = badCount / total;
       score += Math.min(cancelRate * 100, 30);
       if (cancelRate > 0.3) factors.push(`${Math.round(cancelRate * 100)}% de cancelamentos`);
     }
 
     // Tempo sem sessão
-    const completedApts = patientApts.filter(a => a.status === 'completed' || a.status === 'confirmed');
+    const completedApts = patientApts.filter(a => isAttendedAppointmentStatus(a.status, a.notes));
     if (completedApts.length > 0) {
       const daysSince = differenceInDays(now, new Date(completedApts[0].start_time));
       if (daysSince > 60) { score += 25; factors.push(`${daysSince} dias sem sessão`); }
@@ -112,7 +119,7 @@ const fetchTopChurnRisks = async (userId: string): Promise<ChurnAlert[]> => {
 
     // Sem futuro
     const hasFuture = patientApts.some(a =>
-      new Date(a.start_time) > now && a.status !== 'cancelled'
+      new Date(a.start_time) > now && !isCancelledAppointmentStatus(a.status, a.notes)
     );
     if (!hasFuture) {
       score += 10;

@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
 
 interface Appointment {
   id: string;
@@ -66,14 +67,15 @@ export default function ConfirmAppointment() {
 
     const { data } = await supabase
       .from('appointments')
-      .select('start_time')
+      .select('start_time, status, notes')
       .eq('user_id', appointment.user_id)
-      .neq('status', 'cancelled')
       .gte('start_time', startOfDay.toISOString())
       .lte('start_time', endOfDay.toISOString());
 
     if (data) {
-      const busy = data.map(app => format(new Date(app.start_time), 'HH:mm'));
+      const busy = data
+        .filter(app => !isCancelledAppointmentStatus(app.status, app.notes))
+        .map(app => format(new Date(app.start_time), 'HH:mm'));
       setBusyTimes(busy);
     }
   };
@@ -200,12 +202,12 @@ export default function ConfirmAppointment() {
       return;
     }
 
-    const newStatus = (appointment.payment_config?.type === 'received' || appointment.payment_config?.type === 'charge') ? 'confirmed' : 'pending';
+    const newStatus = 'unscored';
 
     await supabase.from('appointments').update({ status: newStatus }).eq('id', appointment.id);
 
     // Insert Notification
-    const title = newStatus === 'confirmed' ? 'Agendamento Confirmado' : 'Agendamento Reservado (Pendente)';
+    const title = 'Agendamento confirmado';
     await supabase.from('notifications').insert({
       user_id: appointment.user_id,
       title: title,
