@@ -4,10 +4,14 @@ import { CalendarCheck, Cake, Activity } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useMonthlySessionMetrics } from '@/hooks/use-monthly-session-metrics';
 import { SessionsMetricsModal } from './SessionsMetricsModal';
+import { BirthdaysModal } from './BirthdaysModal';
+import { PatientActivitiesModal } from './PatientActivitiesModal';
 
 export const DashboardKpiCards = () => {
   const { data } = useMonthlySessionMetrics(new Date());
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
+  const [isBirthdaysModalOpen, setIsBirthdaysModalOpen] = useState(false);
+  const [isActivitiesModalOpen, setIsActivitiesModalOpen] = useState(false);
 
   const kpis = [
     {
@@ -23,10 +27,10 @@ export const DashboardKpiCards = () => {
       id: 'birthdays',
       title: 'aniversariantes',
       value: data?.birthdayCount || 0,
-      label: 'hoje',
+      label: 'neste mês',
       icon: Cake,
       color: 'zinc',
-      onClick: () => {} // Will be implemented later
+      onClick: () => setIsBirthdaysModalOpen(true)
     },
     {
       id: 'activities',
@@ -35,7 +39,7 @@ export const DashboardKpiCards = () => {
       label: 'registradas este mês',
       icon: Activity,
       color: 'zinc',
-      onClick: () => {} // Will be implemented later
+      onClick: () => setIsActivitiesModalOpen(true)
     }
   ];
 
@@ -83,6 +87,17 @@ export const DashboardKpiCards = () => {
       <SessionsMetricsModal 
         isOpen={isSessionsModalOpen} 
         onClose={() => setIsSessionsModalOpen(false)} 
+      />
+
+      <BirthdaysModal 
+        isOpen={isBirthdaysModalOpen} 
+        onClose={() => setIsBirthdaysModalOpen(false)}
+        birthdays={data?.monthlyBirthdays || []}
+      />
+
+      <PatientActivitiesModal 
+        isOpen={isActivitiesModalOpen} 
+        onClose={() => setIsActivitiesModalOpen(false)}
       />
     </>
   );

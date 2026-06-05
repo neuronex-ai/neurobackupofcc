@@ -50,35 +50,45 @@ export const useMonthlySessionMetrics = (selectedDate: Date) => {
       if (yearError) throw yearError;
 
       // 3. Fetch Birthdays Today
-      const today = new Date();
-      const todayMonth = today.getMonth() + 1;
-      const todayDay = today.getDate();
-
-      // Supabase doesn't have a direct date_part for birth_date easily via JS client without RPC or raw SQL
-      // For MVP we fetch all patients and filter locally if list is small, or use a better strategy.
-      // Given the constraints, let's fetch patients and filter.
-      const { data: allPatients, error: patientsError } = await supabase
+      // 3. Birthdays calculation (All patients with birthday in current month)
+      const { data: allPatients } = await supabase
         .from('patients')
-        .select('id, name, birth_date')
-        .eq('user_id', userId);
+        .select('id, name, birth_date, phone, email')
+        .eq('status', 'active');
+        
+      const monthlyBirthdays = (allPatients || [])
+        .filter(p => {
+          if (!p.birth_date) return false;
+          try {
+            const d = parseISO(p.birth_date);
+            return d.getMonth() === selectedDate.getMonth();
+          } catch (e) {
+            return false;
+          }
+        })
+        .map(p => ({
+          ...p,
+          birth_day: p.birth_date ? parseISO(p.birth_date).getDate() : 0,
+          birth_month: p.birth_date ? parseISO(p.birth_date).getMonth() : 0
+        }))
+        .sort((a, b) => a.birth_day - b.birth_day);
 
-      if (patientsError) throw patientsError;
+      const birthdayCount = monthlyBirthdays.length;
 
-      const birthdayPatients = allPatients?.filter(p => {
-        if (!p.birth_date) return false;
-        const bDate = parseISO(p.birth_date);
-        return (bDate.getMonth() + 1) === todayMonth && bDate.getDate() === todayDay;
-      }) || [];
+      // 4. Combined Patient Activity Count (Month)
+      const [
+        { count: notesCount },
+        { count: aptChangesCount },
+        { count: paymentsCount },
+        { count: anamnesisCount }
+      ] = await Promise.all([
+        supabase.from('session_notes').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', formatISO(startMonth)).lte('created_at', formatISO(endMonth)),
+        supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('user_id', userId).in('status', ['confirmed', 'cancelled']).gte('updated_at', formatISO(startMonth)).lte('updated_at', formatISO(endMonth)),
+        supabase.from('transactions').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('type', 'income').gte('created_at', formatISO(startMonth)).lte('created_at', formatISO(endMonth)),
+        supabase.from('patient_anamneses').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('updated_at', formatISO(startMonth)).lte('updated_at', formatISO(endMonth))
+      ]);
 
-      // 4. Patient Activity (Notes)
-      const { count: activityCount, error: notesError } = await supabase
-        .from('session_notes')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .gte('created_at', formatISO(startMonth))
-        .lte('created_at', formatISO(endMonth));
-
-      if (notesError) throw notesError;
+      const activityCount = (notesCount || 0) + (aptChangesCount || 0) + (paymentsCount || 0) + (anamnesisCount || 0);
 
       // --- CALCULATIONS ---
       
@@ -162,7 +172,8 @@ export const useMonthlySessionMetrics = (selectedDate: Date) => {
           reschedules: 0 // Placeholder
         },
         chartData,
-        birthdayCount: birthdayPatients.length,
+        monthlyBirthdays,
+        birthdayCount,
         activityCount: activityCount || 0
       };
     },
