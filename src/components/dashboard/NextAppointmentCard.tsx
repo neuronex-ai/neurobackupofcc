@@ -70,7 +70,7 @@ export const NextAppointmentCard = React.memo(({ appointment, isLoading, classNa
                 <div className="h-full p-10 flex flex-col items-center justify-between relative min-h-[420px]">
                     <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-zinc-50/80 dark:bg-white/[0.03] border border-zinc-200/60 dark:border-white/[0.06] backdrop-blur-xl shadow-sm">
                         <CalendarIcon className="w-3.5 h-3.5 text-zinc-500/80 dark:text-zinc-500/80" />
-                        <span className="text-[10px] font-black text-zinc-500/80 dark:text-zinc-500/80 uppercase tracking-[0.25em]">Próxima Consulta</span>/span>
+                        <span className="text-[10px] font-black text-zinc-500/80 dark:text-zinc-500/80 uppercase tracking-[0.25em]">Próxima Consulta</span>
                     </div>
 
                     <div className="flex flex-col items-center gap-8 opacity-50 group-hover:opacity-100 transition-all duration-700">
