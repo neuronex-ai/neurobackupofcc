@@ -12,6 +12,7 @@ import { DashboardHeaderWidget } from "@/components/dashboard/DashboardHeaderWid
 import { MiniDailyAgenda } from "@/components/dashboard/MiniDailyAgenda";
 import { MorningBriefing } from "@/components/dashboard/MorningBriefing";
 import { NextAppointmentCard } from "@/components/dashboard/NextAppointmentCard";
+import { DashboardKpiCards } from "@/components/dashboard/DashboardKpiCards";
 
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -114,7 +115,6 @@ const PremiumTimelineItem = ({ appointment, index }: { appointment: any, index: 
 
 const DesktopDashboard = () => {
     const today = new Date();
-    const navigate = useNavigate();
     const { setShellState, setActiveTab, toggleVoiceMode } = useSynapse();
 
     useGoogleCalendarSync();
@@ -126,16 +126,16 @@ const DesktopDashboard = () => {
     const todayAppointments = useMemo(() => {
         if (!allUpcomingAppointments) return [];
         return allUpcomingAppointments
-            .filter(apt => isSameDay(new Date(apt.start_time), today))
-            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+            .filter((apt: any) => isSameDay(new Date(apt.start_time), today))
+            .sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
     }, [allUpcomingAppointments, today]);
 
     const nextAppointment = useMemo(() => {
         if (!allUpcomingAppointments) return undefined;
         const now = new Date();
         return allUpcomingAppointments
-            .filter(apt => isAfter(new Date(apt.end_time), now) && apt.status !== 'cancelled')
-            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
+            .filter((apt: any) => isAfter(new Date(apt.end_time), now) && apt.status !== 'cancelled')
+            .sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
     }, [allUpcomingAppointments]);
 
     const displayedTimeline = useMemo(() => {
@@ -207,6 +207,9 @@ const DesktopDashboard = () => {
                 </motion.div>
 
 
+                {/* ROW 0.5: KPI Mini-Cards */}
+                <DashboardKpiCards />
+
                 {/* ROW 1: Briefing & Next Appointment */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2">
@@ -272,7 +275,7 @@ const DesktopDashboard = () => {
                                 </motion.div>
                             ) : (
                                 <motion.div layout className="space-y-1">
-                                    {displayedTimeline?.map((apt, idx) => (
+                                    {displayedTimeline?.map((apt: any, idx: number) => (
                                         <PremiumTimelineItem 
                                             key={apt.id} 
                                             appointment={apt} 
