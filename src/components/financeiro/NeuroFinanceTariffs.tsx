@@ -11,6 +11,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNeuroFinanceTariffs } from "@/hooks/use-neurofinance-tariffs";
 import { cn } from "@/lib/utils";
+import type { TariffRule } from "@/lib/neurofinance-types";
 
 const categoryIcons = {
   Receber: ArrowDownToLine,
@@ -21,17 +22,18 @@ const categoryIcons = {
 } as const;
 
 export function NeuroFinanceTariffs() {
-  const { data = [], isLoading } = useNeuroFinanceTariffs();
+  const { data, isLoading } = useNeuroFinanceTariffs();
+  const tariffsData: TariffRule[] = Array.isArray(data) ? data : [];
 
   const groups = useMemo(
     () =>
       Object.entries(
-        data.reduce<Record<string, typeof data>>((result, tariff) => {
+        tariffsData.reduce<Record<string, TariffRule[]>>((result, tariff) => {
           (result[tariff.category] ||= []).push(tariff);
           return result;
         }, {}),
       ),
-    [data],
+    [tariffsData],
   );
 
   if (isLoading) {

@@ -101,7 +101,7 @@ export const useNeuroFinanceBalance = () => {
         placeholderData: EMPTY_BALANCE,
     });
 
-    const sync = useMutation({
+    const sync = useMutation<unknown, Error, boolean>({
         mutationFn: async (force = false) => {
             const { data, error } = await supabase.functions.invoke("asaas-financial-sync", {
                 body: { mode: "incremental", force },
@@ -153,7 +153,7 @@ export const useNeuroFinanceBalance = () => {
             Date.now() - updatedAt > 10 * 60 * 1000;
 
         if (shouldRefresh) sync.mutate(false);
-    }, [query.data?.lastUpdatedAt, query.data?.isStale, user?.id]);
+    }, [query.data?.lastUpdatedAt, query.data?.isStale, query.data, sync.isPending, user?.id]);
 
     return {
         ...query,

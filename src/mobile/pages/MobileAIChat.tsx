@@ -171,7 +171,7 @@ export const MobileAIChat = () => {
         }
     };
 
-    const groupedSessions = sessions?.reduce((acc, session) => {
+    const groupedSessions = (Array.isArray(sessions) ? sessions : []).reduce((acc, session) => {
         const date = new Date(session.created_at);
         let key = format(date, "yyyy-MM-dd");
         if (isToday(date)) key = "Hoje";

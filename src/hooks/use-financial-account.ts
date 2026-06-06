@@ -98,8 +98,9 @@ export const useFinancialAccount = () => {
 
   useEffect(() => {
     if (!userId) return;
+    const channelName = `financial-account-${userId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel(`financial-account-${userId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {

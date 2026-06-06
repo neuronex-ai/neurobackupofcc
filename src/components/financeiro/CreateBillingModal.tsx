@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 const billingSchema = z.object({
     patient_id: z.string().min(1, "Selecione um paciente"),
