@@ -57,6 +57,7 @@ Deno.serve(async (req: Request) => {
         }
 
         const transfer = await createAsaasTransfer(subApiKey, transferParams);
+        const transferFee = Math.round(Number(transfer.transferFee || 0) * 100);
 
         const { data: payoutRecord, error: insertError } = await supabaseAdmin
             .from('nb_payouts')
@@ -65,12 +66,16 @@ Deno.serve(async (req: Request) => {
                 financial_account_id: financialAccount.id,
                 provider: 'asaas',
                 provider_payout_id: transfer.id,
+                provider_status: String(transfer.status || 'PENDING').toUpperCase(),
                 amount: requestedAmount,
+                fee_amount: transferFee,
+                operation_type: String(operationType).toLowerCase(),
                 status: 'pending',
                 destination_summary: financialAccount.bank_name
                     ? `${financialAccount.bank_name} •••• ${financialAccount.bank_account_last4 || '****'}`
                     : 'Conta bancária vinculada',
                 requested_at: new Date().toISOString(),
+                reconciliation_status: 'estimated',
                 metadata: {
                     asaas_transfer_id: transfer.id,
                     operation_type: operationType,
@@ -93,6 +98,10 @@ Deno.serve(async (req: Request) => {
         });
     } catch (error: any) {
         console.error('asaas-payout error:', error);
-        return errorResponse(error.message || 'Internal error', 500);
+        return errorResponse(
+            'Não foi possível concluir a transferência agora. Nenhum valor foi movimentado.',
+            error?.status || 500,
+            { code: 'PAYOUT_UNAVAILABLE' }
+        );
     }
 });

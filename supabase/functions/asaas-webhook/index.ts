@@ -32,6 +32,12 @@ import {
     normalizeAsaasAccountStatusPayload,
     syncFinancialAccountFromAsaas,
 } from '../_shared/asaas-client.ts';
+import {
+    normalizePaymentState,
+    refreshOverviewSnapshot,
+    upsertAccountMovement,
+    upsertPaymentFromProvider,
+} from '../_shared/neurofinance-financial.ts';
 
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return corsResponse();
@@ -54,7 +60,14 @@ Deno.serve(async (req: Request) => {
 
         const providerObjectId = resource?.id || 'unknown';
         const providerObjectType = resource?.object || inferProviderObjectType(body);
-        const asaasAccountId = body?.accountStatus?.id || body?.account?.id || resource?.account || null;
+        const asaasAccountId =
+            body?.accountStatus?.id ||
+            (typeof body?.account === 'string' ? body.account : body?.account?.id) ||
+            resource?.account ||
+            null;
+        const webhookFinancialAccount = asaasAccountId
+            ? await getFinancialAccountByAsaasId(String(asaasAccountId))
+            : null;
         const eventId = body.id || `${event}_${providerObjectId}`;
 
         console.log(`[asaas-webhook] Received: ${event}, objectId: ${providerObjectId}`);
@@ -79,20 +92,20 @@ Deno.serve(async (req: Request) => {
             switch (event) {
                 case 'PAYMENT_RECEIVED':
                 case 'PAYMENT_CONFIRMED':
-                    await handlePaymentConfirmed(payment);
+                    await handlePaymentEvent(payment, event, webhookFinancialAccount);
                     break;
 
                 case 'PAYMENT_OVERDUE':
-                    await handlePaymentOverdue(payment);
+                    await handlePaymentEvent(payment, event, webhookFinancialAccount);
                     break;
 
                 case 'PAYMENT_REFUNDED':
                 case 'PAYMENT_REFUND_IN_PROGRESS':
-                    await handlePaymentRefunded(payment, event);
+                    await handlePaymentEvent(payment, event, webhookFinancialAccount);
                     break;
 
                 case 'PAYMENT_DELETED':
-                    await handlePaymentDeleted(payment);
+                    await handlePaymentEvent(payment, event, webhookFinancialAccount);
                     break;
 
                 case 'PAYMENT_CREATED':
@@ -104,7 +117,7 @@ Deno.serve(async (req: Request) => {
                 case 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL':
                 case 'PAYMENT_DUNNING_REQUESTED':
                 case 'PAYMENT_DUNNING_RECEIVED':
-                    await handlePaymentInfo(payment, event);
+                    await handlePaymentEvent(payment, event, webhookFinancialAccount);
                     break;
 
                 case 'TRANSFER_CREATED':
@@ -247,6 +260,103 @@ function mapAsaasPaymentStatus(status?: string) {
         default:
             return 'pending';
     }
+}
+
+async function resolveFinancialAccountForPayment(paymentId: string, webhookAccount?: any) {
+    if (webhookAccount?.id && webhookAccount?.user_id) return webhookAccount;
+
+    const payment = await findPaymentByProviderId(
+        paymentId,
+        'financial_account_id,user_id'
+    );
+    if (!payment?.financial_account_id) return null;
+
+    const { data, error } = await supabaseAdmin
+        .from('financial_accounts')
+        .select('*')
+        .eq('id', payment.financial_account_id)
+        .maybeSingle();
+    if (error) throw error;
+    return data;
+}
+
+async function handlePaymentEvent(payment: any, event: string, webhookAccount?: any) {
+    if (!payment?.id) return;
+
+    const financialAccount = await resolveFinancialAccountForPayment(
+        payment.id,
+        webhookAccount
+    );
+
+    if (!financialAccount) {
+        console.warn(`[asaas-webhook] Account not found for payment ${payment.id}`);
+        return;
+    }
+
+    const nbPayment = await upsertPaymentFromProvider(
+        financialAccount,
+        payment,
+        event
+    );
+    if (!nbPayment) return;
+
+    const state = normalizePaymentState(payment, event);
+    const actualFee = Number(nbPayment.actual_fee_amount || 0);
+    const grossAmount = Number(nbPayment.gross_amount || 0);
+
+    if (state.fundsStatus === 'available' && actualFee > 0) {
+        await upsertAccountMovement({
+            userId: financialAccount.user_id,
+            financialAccountId: financialAccount.id,
+            movementType: 'payment_fee',
+            direction: 'debit',
+            amount: actualFee,
+            description: 'Tarifa da cobrança',
+            referenceType: 'payment',
+            referenceId: payment.id,
+            occurredAt: payment.paymentDate || new Date().toISOString(),
+            metadata: { source: 'webhook', event },
+        });
+    }
+
+    if (state.fundsStatus === 'refunded') {
+        await upsertAccountMovement({
+            userId: financialAccount.user_id,
+            financialAccountId: financialAccount.id,
+            movementType: 'refund',
+            direction: 'debit',
+            amount: Math.round(Number(payment.refundedValue || payment.value || 0) * 100),
+            description: 'Estorno de cobrança',
+            referenceType: 'payment',
+            referenceId: payment.id,
+            occurredAt: new Date().toISOString(),
+            metadata: { source: 'webhook', event },
+        });
+    }
+
+    if (state.fundsStatus === 'chargeback') {
+        await upsertAccountMovement({
+            userId: financialAccount.user_id,
+            financialAccountId: financialAccount.id,
+            movementType: 'chargeback',
+            direction: 'debit',
+            amount: grossAmount,
+            description: 'Contestação de pagamento',
+            referenceType: 'payment',
+            referenceId: payment.id,
+            occurredAt: new Date().toISOString(),
+            metadata: { source: 'webhook', event },
+        });
+    }
+
+    await refreshOverviewSnapshot(financialAccount.id);
+    await touchFinancialAccountEvent(financialAccount.id, event);
+
+    if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
+        await tryScheduleAutomaticInvoice(nbPayment, payment);
+    }
+
+    console.log(`[asaas-webhook] Payment synchronized (${event}): ${nbPayment.id}`);
 }
 
 async function handlePaymentConfirmed(payment: any) {
@@ -468,6 +578,7 @@ async function handleTransferPending(transfer: any) {
         .from('nb_payouts')
         .update({
             status: 'in_transit',
+            provider_status: String(transfer.status || 'PENDING').toUpperCase(),
             provider_payout_id: transfer.id,
             updated_at: new Date().toISOString(),
         })
@@ -487,12 +598,49 @@ async function handleTransferDone(transfer: any) {
         .from('nb_payouts')
         .update({
             status: 'paid',
+            provider_status: 'DONE',
             provider_payout_id: transfer.id,
             processed_at: new Date().toISOString(),
+            completed_at: transfer.effectiveDate || transfer.confirmedDate || new Date().toISOString(),
+            fee_amount: transfer.transferFee != null
+                ? Math.round(Number(transfer.transferFee || 0) * 100)
+                : Number(payout.fee_amount || 0),
+            reconciliation_status: 'reconciled',
+            reconciled_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         })
         .eq('id', payout.id);
 
+    await upsertAccountMovement({
+        userId: payout.user_id,
+        financialAccountId: payout.financial_account_id,
+        movementType: 'transfer',
+        direction: 'debit',
+        amount: Number(payout.amount || Math.round(Number(transfer.value || 0) * 100)),
+        description: payout.destination_summary || 'Transferência concluída',
+        referenceType: 'payout',
+        referenceId: transfer.id,
+        occurredAt: transfer.effectiveDate || transfer.confirmedDate || new Date().toISOString(),
+        metadata: { source: 'webhook', event: 'TRANSFER_DONE' },
+    });
+
+    const transferFee = Math.round(Number(transfer.transferFee || 0) * 100);
+    if (transferFee > 0) {
+        await upsertAccountMovement({
+            userId: payout.user_id,
+            financialAccountId: payout.financial_account_id,
+            movementType: 'transfer_fee',
+            direction: 'debit',
+            amount: transferFee,
+            description: 'Tarifa da transferência',
+            referenceType: 'payout',
+            referenceId: transfer.id,
+            occurredAt: transfer.effectiveDate || transfer.confirmedDate || new Date().toISOString(),
+            metadata: { source: 'webhook', event: 'TRANSFER_DONE' },
+        });
+    }
+
+    await refreshOverviewSnapshot(payout.financial_account_id);
     await touchFinancialAccountEvent(payout.financial_account_id, 'TRANSFER_DONE');
 
     console.log(`[asaas-webhook] Transfer completed: ${payout.id}`);
@@ -511,6 +659,7 @@ async function handleTransferFailed(transfer: any, event: string) {
         .from('nb_payouts')
         .update({
             status,
+            provider_status: event === 'TRANSFER_CANCELLED' ? 'CANCELLED' : 'FAILED',
             provider_payout_id: transfer.id,
             updated_at: new Date().toISOString(),
         })

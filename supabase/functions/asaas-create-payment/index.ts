@@ -7,7 +7,6 @@
 
 import {
     ASAAS_ENV,
-    calculateFees,
     corsResponse,
     createAsaasPayment,
     errorResponse,
@@ -20,6 +19,11 @@ import {
     supabaseAdmin,
     type AsaasBillingType,
 } from '../_shared/asaas-client.ts';
+import {
+    estimatePaymentFee,
+    normalizePaymentMethod,
+    normalizePaymentState,
+} from '../_shared/neurofinance-financial.ts';
 
 const BILLING_TYPE_MAP: Record<string, AsaasBillingType> = {
     pix: 'PIX',
@@ -96,7 +100,9 @@ Deno.serve(async (req: Request) => {
         });
 
         const billingType = BILLING_TYPE_MAP[String(resolvedMethod).toLowerCase()] || 'UNDEFINED';
-        const { totalFee, netAmount } = calculateFees(amount);
+        const normalizedMethod = normalizePaymentMethod(billingType);
+        const feeEstimate = await estimatePaymentFee(amount, normalizedMethod, 1);
+        const initialState = normalizePaymentState({ status: 'PENDING' }, 'PAYMENT_CREATED');
         const valueReais = amount / 100;
         const today = new Date().toISOString().split('T')[0];
 
@@ -131,11 +137,20 @@ Deno.serve(async (req: Request) => {
                 financial_account_id: financialAccount.id,
                 provider: 'asaas',
                 provider_payment_id: asaasPayment.id,
-                payment_method_type: resolvedMethod === 'undefined' ? null : resolvedMethod,
-                status: 'pending',
+                provider_status: String(asaasPayment.status || 'PENDING').toUpperCase(),
+                payment_method_type: normalizedMethod,
+                status: initialState.legacyStatus,
+                normalized_status: initialState.normalizedStatus,
+                funds_status: initialState.fundsStatus,
                 gross_amount: amount,
-                platform_fee_amount: totalFee,
-                net_amount: netAmount,
+                platform_fee_amount: feeEstimate.estimatedFee || 0,
+                estimated_fee_amount: feeEstimate.estimatedFee,
+                actual_fee_amount: null,
+                net_amount: feeEstimate.netAmount ?? amount,
+                fee_rule_id: feeEstimate.feeRuleId,
+                installments: 1,
+                channel: 'online',
+                reconciliation_status: 'estimated',
                 currency: 'brl',
                 description: description || 'Cobrança',
                 pix_qr_code: pixQrCode,
@@ -172,6 +187,10 @@ Deno.serve(async (req: Request) => {
         });
     } catch (error: any) {
         console.error('asaas-create-payment error:', error);
-        return errorResponse(error.message || 'Internal error', 500);
+        return errorResponse(
+            'Não foi possível criar a cobrança agora. Confira os dados e tente novamente.',
+            error?.status || 500,
+            { code: 'PAYMENT_CREATE_UNAVAILABLE' }
+        );
     }
 });

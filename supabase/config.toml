@@ -109,6 +109,11 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/asaas-balance-details/index.ts"
 
+[functions.asaas-financial-sync]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/asaas-financial-sync/index.ts"
+
 
 [functions.n8n-agent-gateway]
 enabled = true
