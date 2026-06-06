@@ -67,7 +67,7 @@ export function AsaasAccountStatusTimeline({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/[0.72] shadow-[0_24px_90px_-58px_rgba(0,0,0,0.55)] backdrop-blur-3xl dark:border-white/[0.08] dark:bg-white/[0.035]",
+        "relative overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/[0.72] shadow-[0_24px_90px_-58px_rgba(0,0,0,0.55)] backdrop-blur-3xl backdrop-saturate-150 dark:border-white/[0.08] dark:bg-white/[0.035]",
         compact ? "p-5" : "p-7"
       )}
     >

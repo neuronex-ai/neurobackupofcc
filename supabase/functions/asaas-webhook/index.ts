@@ -7,7 +7,7 @@
  * Asaas sends at-least-once delivery — must handle duplicates.
  *
  * Key events:
- *   PAYMENT_RECEIVED / PAYMENT_CONFIRMED — mark payment as paid, post ledger
+ *   PAYMENT_RECEIVED / PAYMENT_CONFIRMED — mark payment as paid
  *   PAYMENT_OVERDUE — mark payment as expired
  *   PAYMENT_REFUNDED / PAYMENT_REFUND_IN_PROGRESS — handle refunds
  *   PAYMENT_DELETED — mark payment as canceled
@@ -26,11 +26,10 @@ import {
     persistAsaasEvent,
     markAsaasEventProcessed,
     markAsaasEventFailed,
-    createLedgerEntries,
-    calculateFees,
     getFinancialAccountByAsaasId,
     getFinancialAccountAsaasApiKey,
     asaasRequest,
+    normalizeAsaasAccountStatusPayload,
     syncFinancialAccountFromAsaas,
 } from '../_shared/asaas-client.ts';
 
@@ -250,29 +249,6 @@ function mapAsaasPaymentStatus(status?: string) {
     }
 }
 
-function normalizeAsaasAccountStatus(accountStatus: any) {
-    return {
-        id: accountStatus.id,
-        commercialInfoStatus:
-            accountStatus.commercialInfoStatus ||
-            accountStatus.commercialInfo ||
-            'PENDING',
-        bankAccountInfoStatus:
-            accountStatus.bankAccountInfoStatus ||
-            accountStatus.bankAccountInfo ||
-            'PENDING',
-        documentStatus:
-            accountStatus.documentStatus ||
-            accountStatus.documentation ||
-            accountStatus.document ||
-            'PENDING',
-        generalStatus:
-            accountStatus.generalStatus ||
-            accountStatus.general ||
-            'PENDING',
-    };
-}
-
 async function handlePaymentConfirmed(payment: any) {
     if (!payment?.id) return;
 
@@ -312,34 +288,6 @@ async function handlePaymentConfirmed(payment: any) {
         .eq('id', nbPayment.id);
 
     await touchFinancialAccountEvent(nbPayment.financial_account_id, 'PAYMENT_CONFIRMED');
-
-    // Create ledger entries — payment received + fee
-    const { totalFee } = calculateFees(valueCentavos);
-
-    await createLedgerEntries(nbPayment.user_id, [
-        {
-            accountType: 'main',
-            direction: 'credit',
-            entryType: 'payment_received',
-            amount: valueCentavos,
-            status: 'posted',
-            referenceType: 'payment',
-            referenceId: nbPayment.id,
-            providerObjectId: payment.id,
-            description: `Pagamento confirmado: R$${(valueCentavos / 100).toFixed(2)}`,
-        },
-        {
-            accountType: 'fees',
-            direction: 'debit',
-            entryType: 'fee',
-            amount: totalFee,
-            status: 'posted',
-            referenceType: 'payment',
-            referenceId: nbPayment.id,
-            providerObjectId: payment.id,
-            description: `Taxa NeuroBank: R$${(totalFee / 100).toFixed(2)}`,
-        },
-    ]);
 
     await tryScheduleAutomaticInvoice(nbPayment, payment);
 
@@ -437,22 +385,6 @@ async function handlePaymentRefunded(payment: any, event: string) {
         .eq('id', nbPayment.id);
 
     await touchFinancialAccountEvent(nbPayment.financial_account_id, event);
-
-    if (event === 'PAYMENT_REFUNDED') {
-        await createLedgerEntries(nbPayment.user_id, [
-            {
-                accountType: 'main',
-                direction: 'debit',
-                entryType: 'refund',
-                amount: refundValue,
-                status: 'posted',
-                referenceType: 'payment',
-                referenceId: nbPayment.id,
-                providerObjectId: payment.id,
-                description: `Estorno: R$${(refundValue / 100).toFixed(2)}`,
-            },
-        ]);
-    }
 
     console.log(`[asaas-webhook] Payment refund (${event}): ${nbPayment.id}`);
 }
@@ -586,23 +518,6 @@ async function handleTransferFailed(transfer: any, event: string) {
 
     await touchFinancialAccountEvent(payout.financial_account_id, event);
 
-    // If it was a failed transfer, reverse the ledger entry
-    if (status === 'failed') {
-        await createLedgerEntries(payout.user_id, [
-            {
-                accountType: 'main',
-                direction: 'credit',
-                entryType: 'adjustment',
-                amount: payout.amount,
-                status: 'posted',
-                referenceType: 'payout',
-                referenceId: payout.id,
-                providerObjectId: transfer.id,
-                description: `Estorno de saque falho: R$${(payout.amount / 100).toFixed(2)}`,
-            },
-        ]);
-    }
-
     console.log(`[asaas-webhook] Transfer ${status}: ${payout.id}`);
 }
 
@@ -618,8 +533,8 @@ async function handleAccountStatus(accountStatusPayload: any, event: string) {
         return;
     }
 
-    const accountStatus = normalizeAsaasAccountStatus(accountStatusPayload);
-    await syncFinancialAccountFromAsaas(financialAccount.id, accountStatus);
+    const accountStatus = normalizeAsaasAccountStatusPayload(accountStatusPayload);
+    await syncFinancialAccountFromAsaas(financialAccount.id, accountStatus, 'webhook');
     await touchFinancialAccountEvent(financialAccount.id, event);
 
     console.log(`[asaas-webhook] Account status synced (${event}): ${financialAccount.id}`);

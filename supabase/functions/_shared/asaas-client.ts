@@ -318,10 +318,12 @@ export interface AsaasSubAccount {
 
 export interface AsaasAccountStatus {
     id: string;
-    commercialInfoStatus: string;   // APPROVED, PENDING, DENIED, etc.
+    commercialInfoStatus: string;   // APPROVED, PENDING, REJECTED, etc.
     bankAccountInfoStatus: string;
     documentStatus: string;
-    generalStatus: string;          // APPROVED, PENDING, DENIED, etc.
+    billingInfoStatus?: string;
+    generalStatus: string;          // APPROVED, PENDING, REJECTED, etc.
+    raw?: Record<string, unknown>;
 }
 
 export const ASAAS_ACCOUNT_STATUS_EVENTS = [
@@ -464,12 +466,13 @@ export async function findAsaasSubAccountByCpfCnpj(
 export async function getAsaasAccountStatus(
     subAccountApiKey: string
 ): Promise<AsaasAccountStatus> {
-    return asaasRequest<AsaasAccountStatus>(
+    const rawStatus = await asaasRequest<Record<string, unknown>>(
         "/myAccount/status",
         "GET",
         undefined,
         subAccountApiKey
     );
+    return normalizeAsaasAccountStatusPayload(rawStatus);
 }
 
 /**
@@ -797,27 +800,132 @@ export type FinancialUiStatus =
     | "disabled";
 
 /**
+ * Normalize the account status payload returned by Asaas.
+ * Asaas currently documents commercialInfo, bankAccountInfo, documentation and general.
+ * The boleto/billing stage is kept as a NeuroNex UI stage and marked approved when
+ * the general approval is approved, because the public status endpoint may not expose it.
+ */
+function normalizeProviderStatus(value: unknown, fallback = "PENDING") {
+    const normalized = String(value || fallback)
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, "_");
+    return normalized || fallback;
+}
+
+function getStatusTone(status: string) {
+    if (status === "APPROVED") return "approved";
+    if (["REJECTED", "DENIED", "EXPIRED"].includes(status)) return "rejected";
+    if (status === "AWAITING_APPROVAL") return "review";
+    if (["PENDING", "EXPIRING_SOON", "AWAITING_ACTION_AUTHORIZATION"].includes(status)) return "pending";
+    if (status === "NOT_SENT") return "missing";
+    return "neutral";
+}
+
+function isActionableStatus(status: string, tone: string) {
+    return (
+        tone === "rejected" ||
+        tone === "missing" ||
+        ["PENDING", "AWAITING_ACTION_AUTHORIZATION", "EXPIRING_SOON", "EXPIRED"].includes(status)
+    );
+}
+
+export function normalizeAsaasAccountStatusPayload(accountStatus: any): AsaasAccountStatus {
+    const generalStatus = normalizeProviderStatus(
+        accountStatus?.generalStatus ||
+        accountStatus?.general ||
+        accountStatus?.generalApprovalStatus
+    );
+
+    const billingStatus = accountStatus?.billingInfoStatus ||
+        accountStatus?.billingInfo ||
+        accountStatus?.bankSlipInfoStatus ||
+        accountStatus?.bankSlipInfo ||
+        accountStatus?.boletoInfoStatus ||
+        accountStatus?.boletoInfo ||
+        (generalStatus === "APPROVED" ? "APPROVED" : "UNKNOWN");
+
+    const documentStatus = accountStatus?.documentStatus ||
+        accountStatus?.documentationStatus ||
+        accountStatus?.documentation ||
+        accountStatus?.document ||
+        accountStatus?.documents ||
+        (generalStatus === "APPROVED" ? "APPROVED" : "PENDING");
+
+    return {
+        id: String(accountStatus?.id || ""),
+        commercialInfoStatus: normalizeProviderStatus(
+            accountStatus?.commercialInfoStatus ||
+            accountStatus?.commercialInfo ||
+            accountStatus?.commercial_info
+        ),
+        bankAccountInfoStatus: normalizeProviderStatus(
+            accountStatus?.bankAccountInfoStatus ||
+            accountStatus?.bankAccountInfo ||
+            accountStatus?.bank_account_info
+        ),
+        documentStatus: normalizeProviderStatus(documentStatus),
+        billingInfoStatus: normalizeProviderStatus(billingStatus, generalStatus === "APPROVED" ? "APPROVED" : "UNKNOWN"),
+        generalStatus,
+        raw: accountStatus || {},
+    };
+}
+
+export function buildAsaasRequirementSnapshot(
+    accountStatusInput: AsaasAccountStatus,
+    source: "sync" | "webhook" | "onboarding" = "sync"
+) {
+    const accountStatus = normalizeAsaasAccountStatusPayload(accountStatusInput);
+    const stageInputs = [
+        ["general", "Aprovação geral do cadastro", accountStatus.generalStatus],
+        ["commercial", "Dados comerciais", accountStatus.commercialInfoStatus],
+        ["bank", "Dados bancários", accountStatus.bankAccountInfoStatus],
+        ["billing", "Dados do boleto", accountStatus.billingInfoStatus],
+        ["documents", "Documentos", accountStatus.documentStatus],
+    ] as const;
+
+    const stages = Object.fromEntries(stageInputs.map(([id, label, raw]) => {
+        const providerStatus = normalizeProviderStatus(raw, id === "billing" ? "UNKNOWN" : "PENDING");
+        const tone = getStatusTone(providerStatus);
+        return [id, {
+            label,
+            provider_status: providerStatus,
+            status: tone,
+            status_label: providerStatus,
+            actionable: isActionableStatus(providerStatus, tone),
+        }];
+    }));
+
+    const values = Object.values(stages) as Array<{ provider_status: string; status: string; actionable: boolean }>;
+    const allApproved = values.every((stage) => stage.status === "approved");
+    const hasRejected = values.some((stage) => stage.status === "rejected");
+    const hasActionable = values.some((stage) => stage.actionable);
+
+    let uiStatus: FinancialUiStatus = "pending_review";
+    if (allApproved) uiStatus = "active";
+    else if (hasRejected) uiStatus = "restricted";
+    else if (hasActionable) uiStatus = "onboarding";
+
+    return {
+        overall_status: uiStatus,
+        ui_status: uiStatus,
+        is_approved: allApproved,
+        has_open_stages: !allApproved,
+        has_actionable_stages: hasActionable,
+        stages,
+        raw: accountStatus.raw || accountStatusInput,
+        source,
+        synced_at: new Date().toISOString(),
+    };
+}
+
+/**
  * Derive UI status from Asaas account status response.
  */
 export function deriveUiStatusFromAsaasAccount(
     accountStatus: AsaasAccountStatus
 ): FinancialUiStatus {
-    const general = accountStatus.generalStatus;
-
-    if (general === "APPROVED") return "active";
-    if (general === "PENDING" || general === "AWAITING_ACTION_AUTHORIZATION")
-        return "pending_review";
-    if (general === "DENIED" || general === "REJECTED") return "restricted";
-
-    // Check individual statuses
-    if (
-        accountStatus.documentStatus === "NOT_SENT" ||
-        accountStatus.commercialInfoStatus === "NOT_SENT"
-    ) {
-        return "onboarding";
-    }
-
-    return "pending_review";
+    return buildAsaasRequirementSnapshot(accountStatus).ui_status as FinancialUiStatus;
 }
 
 export async function getFinancialAccount(userId: string) {
@@ -894,10 +1002,13 @@ export async function markFinancialAccountMissing(financialAccountId: string) {
 
 export async function syncFinancialAccountFromAsaas(
     financialAccountId: string,
-    accountStatus: AsaasAccountStatus
+    accountStatus: AsaasAccountStatus,
+    source: "sync" | "webhook" | "onboarding" = "sync"
 ) {
-    const uiStatus = deriveUiStatusFromAsaasAccount(accountStatus);
+    const requirementsSnapshot = buildAsaasRequirementSnapshot(accountStatus, source);
+    const uiStatus = requirementsSnapshot.ui_status as FinancialUiStatus;
     const isActive = uiStatus === "active";
+    const commercialStage = (requirementsSnapshot.stages as any)?.commercial;
 
     const payload: Record<string, unknown> = {
         status: uiStatus,
@@ -905,8 +1016,8 @@ export async function syncFinancialAccountFromAsaas(
         charges_enabled: isActive,
         payouts_enabled: isActive,
         details_submitted:
-            accountStatus.commercialInfoStatus !== "NOT_SENT",
-        requirements: accountStatus,
+            commercialStage?.status !== "missing",
+        requirements: requirementsSnapshot,
         last_balance_sync_at: new Date().toISOString(),
         last_sync_error: null,
         updated_at: new Date().toISOString(),

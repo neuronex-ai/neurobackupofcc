@@ -19,6 +19,7 @@ import {
     getFinancialAccount,
     getAsaasAccountStatus,
     deriveUiStatusFromAsaasAccount,
+    buildAsaasRequirementSnapshot,
     syncFinancialAccountFromAsaas,
     getBalanceFromAsaas,
     upsertFinancialAccountRecord,
@@ -131,7 +132,8 @@ Deno.serve(async (req: Request) => {
 
         // 4. Sync status to DB
         const uiStatus = deriveUiStatusFromAsaasAccount(accountStatus);
-        await syncFinancialAccountFromAsaas(financialAccount.id, accountStatus);
+        const requirementsSnapshot = buildAsaasRequirementSnapshot(accountStatus, 'sync');
+        await syncFinancialAccountFromAsaas(financialAccount.id, accountStatus, 'sync');
 
         // 5. Fetch balance from Asaas API if account is active
         let balance = { available: 0, pending: 0 };
@@ -164,12 +166,7 @@ Deno.serve(async (req: Request) => {
                 currency: 'brl',
             },
             account_status: accountStatus,
-            requirements: {
-                commercial_info: accountStatus.commercialInfoStatus,
-                bank_account_info: accountStatus.bankAccountInfoStatus,
-                document: accountStatus.documentStatus,
-                general: accountStatus.generalStatus,
-            },
+            requirements: requirementsSnapshot,
             metadata: {
                 provider: 'asaas',
                 wallet_id: financialAccount.asaas_wallet_id,

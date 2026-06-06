@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getAsaasAccountState } from "@/lib/asaas-account-status";
 
 type FinancialUiStatus =
   | "not_started"
@@ -23,7 +24,7 @@ const FINANCIAL_ACCOUNT_PUBLIC_FIELDS = [
   "charges_enabled", "payouts_enabled", "details_submitted", "default_currency",
   "bank_account_last4", "bank_name", "pix_enabled", "card_enabled",
   "platform_fee_percent", "platform_fee_fixed", "created_at", "updated_at",
-  "asaas_account_id", "asaas_wallet_id", "requirements", "asaas_onboarding_url",
+  "asaas_account_id", "asaas_wallet_id", "requirements", "metadata", "asaas_onboarding_url",
   "asaas_environment", "last_asaas_event_type", "last_asaas_event_at",
   "last_balance_sync_at", "last_sync_error", "holder_name", "cpf_cnpj", "birth_date",
   "mobile_phone", "pep_status", "address_street", "address_number", "address_complement",
@@ -55,25 +56,6 @@ const invokeAsaasFunction = async (name: string, body?: unknown) => {
 
 const extractRequirements = (account: any) =>
   account?.requirements || account?.account_status || account?.accountStatus || {};
-
-const hasDocumentOrInfoPending = (requirements: any) => {
-  const values = [
-    requirements?.commercialInfoStatus,
-    requirements?.bankAccountInfoStatus,
-    requirements?.documentStatus,
-    requirements?.generalStatus,
-    requirements?.commercial_info,
-    requirements?.bank_account_info,
-    requirements?.document,
-    requirements?.general,
-  ]
-    .filter(Boolean)
-    .map((value) => String(value).toUpperCase());
-
-  return values.some((value) =>
-    ["NOT_SENT", "PENDING", "AWAITING_ACTION_AUTHORIZATION", "REJECTED", "DENIED"].includes(value)
-  );
-};
 
 export const useFinancialAccount = () => {
   const queryClient = useQueryClient();
@@ -176,19 +158,20 @@ export const useFinancialAccount = () => {
     onSuccess: invalidateFinancialQueries,
   });
 
+  const accountState = getAsaasAccountState(account);
   const requirements = extractRequirements(account);
-  const uiStatus = ((account as any)?.status || (account as any)?.ui_status || "not_started") as FinancialUiStatus;
+  const uiStatus = accountState.uiStatus as FinancialUiStatus;
   const isAccountCreated = !!(account as any)?.asaas_account_id;
-  const isApproved = uiStatus === "active";
+  const isApproved = accountState.isApproved;
   const isPending = ["pending", "onboarding", "pending_review"].includes(uiStatus);
   const isRestricted = ["restricted", "disabled"].includes(uiStatus);
   const isAwaitingApproval = uiStatus === "pending_review";
   const isAccountMissing = uiStatus === "account_missing";
-  const isAwaitingDocuments = hasDocumentOrInfoPending(requirements) && !isApproved;
+  const isAwaitingDocuments = accountState.hasActionableStages && !isApproved;
   const hasActionableRequirements = isAwaitingDocuments || isRestricted || isAccountMissing;
-  const needsVerification = isAccountCreated && !isApproved;
+  const needsVerification = isAccountCreated && accountState.hasOpenStages;
   const needsInitialOnboarding =
-    !isAccountCreated || ["not_started", "account_missing"].includes(uiStatus);
+    !isAccountCreated || uiStatus === "account_missing";
 
   return {
     account,
@@ -211,6 +194,10 @@ export const useFinancialAccount = () => {
     hasActionableRequirements,
     needsVerification,
     requirements,
+    accountState,
+    approvalStages: accountState.stages,
+    openApprovalStages: accountState.openStages,
+    actionableApprovalStages: accountState.actionableStages,
     uiStatus,
     lastSyncError: (account as any)?.last_sync_error || null,
     status: uiStatus,

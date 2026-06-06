@@ -2,11 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import {
+  AlertCircle,
   ArrowRight,
-  ShieldAlert,
   Clock,
   RefreshCw,
-  AlertCircle,
+  ShieldAlert,
   Unplug,
 } from "lucide-react";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
@@ -86,7 +86,7 @@ export const OnboardingPendingNotice = ({
   };
 
   return (
-    <div className="relative mb-8 w-full overflow-hidden rounded-[28px] border border-zinc-200/50 bg-white/62 p-5 shadow-[0_18px_70px_-58px_rgba(0,0,0,0.72)] backdrop-blur-3xl dark:border-white/[0.07] dark:bg-white/[0.022] md:p-6">
+    <div className="relative mb-8 w-full overflow-hidden rounded-[28px] border border-zinc-200/50 bg-white/62 p-5 shadow-[0_18px_70px_-58px_rgba(0,0,0,0.72)] backdrop-blur-3xl backdrop-saturate-150 dark:border-white/[0.07] dark:bg-white/[0.022] md:p-6">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_84%_42%,rgba(0,0,0,.045),transparent_34%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.58),transparent_42%)] dark:bg-[radial-gradient(circle_at_84%_42%,rgba(255,255,255,.055),transparent_34%)]" />
       <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.04]" />
 

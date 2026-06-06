@@ -1,138 +1,258 @@
-import { NeuroNexCard } from "@/components/financeiro/NeuroNexCard";
-import { Button } from "@/components/ui/button";
-import { useProfile } from "@/hooks/use-profile";
-import { useFinancialAccount } from "@/hooks/use-financial-account";
-import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Building2, ShieldCheck, Zap } from "lucide-react";
 import React, { useState } from "react";
-import { CustomOnboardingFlow } from "@/components/financeiro/CustomOnboardingFlow";
-interface NeuroNexPayWizardProps {
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Building2,
+  Clock3,
+  Landmark,
+  Loader2,
+  RefreshCw,
+  ShieldAlert,
+  WalletCards,
+} from "lucide-react";
 
-    onSuccess?: () => void;
-    onSkipDocuments?: () => void;
-    isMobile?: boolean;
+import { Button } from "@/components/ui/button";
+import { CustomOnboardingFlow } from "@/components/financeiro/CustomOnboardingFlow";
+import { NeuroFinanceVerificationModal } from "@/components/financeiro/NeuroFinanceVerificationModal";
+import { NeuroNexCard } from "@/components/financeiro/NeuroNexCard";
+import { useFinancialAccount } from "@/hooks/use-financial-account";
+import { useProfile } from "@/hooks/use-profile";
+import { getAsaasAccountSituation } from "@/lib/asaas-account-status";
+import { cn } from "@/lib/utils";
+
+interface NeuroNexPayWizardProps {
+  onSuccess?: () => void;
+  onSkipDocuments?: () => void;
+  isMobile?: boolean;
 }
 
-// ─── NEUROFINANCE ONBOARDING ─────────────────────────────────────
-// NeuroFinance onboarding wizard — premium financial experience.
-// ─────────────────────────────────────────────────────────────────
-
-export const NeuroNexPayWizard = ({ onSkipDocuments, onSuccess, isMobile = false }: NeuroNexPayWizardProps) => {
-    const { data: profile } = useProfile();
-    const [showWizard, setShowWizard] = useState(false);
-
-    return (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className={cn(
-                "items-center h-full animate-fade-in",
-                isMobile ? "flex flex-col gap-8 px-1" : "grid grid-cols-1 lg:grid-cols-2 gap-12"
-            )}
-        >
-            {/* Card Preview */}
-            <div className="flex flex-col items-center justify-center relative py-8 lg:py-0">
-                <div className="absolute inset-0 blur-[120px] rounded-full pointer-events-none opacity-20 bg-zinc-500/10" />
-                <motion.div whileHover={{ scale: 1.05, rotateY: 5 }}
-                    className={cn("relative z-10", isMobile ? "w-full max-w-[260px]" : "w-full max-w-[280px] sm:max-w-sm")}
-                >
-                    <NeuroNexCard
-                        name={profile ? `${profile.first_name} ${profile.last_name}` : "MEMBRO NEURONEX"}
-                        showSensitive={false}
-                        className="shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)]"
-                    />
-                </motion.div>
-            </div>
-
-            {/* Content Area */}
-            <AnimatePresence mode="wait">
-                {!showWizard ? (
-                    <motion.div
-                        key="intro"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className="space-y-10 max-w-md mx-auto lg:mx-0 text-center lg:text-left"
-                    >
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-center lg:justify-start gap-3 mb-2">
-                                <div className="px-3 py-1.5 bg-zinc-100 dark:bg-white/10 rounded-full border border-zinc-200 dark:border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-900 dark:text-white flex items-center gap-2">
-                                    <Zap className="w-3 h-3" />
-                                    Em Migração
-                                </div>
-                            </div>
-
-                            <p className="text-sm text-zinc-500 leading-relaxed font-medium">
-                                Ative seu ecossistema financeiro premium e receba seus honorários com agilidade.
-                                Toda a gestão de pagamentos via PIX, Boleto e Cartão em um só lugar.
-                            </p>
-                        </div>
-
-                        <div className="space-y-4">
-                            {[
-                                { icon: Building2, label: 'Conta Financeira NeuroFinance', description: 'Gestão financeira integrada e simplificada' },
-                                { icon: ShieldCheck, label: 'PIX, Boleto e Checkout', description: 'Recebimentos automáticos integrados' },
-                            ].map((item, i) => (
-                                <div key={i} className="group p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.015] border border-zinc-200/50 dark:border-white/[0.04] hover:border-zinc-300 dark:hover:border-white/[0.08] transition-all flex items-center gap-4">
-                                    <div className="p-3 bg-zinc-100 dark:bg-white/5 rounded-full text-zinc-900 dark:text-white shrink-0 group-hover:bg-zinc-900 dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black transition-all duration-300">
-                                        <item.icon className="h-5 w-5" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="text-sm font-bold text-zinc-900 dark:text-white">{item.label}</h4>
-                                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium mt-0.5">{item.description}</p>
-                                    </div>
-                                    <div className="px-2.5 py-1 bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-zinc-400 text-[8px] font-black uppercase tracking-wider rounded-full border border-zinc-200 dark:border-white/10">
-                                        Em breve
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="flex flex-col gap-3">
-                            <Button
-                                onClick={() => setShowWizard(true)}
-                                className="w-full h-14 rounded-[20px] font-black text-[10px] uppercase tracking-[0.2em] bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-xl hover:scale-[1.02] transition-all"
-                            >
-                                Criar Conta NeuroFinance
-                                <ArrowRight className="h-4 w-4 ml-2" />
-                            </Button>
-
-                            {onSkipDocuments && (
-                                <Button
-                                    onClick={onSkipDocuments}
-                                    variant="outline"
-                                    className="w-full h-14 rounded-[20px] font-black text-[10px] uppercase tracking-[0.2em] border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900"
-                                >
-                                    Prosseguir para o Painel
-                                    <ArrowRight className="h-4 w-4 ml-2" />
-                                </Button>
-                            )}
-                        </div>
-
-                        <div className="flex items-center justify-center gap-2">
-                            <div className="h-px w-6 bg-zinc-200 dark:bg-zinc-800" />
-                            <p className="text-[9px] text-zinc-400 dark:text-zinc-600 uppercase tracking-widest font-bold">Segurança Bancária Nível Institucional</p>
-                            <div className="h-px w-6 bg-zinc-200 dark:bg-zinc-800" />
-                        </div>
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key="wizard"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        className="w-full relative z-20 flex pt-4 lg:pt-0"
-                    >
-                        <CustomOnboardingFlow
-                            onCancel={() => setShowWizard(false)}
-                            onComplete={() => {
-                                setShowWizard(false);
-                                if (onSuccess) onSuccess();
-                            }}
-                        />
-                    </motion.div>
-
-                )}
-            </AnimatePresence>
-        </motion.div>
-    );
+const statusVisual = {
+  active: {
+    icon: BadgeCheck,
+    title: "Conta aprovada",
+    label: "Pronta para uso",
+    description: "Sua conta NeuroFinance está aprovada para cobranças, Pix e repasses.",
+    tone: "border-emerald-500/20 bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-300",
+  },
+  onboarding: {
+    icon: ShieldAlert,
+    title: "Ação necessária",
+    label: "Completar dados",
+    description: "A Asaas ainda precisa de alguma informação ou documento para concluir a análise.",
+    tone: "border-amber-500/20 bg-amber-500/[0.08] text-amber-700 dark:text-amber-300",
+  },
+  pending_review: {
+    icon: Clock3,
+    title: "Conta em análise",
+    label: "Aguardando Asaas",
+    description: "Sua documentação foi enviada e está na fila de análise cadastral da Asaas.",
+    tone: "border-blue-500/20 bg-blue-500/[0.08] text-blue-700 dark:text-blue-300",
+  },
+  restricted: {
+    icon: ShieldAlert,
+    title: "Conta restrita",
+    label: "Regularizar",
+    description: "Existe uma pendência cadastral impedindo o uso completo da conta.",
+    tone: "border-red-500/20 bg-red-500/[0.08] text-red-700 dark:text-red-300",
+  },
+  default: {
+    icon: Landmark,
+    title: "Ativar NeuroFinance",
+    label: "Configuração inicial",
+    description: "Crie sua subconta Asaas para receber cobranças e operar o NeuroFinance.",
+    tone: "border-zinc-300/60 bg-zinc-100/70 text-zinc-700 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-300",
+  },
 };
+
+export const NeuroNexPayWizard = ({ onSuccess, isMobile = false }: NeuroNexPayWizardProps) => {
+  const { data: profile } = useProfile();
+  const {
+    account,
+    accountState,
+    hasAccount,
+    isApproved,
+    isLoading,
+    needsInitialOnboarding,
+    syncAccount,
+  } = useFinancialAccount();
+
+  const [showWizard, setShowWizard] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const [selectedRequirement, setSelectedRequirement] = useState<string | null>(null);
+
+  const statusKey = isApproved
+    ? "active"
+    : accountState?.uiStatus === "restricted"
+      ? "restricted"
+      : accountState?.hasActionableStages
+        ? "onboarding"
+        : hasAccount
+          ? "pending_review"
+          : "default";
+  const visual = statusVisual[statusKey] || statusVisual.default;
+  const StatusIcon = visual.icon;
+  const bankAccount = [account?.bank_agency, account?.bank_account]
+    .filter(Boolean)
+    .join(" / ");
+
+  const handlePrimary = () => {
+    if (needsInitialOnboarding) {
+      setShowWizard(true);
+      return;
+    }
+    setShowVerification(true);
+  };
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          "items-center h-full animate-fade-in",
+          isMobile ? "flex flex-col gap-8 px-1" : "grid grid-cols-1 gap-12 lg:grid-cols-2"
+        )}
+      >
+        <div className="relative flex flex-col items-center justify-center py-8 lg:py-0">
+          <div className="pointer-events-none absolute inset-0 rounded-full bg-zinc-500/10 opacity-20 blur-[120px]" />
+          <motion.div
+            whileHover={{ scale: 1.04, rotateY: 4 }}
+            className={cn("relative z-10", isMobile ? "w-full max-w-[260px]" : "w-full max-w-[280px] sm:max-w-sm")}
+          >
+            <NeuroNexCard
+              name={profile ? `${profile.first_name} ${profile.last_name}` : "MEMBRO NEURONEX"}
+              showSensitive={false}
+              className="shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)]"
+            />
+          </motion.div>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {showWizard ? (
+            <motion.div
+              key="wizard"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="relative z-20 flex w-full pt-4 lg:pt-0"
+            >
+              <CustomOnboardingFlow
+                onCancel={() => setShowWizard(false)}
+                onComplete={() => {
+                  setShowWizard(false);
+                  syncAccount.mutate();
+                  onSuccess?.();
+                }}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="status"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="mx-auto max-w-xl space-y-7 text-center lg:mx-0 lg:text-left"
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-center gap-3 lg:justify-start">
+                  <div className={cn("flex items-center gap-2 rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.2em]", visual.tone)}>
+                    <StatusIcon className="h-3.5 w-3.5" />
+                    {visual.label}
+                  </div>
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-zinc-400" /> : null}
+                </div>
+
+                <div>
+                  <h3 className="text-3xl font-black tracking-[-0.04em] text-zinc-950 dark:text-white">
+                    {visual.title}
+                  </h3>
+                  <p className="mt-3 text-sm font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    {visual.description}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-3">
+                <InfoRow
+                  icon={Building2}
+                  label="Situação da conta"
+                  value={hasAccount ? getAsaasAccountSituation(account) : "Conta ainda não criada"}
+                />
+                <InfoRow
+                  icon={WalletCards}
+                  label="Subconta Asaas"
+                  value={account?.asaas_account_id ? `•••• ${String(account.asaas_account_id).slice(-8)}` : "Não vinculada"}
+                />
+                <InfoRow
+                  icon={Landmark}
+                  label="Conta de repasse"
+                  value={bankAccount || account?.bank_account_last4 ? bankAccount || `•••• ${account?.bank_account_last4}` : "Ainda não informada"}
+                />
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button
+                  onClick={handlePrimary}
+                  className="h-14 flex-1 rounded-[20px] bg-zinc-900 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl transition-all hover:scale-[1.015] active:scale-[0.985] dark:bg-white dark:text-zinc-900"
+                >
+                  {needsInitialOnboarding ? "Ativar conta" : isApproved ? "Ver análise cadastral" : "Ver pendências"}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => syncAccount.mutate()}
+                  disabled={syncAccount.isPending}
+                  className="h-14 rounded-[20px] border-zinc-200 bg-white/65 px-6 text-[10px] font-black uppercase tracking-[0.2em] dark:border-white/10 dark:bg-white/[0.04]"
+                >
+                  <RefreshCw className={cn("mr-2 h-4 w-4", syncAccount.isPending && "animate-spin")} />
+                  Sincronizar
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 lg:justify-start">
+                <div className="h-px w-6 bg-zinc-200 dark:bg-zinc-800" />
+                <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-600">
+                  Segurança bancária com infraestrutura Asaas
+                </p>
+                <div className="h-px w-6 bg-zinc-200 dark:bg-zinc-800" />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      <NeuroFinanceVerificationModal
+        open={showVerification}
+        onOpenChange={setShowVerification}
+        selectedRequirement={selectedRequirement}
+        setSelectedRequirement={setSelectedRequirement}
+        onSuccess={() => {
+          setSelectedRequirement(null);
+          syncAccount.mutate();
+        }}
+      />
+    </>
+  );
+};
+
+const InfoRow = ({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+}) => (
+  <div className="group flex items-center gap-4 rounded-[22px] border border-zinc-200/55 bg-white/62 p-4 text-left transition-all hover:border-zinc-300 dark:border-white/[0.06] dark:bg-white/[0.025]">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-700 transition-colors group-hover:bg-zinc-900 group-hover:text-white dark:bg-white/[0.06] dark:text-zinc-200 dark:group-hover:bg-white dark:group-hover:text-zinc-950">
+      <Icon className="h-4 w-4" />
+    </div>
+    <div className="min-w-0">
+      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">{label}</p>
+      <p className="mt-1 truncate text-sm font-bold text-zinc-900 dark:text-white">{value}</p>
+    </div>
+  </div>
+);

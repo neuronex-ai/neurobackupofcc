@@ -6,13 +6,35 @@ export type AsaasApprovalTone =
   | "missing"
   | "neutral";
 
+export type AsaasFinancialUiStatus =
+  | "not_started"
+  | "pending"
+  | "onboarding"
+  | "pending_review"
+  | "restricted"
+  | "active"
+  | "account_missing"
+  | "disabled";
+
 export interface AsaasApprovalStage {
-  id: string;
+  id: "general" | "commercial" | "bank" | "billing" | "documents";
   label: string;
   rawStatus: string;
   statusLabel: string;
   tone: AsaasApprovalTone;
   description: string;
+  actionable: boolean;
+}
+
+export interface AsaasAccountState {
+  uiStatus: AsaasFinancialUiStatus;
+  isApproved: boolean;
+  hasOpenStages: boolean;
+  hasActionableStages: boolean;
+  stages: AsaasApprovalStage[];
+  openStages: AsaasApprovalStage[];
+  actionableStages: AsaasApprovalStage[];
+  requirementsSnapshot: Record<string, unknown>;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -30,33 +52,154 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_DESCRIPTIONS: Record<AsaasApprovalTone, string> = {
   approved: "Etapa validada pela Asaas.",
-  pending: "Dados enviados ou pendentes de processamento.",
+  pending: "A etapa ainda precisa ser concluída ou processada.",
   review: "Aguardando análise cadastral da Asaas.",
   rejected: "A etapa precisa de correção ou reenvio.",
   missing: "Informação ainda não enviada para análise.",
   neutral: "Status aguardando retorno da Asaas.",
 };
 
+const STAGE_DEFINITIONS: Array<{
+  id: AsaasApprovalStage["id"];
+  label: string;
+  keys: string[];
+  approvedWhenGeneralApproved?: boolean;
+}> = [
+  {
+    id: "general",
+    label: "Aprovação geral do cadastro",
+    keys: [
+      "stages.general.provider_status",
+      "stages.general.raw_status",
+      "stages.general.rawStatus",
+      "generalStatus",
+      "general.status",
+      "general",
+      "general_status",
+      "generalApprovalStatus",
+      "general_approval",
+      "generalApproval.status",
+      "accountStatus.generalStatus",
+      "accountStatus.general",
+      "raw.generalStatus",
+      "raw.general",
+      "requirements.general",
+    ],
+  },
+  {
+    id: "commercial",
+    label: "Dados comerciais",
+    keys: [
+      "stages.commercial.provider_status",
+      "stages.commercial.raw_status",
+      "stages.commercial.rawStatus",
+      "commercialInfoStatus",
+      "commercialInfo.status",
+      "commercialInfo",
+      "commercial_info.status",
+      "commercial_info",
+      "commercial_status",
+      "commercial.status",
+      "accountStatus.commercialInfoStatus",
+      "accountStatus.commercialInfo",
+      "raw.commercialInfoStatus",
+      "raw.commercialInfo",
+      "requirements.commercial_info",
+    ],
+  },
+  {
+    id: "bank",
+    label: "Dados bancários",
+    keys: [
+      "stages.bank.provider_status",
+      "stages.bank.raw_status",
+      "stages.bank.rawStatus",
+      "bankAccountInfoStatus",
+      "bankAccountInfo.status",
+      "bankAccountInfo",
+      "bank_account_info.status",
+      "bank_account_info",
+      "bank_status",
+      "bank.status",
+      "accountStatus.bankAccountInfoStatus",
+      "accountStatus.bankAccountInfo",
+      "raw.bankAccountInfoStatus",
+      "raw.bankAccountInfo",
+      "requirements.bank_account_info",
+    ],
+  },
+  {
+    id: "billing",
+    label: "Dados do boleto",
+    approvedWhenGeneralApproved: true,
+    keys: [
+      "stages.billing.provider_status",
+      "stages.billing.raw_status",
+      "stages.billing.rawStatus",
+      "bankSlipInfoStatus",
+      "bankSlipInfo.status",
+      "bankSlipInfo",
+      "bank_slip_info.status",
+      "bank_slip_info",
+      "boletoInfoStatus",
+      "boletoInfo.status",
+      "boletoInfo",
+      "boleto_info.status",
+      "boleto_info",
+      "billingInfoStatus",
+      "billingInfo.status",
+      "billingInfo",
+      "billing_info.status",
+      "billing_info",
+      "paymentInfoStatus",
+      "accountStatus.bankSlipInfoStatus",
+      "accountStatus.bankSlipInfo",
+      "accountStatus.billingInfoStatus",
+      "raw.bankSlipInfoStatus",
+      "raw.billingInfoStatus",
+      "requirements.bank_slip_info",
+      "requirements.boleto_info",
+      "requirements.billing_info",
+    ],
+  },
+  {
+    id: "documents",
+    label: "Documentos",
+    approvedWhenGeneralApproved: true,
+    keys: [
+      "stages.documents.provider_status",
+      "stages.documents.raw_status",
+      "stages.documents.rawStatus",
+      "documentStatus",
+      "documentationStatus",
+      "documentsStatus",
+      "document.status",
+      "documentation.status",
+      "documents.status",
+      "document",
+      "documentation",
+      "documents",
+      "document_status",
+      "documents_status",
+      "kycDocumentStatus",
+      "identityDocumentStatus",
+      "accountStatus.documentStatus",
+      "accountStatus.documentation",
+      "raw.documentStatus",
+      "raw.documentation",
+      "requirements.document",
+      "requirements.documentation",
+      "requirements.documents",
+      "requirements.document_status",
+    ],
+  },
+];
+
 const normalizeRawStatus = (value: unknown) =>
   String(value || "UNKNOWN")
     .trim()
     .toUpperCase()
     .replace(/\s+/g, "_");
-
-export const getAsaasStatusLabel = (value: unknown) => {
-  const normalized = normalizeRawStatus(value);
-  return STATUS_LABELS[normalized] || normalized.replace(/_/g, " ").toLowerCase();
-};
-
-export const getAsaasStatusTone = (value: unknown): AsaasApprovalTone => {
-  const normalized = normalizeRawStatus(value);
-  if (normalized === "APPROVED") return "approved";
-  if (["REJECTED", "DENIED", "EXPIRED"].includes(normalized)) return "rejected";
-  if (["AWAITING_APPROVAL", "AWAITING_ACTION_AUTHORIZATION"].includes(normalized)) return "review";
-  if (["PENDING", "EXPIRING_SOON"].includes(normalized)) return "pending";
-  if (normalized === "NOT_SENT") return "missing";
-  return "neutral";
-};
 
 const readNested = (source: any, key: string) =>
   key.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), source);
@@ -69,15 +212,42 @@ const readStatus = (source: any, keys: string[]) => {
   return undefined;
 };
 
+export const getAsaasStatusLabel = (value: unknown) => {
+  const normalized = normalizeRawStatus(value);
+  return STATUS_LABELS[normalized] || normalized.replace(/_/g, " ").toLowerCase();
+};
+
+export const getAsaasStatusTone = (value: unknown): AsaasApprovalTone => {
+  const normalized = normalizeRawStatus(value);
+  if (normalized === "APPROVED") return "approved";
+  if (["REJECTED", "DENIED", "EXPIRED"].includes(normalized)) return "rejected";
+  if (normalized === "AWAITING_APPROVAL") return "review";
+  if (["PENDING", "EXPIRING_SOON", "AWAITING_ACTION_AUTHORIZATION"].includes(normalized)) return "pending";
+  if (normalized === "NOT_SENT") return "missing";
+  return "neutral";
+};
+
+export const isAsaasStageActionable = (stage: Pick<AsaasApprovalStage, "rawStatus" | "tone">) => {
+  const raw = normalizeRawStatus(stage.rawStatus);
+  return (
+    stage.tone === "rejected" ||
+    stage.tone === "missing" ||
+    ["PENDING", "AWAITING_ACTION_AUTHORIZATION", "EXPIRING_SOON", "EXPIRED"].includes(raw)
+  );
+};
+
 export const getAsaasAccountStatusSource = (account: any) => {
-  const status = account?.account_status || account?.accountStatus || {};
   const requirements = account?.requirements || {};
+  const status = account?.account_status || account?.accountStatus || {};
   const metadata = account?.metadata || {};
+  const raw = requirements?.raw || requirements?.accountStatus || status || {};
 
   return {
     ...metadata,
+    ...raw,
     ...requirements,
     ...status,
+    raw,
     accountStatus: status,
     requirements,
     metadata,
@@ -86,131 +256,98 @@ export const getAsaasAccountStatusSource = (account: any) => {
 
 export const buildAsaasApprovalStages = (account: any): AsaasApprovalStage[] => {
   const source = getAsaasAccountStatusSource(account);
-  const isApproved =
-    account?.status === "active" ||
-    account?.charges_enabled ||
-    account?.payouts_enabled ||
-    normalizeRawStatus(readStatus(source, ["generalStatus", "general", "general_status"])) === "APPROVED";
+  const generalRaw = normalizeRawStatus(
+    readStatus(source, STAGE_DEFINITIONS[0].keys) ||
+      readStatus(source, ["raw.general", "raw.generalStatus", "requirements.general"])
+  );
+  const generalApproved = generalRaw === "APPROVED";
 
-  const stageDefinitions = [
-    {
-      id: "general",
-      label: "Aprovação geral do cadastro",
-      keys: [
-        "generalStatus",
-        "general.status",
-        "general",
-        "general_status",
-        "generalApprovalStatus",
-        "general_approval",
-        "generalApproval.status",
-        "accountStatus.generalStatus",
-        "requirements.general",
-      ],
-    },
-    {
-      id: "commercial",
-      label: "Dados comerciais",
-      keys: [
-        "commercialInfoStatus",
-        "commercialInfo.status",
-        "commercial_info.status",
-        "commercial_info",
-        "commercialInfo",
-        "commercial_status",
-        "commercial.status",
-        "accountStatus.commercialInfoStatus",
-        "requirements.commercial_info",
-      ],
-    },
-    {
-      id: "bank",
-      label: "Dados bancários",
-      keys: [
-        "bankAccountInfoStatus",
-        "bankAccountInfo.status",
-        "bank_account_info.status",
-        "bank_account_info",
-        "bankAccountInfo",
-        "bank_status",
-        "bank.status",
-        "accountStatus.bankAccountInfoStatus",
-        "requirements.bank_account_info",
-      ],
-    },
-    {
-      id: "billing",
-      label: "Dados do boleto",
-      keys: [
-        "bankSlipInfoStatus",
-        "bankSlipInfo.status",
-        "bank_slip_info.status",
-        "bank_slip_info",
-        "bankSlipInfo",
-        "bank_slip_status",
-        "boletoInfoStatus",
-        "boletoInfo.status",
-        "boleto_info.status",
-        "boleto_info",
-        "billingInfoStatus",
-        "billingInfo.status",
-        "billing_info.status",
-        "billing_info",
-        "paymentInfoStatus",
-        "accountStatus.bankSlipInfoStatus",
-        "requirements.bank_slip_info",
-        "requirements.boleto_info",
-        "requirements.billing_info",
-      ],
-      fallback: isApproved ? "APPROVED" : undefined,
-    },
-    {
-      id: "documents",
-      label: "Documentos",
-      keys: [
-        "documentStatus",
-        "documentsStatus",
-        "document.status",
-        "documents.status",
-        "document_info.status",
-        "documents_info.status",
-        "document",
-        "documents",
-        "document_status",
-        "documents_status",
-        "kycDocumentStatus",
-        "identityDocumentStatus",
-        "accountStatus.documentStatus",
-        "requirements.document",
-        "requirements.documents",
-        "requirements.document_status",
-      ],
-      fallback: isApproved ? "APPROVED" : undefined,
-    },
-  ];
-
-  return stageDefinitions.map((stage) => {
-    const rawStatus = normalizeRawStatus(readStatus(source, stage.keys) || stage.fallback);
+  return STAGE_DEFINITIONS.map((stage) => {
+    const fallback = stage.approvedWhenGeneralApproved && generalApproved ? "APPROVED" : undefined;
+    const rawStatus = normalizeRawStatus(readStatus(source, stage.keys) || fallback);
     const tone = getAsaasStatusTone(rawStatus);
 
-    return {
+    const result: AsaasApprovalStage = {
       id: stage.id,
       label: stage.label,
       rawStatus,
       statusLabel: getAsaasStatusLabel(rawStatus),
       tone,
       description: STATUS_DESCRIPTIONS[tone],
+      actionable: false,
+    };
+
+    return {
+      ...result,
+      actionable: isAsaasStageActionable(result),
     };
   });
 };
 
+export const getAsaasAccountState = (account: any): AsaasAccountState => {
+  const hasAsaasAccount = !!account?.asaas_account_id;
+  const stages = buildAsaasApprovalStages(account);
+  const openStages = stages.filter((stage) => stage.tone !== "approved");
+  const actionableStages = stages.filter((stage) => stage.actionable);
+  const isApproved = hasAsaasAccount && openStages.length === 0;
+  const hasRejected = stages.some((stage) => stage.tone === "rejected");
+
+  let uiStatus: AsaasFinancialUiStatus = "not_started";
+  if (!hasAsaasAccount) {
+    uiStatus = account?.status === "account_missing" ? "account_missing" : "not_started";
+  } else if (isApproved) {
+    uiStatus = "active";
+  } else if (hasRejected || ["restricted", "disabled"].includes(String(account?.status || ""))) {
+    uiStatus = "restricted";
+  } else if (actionableStages.length > 0) {
+    uiStatus = "onboarding";
+  } else {
+    uiStatus = "pending_review";
+  }
+
+  const requirementsSnapshot = {
+    overall_status: uiStatus,
+    ui_status: uiStatus,
+    is_approved: isApproved,
+    source: "frontend",
+    stages: Object.fromEntries(
+      stages.map((stage) => [
+        stage.id,
+        {
+          label: stage.label,
+          provider_status: stage.rawStatus,
+          status: stage.tone,
+          status_label: stage.statusLabel,
+          actionable: stage.actionable,
+        },
+      ])
+    ),
+  };
+
+  return {
+    uiStatus,
+    isApproved,
+    hasOpenStages: openStages.length > 0,
+    hasActionableStages: actionableStages.length > 0,
+    stages,
+    openStages,
+    actionableStages,
+    requirementsSnapshot,
+  };
+};
+
 export const hasOpenAsaasApprovalStage = (account: any) =>
-  buildAsaasApprovalStages(account).some((stage) => stage.tone !== "approved");
+  getAsaasAccountState(account).hasOpenStages;
+
+export const isAsaasAccountApproved = (account: any) =>
+  getAsaasAccountState(account).isApproved;
 
 export const getAsaasAccountSituation = (account: any) => {
+  const state = getAsaasAccountState(account);
+
   if (!account?.asaas_account_id) return "Conta não criada";
-  if (account?.status === "active") return "Conta aprovada";
-  if (account?.status === "restricted" || account?.status === "disabled") return "Conta restrita";
-  if (hasOpenAsaasApprovalStage(account)) return "Cadastro em análise";
-  return "Aguardando atualização";
+  if (state.isApproved) return "Conta aprovada";
+  if (state.uiStatus === "restricted" || state.uiStatus === "disabled") return "Conta restrita";
+  if (state.hasActionableStages) return "Ação necessária";
+  return "Conta em análise";
 };

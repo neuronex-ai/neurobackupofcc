@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -42,7 +42,6 @@ import { subMonths, subDays, isAfter } from "date-fns";
 
 import { CustomOnboardingFlow } from "@/components/financeiro/CustomOnboardingFlow";
 import { AsaasRegulatoryFooter } from "@/components/financeiro/AsaasRegulatoryFooter";
-import { NeuroFinanceVerificationModal } from "@/components/financeiro/NeuroFinanceVerificationModal";
 import { FinanceiroMainContent, FinanceView } from "@/components/financeiro/FinanceiroMainContent";
 import { Transaction } from "@/types";
 
@@ -165,7 +164,6 @@ const DesktopFinanceiro = () => {
         isLoading: isLoadingConnect,
         refetch: refetchStatus,
         isConnected,
-        isApproved,
         needsInitialOnboarding
     } = useFinancialAccount();
 
@@ -179,8 +177,6 @@ const DesktopFinanceiro = () => {
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
     const [expandedGroups, setExpandedGroups] = useState<string[]>(['neurofinance']);
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
-    const [showUpdateModal, setShowUpdateModal] = useState(false);
-    const [selectedRequirement, setSelectedRequirement] = useState<string | null>(null);
     const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'wizard'>('welcome');
 
     const currentMonthShort = new Date().toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
@@ -219,13 +215,6 @@ const DesktopFinanceiro = () => {
             setExpandedGroups([group.id]);
         }
     }, [activeView]);
-
-    const handleOpenModal = useCallback((open: boolean) => {
-        setShowUpdateModal(open);
-        if (open) {
-            refetchStatus();
-        }
-    }, [refetchStatus]);
 
     const handleGroupClick = (group: NavItem) => {
         if (!isSidebarExpanded) {
@@ -492,8 +481,6 @@ const DesktopFinanceiro = () => {
                             allTransactions={allTransactions}
                             isLoadingTransactions={isLoadingTransactions}
                             metrics={metrics}
-                            isConnected={isConnected}
-                            handleOpenModal={handleOpenModal}
                             currentMonthShort={currentMonthShort}
                             motionProps={motionProps}
                             extratoTab={extratoTab}
@@ -506,14 +493,6 @@ const DesktopFinanceiro = () => {
                     </AnimatePresence>
                 </div>
             </div>
-
-            <NeuroFinanceVerificationModal
-                open={showUpdateModal}
-                onOpenChange={handleOpenModal}
-                selectedRequirement={selectedRequirement}
-                setSelectedRequirement={setSelectedRequirement}
-                onSuccess={() => { syncAccount.mutate(); setSelectedRequirement(null); }}
-            />
         </div>
     );
 };

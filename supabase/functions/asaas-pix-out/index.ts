@@ -1,28 +1,20 @@
 /**
  * asaas-pix-out
  *
- * Sends a Pix transfer from the psychologist's Asaas sub-account
- * to an external Pix key.
- *
- * POST /asaas-pix-out
- * Body: {
- *   amount: number,          // centavos
- *   pix_key: string,
- *   description?: string,
- *   type: 'transfer' | 'pay'
- * }
+ * Sends a Pix transfer from the psychologist's Asaas subaccount to an external Pix key.
+ * The available balance is read from Asaas, not from the deprecated local ledger.
  */
 
 import {
-    supabaseAdmin,
     corsResponse,
-    jsonResponse,
+    createAsaasTransfer,
     errorResponse,
+    getAsaasBalance,
     getAuthenticatedUser,
     getFinancialAccount,
-    createAsaasTransfer,
-    createLedgerEntries,
     getFinancialAccountAsaasApiKey,
+    jsonResponse,
+    supabaseAdmin,
 } from '../_shared/asaas-client.ts';
 
 Deno.serve(async (req: Request) => {
@@ -40,33 +32,22 @@ Deno.serve(async (req: Request) => {
             return errorResponse('Chave Pix é obrigatória.');
         }
 
-        // 1. Get financial account
         const financialAccount = await getFinancialAccount(user.id);
         const subApiKey = getFinancialAccountAsaasApiKey(financialAccount);
+
         if (!financialAccount || !subApiKey) {
             return errorResponse('Conta financeira não configurada.', 403);
         }
 
-        // 2. Check ledger balance
-        const { data: balance, error: balanceError } = await supabaseAdmin
-            .from('ledger_balances')
-            .select('available_balance')
-            .eq('user_id', user.id)
-            .single();
-
-        if (balanceError) throw balanceError;
-
-        const availableBalance = balance?.available_balance || 0;
+        const asaasBalance = await getAsaasBalance(subApiKey);
+        const availableBalance = Math.round((asaasBalance.balance || 0) * 100);
 
         if (amount > availableBalance) {
             return errorResponse(`Saldo insuficiente. Saldo disponível: R$ ${(availableBalance / 100).toFixed(2)}`);
         }
 
-        // 3. Create Pix transfer via Asaas
-        const valueReais = amount / 100;
-
         const transfer = await createAsaasTransfer(subApiKey, {
-            value: valueReais,
+            value: amount / 100,
             operationType: 'PIX',
             pixAddressKey: pix_key,
             description: description || (type === 'pay'
@@ -74,11 +55,11 @@ Deno.serve(async (req: Request) => {
                 : `Transferência Pix para ${pix_key}`),
         });
 
-        // 4. Create outgoing payment record
         const { data: paymentRecord, error: insertError } = await supabaseAdmin
             .from('nb_payments')
             .insert({
                 user_id: user.id,
+                financial_account_id: financialAccount.id,
                 payment_method_type: 'pix',
                 provider: 'asaas',
                 status: 'processing',
@@ -90,6 +71,7 @@ Deno.serve(async (req: Request) => {
                     pix_key,
                     type,
                     asaas_transfer_id: transfer.id,
+                    source: 'neurofinance_pix_out',
                 },
                 paid_at: new Date().toISOString(),
             })
@@ -97,23 +79,6 @@ Deno.serve(async (req: Request) => {
             .single();
 
         if (insertError) throw insertError;
-
-        // 5. Create ledger debit entry
-        await createLedgerEntries(user.id, [
-            {
-                accountType: 'main',
-                direction: 'debit',
-                entryType: 'payout',
-                amount: amount,
-                status: 'posted',
-                referenceType: 'payment',
-                referenceId: paymentRecord.id,
-                stripeObjectId: transfer.id,
-                description: type === 'pay'
-                    ? `Pagamento Pix: ${description || pix_key}`
-                    : `Transferência Pix para ${pix_key}`,
-            },
-        ]);
 
         return jsonResponse({
             success: true,
@@ -123,7 +88,6 @@ Deno.serve(async (req: Request) => {
             pix_key,
             status: 'processing',
         });
-
     } catch (error: any) {
         console.error('asaas-pix-out error:', error);
         return errorResponse(error.message || 'Internal error', 500);

@@ -1,29 +1,20 @@
 /**
  * asaas-payout
  *
- * Requests a transfer (saque) from the psychologist's Asaas sub-account
- * to their linked bank account.
- *
- * POST /asaas-payout
- * Body: {
- *   amount?: number         // centavos — if omitted, transfers full available balance
- *   description?: string
- *   operation_type?: 'PIX' | 'TED'  // default: PIX
- *   pix_address_key?: string         // if transferring via Pix key
- * }
+ * Requests a transfer from the psychologist's Asaas subaccount to a bank account or Pix key.
+ * The available balance is read from Asaas, not from the deprecated local ledger.
  */
 
 import {
-    supabaseAdmin,
     corsResponse,
-    jsonResponse,
+    createAsaasTransfer,
     errorResponse,
+    getAsaasBalance,
     getAuthenticatedUser,
     getFinancialAccount,
-    getAsaasBalance,
-    createAsaasTransfer,
-    createLedgerEntries,
     getFinancialAccountAsaasApiKey,
+    jsonResponse,
+    supabaseAdmin,
 } from '../_shared/asaas-client.ts';
 
 Deno.serve(async (req: Request) => {
@@ -33,21 +24,15 @@ Deno.serve(async (req: Request) => {
         const user = await getAuthenticatedUser(req);
         const body = await req.json().catch(() => ({}));
 
-        // 1. Get financial account
         const financialAccount = await getFinancialAccount(user.id);
         const subApiKey = getFinancialAccountAsaasApiKey(financialAccount);
+
         if (!financialAccount || !subApiKey) {
             return errorResponse('Conta financeira não configurada. Complete o onboarding primeiro.', 403);
         }
 
-        // 2. Check balance
-        const { data: ledgerBalance } = await supabaseAdmin
-            .from('ledger_balances')
-            .select('available_balance')
-            .eq('user_id', user.id)
-            .single();
-
-        const availableBalance = ledgerBalance?.available_balance || 0;
+        const asaasBalance = await getAsaasBalance(subApiKey);
+        const availableBalance = Math.round((asaasBalance.balance || 0) * 100);
         const requestedAmount = body.amount || availableBalance;
 
         if (requestedAmount <= 0) {
@@ -58,22 +43,13 @@ Deno.serve(async (req: Request) => {
             return errorResponse(`Saldo insuficiente. Saldo disponível: R$${(availableBalance / 100).toFixed(2)}`);
         }
 
-        // 3. Double-check against Asaas balance
-        const asaasBalance = await getAsaasBalance(subApiKey);
-        const asaasAvailableCentavos = Math.round((asaasBalance.balance || 0) * 100);
-
-        if (requestedAmount > asaasAvailableCentavos) {
-            return errorResponse('Valor excede o saldo disponível na Asaas. Alguns fundos podem estar pendentes.');
-        }
-
-        // 4. Create transfer in Asaas
         const valueReais = requestedAmount / 100;
         const operationType = body.operation_type || 'PIX';
 
         const transferParams: any = {
             value: valueReais,
             operationType,
-            description: body.description || 'Saque NeuroBank',
+            description: body.description || 'Saque NeuroFinance',
         };
 
         if (body.pix_address_key) {
@@ -82,7 +58,6 @@ Deno.serve(async (req: Request) => {
 
         const transfer = await createAsaasTransfer(subApiKey, transferParams);
 
-        // 5. Create payout record in DB
         const { data: payoutRecord, error: insertError } = await supabaseAdmin
             .from('nb_payouts')
             .insert({
@@ -100,27 +75,13 @@ Deno.serve(async (req: Request) => {
                     asaas_transfer_id: transfer.id,
                     operation_type: operationType,
                     transfer_fee: transfer.transferFee || 0,
+                    source: 'neurofinance',
                 },
             })
             .select()
             .single();
 
         if (insertError) throw insertError;
-
-        // 6. Create payout ledger entry
-        await createLedgerEntries(user.id, [
-            {
-                accountType: 'main',
-                direction: 'debit',
-                entryType: 'payout',
-                amount: requestedAmount,
-                status: 'posted',
-                referenceType: 'payout',
-                referenceId: payoutRecord.id,
-                providerObjectId: transfer.id,
-                description: `Saque para conta bancária: R$${(requestedAmount / 100).toFixed(2)}`,
-            },
-        ]);
 
         return jsonResponse({
             success: true,
@@ -130,7 +91,6 @@ Deno.serve(async (req: Request) => {
             status: 'pending',
             schedule_date: transfer.scheduleDate || null,
         });
-
     } catch (error: any) {
         console.error('asaas-payout error:', error);
         return errorResponse(error.message || 'Internal error', 500);

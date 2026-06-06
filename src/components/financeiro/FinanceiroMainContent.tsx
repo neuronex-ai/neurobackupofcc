@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useFinancialAccount } from "@/hooks/use-financial-account";
-import { OnboardingPendingNotice } from "./OnboardingPendingNotice";
-import { NeuroBankVerificationModal } from "./NeuroBankVerificationModal";
-import { FinancialDashboard, FinancialDashboardProps, FinanceView } from "./FinancialDashboard";
+
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFinancialAccount } from "@/hooks/use-financial-account";
+import { FinancialDashboard, FinancialDashboardProps, FinanceView } from "./FinancialDashboard";
+import { NeuroFinanceVerificationModal } from "./NeuroFinanceVerificationModal";
+import { OnboardingPendingNotice } from "./OnboardingPendingNotice";
 
 export type { FinanceView };
 
@@ -14,7 +15,6 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
     isLoading,
     needsInitialOnboarding,
     needsVerification,
-    isAccountCreated
   } = useFinancialAccount();
 
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -22,10 +22,13 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
 
   const handleOpenOnboarding = () => {
     if (needsInitialOnboarding) {
-      // O onboarding inicial é tratado pelo componente pai DesktopFinanceiro
-      // mas mantemos aqui por segurança caso o estado mude
+      // O onboarding inicial é tratado pelo componente pai DesktopFinanceiro.
+      // Mantemos este fallback para cobrir mudanças de estado em tempo real.
       window.location.reload();
-    } else if (needsVerification) {
+      return;
+    }
+
+    if (needsVerification) {
       setShowVerificationModal(true);
     }
   };
@@ -39,7 +42,7 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
     return (
       <div className="space-y-6">
         <Skeleton className="h-32 w-full rounded-[32px]" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <Skeleton className="h-40 rounded-[24px]" />
           <Skeleton className="h-40 rounded-[24px]" />
           <Skeleton className="h-40 rounded-[24px]" />
@@ -47,8 +50,6 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
       </div>
     );
   }
-
-
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -58,10 +59,7 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
 
       <FinancialDashboard {...props} />
 
-      {/* Modais de Fluxo */}
-
-
-      <NeuroBankVerificationModal
+      <NeuroFinanceVerificationModal
         open={showVerificationModal}
         onOpenChange={setShowVerificationModal}
         selectedRequirement={selectedRequirement}
