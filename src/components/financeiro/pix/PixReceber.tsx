@@ -106,7 +106,7 @@ export function PixReceber() {
                             <RefreshCw className="w-4 h-4 text-white dark:text-zinc-900" />
                         </button>
                         <div className="px-3 py-1 rounded-full bg-white/10 dark:bg-black/5 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900">
-                            Sandbox
+                            Produção
                         </div>
                     </div>
                 </div>
@@ -172,7 +172,7 @@ export function PixReceber() {
                                     <ArrowDownLeft className="w-12 h-12 text-zinc-200 dark:text-zinc-700 mb-4" />
                                     <p className="text-sm font-bold text-zinc-400">Nenhum Pix recebido</p>
                                     <p className="text-[10px] text-zinc-400 mt-1">
-                                        Os valores recebidos via Pix aparecerão aqui (Sandbox)
+                                        Os valores recebidos via Pix aparecerão aqui após a confirmação da Asaas
                                     </p>
                                 </div>
                             ) : (
@@ -218,7 +218,7 @@ export function PixReceber() {
                                     <FileText className="w-12 h-12 text-zinc-200 dark:text-zinc-700 mb-4" />
                                     <p className="text-sm font-bold text-zinc-400">Nenhuma cobrança encontrada</p>
                                     <p className="text-[10px] text-zinc-400 mt-1">
-                                        Crie um QR Code ou uma cobrança para visualizar aqui (Sandbox)
+                                        Crie um QR Code ou uma cobrança para visualizar aqui
                                     </p>
                                 </div>
                             ) : (

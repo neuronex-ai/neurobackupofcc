@@ -28,7 +28,9 @@ import {
     ChevronRight,
     ArrowRight,
     Sparkles,
-    History
+    History,
+    Repeat,
+    WalletCards
 } from "lucide-react";
 
 import { useFinancialMetrics } from "@/hooks/use-financial-metrics";
@@ -55,9 +57,7 @@ interface NavItem {
         tag?: string;
         description?: string;
         subItems?: any[];
-        disabled?: boolean;
     }[];
-    disabled?: boolean;
 }
 
 const FINANCE_NAV: NavItem[] = [
@@ -67,36 +67,52 @@ const FINANCE_NAV: NavItem[] = [
         icon: Landmark,
         subItems: [
             { id: 'conta-digital', label: 'Visão Geral', icon: CreditCard },
+            {
+                id: 'pix',
+                label: 'Área Pix',
+                icon: BadgeCent,
+                subItems: [
+                    { id: 'pix-pagar', label: 'Pagar Pix', icon: QrCode, tag: 'Grátis', description: 'Cole um Pix copia e cola e pague pela conta NeuroFinance' },
+                    { id: 'pix-transferir', label: 'Transferir por Pix', icon: Send, tag: 'Grátis', description: 'Envie dinheiro para uma chave Pix' },
+                    { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Grátis', description: 'Crie um QR Code para receber na hora' },
+                    { id: 'pix-receber', label: 'Pix recebidos', icon: ArrowDownLeft, tag: 'Grátis', description: 'Veja o que entrou por Pix' },
+                    { id: 'pix-chaves', label: 'Minhas chaves', icon: Key, description: 'Cadastre e gerencie suas chaves Pix' },
+                    { id: 'pix-salarios', label: 'Pagar salários', icon: Users, tag: 'Grátis', description: 'Envie Pix em lote para sua equipe' },
+                    { id: 'pix-limites', label: 'Limites do Pix', icon: ShieldCheck, tag: 'No App', description: 'Ajuste limites de segurança da conta' },
+                ]
+            },
             { id: 'transferencias', label: 'Saque', icon: Send },
             {
                 id: 'pagamentos',
                 label: 'Pagamentos',
                 icon: Receipt,
-                disabled: true,
                 subItems: [
-                    { id: 'pagamentos-agendar', label: 'Agendar Pagamentos', icon: Calendar, description: 'Agende boletos e Pix para aprovação' },
-                    { id: 'pagamentos-dda', label: 'Consulta DDA', icon: Barcode, description: 'Boletos pendentes no DDA' },
-                    { id: 'pagamentos-grupos', label: 'Meus Grupos', icon: FolderOpen, description: 'Acompanhe seus grupos de pagamentos' },
+                    { id: 'pagamentos-agendar', label: 'Pagar contas', icon: Calendar, description: 'Pague boletos e Pix de fornecedores' },
+                    { id: 'pagamentos-dda', label: 'Boletos no DDA', icon: Barcode, description: 'Veja boletos encontrados para sua conta' },
+                    { id: 'pagamentos-grupos', label: 'Pagamentos em lote', icon: FolderOpen, description: 'Acompanhe grupos de pagamentos' },
                 ]
             },
-            { id: 'contas-bancarias', label: 'Conta Bancária', icon: Landmark },
+            { id: 'contas-bancarias', label: 'Conta bancária', icon: Landmark },
             { id: 'extrato', label: 'Extrato Detalhado', icon: FileText },
-            { id: 'cartoes', label: 'Cartões', icon: CreditCard },
-            {
-                id: 'pix',
-                label: 'Área Pix',
-                icon: BadgeCent,
-                disabled: true,
-                subItems: [
-                    { id: 'pix-pagar', label: 'Pagar Pix Copia e Cola', icon: QrCode, tag: 'Grátis', description: 'Faça pagamentos de forma fácil e rápida' },
-                    { id: 'pix-transferir', label: 'Transferir', icon: Send, tag: 'Grátis', description: 'Transferências gratuitas e ilimitadas' },
-                    { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Grátis', description: 'Gere um QR Code e receba na hora' },
-                    { id: 'pix-receber', label: 'Receber', icon: ArrowDownLeft, tag: 'Grátis', description: 'Receba valores como e quando quiser' },
-                    { id: 'pix-chaves', label: 'Minhas chaves', icon: Key, description: 'Cadastre e gerencie suas chaves Pix' },
-                    { id: 'pix-salarios', label: 'Pagar salários via Pix', icon: Users, tag: 'Grátis', description: 'Pagamentos dos seus funcionários via envio de arquivos com a praticidade do Pix' },
-                    { id: 'pix-limites', label: 'Limites para transações', icon: ShieldCheck, tag: 'No App', description: 'Configure seus limites de acordo com a sua necessidade' },
-                ]
-            },
+        ],
+    },
+    {
+        id: 'cobrancas-root',
+        label: "Cobranças",
+        icon: WalletCards,
+        subItems: [
+            { id: 'cobrancas-historia', label: 'Todas as cobranças', icon: History },
+            { id: 'cobrancas-config', label: 'Regras automáticas', icon: Settings },
+        ],
+    },
+    {
+        id: 'antecipacoes-root',
+        label: "Antecipações",
+        icon: TrendingUp,
+        subItems: [
+            { id: 'antecipacoes', label: 'Antecipar recebíveis', icon: TrendingUp },
+            { id: 'antecipacoes-simulador', label: 'Simular antecipação', icon: WalletCards },
+            { id: 'antecipacoes-historico', label: 'Histórico de antecipações', icon: Repeat },
         ],
     },
     {
@@ -105,8 +121,6 @@ const FINANCE_NAV: NavItem[] = [
         icon: ArrowUpRight,
         subItems: [
             { id: 'receitas', label: 'Entradas Confirmadas', icon: ArrowUpRight },
-            { id: 'cobrancas-historia', label: 'Gerenciador de Faturas', icon: History },
-            { id: 'cobrancas-config', label: 'Regras por Cliente', icon: Settings },
         ],
     },
     {
@@ -128,7 +142,7 @@ const FINANCE_NAV: NavItem[] = [
     },
     {
         id: 'fluxo-caixa-root',
-        label: "Gestão & Analise",
+        label: "Gestão & Análise",
         icon: PieChart,
         subItems: [
             { id: 'fluxo-caixa', label: 'Fluxo de Caixa', icon: TrendingUp },
@@ -144,7 +158,6 @@ const FINANCE_NAV: NavItem[] = [
         ]
     }
 ];
-
 
 const DesktopFinanceiro = () => {
     const {
@@ -215,6 +228,14 @@ const DesktopFinanceiro = () => {
     }, [refetchStatus]);
 
     const handleGroupClick = (group: NavItem) => {
+        if (!isSidebarExpanded) {
+            setExpandedGroups([group.id]);
+            if (group.subItems && group.subItems.length > 0) {
+                setActiveView(group.subItems[0].id);
+            }
+            return;
+        }
+
         const isCurrentlyExpanded = expandedGroups.includes(group.id);
         if (isCurrentlyExpanded) {
             setExpandedGroups([]);
@@ -226,15 +247,8 @@ const DesktopFinanceiro = () => {
         }
     };
 
-    // Lógica para mostrar dashboard mesmo com pendências menores, mas travar funções críticas
+    // Mostra o dashboard mesmo com pendências menores, mas trava funções críticas
     const showMainDashboard = isConnected || !needsInitialOnboarding;
-
-    const activeSubWithChildren = FINANCE_NAV
-        .flatMap(g => g.subItems || [])
-        .find(s =>
-            (s.id === activeView || s.subItems?.some(ss => ss.id === activeView)) &&
-            s.subItems && s.subItems.length > 0
-        );
 
     const motionProps = {
         initial: { opacity: 0, x: 20, filter: "blur(10px)" },
@@ -282,7 +296,7 @@ const DesktopFinanceiro = () => {
                                     Bem-vindo ao NeuroFinance
                                 </h1>
                                 <p className="text-base text-muted-foreground font-medium leading-relaxed max-w-md mb-10">
-                                    Sua conta bancária integrada. 
+                                    Sua conta bancária integrada.
                                     {isConnected ? " Sua conta já foi criada! Finalize as pendências para liberar todas as funções." : " Ative sua conta digital para emitir faturas profissionais e receber via PIX ou Cartão."}
                                 </p>
 
@@ -333,89 +347,129 @@ const DesktopFinanceiro = () => {
 
             <div className="flex-1 w-full max-w-[2200px] mx-auto px-6 md:px-8 lg:px-12 xl:px-16 relative z-10 flex gap-6 pb-12">
                 <motion.nav
-                    onHoverStart={() => setIsSidebarExpanded(true)}
-                    onHoverEnd={() => setIsSidebarExpanded(false)}
-                    animate={{
-                        width: isSidebarExpanded ? 280 : 80,
-                        transition: { type: "spring", stiffness: 350, damping: 35 }
-                    }}
+                    initial={{ opacity: 0, x: -18 }}
+                    animate={{ opacity: 1, x: 0, width: isSidebarExpanded ? 302 : 88 }}
+                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    onMouseEnter={() => setIsSidebarExpanded(true)}
+                    onMouseLeave={() => setIsSidebarExpanded(false)}
                     className="hidden lg:flex shrink-0 relative z-[70]"
                 >
-                    <div className="w-full sticky top-10 h-fit bg-white/70 dark:bg-black/50 backdrop-blur-3xl border border-zinc-200/80 dark:border-white/[0.08] rounded-[32px] shadow-2xl flex flex-col p-3 overflow-hidden">
-                        <div className="flex flex-col gap-2">
+                    <div className="w-full sticky top-10 max-h-[calc(100vh-5rem)] bg-white/72 dark:bg-[#070708]/72 backdrop-blur-3xl border border-zinc-200/70 dark:border-white/[0.08] rounded-[30px] shadow-[0_24px_90px_-60px_rgba(0,0,0,0.72)] flex flex-col p-3 overflow-hidden">
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,.82),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(0,0,0,.045),transparent_42%)] dark:bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,.07),transparent_38%)]" />
+                        <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.045]" />
+                        <div className={cn(
+                            "relative z-10 flex flex-col gap-2 overflow-y-auto overflow-x-hidden custom-scrollbar",
+                            isSidebarExpanded ? "pr-1" : "items-center pr-0"
+                        )}>
                             {FINANCE_NAV.map((group) => {
                                 const isGroupExpanded = expandedGroups.includes(group.id);
-                                const hasActiveSub = group.subItems?.some(s => s.id === activeView);
+                                const hasActiveSub = group.subItems?.some(s => s.id === activeView || s.subItems?.some(ss => ss.id === activeView));
 
                                 return (
-                                    <div key={group.id} className="flex flex-col gap-1">
+                                    <div key={group.id} className="flex flex-col gap-1 rounded-[22px]">
                                         <button
                                             onClick={() => handleGroupClick(group)}
+                                            title={group.label}
                                             className={cn(
-                                                "w-full h-12 flex items-center gap-3 rounded-2xl transition-all duration-300 group relative",
-                                                isSidebarExpanded ? "px-3" : "justify-center",
-                                                hasActiveSub && !isGroupExpanded ? "bg-zinc-900/5 dark:bg-white/5" : "hover:bg-zinc-900/5 dark:hover:bg-white/5"
+                                                "h-12 flex items-center rounded-2xl transition-all duration-300 group relative",
+                                                isSidebarExpanded ? "w-full gap-3 px-3" : "w-14 justify-center px-0",
+                                                hasActiveSub
+                                                    ? "bg-zinc-950 text-white shadow-[0_14px_34px_-22px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950"
+                                                    : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-950/[0.045] dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.055]"
                                             )}
                                         >
                                             <div className={cn(
-                                                "w-10 h-10 shrink-0 flex items-center justify-center rounded-xl transition-all",
-                                                hasActiveSub ? "bg-zinc-900 dark:bg-white text-white dark:text-black shadow-lg" : "text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white"
+                                                "w-9 h-9 shrink-0 flex items-center justify-center rounded-xl transition-all",
+                                                hasActiveSub ? "bg-white/14 dark:bg-black/10" : "bg-white/55 dark:bg-white/[0.035] border border-black/[0.035] dark:border-white/[0.055]"
                                             )}>
                                                 <group.icon className="w-5 h-5" />
                                             </div>
 
-                                            <AnimatePresence>
-                                                {isSidebarExpanded && (
+                                            <AnimatePresence initial={false}>
+                                                {isSidebarExpanded ? (
                                                     <motion.div
-                                                        initial={{ opacity: 0, x: -10 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        exit={{ opacity: 0, x: -10 }}
-                                                        className="flex-1 flex items-center justify-between min-w-0"
+                                                        initial={{ opacity: 0, x: -8, width: 0 }}
+                                                        animate={{ opacity: 1, x: 0, width: "auto" }}
+                                                        exit={{ opacity: 0, x: -8, width: 0 }}
+                                                        transition={{ duration: 0.18 }}
+                                                        className="flex min-w-0 flex-1 items-center justify-between overflow-hidden"
                                                     >
-                                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-900 dark:text-white truncate">
+                                                        <span className="truncate text-[10px] font-black uppercase tracking-[0.15em]">
                                                             {group.label}
                                                         </span>
                                                         <ChevronRight className={cn(
-                                                            "w-3 h-3 text-zinc-400 transition-transform duration-300",
+                                                            "w-3.5 h-3.5 opacity-55 transition-transform duration-300",
                                                             isGroupExpanded && "rotate-90"
                                                         )} />
                                                     </motion.div>
-                                                )}
+                                                ) : null}
                                             </AnimatePresence>
                                         </button>
 
                                         <AnimatePresence>
-                                            {isGroupExpanded && isSidebarExpanded && group.subItems && (
+                                            {isSidebarExpanded && isGroupExpanded && group.subItems && (
                                                 <motion.div
                                                     initial={{ height: 0, opacity: 0 }}
                                                     animate={{ height: "auto", opacity: 1 }}
                                                     exit={{ height: 0, opacity: 0 }}
-                                                    className="overflow-hidden flex flex-col gap-1 pl-12 pr-2"
+                                                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                                                    className="overflow-hidden flex flex-col gap-1 px-1 pb-1"
                                                 >
                                                     {group.subItems.map((sub) => {
                                                         const isSubActive = activeView === sub.id || sub.subItems?.some(ss => ss.id === activeView);
                                                         return (
-                                                            <button
-                                                                key={sub.id}
-                                                                onClick={() => !sub.disabled && setActiveView(sub.id)}
-                                                                disabled={sub.disabled}
-                                                                title={sub.disabled ? "Em desenvolvimento, em breve você receberá novidades!" : undefined}
-                                                                className={cn(
-                                                                    "w-full h-10 flex items-center gap-3 px-4 rounded-xl transition-all duration-200 group/sub relative",
-                                                                    isSubActive
-                                                                        ? "bg-zinc-900/10 dark:bg-white/10 text-zinc-900 dark:text-white"
-                                                                        : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-900/5 dark:hover:bg-white/5",
-                                                                    sub.disabled && "opacity-40 cursor-not-allowed hover:bg-transparent dark:hover:bg-transparent hover:text-zinc-500 dark:hover:text-zinc-500"
-                                                                )}
-                                                            >
-                                                                <sub.icon className={cn(
-                                                                    "w-3.5 h-3.5 shrink-0 transition-colors",
-                                                                    isSubActive ? "text-zinc-900 dark:text-white" : "text-zinc-400 group-hover/sub:text-zinc-900 dark:group-hover/sub:text-white"
-                                                                )} />
-                                                                <span className="text-[9px] font-bold uppercase tracking-wider truncate flex-1 text-left">
-                                                                    {sub.label}
-                                                                </span>
-                                                            </button>
+                                                            <div key={sub.id} className="space-y-1">
+                                                                <button
+                                                                    onClick={() => setActiveView(sub.id)}
+                                                                    className={cn(
+                                                                        "w-full min-h-10 flex items-center gap-3 px-3 py-2 rounded-[15px] transition-all duration-200 group/sub relative",
+                                                                        isSubActive
+                                                                            ? "bg-zinc-950/[0.075] text-zinc-950 dark:bg-white/[0.09] dark:text-white"
+                                                                            : "text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-950/[0.045] dark:hover:bg-white/[0.055]"
+                                                                    )}
+                                                                >
+                                                                    {isSubActive && <motion.div layoutId="finance-sidebar-active" className="absolute inset-y-2 left-0 w-1 rounded-full bg-zinc-950 dark:bg-white" />}
+                                                                    <sub.icon className="w-3.5 h-3.5 shrink-0 transition-colors" />
+                                                                    <span className="text-[9px] font-black uppercase tracking-[0.1em] truncate flex-1 text-left leading-tight">
+                                                                        {sub.label}
+                                                                    </span>
+                                                                    {sub.subItems?.length ? (
+                                                                        <ChevronRight className={cn("h-3 w-3 opacity-45 transition-transform", isSubActive && "rotate-90")} />
+                                                                    ) : null}
+                                                                </button>
+
+                                                                <AnimatePresence>
+                                                                    {isSubActive && sub.subItems?.length ? (
+                                                                        <motion.div
+                                                                            initial={{ height: 0, opacity: 0 }}
+                                                                            animate={{ height: "auto", opacity: 1 }}
+                                                                            exit={{ height: 0, opacity: 0 }}
+                                                                            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                                                                            className="overflow-hidden pl-7 pr-1"
+                                                                        >
+                                                                            <div className="flex flex-col gap-1 border-l border-zinc-200/70 pl-3 dark:border-white/10">
+                                                                                {sub.subItems.map((child) => (
+                                                                                    <button
+                                                                                        key={child.id}
+                                                                                        onClick={() => setActiveView(child.id)}
+                                                                                        className={cn(
+                                                                                            "rounded-xl px-3 py-2 text-left transition-all duration-200",
+                                                                                            activeView === child.id
+                                                                                                ? "bg-white text-zinc-950 shadow-sm dark:bg-white/[0.10] dark:text-white"
+                                                                                                : "text-zinc-500 hover:bg-white/60 hover:text-zinc-950 dark:hover:bg-white/[0.055] dark:hover:text-white"
+                                                                                        )}
+                                                                                    >
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <span className="min-w-0 flex-1 truncate text-[8.5px] font-black uppercase tracking-[0.08em]">{child.label}</span>
+                                                                                            {child.tag && <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[7px] font-black uppercase text-emerald-600 dark:text-emerald-400">{child.tag}</span>}
+                                                                                        </div>
+                                                                                    </button>
+                                                                                ))}
+                                                                            </div>
+                                                                        </motion.div>
+                                                                    ) : null}
+                                                                </AnimatePresence>
+                                                            </div>
                                                         );
                                                     })}
                                                 </motion.div>
@@ -427,51 +481,6 @@ const DesktopFinanceiro = () => {
                         </div>
                     </div>
                 </motion.nav>
-
-                <AnimatePresence>
-                    {activeSubWithChildren && (
-                        <motion.aside
-                            initial={{ width: 0, opacity: 0, x: -20 }}
-                            animate={{ width: 260, opacity: 1, x: 0 }}
-                            exit={{ width: 0, opacity: 0, x: -20 }}
-                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            className="hidden xl:flex shrink-0 relative z-[60]"
-                        >
-                            <div className="w-full sticky top-10 h-fit bg-white/40 dark:bg-white/[0.02] backdrop-blur-3xl border border-zinc-200/50 dark:border-white/[0.05] rounded-[32px] shadow-xl p-5 flex flex-col gap-6 overflow-hidden">
-                                <div className="flex flex-col gap-1.5">
-                                    <div className="flex items-center gap-3 px-2 mb-2">
-                                        <div className="w-8 h-8 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg">
-                                            <activeSubWithChildren.icon className="w-4 h-4" />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-900 dark:text-white">{activeSubWithChildren.label}</span>
-                                            <span className="text-[7px] font-black text-zinc-400 uppercase tracking-widest">Opções Avançadas</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        {activeSubWithChildren.subItems?.map((child) => (
-                                            <button
-                                                key={child.id}
-                                                onClick={() => setActiveView(child.id)}
-                                                className={cn(
-                                                    "w-full p-4 flex flex-col items-start gap-1 rounded-[20px] transition-all duration-300 group/child text-left relative overflow-hidden",
-                                                    activeView === child.id ? "bg-white dark:bg-white/10 shadow-lg border border-zinc-200/50 dark:border-white/10" : "hover:bg-white/50 dark:hover:bg-white/[0.05]"
-                                                )}
-                                            >
-                                                <div className="flex items-center gap-2 w-full relative z-10">
-                                                    <span className={cn("text-[9px] font-black uppercase tracking-tight flex-1", activeView === child.id ? "text-zinc-900 dark:text-white" : "text-zinc-500 group-hover:text-zinc-900")}>{child.label}</span>
-                                                    {child.tag && <span className="text-[7px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">{child.tag}</span>}
-                                                </div>
-                                                {child.description && <p className="text-[8px] font-medium text-zinc-400 leading-relaxed">{child.description}</p>}
-                                                {activeView === child.id && <motion.div layoutId="active-pill" className="absolute inset-y-0 left-0 w-1 bg-zinc-900 dark:bg-white rounded-full" />}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.aside>
-                    )}
-                </AnimatePresence>
 
                 <div className="flex-1 rounded-[40px] bg-white/30 dark:bg-zinc-900/10 backdrop-blur-sm border border-zinc-200/30 dark:border-white/[0.02] shadow-sm relative">
                     <AnimatePresence mode="wait">

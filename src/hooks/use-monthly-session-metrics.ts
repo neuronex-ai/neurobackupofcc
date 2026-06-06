@@ -27,6 +27,26 @@ const isClinicalSession = (appointment: Appointment) =>
 const countByStatus = (appointments: Appointment[], status: AppointmentStatus) =>
   appointments.filter((appointment) => normalizeAppointmentStatus(appointment.status, appointment.notes) === status).length;
 
+const getBirthDateParts = (birthDate?: string | null) => {
+  if (!birthDate) return null;
+
+  const isoDateOnly = birthDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoDateOnly) {
+    return {
+      day: Number(isoDateOnly[3]),
+      monthIndex: Number(isoDateOnly[2]) - 1,
+    };
+  }
+
+  const parsed = parseISO(birthDate);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return {
+    day: parsed.getDate(),
+    monthIndex: parsed.getMonth(),
+  };
+};
+
 export const useMonthlySessionMetrics = (selectedDate: Date) => {
   const { user } = useAuth();
   const userId = user?.id;
@@ -66,28 +86,27 @@ export const useMonthlySessionMetrics = (selectedDate: Date) => {
 
       if (patientsError) throw patientsError;
 
-      const selectedMonth = selectedDate.getMonth() + 1;
+      const selectedMonth = selectedDate.getMonth();
       const monthlyBirthdays = (allPatients || [])
         .filter((patient) => {
-          if (!patient.birth_date) return false;
-          const birthDate = parseISO(patient.birth_date);
-          return birthDate.getMonth() + 1 === selectedMonth;
+          const birth = getBirthDateParts(patient.birth_date);
+          return !!birth && birth.monthIndex === selectedMonth;
         })
         .map((patient) => {
-          const birthDate = parseISO(patient.birth_date!);
+          const birth = getBirthDateParts(patient.birth_date)!;
           return {
             id: patient.id,
             name: patient.name,
             birth_date: patient.birth_date!,
-            birth_day: birthDate.getDate(),
-            birth_month: birthDate.getMonth(),
+            birth_day: birth.day,
+            birth_month: birth.monthIndex,
             phone: patient.phone,
             email: patient.email,
           };
         })
         .sort((a, b) => a.birth_day - b.birth_day);
 
-      const [{ count: notesCount }, { count: transactionsCount }, { count: anamnesisCount }] = await Promise.all([
+      const [{ count: notesCount }, { count: transactionsCount }, { count: anamnesisCount }, { data: appointmentActivities }] = await Promise.all([
         supabase
           .from('session_notes')
           .select('*', { count: 'exact', head: true })
@@ -103,6 +122,12 @@ export const useMonthlySessionMetrics = (selectedDate: Date) => {
         supabase
           .from('patient_anamneses')
           .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .gte('updated_at', formatISO(startMonth))
+          .lte('updated_at', formatISO(endMonth)),
+        supabase
+          .from('appointments')
+          .select('*')
           .eq('user_id', userId)
           .gte('updated_at', formatISO(startMonth))
           .lte('updated_at', formatISO(endMonth)),
@@ -193,7 +218,11 @@ export const useMonthlySessionMetrics = (selectedDate: Date) => {
         chartData,
         monthlyBirthdays,
         birthdayCount: monthlyBirthdays.length,
-        activityCount: (notesCount || 0) + (transactionsCount || 0) + (anamnesisCount || 0) + reschedules,
+        activityCount:
+          ((appointmentActivities || []) as Appointment[]).filter(isClinicalSession).length +
+          (notesCount || 0) +
+          (transactionsCount || 0) +
+          (anamnesisCount || 0),
       };
     },
     enabled: !!userId,

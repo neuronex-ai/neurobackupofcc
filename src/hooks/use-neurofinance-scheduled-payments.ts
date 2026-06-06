@@ -80,15 +80,39 @@ export function useNeuroFinanceScheduledPayments() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Não autenticado');
 
-            // Create payment group locally
             const groupId = crypto.randomUUID();
-            const results: SchedulePaymentItemResult[] = items.map((item) => ({
-                ...item,
-                id: crypto.randomUUID(),
-                group_id: groupId,
-                product_type: item.content.length > 44 ? 'PIX' as const : 'BOLETO' as const,
-                status: 'READ_DATA' as const,
-            }));
+            const results: SchedulePaymentItemResult[] = [];
+
+            for (const item of items) {
+                const isPix = item.content.trim().startsWith('000201');
+                if (isPix) {
+                    results.push({
+                        ...item,
+                        id: crypto.randomUUID(),
+                        group_id: groupId,
+                        product_type: 'PIX',
+                        status: 'READ_DATA',
+                    });
+                    continue;
+                }
+
+                const response = await supabase.functions.invoke('asaas-bill-payment', {
+                    body: { action: 'simulate', identificationField: item.content.trim() },
+                });
+                if (response.error) throw new Error(response.error.message);
+                if (response.data?.error) throw new Error(response.data.error);
+                const bill = response.data?.bill || {};
+                results.push({
+                    ...item,
+                    amount: Number(bill.value || item.amount),
+                    beneficiary_name: bill.beneficiaryName || item.beneficiary_name,
+                    due_date: bill.dueDate || undefined,
+                    id: crypto.randomUUID(),
+                    group_id: groupId,
+                    product_type: 'BOLETO',
+                    status: 'READ_DATA',
+                });
+            }
 
             return { group_id: groupId, items: results };
         },
@@ -157,9 +181,29 @@ export function useNeuroFinanceScheduledPayments() {
      * Submit payment group for processing.
      */
     const submitForApproval = useMutation({
-        mutationFn: async ({ groupId, uploaderName: _uploaderName }: { groupId: string; uploaderName?: string }) => {
-            toast.info(`Grupo ${groupId.slice(0, 8)}... enviado para processamento via NeuroFinance.`);
-            return { success: true, group_id: groupId };
+        mutationFn: async ({ groupId, items = [] }: { groupId: string; uploaderName?: string; items?: SchedulePaymentItemResult[] }) => {
+            if (!items.length) throw new Error('Nenhum pagamento validado para processar.');
+
+            const results = [];
+            for (const item of items) {
+                const isPix = item.product_type === 'PIX';
+                const response = await supabase.functions.invoke(isPix ? 'asaas-pix' : 'asaas-bill-payment', {
+                    body: isPix
+                        ? { action: 'pay_qr_code', payload: item.content, value: item.amount }
+                        : {
+                            action: 'create',
+                            identificationField: item.content,
+                            scheduleDate: item.transaction_date,
+                            description: item.description,
+                            value: item.amount,
+                            externalReference: `${groupId}:${item.id}`,
+                        },
+                });
+                if (response.error) throw new Error(response.error.message);
+                if (response.data?.error) throw new Error(response.data.error);
+                results.push(response.data);
+            }
+            return { success: true, group_id: groupId, results };
         },
         onSuccess: () => {
             toast.success('Grupo enviado para processamento!');

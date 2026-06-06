@@ -5,29 +5,57 @@ import { Sidebar } from "@/components/agenda/Sidebar";
 import { CalendarView } from "@/components/agenda/CalendarView";
 import { useAppointments } from "@/hooks/use-appointments";
 import { AnimatePresence, motion } from "framer-motion";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useAgendaRealtime } from "@/hooks/use-agenda-realtime";
 import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
+import { AppointmentDetailModal } from "@/components/agenda/AppointmentDetailModal";
 
 export default function DesktopAgenda() {
     useAgendaRealtime();
     const location = useLocation();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [view, setView] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
+    const [openedAppointmentId, setOpenedAppointmentId] = useState<string | null>(null);
 
     const { data: appointments = [], isLoading } = useAppointments();
 
     // Handle incoming state from dashboard to open specific appointment
     useEffect(() => {
-        if (location.state?.openAppointmentId) {
-            // Logic to handle opening the appointment could be added here
-            // For now, we just ensure the view is ready
-            console.log("Opening appointment:", location.state.openAppointmentId);
+        const stateAppointmentId = location.state?.openAppointmentId;
+        const queryAppointmentId = searchParams.get("appointmentId");
+        const targetId = stateAppointmentId || queryAppointmentId;
+
+        if (targetId) {
+            setOpenedAppointmentId(targetId);
         }
-    }, [location.state]);
+    }, [location.state, searchParams]);
+
+    const openedAppointment = useMemo(
+        () => appointments.find((appointment) => appointment.id === openedAppointmentId),
+        [appointments, openedAppointmentId]
+    );
+
+    useEffect(() => {
+        if (openedAppointment) {
+            setSelectedDate(new Date(openedAppointment.start_time));
+        }
+    }, [openedAppointment]);
+
+    const closeOpenedAppointment = () => {
+        setOpenedAppointmentId(null);
+        if (searchParams.has("appointmentId")) {
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete("appointmentId");
+            setSearchParams(nextParams, { replace: true });
+        }
+        if (location.state?.openAppointmentId) {
+            window.history.replaceState({}, document.title, window.location.href);
+        }
+    };
 
     const filteredAppointments = useMemo(() => {
         return appointments.filter(app => {
@@ -87,6 +115,15 @@ export default function DesktopAgenda() {
                     </div>
                 </main>
             </div>
+            {openedAppointment && (
+                <AppointmentDetailModal
+                    appointment={openedAppointment}
+                    open={!!openedAppointment}
+                    onOpenChange={(open) => {
+                        if (!open) closeOpenedAppointment();
+                    }}
+                />
+            )}
         </div>
     );
 }

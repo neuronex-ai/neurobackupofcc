@@ -14,6 +14,9 @@ export interface FiscalSettings {
   rps_serie: string | null;
   rps_number: number | null;
   auto_issue: boolean | null;
+  fiscal_provider?: 'asaas' | null;
+  asaas_municipal_service_id?: string | null;
+  asaas_municipal_service_name?: string | null;
   // Focus NFe fields
   focus_nfe_api_key?: string | null;
   focus_nfe_environment?: 'homologacao' | 'producao';

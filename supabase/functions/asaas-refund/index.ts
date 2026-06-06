@@ -18,6 +18,7 @@ import {
     getAuthenticatedUser,
     getFinancialAccount,
     refundAsaasPayment,
+    getFinancialAccountAsaasApiKey,
 } from '../_shared/asaas-client.ts';
 
 Deno.serve(async (req: Request) => {
@@ -55,11 +56,10 @@ Deno.serve(async (req: Request) => {
 
         // 2. Get financial account for API key
         const financialAccount = await getFinancialAccount(user.id);
-        if (!financialAccount?.metadata?.asaas_api_key) {
+        const subApiKey = getFinancialAccountAsaasApiKey(financialAccount);
+        if (!financialAccount || !subApiKey) {
             return errorResponse('Conta financeira não configurada', 403);
         }
-
-        const subApiKey = financialAccount.metadata.asaas_api_key;
 
         // 3. Validate refund amount
         const remainingAmount = payment.gross_amount - (payment.refund_amount || 0);

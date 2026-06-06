@@ -1,165 +1,181 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { AlertTriangle, CheckCircle2, Landmark, Loader2, LockKeyhole, Pencil, ShieldCheck, X } from "lucide-react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Landmark, Plus, Trash2, Loader2, ShieldCheck } from "lucide-react";
-import { useAuth } from "@/components/auth/SessionContextProvider";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import { useFinancialAccount } from "@/hooks/use-financial-account";
+
+const digits = (value: string) => value.replace(/\D/g, "");
 
 export const BankAccountsView = () => {
-    const { session } = useAuth();
-    const queryClient = useQueryClient();
-    const [isAdding, setIsAdding] = useState(false);
-    const [newData, setNewData] = useState({ holderName: "", pixKey: "", pixKeyType: "CPF" });
-
-    const { data: accounts, isLoading } = useQuery({
-        queryKey: ['user_bank_accounts'],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('user_bank_accounts')
-                .select('*')
-                .eq('user_id', session?.user?.id);
-            if (error) throw error;
-            return data || [];
-        }
+    const { account, isLoading, updateAccount, refetch } = useFinancialAccount();
+    const [isEditing, setIsEditing] = useState(false);
+    const [form, setForm] = useState({
+        holderName: "",
+        cpfCnpj: "",
+        bankCode: "",
+        agency: "",
+        account: "",
+        digit: "",
     });
 
-    const addMutation = useMutation({
-        mutationFn: async (data: any) => {
-            if (!data.pixKey || !data.holderName) throw new Error("Campos obrigatórios");
-            const { error } = await supabase.from('user_bank_accounts').insert([{
-                user_id: session?.user.id,
-                holder_name: data.holderName,
-                pix_key: data.pixKey,
-                pix_key_type: data.pixKeyType,
-                account_type: data.accountType,
-                currency: 'BRL',
-                is_primary: accounts?.length === 0,
-                provider: 'asaas'
-            }]).select();
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['user_bank_accounts'] });
-            setIsAdding(false);
-            setNewData({ holderName: "", pixKey: "", pixKeyType: "CPF" });
-            toast.success("Conta adicionada!");
-        }
-    });
+    useEffect(() => {
+        if (!account) return;
+        setForm({
+            holderName: account.bank_holder_name || account.holder_name || "",
+            cpfCnpj: account.bank_holder_cpf_cnpj || account.cpf_cnpj || "",
+            bankCode: account.bank_code || account.bank_name || "",
+            agency: account.bank_agency || "",
+            account: account.bank_account || "",
+            digit: account.bank_account_digit || "",
+        });
+    }, [account]);
 
-    const deleteMutation = useMutation({
-        mutationFn: async (id: string) => {
-            const { error } = await supabase.from('user_bank_accounts').delete().eq('id', id);
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['user_bank_accounts'] });
-            toast.success("Conta removida");
+    const hasStoredAccount = Boolean(account?.bank_account || account?.bank_account_last4);
+    const hasCompleteBankAccount = Boolean(
+        account?.bank_code && account?.bank_agency && hasStoredAccount
+    );
+
+    const maskedAccount = useMemo(() => {
+        const last4 = account?.bank_account_last4 || `${form.account}${form.digit}`.slice(-4);
+        return last4 ? `•••• ${last4}` : "Não informada";
+    }, [account?.bank_account_last4, form.account, form.digit]);
+
+    const setField = (field: keyof typeof form, value: string) => {
+        setForm((current) => ({ ...current, [field]: value }));
+    };
+
+    const handleSave = async () => {
+        if (!form.holderName.trim() || digits(form.bankCode).length !== 3 || !digits(form.agency) || !digits(form.account)) {
+            toast.error("Confira titular, banco, agência e conta.");
+            return;
         }
-    });
+
+        try {
+            const result = await updateAccount.mutateAsync({
+                bank_code: digits(form.bankCode),
+                agency: digits(form.agency),
+                account: digits(form.account),
+                account_digit: digits(form.digit),
+                owner_name: form.holderName.trim(),
+                cpfCnpj: digits(form.cpfCnpj),
+                account_type: "CONTA_CORRENTE",
+            });
+            await refetch();
+            setIsEditing(false);
+            if (result?.sync_status === "deferred") {
+                toast.warning("Conta salva no NeuroNex. A sincronização com a Asaas seguirá em segundo plano.");
+            } else {
+                toast.success("Conta de repasse atualizada.");
+            }
+        } catch (error: any) {
+            toast.error(error?.message || "Não foi possível atualizar a conta.");
+        }
+    };
+
+    if (isLoading) {
+        return <div className="flex min-h-[280px] items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-zinc-400" /></div>;
+    }
 
     return (
-        <div className="max-w-3xl mx-auto space-y-10">
-            <div className="flex items-center justify-between">
+        <div className="mx-auto max-w-4xl space-y-7">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h3 className="text-2xl font-black uppercase tracking-tight">Contas Bancárias</h3>
-                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">Gerencie seus destinos de transferência</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.26em] text-zinc-400">Destino de repasse</p>
+                    <h3 className="mt-2 text-2xl font-black tracking-tight text-zinc-950 dark:text-white">Conta bancária</h3>
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Dados sincronizados com o cadastro da sua subconta Asaas.</p>
                 </div>
-                {!isAdding && (
-                    <Button onClick={() => setIsAdding(true)} className="h-12 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-2xl px-6 font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all">
-                        <Plus className="w-4 h-4 mr-2" /> Nova Conta
-                    </Button>
-                )}
+                <Button
+                    onClick={() => setIsEditing((value) => !value)}
+                    variant="outline"
+                    className="h-11 rounded-xl border-black/10 bg-white/70 px-5 text-[10px] font-black uppercase tracking-[0.18em] backdrop-blur-xl transition-all active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.04]"
+                >
+                    {isEditing ? <X className="mr-2 h-4 w-4" /> : <Pencil className="mr-2 h-4 w-4" />}
+                    {isEditing ? "Cancelar" : "Atualizar dados"}
+                </Button>
             </div>
 
-            <AnimatePresence>
-                {isAdding && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="p-8 rounded-[32px] bg-white dark:bg-white/[0.02] border border-zinc-200 dark:border-white/10 shadow-2xl space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2 md:col-span-2">
-                                    <Label className="text-[9px] font-black uppercase tracking-widest ml-1">Titular</Label>
-                                    <Input
-                                        value={newData.holderName}
-                                        onChange={e => setNewData({ ...newData, holderName: e.target.value })}
-                                        className="h-14 bg-zinc-50 dark:bg-white/[0.01] border-zinc-200 dark:border-white/5 rounded-xl font-bold"
-                                        placeholder="Nome completo do beneficiário"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-[9px] font-black uppercase tracking-widest ml-1">Tipo de Chave</Label>
-                                    <select
-                                        value={newData.pixKeyType}
-                                        onChange={e => setNewData({ ...newData, pixKeyType: e.target.value })}
-                                        className="w-full h-14 bg-zinc-50 dark:bg-white/[0.01] border border-zinc-200 dark:border-white/5 rounded-xl px-4 text-xs font-bold"
-                                    >
-                                        <option value="CPF">CPF</option>
-                                        <option value="CNPJ">CNPJ</option>
-                                        <option value="EMAIL">E-mail</option>
-                                        <option value="PHONE">Telefone</option>
-                                        <option value="EVP">Aleatória</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-[9px] font-black uppercase tracking-widest ml-1">Chave PIX</Label>
-                                    <Input
-                                        value={newData.pixKey}
-                                        onChange={e => setNewData({ ...newData, pixKey: e.target.value })}
-                                        className="h-14 bg-zinc-50 dark:bg-white/[0.01] border-zinc-200 dark:border-white/5 rounded-xl font-mono"
-                                        placeholder="..."
-                                    />
-                                </div>
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="relative overflow-hidden rounded-[32px] border border-black/[0.07] bg-white/[0.82] p-6 shadow-[0_28px_80px_-52px_rgba(0,0,0,0.55)] backdrop-blur-3xl sm:p-8 dark:border-white/[0.08] dark:bg-white/[0.035]"
+            >
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(255,255,255,.75),transparent_38%),radial-gradient(circle_at_90%_100%,rgba(0,0,0,.05),transparent_38%)] dark:bg-[radial-gradient(circle_at_10%_0%,rgba(255,255,255,.08),transparent_42%)]" />
+
+                {!isEditing ? (
+                    <div className="relative z-10 flex min-h-[210px] flex-col justify-between gap-10">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-black/[0.06] bg-black/[0.03] dark:border-white/[0.08] dark:bg-white/[0.05]">
+                                <Landmark className="h-6 w-6" />
                             </div>
-                            <div className="flex justify-end gap-3 pt-4">
-                                <Button variant="ghost" onClick={() => setIsAdding(false)} className="h-12 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest">Cancelar</Button>
-                                <Button onClick={() => addMutation.mutate(newData)} disabled={addMutation.isPending} className="h-12 px-8 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl">
-                                    {addMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar Conta"}
-                                </Button>
+                            <div className="flex items-center gap-2 rounded-full border border-emerald-500/15 bg-emerald-500/[0.06] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-400">
+                                {hasCompleteBankAccount ? <CheckCircle2 className="h-3.5 w-3.5" /> : <LockKeyhole className="h-3.5 w-3.5" />}
+                                {hasCompleteBankAccount ? "Cadastrada" : hasStoredAccount ? "Completar dados" : "Pendente"}
                             </div>
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
-            <div className="grid gap-4">
-                {isLoading ? (
-                    <div className="py-20 flex justify-center"><Loader2 className="w-10 h-10 animate-spin text-zinc-200" /></div>
-                ) : accounts?.map((acc: any) => (
-                    <div key={acc.id} className="group p-6 rounded-[32px] bg-white dark:bg-white/[0.01] border border-zinc-200/50 dark:border-white/[0.05] hover:border-primary/20 hover:shadow-xl transition-all flex items-center justify-between">
-                        <div className="flex items-center gap-6">
-                            <div className="w-16 h-16 rounded-[22px] bg-zinc-50 dark:bg-white/[0.02] border border-zinc-100 dark:border-white/5 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
-                                <Landmark className="w-8 h-8 text-zinc-400" />
+                        <div className="grid gap-5 sm:grid-cols-3">
+                            <div>
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Titular</p>
+                                <p className="mt-2 truncate text-sm font-black text-zinc-950 dark:text-white">{form.holderName || "Não informado"}</p>
                             </div>
                             <div>
-                                <p className="text-[13px] font-black uppercase tracking-tight">{acc.holder_name}</p>
-                                <div className="flex items-center gap-3 mt-1.5">
-                                    <span className="text-[10px] font-mono text-zinc-400 font-bold">{acc.pix_key_type}: {acc.pix_key}</span>
-                                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 opacity-50" />
-                                </div>
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Banco / agência</p>
+                                <p className="mt-2 text-sm font-black text-zinc-950 dark:text-white">{form.bankCode || "—"} / {form.agency || "—"}</p>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Conta</p>
+                                <p className="mt-2 font-mono text-lg font-black tracking-[0.12em] text-zinc-950 dark:text-white">{maskedAccount}</p>
                             </div>
                         </div>
+
+                        {hasStoredAccount && !hasCompleteBankAccount ? (
+                            <button
+                                type="button"
+                                onClick={() => setIsEditing(true)}
+                                className="flex w-full items-center gap-3 rounded-2xl border border-amber-500/15 bg-amber-500/[0.06] px-4 py-3 text-left transition-colors hover:bg-amber-500/[0.1] dark:border-amber-300/10"
+                            >
+                                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                                    A conta {maskedAccount} está registrada. Complete banco e agência para habilitar repasses.
+                                </span>
+                            </button>
+                        ) : null}
+                    </div>
+                ) : (
+                    <div className="relative z-10 space-y-6">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <Field label="Titular"><Input value={form.holderName} onChange={(e) => setField("holderName", e.target.value)} /></Field>
+                            <Field label="CPF/CNPJ do titular"><Input value={form.cpfCnpj} onChange={(e) => setField("cpfCnpj", e.target.value)} /></Field>
+                            <Field label="Código do banco"><Input value={form.bankCode} maxLength={3} onChange={(e) => setField("bankCode", digits(e.target.value).slice(0, 3))} /></Field>
+                            <Field label="Agência"><Input value={form.agency} onChange={(e) => setField("agency", digits(e.target.value))} /></Field>
+                            <Field label="Conta"><Input value={form.account} onChange={(e) => setField("account", digits(e.target.value))} /></Field>
+                            <Field label="Dígito"><Input value={form.digit} maxLength={1} onChange={(e) => setField("digit", digits(e.target.value).slice(0, 1))} /></Field>
+                        </div>
                         <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteMutation.mutate(acc.id)}
-                            disabled={deleteMutation.isPending}
-                            className="w-12 h-12 rounded-2xl text-zinc-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                            onClick={handleSave}
+                            disabled={updateAccount.isPending}
+                            className="h-14 w-full rounded-2xl bg-zinc-950 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] dark:bg-white dark:text-zinc-950"
                         >
-                            <Trash2 className="w-5 h-5" />
+                            {updateAccount.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><ShieldCheck className="mr-2 h-4 w-4" /> Salvar e sincronizar</>}
                         </Button>
                     </div>
-                ))}
-            </div>
+                )}
+            </motion.div>
         </div>
     );
 };
+
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div className="space-y-2">
+        <Label className="ml-1 text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">{label}</Label>
+        <div className="[&_input]:h-12 [&_input]:rounded-xl [&_input]:border-black/10 [&_input]:bg-white/70 [&_input]:font-bold dark:[&_input]:border-white/10 dark:[&_input]:bg-white/[0.04]">
+            {children}
+        </div>
+    </div>
+);

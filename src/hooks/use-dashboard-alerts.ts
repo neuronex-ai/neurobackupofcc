@@ -13,11 +13,13 @@ export interface DashboardAlert {
   actionLink?: string;
 }
 
+const centsToBRL = (value: number) =>
+  (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
   const alerts: DashboardAlert[] = [];
   const now = new Date();
 
-  // Fetch settings first
   const { data: settings } = await supabase
     .from('user_notification_settings')
     .select('*')
@@ -25,73 +27,83 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
     .maybeSingle();
 
   const inAppEnabled = settings?.in_app_enabled ?? true;
+  if (!inAppEnabled) return [];
 
-  if (!inAppEnabled) return []; // If all in-app alerts are off, return early.
+  const { data: financialAccount } = await supabase
+    .from('financial_accounts')
+    .select('id, status, charges_enabled, payouts_enabled, details_submitted, last_sync_error, last_asaas_event_type, last_asaas_event_at')
+    .eq('user_id', userId)
+    .maybeSingle();
 
-  // 1. Verificar Conexão de Pagamentos (NeuroFinance / Asaas BaaS)
-  const { data: bankAccounts } = await supabase
-    .from('user_bank_accounts')
-    .select('id, onboarding_completed, account_status')
-    .eq('user_id', userId);
-
-  const hasActiveAccount = bankAccounts?.some(a => a.onboarding_completed && a.account_status === 'active');
-  if (!hasActiveAccount) {
+  if (!financialAccount || financialAccount.status === 'not_started' || financialAccount.status === 'account_missing') {
     alerts.push({
       id: 'payment-connect',
       type: 'warning',
-      title: 'Pagamentos Pendentes',
-      message: 'Configure sua conta de recebimentos para habilitar cobranças automáticas.',
-      time: 'Importante',
-      actionLink: '/integrations'
+      title: 'NeuroFinance pendente',
+      message: 'Ative sua subconta Asaas de produção para receber cobranças automáticas.',
+      time: 'Financeiro',
+      actionLink: '/financeiro',
+    });
+  } else if (financialAccount.last_sync_error) {
+    alerts.push({
+      id: 'asaas-sync-error',
+      type: 'destructive',
+      title: 'Sincronização Asaas',
+      message: 'Não foi possível sincronizar sua subconta Asaas. Verifique o painel financeiro.',
+      time: 'Financeiro',
+      actionLink: '/financeiro',
+    });
+  } else if (['pending', 'onboarding', 'pending_review', 'restricted', 'disabled'].includes(financialAccount.status)) {
+    alerts.push({
+      id: 'asaas-review',
+      type: financialAccount.status === 'restricted' || financialAccount.status === 'disabled' ? 'destructive' : 'warning',
+      title: 'Conta Asaas em análise',
+      message: 'Sua subconta ainda precisa de validação para liberar cobranças e repasses.',
+      time: 'Financeiro',
+      actionLink: '/financeiro',
     });
   }
 
-  // 2. Verificar Faturas Vencidas
   if (settings?.in_app_overdue_invoices ?? true) {
-    const { data: overdueInvoices } = await supabase
-      .from('invoices')
-      .select('amount')
-      .eq('user_id', userId)
-      .eq('status', 'pending')
-      .lt('due_date', format(now, 'yyyy-MM-dd'));
-
-    if (overdueInvoices && overdueInvoices.length > 0) {
-      const totalOverdue = overdueInvoices.reduce((sum, inv) => sum + inv.amount, 0);
-      alerts.push({
-        id: 'overdue-invoices',
-        type: 'destructive',
-        title: 'Faturas Vencidas',
-        message: `${overdueInvoices.length} fatura(s) em atraso totalizando R$ ${totalOverdue.toLocaleString('pt-BR')}.`,
-        time: 'Financeiro',
-        actionLink: '/financeiro'
-      });
-    }
-  }
-
-  // 3. Verificar Pagamentos Recebidos (últimas 24h) - White-label
-  if (settings?.in_app_overdue_invoices ?? true) { // Reusing financial setting
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const { data: recentPayments } = await supabase
-      .from('invoices')
-      .select('amount, patient_id')
+      .from('nb_payments')
+      .select('gross_amount, updated_at')
       .eq('user_id', userId)
       .eq('status', 'paid')
       .gte('updated_at', yesterday.toISOString());
 
     if (recentPayments && recentPayments.length > 0) {
-      const totalReceived = recentPayments.reduce((sum, inv) => sum + inv.amount, 0);
+      const totalReceived = recentPayments.reduce((sum, payment) => sum + (payment.gross_amount || 0), 0);
       alerts.push({
-        id: 'recent-payments',
+        id: 'recent-asaas-payments',
         type: 'success',
-        title: 'Pagamento Recebido',
-        message: `${recentPayments.length} pagamento(s) confirmado(s): R$ ${totalReceived.toLocaleString('pt-BR')}.`,
+        title: 'Pagamento recebido',
+        message: `${recentPayments.length} pagamento(s) confirmado(s): ${centsToBRL(totalReceived)}.`,
         time: 'Financeiro',
-        actionLink: '/financeiro'
+        actionLink: '/financeiro',
+      });
+    }
+
+    const { data: problematicPayouts } = await supabase
+      .from('nb_payouts')
+      .select('id, status')
+      .eq('user_id', userId)
+      .in('status', ['failed', 'canceled'])
+      .gte('updated_at', yesterday.toISOString());
+
+    if (problematicPayouts && problematicPayouts.length > 0) {
+      alerts.push({
+        id: 'asaas-payout-issues',
+        type: 'warning',
+        title: 'Repasse com atenção',
+        message: `${problematicPayouts.length} repasse(s) tiveram falha ou cancelamento recente.`,
+        time: 'Financeiro',
+        actionLink: '/financeiro',
       });
     }
   }
 
-  // 4. Verificar Pacientes Pendentes
   if (settings?.in_app_new_patients ?? true) {
     const { count: pendingPatients } = await supabase
       .from('patients')
@@ -103,15 +115,14 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
       alerts.push({
         id: 'pending-patients',
         type: 'info',
-        title: 'Novos Pacientes',
+        title: 'Novos pacientes',
         message: `${pendingPatients} cadastro(s) aguardando revisão ou aprovação.`,
         time: 'Pacientes',
-        actionLink: '/pacientes'
+        actionLink: '/pacientes',
       });
     }
   }
 
-  // 5. Verificar Reagendamentos Recentes (últimas 24h)
   if (settings?.in_app_system_updates ?? true) {
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const { data: recentReschedules } = await supabase
@@ -120,27 +131,25 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
       .eq('user_id', userId)
       .gte('updated_at', yesterday.toISOString());
 
-    // Filter: only appointments where updated_at > created_at (meaning they were modified)
     const rescheduled = recentReschedules?.filter(apt => {
       if (isCancelledAppointmentStatus(apt.status, apt.notes)) return false;
       const created = new Date(apt.created_at).getTime();
       const updated = new Date(apt.updated_at).getTime();
-      return (updated - created) > 60000; // Modified at least 1 minute after creation
+      return (updated - created) > 60000;
     });
 
     if (rescheduled && rescheduled.length > 0) {
       alerts.push({
         id: 'recent-reschedules',
         type: 'info',
-        title: 'Consultas Reagendadas',
+        title: 'Consultas reagendadas',
         message: `${rescheduled.length} consulta(s) foram reagendadas recentemente.`,
         time: 'Agenda',
-        actionLink: '/agenda'
+        actionLink: '/agenda',
       });
     }
   }
 
-  // 6. Verificar Próximas Consultas
   if (settings?.in_app_system_updates ?? true) {
     const { data: upcomingAppointments, error: aptError } = await supabase
       .from('appointments')
@@ -156,7 +165,7 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
       .slice(0, 3);
 
     if (aptError) {
-      console.error("Error fetching upcoming appointments for alerts:", aptError);
+      console.error('Error fetching upcoming appointments for alerts:', aptError);
     } else if (visibleUpcoming.length > 0) {
       visibleUpcoming.forEach((apt, index) => {
         const startTime = new Date(apt.start_time);
@@ -168,20 +177,20 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
         alerts.push({
           id: `upcoming-apt-${apt.id}`,
           type: 'info',
-          title: index === 0 ? 'Próxima Sessão' : 'Agendamento Futuro',
+          title: index === 0 ? 'Próxima sessão' : 'Agendamento futuro',
           message: `Consulta com ${patientName || 'Paciente'} ${dateStr} às ${timeStr}.`,
           time: 'Agenda',
-          actionLink: `/agenda?appointmentId=${apt.id}` // Link específico
+          actionLink: `/agenda?appointmentId=${apt.id}`,
         });
       });
     } else {
       alerts.push({
         id: 'free-day',
         type: 'info',
-        title: 'Agenda Livre',
+        title: 'Agenda livre',
         message: 'Nenhum atendimento futuro agendado.',
         time: 'Agenda',
-        actionLink: '/agenda'
+        actionLink: '/agenda',
       });
     }
   }
@@ -195,6 +204,6 @@ export const useDashboardAlerts = () => {
     queryKey: ['dashboardAlerts', user?.id],
     queryFn: () => fetchAlerts(user!.id),
     enabled: !!user,
-    staleTime: 1000 * 60 * 5, // 5 minutos de cache
+    staleTime: 1000 * 60 * 2,
   });
 };

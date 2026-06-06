@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/components/auth/SessionContextProvider';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Edit2, Gift, Mail, MessageCircle, Send, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+
+const BIRTHDAY_TEMPLATE_KEY = 'neuronex:birthday-message-template';
+const DEFAULT_BIRTHDAY_TEMPLATE =
+  'Olá, {{nome_do_paciente}}! Passando para te desejar um feliz aniversário. Que seu novo ciclo seja leve, especial e cheio de boas experiências. Um abraço!';
 
 interface PatientBirthday {
   id: string;
@@ -26,19 +31,49 @@ interface BirthdaysModalProps {
 }
 
 export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalProps) => {
-  const [filter, setFilter] = useState<'temporal' | 'alphabetical'>('temporal');
+  const { user } = useAuth();
+  const [sortMode, setSortMode] = useState<'temporal' | 'alphabetical'>('temporal');
   const [selectedPatient, setSelectedPatient] = useState<PatientBirthday | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<'whatsapp' | 'email'>('whatsapp');
   const [messageMode, setMessageMode] = useState<'options' | 'edit' | 'custom' | null>(null);
   const [customMessage, setCustomMessage] = useState('');
-  const [defaultTemplate, setDefaultTemplate] = useState(
-    'Olá [NOME]! Passando para desejar um feliz aniversário. Que seu novo ciclo seja leve, saudável e cheio de boas conquistas.'
-  );
+  const [defaultTemplate, setDefaultTemplate] = useState(DEFAULT_BIRTHDAY_TEMPLATE);
 
-  const sortedBirthdays = [...birthdays].sort((a, b) => {
-    if (filter === 'temporal') return a.birth_day - b.birth_day;
-    return a.name.localeCompare(b.name);
-  });
+  const professionalName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.first_name ||
+    user?.email?.split('@')[0] ||
+    'profissional';
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(BIRTHDAY_TEMPLATE_KEY);
+    if (saved) setDefaultTemplate(saved);
+  }, []);
+
+  const sortedBirthdays = useMemo(() => {
+    const today = new Date();
+    const currentDay = today.getDate();
+
+    return [...birthdays].sort((a, b) => {
+      if (sortMode === 'alphabetical') return a.name.localeCompare(b.name);
+
+      const aDistance = a.birth_day >= currentDay ? a.birth_day - currentDay : a.birth_day + 40;
+      const bDistance = b.birth_day >= currentDay ? b.birth_day - currentDay : b.birth_day + 40;
+      return aDistance - bDistance || a.name.localeCompare(b.name);
+    });
+  }, [birthdays, sortMode]);
+
+  const getBirthdayLabel = (patient: PatientBirthday) =>
+    format(new Date(2000, patient.birth_month, patient.birth_day), "dd 'de' MMMM", { locale: ptBR });
+
+  const fillTemplate = (patient: PatientBirthday, template: string) => {
+    const firstName = patient.name.split(' ')[0] || patient.name;
+    return template
+      .replaceAll('{{nome_do_paciente}}', firstName)
+      .replaceAll('{{nome_completo_do_paciente}}', patient.name)
+      .replaceAll('{{nome_do_profissional}}', professionalName)
+      .replaceAll('{{data_aniversario}}', getBirthdayLabel(patient));
+  };
 
   const finishSend = () => {
     setMessageMode(null);
@@ -48,27 +83,27 @@ export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalPro
 
   const handleSendWhatsApp = (patient: PatientBirthday, message: string) => {
     if (!patient.phone) {
-      toast.error('Paciente sem telefone cadastrado.');
+      toast.error('Telefone indisponível para este paciente.');
       return;
     }
 
-    const finalMessage = message.replace('[NOME]', patient.name.split(' ')[0]);
+    const finalMessage = fillTemplate(patient, message);
     const cleanPhone = patient.phone.replace(/\D/g, '');
     const fullPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
     window.open(`https://wa.me/${fullPhone}?text=${encodeURIComponent(finalMessage)}`, '_blank');
-    toast.success('WhatsApp aberto.');
+    toast.success('WhatsApp aberto com a mensagem preparada.');
     finishSend();
   };
 
   const handleSendEmail = (patient: PatientBirthday, message: string) => {
     if (!patient.email) {
-      toast.error('Paciente sem e-mail cadastrado.');
+      toast.error('E-mail indisponível para este paciente.');
       return;
     }
 
-    const finalMessage = message.replace('[NOME]', patient.name.split(' ')[0]);
+    const finalMessage = fillTemplate(patient, message);
     window.open(`mailto:${patient.email}?subject=Feliz aniversário&body=${encodeURIComponent(finalMessage)}`, '_blank');
-    toast.success('E-mail aberto.');
+    toast.success('E-mail aberto com a mensagem preparada.');
     finishSend();
   };
 
@@ -81,97 +116,115 @@ export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalPro
     handleSendEmail(patient, message);
   };
 
+  const openMessageOptions = (patient: PatientBirthday, channel: 'whatsapp' | 'email') => {
+    const hasContact = channel === 'whatsapp' ? !!patient.phone : !!patient.email;
+    if (!hasContact) {
+      toast.info(channel === 'whatsapp' ? 'Paciente sem telefone cadastrado.' : 'Paciente sem e-mail cadastrado.');
+      return;
+    }
+
+    setSelectedPatient(patient);
+    setSelectedChannel(channel);
+    setMessageMode('options');
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[820px] w-[95vw] max-h-[85vh] p-0 bg-[#F8F9FA] dark:bg-[#080809] border-none overflow-hidden flex flex-col rounded-[32px]">
-        <div className="flex items-center justify-between gap-4 px-8 py-6 bg-white dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-white/5 shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-pink-100 dark:bg-pink-500/20 flex items-center justify-center text-pink-600">
+      <DialogContent className="max-w-[860px] w-[95vw] max-h-[86vh] p-0 bg-white/90 dark:bg-[#080809]/95 backdrop-blur-2xl border border-zinc-200/60 dark:border-white/10 overflow-hidden flex flex-col rounded-[34px] shadow-[0_40px_120px_-50px_rgba(0,0,0,0.55)]">
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.85),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(161,161,170,0.18),transparent_28%)] dark:bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.08),transparent_32%),radial-gradient(circle_at_85%_10%,rgba(161,161,170,0.10),transparent_28%)]" />
+
+        <div className="relative flex items-center justify-between gap-4 px-8 py-6 bg-white/70 dark:bg-zinc-950/55 border-b border-zinc-200/70 dark:border-white/10 shrink-0 backdrop-blur-2xl">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-zinc-950 shadow-sm">
               <Gift className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Aniversariantes do mês</h2>
-              <p className="text-[10px] uppercase tracking-widest font-bold text-zinc-400">{birthdays.length} pacientes encontrados</p>
+            <div className="min-w-0">
+              <h2 className="text-2xl font-black tracking-tight text-zinc-950 dark:text-white">Aniversariantes do mês</h2>
+              <p className="text-[10px] uppercase tracking-[0.22em] font-black text-zinc-400">
+                {birthdays.length} pacientes encontrados
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center bg-zinc-100 dark:bg-white/5 p-1 rounded-xl">
+            <div className="flex items-center bg-zinc-100/90 dark:bg-white/5 p-1 rounded-2xl border border-zinc-200/60 dark:border-white/5">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setFilter('temporal')}
-                className={cn('h-8 rounded-lg text-[10px] font-bold uppercase tracking-wider px-3', filter === 'temporal' ? 'bg-white dark:bg-white/10 shadow-sm' : 'text-zinc-400')}
+                onClick={() => setSortMode('temporal')}
+                className={cn('h-9 rounded-xl text-[10px] font-black uppercase tracking-wider px-4', sortMode === 'temporal' ? 'bg-white dark:bg-white/10 shadow-sm text-zinc-950 dark:text-white' : 'text-zinc-400')}
               >
-                Dia
+                Próximos
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setFilter('alphabetical')}
-                className={cn('h-8 rounded-lg text-[10px] font-bold uppercase tracking-wider px-3', filter === 'alphabetical' ? 'bg-white dark:bg-white/10 shadow-sm' : 'text-zinc-400')}
+                onClick={() => setSortMode('alphabetical')}
+                className={cn('h-9 rounded-xl text-[10px] font-black uppercase tracking-wider px-4', sortMode === 'alphabetical' ? 'bg-white dark:bg-white/10 shadow-sm text-zinc-950 dark:text-white' : 'text-zinc-400')}
               >
                 A-Z
               </Button>
             </div>
-            <DialogClose className="h-10 w-10 rounded-xl bg-zinc-100 dark:bg-white/5 flex items-center justify-center text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all">
+            <DialogClose className="h-11 w-11 rounded-2xl bg-zinc-100/90 dark:bg-white/5 flex items-center justify-center text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-all">
               <X className="w-5 h-5" />
             </DialogClose>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-4">
+        <div className="relative flex-1 overflow-y-auto p-8 custom-scrollbar space-y-3">
           {sortedBirthdays.length === 0 ? (
-            <div className="py-20 text-center text-sm font-bold text-zinc-400">Nenhum paciente aniversaria neste mês.</div>
+            <div className="min-h-[280px] flex flex-col items-center justify-center text-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 flex items-center justify-center text-zinc-400">
+                <Gift className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-zinc-700 dark:text-zinc-200">Nenhum paciente aniversaria neste mês.</p>
+                <p className="text-xs font-semibold text-zinc-400 mt-1">Quando houver pacientes com data de nascimento no mês vigente, eles aparecerão aqui.</p>
+              </div>
+            </div>
           ) : (
-            sortedBirthdays.map((patient) => (
-              <motion.div
-                key={patient.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="group bg-white dark:bg-zinc-900/40 rounded-2xl border border-zinc-100 dark:border-white/5 p-4 flex items-center gap-5 hover:shadow-lg transition-all"
-              >
-                <div className="flex flex-col items-center justify-center min-w-[60px] h-16 bg-zinc-50 dark:bg-white/5 rounded-xl border border-zinc-100 dark:border-white/5">
-                  <span className="text-lg font-black text-zinc-900 dark:text-white tabular-nums leading-none">{patient.birth_day}</span>
-                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-1">
-                    {format(new Date(2000, patient.birth_month, patient.birth_day), 'MMM', { locale: ptBR })}
-                  </span>
-                </div>
+            sortedBirthdays.map((patient, index) => {
+              const hasPhone = !!patient.phone;
+              const hasEmail = !!patient.email;
 
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-zinc-900 dark:text-white truncate">{patient.name}</h3>
-                  <p className="text-xs text-zinc-400">{patient.phone || patient.email || 'Sem contato cadastrado'}</p>
-                </div>
+              return (
+                <motion.div
+                  key={patient.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.025 }}
+                  className="group bg-white/78 dark:bg-white/[0.035] rounded-[24px] border border-zinc-200/70 dark:border-white/10 p-4 flex items-center gap-5 hover:bg-white dark:hover:bg-white/[0.06] hover:shadow-[0_18px_48px_-30px_rgba(0,0,0,0.45)] transition-all"
+                >
+                  <div className="flex flex-col items-center justify-center min-w-[64px] h-16 bg-zinc-50 dark:bg-white/[0.04] rounded-2xl border border-zinc-200/70 dark:border-white/10">
+                    <span className="text-xl font-black text-zinc-950 dark:text-white tabular-nums leading-none">{patient.birth_day}</span>
+                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mt-1">
+                      {format(new Date(2000, patient.birth_month, patient.birth_day), 'MMM', { locale: ptBR })}
+                    </span>
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 rounded-[14px] bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-500/20"
-                    onClick={() => {
-                      setSelectedPatient(patient);
-                      setSelectedChannel('whatsapp');
-                      setMessageMode('options');
-                    }}
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 rounded-[14px] bg-blue-50 dark:bg-blue-500/10 border-blue-100 dark:border-blue-500/20 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-500/20"
-                    onClick={() => {
-                      setSelectedPatient(patient);
-                      setSelectedChannel('email');
-                      setMessageMode('options');
-                    }}
-                  >
-                    <Mail className="w-5 h-5" />
-                  </Button>
-                </div>
-              </motion.div>
-            ))
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-black text-zinc-950 dark:text-white truncate tracking-tight">{patient.name}</h3>
+                    <p className="text-xs font-semibold text-zinc-400">{getBirthdayLabel(patient)}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <ContactActionButton
+                      icon={<MessageCircle className="w-4 h-4" />}
+                      label="WhatsApp"
+                      disabled={!hasPhone}
+                      onClick={() => openMessageOptions(patient, 'whatsapp')}
+                    />
+                    <ContactActionButton
+                      icon={<Mail className="w-4 h-4" />}
+                      label="E-mail"
+                      disabled={!hasEmail}
+                      onClick={() => openMessageOptions(patient, 'email')}
+                    />
+                  </div>
+                </motion.div>
+              );
+            })
           )}
         </div>
 
@@ -181,37 +234,42 @@ export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalPro
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-8"
+              className="absolute inset-0 z-50 bg-white/72 dark:bg-black/72 backdrop-blur-xl flex items-center justify-center p-8"
             >
-              <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-[32px] shadow-2xl border border-zinc-100 dark:border-white/5 overflow-hidden flex flex-col">
-                <div className="p-8 border-b border-zinc-100 dark:border-white/5 flex items-center justify-between">
+              <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                className="w-full max-w-lg bg-white/95 dark:bg-zinc-950/95 rounded-[34px] shadow-2xl border border-zinc-200/70 dark:border-white/10 overflow-hidden flex flex-col"
+              >
+                <div className="p-7 border-b border-zinc-100 dark:border-white/10 flex items-center justify-between">
                   <div>
-                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Enviar via {selectedChannel === 'whatsapp' ? 'WhatsApp' : 'e-mail'}</h3>
-                    <p className="text-xs text-zinc-400">Para: {selectedPatient.name}</p>
+                    <h3 className="text-xl font-black tracking-tight text-zinc-950 dark:text-white">Enviar via {selectedChannel === 'whatsapp' ? 'WhatsApp' : 'e-mail'}</h3>
+                    <p className="text-xs font-semibold text-zinc-400 mt-1">Para {selectedPatient.name} • {getBirthdayLabel(selectedPatient)}</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => setMessageMode(null)} className="rounded-full">
+                  <Button variant="ghost" size="icon" onClick={() => setMessageMode(null)} className="rounded-2xl h-10 w-10">
                     <X className="w-5 h-5" />
                   </Button>
                 </div>
 
-                <div className="p-8 space-y-4">
+                <div className="p-7 space-y-4">
                   {messageMode === 'options' && (
                     <div className="grid grid-cols-1 gap-3">
                       <MessageOptionCard
-                        title="Mensagem padrão"
-                        description={defaultTemplate.replace('[NOME]', selectedPatient.name.split(' ')[0])}
+                        title="Usar mensagem padrão"
+                        description={fillTemplate(selectedPatient, defaultTemplate)}
                         icon={<Check className="w-4 h-4" />}
                         onClick={() => handleSendAction(selectedPatient, defaultTemplate)}
                       />
                       <MessageOptionCard
-                        title="Escrever agora"
-                        description="Personalize a mensagem para este paciente."
+                        title="Escrever mensagem personalizada"
+                        description="Escreva uma mensagem livre antes do envio."
                         icon={<Edit2 className="w-4 h-4" />}
                         onClick={() => setMessageMode('custom')}
                       />
                       <MessageOptionCard
-                        title="Editar template"
-                        description="Ajuste o texto padrão usado nos aniversários."
+                        title="Editar template padrão"
+                        description="Personalize o texto usado nos próximos aniversários."
                         icon={<Edit2 className="w-4 h-4" />}
                         onClick={() => setMessageMode('edit')}
                       />
@@ -222,6 +280,7 @@ export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalPro
                     <BirthdayTextarea
                       value={customMessage}
                       onChange={setCustomMessage}
+                      placeholder={fillTemplate(selectedPatient, defaultTemplate)}
                       actionLabel="Enviar agora"
                       onAction={() => handleSendAction(selectedPatient, customMessage || defaultTemplate)}
                     />
@@ -232,15 +291,16 @@ export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalPro
                       value={defaultTemplate}
                       onChange={setDefaultTemplate}
                       actionLabel="Salvar template"
-                      helper="Use [NOME] para inserir o primeiro nome do paciente."
+                      helper="Variáveis: {{nome_do_paciente}}, {{nome_completo_do_paciente}}, {{nome_do_profissional}}, {{data_aniversario}}."
                       onAction={() => {
-                        toast.success('Template atualizado.');
+                        window.localStorage.setItem(BIRTHDAY_TEMPLATE_KEY, defaultTemplate);
+                        toast.success('Template de aniversário atualizado.');
                         setMessageMode('options');
                       }}
                     />
                   )}
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -249,27 +309,57 @@ export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalPro
   );
 };
 
+const ContactActionButton = ({
+  icon,
+  label,
+  disabled,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) => (
+  <Button
+    variant="outline"
+    size="sm"
+    disabled={disabled}
+    title={disabled ? `${label} não cadastrado` : `Enviar por ${label}`}
+    onClick={onClick}
+    className={cn(
+      'h-11 w-11 rounded-2xl p-0 bg-zinc-50/80 dark:bg-white/[0.04] border-zinc-200/80 dark:border-white/10 text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-white dark:hover:bg-white/[0.08] transition-all',
+      disabled && 'opacity-35 cursor-not-allowed hover:text-zinc-500 hover:bg-zinc-50/80 dark:hover:bg-white/[0.04]'
+    )}
+  >
+    {icon}
+    <span className="sr-only">{label}</span>
+  </Button>
+);
+
 const BirthdayTextarea = ({
   value,
   onChange,
   onAction,
   actionLabel,
   helper,
+  placeholder,
 }: {
   value: string;
   onChange: (value: string) => void;
   onAction: () => void;
   actionLabel: string;
   helper?: string;
+  placeholder?: string;
 }) => (
   <div className="space-y-4">
     <textarea
-      className="w-full h-32 bg-zinc-50 dark:bg-white/5 rounded-2xl p-4 text-sm border border-zinc-100 dark:border-white/10 focus:ring-2 focus:ring-zinc-950 dark:focus:ring-white outline-none resize-none"
+      className="w-full h-36 bg-zinc-50 dark:bg-white/[0.04] rounded-2xl p-4 text-sm font-medium text-zinc-800 dark:text-zinc-100 border border-zinc-200 dark:border-white/10 focus:ring-2 focus:ring-zinc-950/10 dark:focus:ring-white/20 outline-none resize-none placeholder:text-zinc-400"
       value={value}
+      placeholder={placeholder}
       onChange={(event) => onChange(event.target.value)}
     />
-    {helper && <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest text-center">{helper}</p>}
-    <Button className="w-full h-14 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 rounded-2xl font-bold gap-2" onClick={onAction}>
+    {helper && <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest text-center leading-relaxed">{helper}</p>}
+    <Button className="w-full h-14 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 rounded-2xl font-black gap-2" onClick={onAction}>
       <Send className="w-4 h-4" />
       {actionLabel}
     </Button>
@@ -279,14 +369,14 @@ const BirthdayTextarea = ({
 const MessageOptionCard = ({ title, description, icon, onClick }: { title: string; description: string; icon: React.ReactNode; onClick: () => void }) => (
   <button
     onClick={onClick}
-    className="w-full text-left p-6 rounded-3xl bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all group"
+    className="w-full text-left p-5 rounded-3xl bg-zinc-50 dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 hover:bg-white dark:hover:bg-white/[0.07] transition-all group"
   >
     <div className="flex items-center justify-between mb-2">
-      <h4 className="font-bold text-zinc-900 dark:text-white">{title}</h4>
-      <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 shadow-sm flex items-center justify-center text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+      <h4 className="font-black text-zinc-950 dark:text-white tracking-tight">{title}</h4>
+      <div className="w-8 h-8 rounded-full bg-white dark:bg-zinc-900 shadow-sm flex items-center justify-center text-zinc-400 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors">
         {icon}
       </div>
     </div>
-    <p className="text-xs text-zinc-400 line-clamp-2">{description}</p>
+    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 line-clamp-3 leading-relaxed">{description}</p>
   </button>
 );

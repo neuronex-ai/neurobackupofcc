@@ -6,7 +6,6 @@ import {
     User,
     FileText,
     Calendar,
-    DollarSign,
     Command,
     ArrowRight,
     Loader2,
@@ -20,12 +19,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { getAppointmentKind } from "@/lib/appointment-metadata";
+import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 
 interface SearchResult {
     id: string;
     title: string;
     subtitle: string;
-    type: 'patient' | 'note' | 'appointment' | 'finance' | 'ai' | 'reminder' | 'personal_note';
+    type: 'patient' | 'note' | 'appointment' | 'ai' | 'reminder' | 'personal_note';
     url: string;
     date?: string;
 }
@@ -74,15 +75,18 @@ export const CommandSearch = ({ open, setOpen }: { open: boolean, setOpen: (open
                     { data: patients },
                     { data: notes },
                     { data: appointments },
-                    { data: finance },
                     { data: reminders },
                     { data: personalNotes },
                     { data: aiMessages }
                 ] = await Promise.all([
                     supabase.from('patients').select('id, name').ilike('name', `%${query}%`).limit(3),
                     supabase.from('session_notes').select('id, patient_id, created_at, patients(name)').ilike('notes', `%${query}%`).limit(3),
-                    supabase.from('appointments').select('id, patient_name, start_time').ilike('patient_name', `%${query}%`).limit(3),
-                    supabase.from('transactions').select('id, description, amount, date').ilike('description', `%${query}%`).limit(3),
+                    supabase
+                        .from('appointments')
+                        .select('id, patient_id, patient_name, start_time, end_time, type, notes, location, metadata, patients(name)')
+                        .or(`patient_name.ilike.%${query}%,notes.ilike.%${query}%,location.ilike.%${query}%`)
+                        .order('start_time', { ascending: false })
+                        .limit(5),
                     supabase.from('reminders').select('id, title, due_date').ilike('title', `%${query}%`).limit(3),
                     supabase.from('personal_notes').select('id, title, created_at').ilike('title', `%${query}%`).limit(3),
                     supabase.from('messages').select('id, content, created_at').ilike('content', `%${query}%`).limit(3)
@@ -118,21 +122,20 @@ export const CommandSearch = ({ open, setOpen }: { open: boolean, setOpen: (open
                     });
                 });
 
-                appointments?.forEach(a => formattedResults.push({
-                    id: a.id,
-                    title: `Consulta: ${a.patient_name}`,
-                    subtitle: format(new Date(a.start_time), "dd 'de' MMMM", { locale: ptBR }),
-                    type: 'appointment',
-                    url: `/agenda/${a.id}`
-                }));
-
-                finance?.forEach(f => formattedResults.push({
-                    id: f.id,
-                    title: f.description,
-                    subtitle: `Lançamento: R$ ${f.amount.toLocaleString('pt-BR')}`,
-                    type: 'finance',
-                    url: `/financeiro`
-                }));
+                appointments?.forEach((a: any) => {
+                    const appointment = {
+                        ...a,
+                        patient_name: a.patient_name || (Array.isArray(a.patients) ? a.patients[0]?.name : a.patients?.name),
+                    };
+                    const kind = getAppointmentKind(appointment);
+                    formattedResults.push({
+                        id: a.id,
+                        title: `${kind === 'event' ? 'Evento' : kind === 'block' ? 'Bloqueio' : 'Consulta'}: ${getAppointmentDisplayTitle(appointment)}`,
+                        subtitle: format(new Date(a.start_time), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR }),
+                        type: 'appointment',
+                        url: `/agenda?appointmentId=${a.id}`
+                    });
+                });
 
                 reminders?.forEach(r => formattedResults.push({
                     id: r.id,
@@ -323,7 +326,7 @@ export const CommandSearch = ({ open, setOpen }: { open: boolean, setOpen: (open
                                                 { label: 'Pacientes Ativos', icon: User },
                                                 { label: 'Consultas Pendentes', icon: Calendar },
                                                 { label: 'Histórico Synapse', icon: Sparkles },
-                                                { label: 'Relatórios Financeiros', icon: DollarSign }
+                                                { label: 'Notas Recentes', icon: StickyNote }
                                             ].map(sugg => (
                                                 <motion.button
                                                     key={sugg.label}
@@ -373,7 +376,6 @@ const TypeIcon = ({ type, active }: { type: SearchResult['type'], active: boolea
         case 'patient': return <User {...props} />;
         case 'note': return <FileText {...props} />;
         case 'appointment': return <Calendar {...props} />;
-        case 'finance': return <DollarSign {...props} />;
         case 'ai': return <Sparkles {...props} />;
         case 'reminder': return <CheckSquare {...props} />;
         case 'personal_note': return <StickyNote {...props} />;

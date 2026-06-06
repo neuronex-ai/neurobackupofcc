@@ -11,11 +11,12 @@ import {
   Legend, 
   ResponsiveContainer
 } from 'recharts';
-import { format, addMonths, subMonths, startOfMonth } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useMonthlySessionMetrics } from '@/hooks/use-monthly-session-metrics';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { STATUS_CHART_KEYS } from '@/lib/appointment-status';
 
 interface SessionsMetricsModalProps {
   isOpen: boolean;
@@ -33,9 +34,9 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[1280px] w-[95vw] h-[90vh] p-0 bg-[#F8F9FA] dark:bg-[#080809] border-none overflow-hidden flex flex-col rounded-[32px]">
+      <DialogContent className="max-w-[1280px] w-[95vw] h-[90vh] p-0 bg-white/92 dark:bg-[#080809]/95 backdrop-blur-2xl border border-zinc-200/60 dark:border-white/10 overflow-hidden flex flex-col rounded-[34px] shadow-[0_40px_120px_-50px_rgba(0,0,0,0.55)]">
         {/* Header Customizado */}
-        <div className="flex items-center justify-between px-8 py-6 bg-white dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-white/5 shrink-0">
+        <div className="flex items-center justify-between px-8 py-6 bg-white/80 dark:bg-zinc-950/55 border-b border-zinc-200/70 dark:border-white/10 shrink-0 backdrop-blur-2xl">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-zinc-900">
               <Calendar className="w-5 h-5" />
@@ -51,8 +52,8 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
               <Button variant="ghost" size="icon" onClick={prevMonth} className="h-8 w-8 hover:bg-white dark:hover:bg-white/10 rounded-lg">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <div className="px-3 min-w-[140px] text-center text-sm font-bold text-zinc-600 dark:text-zinc-300">
-                {format(selectedDate, "dd/MM/yyyy")} - {format(addMonths(selectedDate, 1), "dd/MM/yyyy")}
+              <div className="px-3 min-w-[170px] text-center text-sm font-bold text-zinc-600 dark:text-zinc-300">
+                {format(startOfMonth(selectedDate), "dd/MM/yyyy")} - {format(endOfMonth(selectedDate), "dd/MM/yyyy")}
               </div>
               <Button variant="ghost" size="icon" onClick={nextMonth} className="h-8 w-8 hover:bg-white dark:hover:bg-white/10 rounded-lg">
                 <ChevronRight className="w-4 h-4" />
@@ -71,7 +72,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8 bg-zinc-50/70 dark:bg-black/10">
           {isLoading ? (
             <div className="h-full flex items-center justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-white" />
@@ -92,7 +93,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
               {/* Middle Section: Patient Metrics */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Active Clients Card */}
-                <div className="bg-white dark:bg-zinc-900/40 rounded-[32px] p-8 border border-zinc-100 dark:border-white/5 space-y-6">
+                <div className="bg-white/82 dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/70 dark:border-white/10 space-y-6 shadow-[0_18px_50px_-42px_rgba(0,0,0,0.65)]">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-zinc-900 dark:text-white max-w-[160px] leading-tight">Clientes ativos com agendamentos futuros</h3>
                     <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-white/5 flex items-center justify-center">
@@ -130,7 +131,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
                 </div>
 
                 {/* Top Patient Card */}
-                <div className="bg-white dark:bg-zinc-900/40 rounded-[32px] p-8 border border-zinc-100 dark:border-white/5 flex flex-col items-center justify-center text-center space-y-4">
+                <div className="bg-white/82 dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/70 dark:border-white/10 flex flex-col items-center justify-center text-center space-y-4 shadow-[0_18px_50px_-42px_rgba(0,0,0,0.65)]">
                   <span className="text-sm font-bold text-zinc-900 dark:text-white max-w-[200px] leading-tight">
                     {data.patients.topPatientName} possui
                   </span>
@@ -143,7 +144,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
 
                 {/* Online/Presencial Card */}
                 <div className="space-y-4">
-                  <div className="bg-white dark:bg-zinc-900/40 rounded-[32px] p-8 border border-zinc-100 dark:border-white/5 flex flex-col items-center justify-center text-center">
+                  <div className="bg-white/82 dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/70 dark:border-white/10 flex flex-col items-center justify-center text-center shadow-[0_18px_50px_-42px_rgba(0,0,0,0.65)]">
                     <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-4">De {data.kpis.totalScheduled} agendamentos...</span>
                     <div className="space-y-4 w-full">
                       <div className="flex items-center justify-center gap-3">
@@ -158,9 +159,9 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
                     <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-6">no período selecionado</span>
                   </div>
 
-                  <div className="bg-white dark:bg-zinc-900/40 rounded-[32px] p-8 border border-zinc-100 dark:border-white/5 flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center mb-4">
-                        <AppWindow className="w-6 h-6 text-purple-600 focus:text-purple-400" />
+                  <div className="bg-white/82 dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/70 dark:border-white/10 flex flex-col items-center justify-center text-center shadow-[0_18px_50px_-42px_rgba(0,0,0,0.65)]">
+                    <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-white/10 flex items-center justify-center mb-4">
+                        <AppWindow className="w-6 h-6 text-zinc-500 dark:text-zinc-300" />
                     </div>
                     <div className="flex items-end gap-2 mb-2">
                       <span className="text-4xl font-black text-zinc-900 dark:text-white tabular-nums">{data.patients.reschedules}</span>
@@ -172,7 +173,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
               </div>
 
               {/* Presence Status Chart */}
-              <div className="bg-white dark:bg-zinc-900/40 rounded-[32px] p-10 border border-zinc-100 dark:border-white/5 space-y-10">
+              <div className="bg-white/82 dark:bg-white/[0.035] rounded-[32px] p-10 border border-zinc-200/70 dark:border-white/10 space-y-10 shadow-[0_18px_50px_-42px_rgba(0,0,0,0.65)]">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Status de presença</h3>
                   <div className="flex items-center gap-4">
@@ -188,7 +189,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
                 <div className="h-[400px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={data.chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-zinc-200 dark:text-white/10" />
                       <XAxis 
                         dataKey="name" 
                         axisLine={false} 
@@ -217,11 +218,11 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
                         wrapperStyle={{ paddingTop: '40px' }}
                         formatter={(value) => <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{value}</span>}
                       />
-                      <Line type="monotone" dataKey="Não pontuado" stroke="#71717A" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                      <Line type="monotone" dataKey="Presença" stroke="#10B981" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                      <Line type="monotone" dataKey="Ausência" stroke="#EAB308" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                      <Line type="monotone" dataKey="Cancelamento pelo paciente" stroke="#EF4444" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                      <Line type="monotone" dataKey="Cancelamento pelo Profissional" stroke="#991B1B" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey={STATUS_CHART_KEYS.unscored} stroke="#71717A" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey={STATUS_CHART_KEYS.attended} stroke="#10B981" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey={STATUS_CHART_KEYS.absent} stroke="#EAB308" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey={STATUS_CHART_KEYS.cancelled_by_patient} stroke="#EF4444" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey={STATUS_CHART_KEYS.cancelled_by_professional} stroke="#991B1B" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>

@@ -103,7 +103,7 @@ export function PagamentosAgendamento() {
             return;
         }
         try {
-            await submitForApproval.mutateAsync({ groupId: groupResult.group_id });
+            await submitForApproval.mutateAsync({ groupId: groupResult.group_id, items: groupResult.items });
             setStep("success");
         } catch {
             // Error handled by mutation
@@ -133,7 +133,7 @@ export function PagamentosAgendamento() {
                         </p>
                     </div>
                     <div className="ml-auto px-3 py-1 rounded-full bg-white/10 dark:bg-black/5 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900">
-                        Sandbox
+                        Produção
                     </div>
                 </div>
             </div>

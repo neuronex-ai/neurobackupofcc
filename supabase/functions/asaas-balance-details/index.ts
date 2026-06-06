@@ -22,6 +22,7 @@ import {
     getAsaasBalance,
     getAsaasFinancialTransactions,
     getBalanceFromAsaas,
+    getFinancialAccountAsaasApiKey,
 } from '../_shared/asaas-client.ts';
 
 Deno.serve(async (req: Request) => {
@@ -34,9 +35,7 @@ Deno.serve(async (req: Request) => {
         // 1. Get financial account
         const financialAccount = await getFinancialAccount(user.id);
 
-        // Check for API key in both metadata.asaas_api_key and top-level asaas_api_key column
-        const subApiKey = financialAccount?.metadata?.asaas_api_key
-            || financialAccount?.asaas_api_key;
+        const subApiKey = getFinancialAccountAsaasApiKey(financialAccount);
 
         if (!financialAccount || !subApiKey) {
             return errorResponse('Conta financeira não configurada.', 403);

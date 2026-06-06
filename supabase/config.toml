@@ -89,6 +89,21 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/asaas-pix-out/index.ts"
 
+[functions.asaas-pix]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-pix/index.ts"
+
+[functions.asaas-bill-payment]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-bill-payment/index.ts"
+
+[functions.asaas-invoices]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-invoices/index.ts"
+
 [functions.asaas-balance-details]
 enabled = true
 verify_jwt = true

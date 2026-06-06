@@ -22,6 +22,7 @@ import {
     getFinancialAccount,
     createAsaasTransfer,
     createLedgerEntries,
+    getFinancialAccountAsaasApiKey,
 } from '../_shared/asaas-client.ts';
 
 Deno.serve(async (req: Request) => {
@@ -41,11 +42,10 @@ Deno.serve(async (req: Request) => {
 
         // 1. Get financial account
         const financialAccount = await getFinancialAccount(user.id);
-        if (!financialAccount?.metadata?.asaas_api_key) {
+        const subApiKey = getFinancialAccountAsaasApiKey(financialAccount);
+        if (!financialAccount || !subApiKey) {
             return errorResponse('Conta financeira não configurada.', 403);
         }
-
-        const subApiKey = financialAccount.metadata.asaas_api_key;
 
         // 2. Check ledger balance
         const { data: balance, error: balanceError } = await supabaseAdmin

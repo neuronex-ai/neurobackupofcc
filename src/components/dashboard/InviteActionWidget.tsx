@@ -42,7 +42,7 @@ export const InviteActionWidget = () => {
             title: 'Google Workspace',
             subtitle: 'Workspace',
             icon: Calendar,
-            action: () => navigate('/ajustes?tab=google'),
+            action: () => navigate('/ajustes?tab=integrations'),
             status: 'neutral'
         }
     ];

@@ -29,10 +29,12 @@ export const BankAccountsManager = () => {
     const { account, isLoading, hasAccount } = useFinancialAccount();
     const accounts: any[] = hasAccount && account ? [{
         id: account.id,
-        holder_name: 'Conta NeuroFinance',
-        bank_code: 'NB',
-        agency: account.branch || '0001',
-        account_number: account.account_number || '',
+        holder_name: account.bank_holder_name || account.holder_name || 'Conta NeuroFinance',
+        bank_code: account.bank_code || account.bank_name || '',
+        bank_name: account.bank_name || account.bank_code || '',
+        agency: account.bank_agency || '',
+        account_number: `${account.bank_account || ''}${account.bank_account_digit || ''}`,
+        last4: account.bank_account_last4 || `${account.bank_account || ''}${account.bank_account_digit || ''}`.slice(-4),
         default_for_currency: true,
     }] : [];
     const addAccount = (_data: any, _opts?: any) => toast.info('Novas contas serão vinculadas via onboarding NeuroFinance.');

@@ -73,7 +73,7 @@ export const EmailDraftModal = ({ open, onOpenChange, initialData, onSent }: Ema
                   label: "Conectar",
                   onClick: () => {
                       onOpenChange(false);
-                      navigate('/integrations?tab=google');
+                      navigate('/ajustes?tab=integrations');
                   }
               },
               duration: 5000
@@ -85,7 +85,7 @@ export const EmailDraftModal = ({ open, onOpenChange, initialData, onSent }: Ema
                   label: "Reconectar",
                   onClick: () => {
                       onOpenChange(false);
-                      navigate('/integrations?tab=google');
+                      navigate('/ajustes?tab=integrations');
                   }
               },
               duration: 5000

@@ -24,6 +24,8 @@ import {
     upsertFinancialAccountRecord,
     findAsaasSubAccountByEmail,
     findAsaasSubAccountByCpfCnpj,
+    getFinancialAccountAsaasApiKey,
+    ASAAS_ENV,
     type AsaasAccountStatus,
 } from '../_shared/asaas-client.ts';
 
@@ -63,7 +65,9 @@ Deno.serve(async (req: Request) => {
                 financialAccount = await upsertFinancialAccountRecord(user.id, {
                     asaas_account_id: existingSubAccount.id,
                     asaas_wallet_id: existingSubAccount.walletId,
+                    asaas_api_key: existingSubAccount.apiKey,
                     provider: 'asaas',
+                    asaas_environment: ASAAS_ENV,
                     status: 'pending_review',
                     metadata: {
                         asaas_api_key: existingSubAccount.apiKey,
@@ -82,7 +86,7 @@ Deno.serve(async (req: Request) => {
             }
         }
 
-        const asaasApiKey = financialAccount.metadata?.asaas_api_key;
+        const asaasApiKey = getFinancialAccountAsaasApiKey(financialAccount);
         if (!asaasApiKey) {
             return jsonResponse({
                 status: financialAccount.status || 'not_started',
@@ -109,6 +113,7 @@ Deno.serve(async (req: Request) => {
                         status: 'disabled',
                         charges_enabled: false,
                         payouts_enabled: false,
+                        last_sync_error: err?.message || 'N?o foi poss?vel acessar a conta Asaas.',
                         updated_at: new Date().toISOString(),
                     })
                     .eq('id', financialAccount.id);
@@ -116,7 +121,7 @@ Deno.serve(async (req: Request) => {
                 return jsonResponse({
                     status: 'disabled',
                     financial_account_id: financialAccount.id,
-                    error: 'Não foi possível acessar a conta Asaas. Contate o suporte.',
+                    error: 'N?o foi poss?vel acessar a conta Asaas. Contate o suporte.',
                     charges_enabled: false,
                     payouts_enabled: false,
                 });
@@ -176,4 +181,3 @@ Deno.serve(async (req: Request) => {
         return errorResponse(error.message || 'Internal error', 500);
     }
 });
-

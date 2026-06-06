@@ -97,7 +97,7 @@ export function PixGerarQrCode() {
                         </p>
                     </div>
                     <div className="ml-auto px-3 py-1 rounded-full bg-white/10 dark:bg-black/5 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900">
-                        Sandbox
+                        Produção
                     </div>
                 </div>
             </div>

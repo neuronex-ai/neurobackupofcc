@@ -30,6 +30,8 @@ import {
     findOrCreateAsaasCustomer,
     calculateFees,
     createLedgerEntries,
+    getFinancialAccountAsaasApiKey,
+    ASAAS_ENV,
     type AsaasBillingType,
 } from '../_shared/asaas-client.ts';
 
@@ -75,12 +77,11 @@ Deno.serve(async (req: Request) => {
         const financialAccount = await getFinancialAccount(user.id);
         console.log('[asaas-create-payment] financialAccount found:', !!financialAccount, 'id:', financialAccount?.id);
 
-        // Check for API key in both metadata.asaas_api_key and top-level asaas_api_key column
-        const subApiKey = financialAccount?.metadata?.asaas_api_key
-            || financialAccount?.asaas_api_key;
+        // Typed column is authoritative; metadata is a legacy fallback.
+        const subApiKey = getFinancialAccountAsaasApiKey(financialAccount);
 
         if (!financialAccount || !subApiKey) {
-            console.error('[asaas-create-payment] No API key found. metadata:', JSON.stringify(financialAccount?.metadata), 'top-level:', financialAccount?.asaas_api_key);
+            console.error('[asaas-create-payment] No API key found for financial account:', financialAccount?.id);
             return errorResponse('Conta financeira não configurada. Complete o onboarding primeiro.', 403);
         }
 
@@ -115,7 +116,7 @@ Deno.serve(async (req: Request) => {
         });
 
         // 3. Map billing type
-        const billingType = BILLING_TYPE_MAP[resolvedMethod] || 'UNDEFINED';
+        const billingType = BILLING_TYPE_MAP[String(resolvedMethod).toLowerCase()] || 'UNDEFINED';
 
         // 4. Calculate fees
         const { totalFee, netAmount } = calculateFees(amount);
@@ -156,6 +157,7 @@ Deno.serve(async (req: Request) => {
                 appointment_id: appointment_id || null,
                 financial_account_id: financialAccount.id,
                 provider: 'asaas',
+                provider_payment_id: asaasPayment.id,
                 payment_method_type: resolvedMethod === 'undefined' ? null : resolvedMethod,
                 status: 'pending',
                 gross_amount: amount,
@@ -211,6 +213,7 @@ Deno.serve(async (req: Request) => {
             pix_qr_code: pixQrCode,
             pix_copy_paste: pixCopyPaste,
             billing_type: billingType,
+            asaas_environment: ASAAS_ENV,
         });
 
     } catch (error: any) {

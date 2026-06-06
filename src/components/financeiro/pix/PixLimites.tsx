@@ -37,7 +37,7 @@ export function PixLimites() {
     const { data: balanceData } = useNeuroFinanceBalance();
     const [showDetails, setShowDetails] = useState(false);
 
-    // Default limits based on sandbox/account tier
+    // Conservative defaults until the provider returns the account-specific limits.
     const limits: LimitItem[] = [
         {
             label: "Envio Diurno (6h-20h)",
@@ -100,7 +100,7 @@ export function PixLimites() {
                         </p>
                     </div>
                     <div className="ml-auto px-3 py-1 rounded-full bg-white/10 dark:bg-black/5 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900">
-                        Sandbox
+                        Produção
                     </div>
                 </div>
             </div>
@@ -112,10 +112,10 @@ export function PixLimites() {
                 </div>
                 <div className="flex-1">
                     <p className="text-xs font-bold text-zinc-900 dark:text-white">
-                        Conta {account?.status === 'active' ? 'Ativa' : 'Sandbox'}
+                        Conta {account?.status === 'active' ? 'Ativa' : 'Em validação'}
                     </p>
                     <p className="text-[9px] text-zinc-400 mt-0.5">
-                        Limites padrão NeuroFinance • Ambiente de teste
+                        Limites informativos da conta NeuroFinance
                     </p>
                 </div>
                 <span className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-white/10 text-[8px] font-black uppercase tracking-widest text-zinc-900 dark:text-white">
@@ -198,7 +198,7 @@ export function PixLimites() {
                     <div className="flex items-start gap-2">
                         <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5 text-amber-500" />
                         <p>
-                            <strong>Sandbox:</strong> No ambiente de teste, os limites são simulados e não refletem transações reais.
+                            <strong>Importante:</strong> alterações de limite dependem da habilitação e validação de segurança da Asaas.
                         </p>
                     </div>
                 </div>
@@ -217,7 +217,7 @@ export function PixLimites() {
                         animate={{ opacity: 1, height: "auto" }}
                         className="p-4 rounded-xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-[10px] text-zinc-600 dark:text-zinc-400"
                     >
-                        Alterações de limite devem ser solicitadas via painel NeuroFinance ou contato com o suporte (não disponível no sandbox).
+                        Alterações de limite dependem da análise de segurança e da habilitação da Asaas para esta subconta.
                     </motion.div>
                 )}
             </div>

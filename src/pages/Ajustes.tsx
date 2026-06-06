@@ -62,7 +62,12 @@ const Ajustes = () => {
     const [callbackMessage, setCallbackMessage] = useState<string | undefined>(undefined);
 
     const params = new URLSearchParams(location.search);
-    const defaultTab = params.get('tab') || 'profile';
+    const getTabFromParams = () => {
+        const requestedTab = params.get('tab') || 'profile';
+        if (requestedTab === 'google') return 'integrations';
+        return requestedTab;
+    };
+    const [activeTab, setActiveTab] = useState(getTabFromParams);
 
     useEffect(() => {
         const status = params.get('status') as 'success' | 'failure' | null;
@@ -73,6 +78,10 @@ const Ajustes = () => {
             window.history.replaceState({}, document.title, location.pathname);
         }
     }, [location, navigate, queryClient]);
+
+    useEffect(() => {
+        setActiveTab(getTabFromParams());
+    }, [location.search]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -154,7 +163,7 @@ const Ajustes = () => {
                     </div>
 
                     <div className="animate-fade-up">
-                        <Tabs defaultValue={defaultTab} className="w-full flex flex-col md:flex-row gap-12">
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col md:flex-row gap-12">
 
                             {/* Sidebar Menu */}
                             <div className="w-full md:w-64 shrink-0 space-y-8">

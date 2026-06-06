@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import {
-    ArrowRight, Calendar, DollarSign,
+    ArrowRight, Calendar,
     FileText, LayoutDashboard, Loader2, LogOut, Search // Added missing import
     , Settings,
     User, Users, Zap
@@ -33,11 +33,6 @@ const parseIntent = (input: string) => {
         return { type: "patient", label: "Cadastrar Paciente", icon: User, action: "/pacientes?action=new" };
     }
     
-    // Intent: Financial
-    if (lower.includes("receita") || lower.includes("despesa") || lower.includes("pagamento") || lower.includes("lançar")) {
-        return { type: "finance", label: "Novo Lançamento Financeiro", icon: DollarSign, action: "/financeiro?action=new" };
-    }
-
     // Intent: Note
     if (lower.includes("nota") || lower.includes("anotação") || lower.includes("lembrete")) {
         return { type: "note", label: "Criar Nota Rápida", icon: FileText, action: "/notas?action=new" };
@@ -204,7 +199,7 @@ export function CommandMenu() {
                 <CommandSeparator className="bg-white/5 my-2" />
                 
                 <CommandGroup heading="Sistema">
-                    <CommandItem onSelect={() => runCommand(() => navigate("/integrations"))} className="aria-selected:bg-white/10 aria-selected:text-white rounded-xl">
+                    <CommandItem onSelect={() => runCommand(() => navigate("/ajustes?tab=integrations"))} className="aria-selected:bg-white/10 aria-selected:text-white rounded-xl">
                     <Settings className="mr-3 h-4 w-4" />
                     <span>Configurações</span>
                     </CommandItem>

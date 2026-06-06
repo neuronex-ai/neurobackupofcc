@@ -22,6 +22,7 @@ import {
     getAuthenticatedUser,
     getFinancialAccount,
     createAsaasPaymentLink,
+    getFinancialAccountAsaasApiKey,
     type AsaasBillingType,
 } from '../_shared/asaas-client.ts';
 
@@ -47,11 +48,10 @@ Deno.serve(async (req: Request) => {
 
         // Get financial account
         const financialAccount = await getFinancialAccount(user.id);
-        if (!financialAccount?.metadata?.asaas_api_key) {
+        const subApiKey = getFinancialAccountAsaasApiKey(financialAccount);
+        if (!financialAccount || !subApiKey) {
             return errorResponse('Conta financeira não configurada.', 403);
         }
-
-        const subApiKey = financialAccount.metadata.asaas_api_key;
 
         // Create payment link
         const billingType = BILLING_TYPE_MAP[billing_type || 'undefined'] || 'UNDEFINED';

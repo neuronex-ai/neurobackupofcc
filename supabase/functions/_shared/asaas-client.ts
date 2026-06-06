@@ -16,19 +16,66 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 // Asaas config
 // ─────────────────────────────────────────────────────────────
 
+export type AsaasEnvironment = "production" | "sandbox";
+
+function normalizeAsaasEnvironment(value?: string | null): AsaasEnvironment {
+    const normalized = (value || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+    if (["production", "prod", "producao", "live"].includes(normalized)) {
+        return "production";
+    }
+
+    return "sandbox";
+}
+
 export const ASAAS_API_KEY = Deno.env.get("ASAAS_API_KEY")?.trim() || "";
 export const ASAAS_WEBHOOK_TOKEN =
     Deno.env.get("ASAAS_WEBHOOK_TOKEN")?.trim() || "";
 
-const ASAAS_ENV = Deno.env.get("ASAAS_ENVIRONMENT")?.trim() || "sandbox";
+// Accept the misspelled secret currently configured in production and the canonical spelling.
+export const ASAAS_ENV = normalizeAsaasEnvironment(
+    Deno.env.get("ASAAS_ENVIROMENT") ||
+    Deno.env.get("ASAAS_ENVIRONMENT") ||
+    Deno.env.get("ASAAS_ENV") ||
+    "sandbox"
+);
 
-export const ASAAS_BASE_URL =
+const configuredAsaasBaseUrl = Deno.env.get("ASAAS_API_URL")?.trim().replace(/\/+$/, "") || "";
+const defaultAsaasBaseUrl =
     ASAAS_ENV === "production"
         ? "https://api.asaas.com/v3"
-        : "https://sandbox.asaas.com/api/v3";
+        : "https://api-sandbox.asaas.com/v3";
+
+export const ASAAS_BASE_URL =
+    ASAAS_ENV === "production" && configuredAsaasBaseUrl.includes("api-sandbox.")
+        ? defaultAsaasBaseUrl
+        : ASAAS_ENV === "sandbox" && configuredAsaasBaseUrl.includes("api.asaas.com")
+            ? defaultAsaasBaseUrl
+            : configuredAsaasBaseUrl || defaultAsaasBaseUrl;
+
+export const ASAAS_USER_AGENT =
+    Deno.env.get("ASAAS_USER_AGENT")?.trim() || "NeuroNex/1.0";
 
 if (!ASAAS_API_KEY) {
     console.error("[_shared/asaas-client] Missing ASAAS_API_KEY");
+}
+
+if (ASAAS_ENV === "production" && ASAAS_API_KEY.startsWith("$aact_hmlg_")) {
+    console.error("[_shared/asaas-client] Sandbox API key detected while ASAAS environment is production");
+}
+
+if (ASAAS_ENV === "sandbox" && ASAAS_API_KEY.startsWith("$aact_prod_")) {
+    console.error("[_shared/asaas-client] Production API key detected while ASAAS environment is sandbox");
+}
+
+if (configuredAsaasBaseUrl && configuredAsaasBaseUrl !== ASAAS_BASE_URL) {
+    console.warn(
+        `[_shared/asaas-client] Ignoring ASAAS_API_URL=${configuredAsaasBaseUrl} because it conflicts with ASAAS_ENV=${ASAAS_ENV}`
+    );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -38,6 +85,10 @@ if (!ASAAS_API_KEY) {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")?.trim() || "";
 const SUPABASE_SERVICE_ROLE_KEY =
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim() || "";
+
+export const ASAAS_WEBHOOK_URL =
+    Deno.env.get("ASAAS_WEBHOOK_URL")?.trim() ||
+    (SUPABASE_URL ? `${SUPABASE_URL.replace(/\/+$/, "")}/functions/v1/asaas-webhook` : "");
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     const missing = [];
@@ -120,6 +171,64 @@ export function toNullableString(value?: string | null) {
     return v ? v : undefined;
 }
 
+export function getFinancialAccountAsaasApiKey(financialAccount: any): string {
+    const topLevelKey = financialAccount?.asaas_api_key?.trim?.();
+    const metadataKey = financialAccount?.metadata?.asaas_api_key?.trim?.();
+
+    // The typed column is the source of truth. Metadata is kept only as a legacy fallback.
+    return topLevelKey || metadataKey || "";
+}
+
+export async function recordBaasOperation(
+    userId: string,
+    financialAccountId: string | null | undefined,
+    operationType: string,
+    providerResponse: Record<string, unknown>,
+    details?: { amount?: number; description?: string; payload?: Record<string, unknown> }
+) {
+    const { error } = await supabaseAdmin.from("neurofinance_baas_operations").insert({
+        user_id: userId,
+        financial_account_id: financialAccountId || null,
+        provider: "asaas",
+        operation_type: operationType,
+        provider_operation_id: String((providerResponse as any)?.id || (providerResponse as any)?.payment?.id || ""),
+        status: String((providerResponse as any)?.status || (providerResponse as any)?.payment?.status || "submitted"),
+        amount: details?.amount || null,
+        description: details?.description || null,
+        payload: details?.payload || {},
+        provider_response: providerResponse,
+        updated_at: new Date().toISOString(),
+    });
+    if (error) console.warn("[asaas-client] Failed to record BaaS operation:", error);
+}
+
+export function normalizeAccountNumber(account?: string | null, digit?: string | null) {
+    const rawAccount = sanitizeDigits(account);
+    const explicitDigit = sanitizeDigits(digit).slice(0, 1);
+
+    if (explicitDigit) {
+        return {
+            account: rawAccount,
+            accountDigit: explicitDigit,
+            accountDisplay: `${rawAccount}${explicitDigit}`,
+        };
+    }
+
+    if (rawAccount.length <= 1) {
+        return {
+            account: rawAccount,
+            accountDigit: "",
+            accountDisplay: rawAccount,
+        };
+    }
+
+    return {
+        account: rawAccount.slice(0, -1),
+        accountDigit: rawAccount.slice(-1),
+        accountDisplay: rawAccount,
+    };
+}
+
 // ─────────────────────────────────────────────────────────────
 // Asaas REST API v3 HTTP Client
 // ─────────────────────────────────────────────────────────────
@@ -138,6 +247,7 @@ export async function asaasRequest<T = unknown>(
     const key = apiKey || ASAAS_API_KEY;
     const headers: Record<string, string> = {
         access_token: key,
+        "User-Agent": ASAAS_USER_AGENT,
     };
 
     let fetchBody: string | FormData | undefined;
@@ -150,7 +260,7 @@ export async function asaasRequest<T = unknown>(
         fetchBody = JSON.stringify(body);
     }
 
-    const url = `${ASAAS_BASE_URL}${path}`;
+    const url = `${ASAAS_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
     console.log(`[asaas-client] ${method} ${url}`);
 
     const res = await fetch(url, {
@@ -214,6 +324,67 @@ export interface AsaasAccountStatus {
     generalStatus: string;          // APPROVED, PENDING, DENIED, etc.
 }
 
+export const ASAAS_ACCOUNT_STATUS_EVENTS = [
+    "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_APPROVED",
+    "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_AWAITING_APPROVAL",
+    "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_PENDING",
+    "ACCOUNT_STATUS_BANK_ACCOUNT_INFO_REJECTED",
+    "ACCOUNT_STATUS_COMMERCIAL_INFO_APPROVED",
+    "ACCOUNT_STATUS_COMMERCIAL_INFO_AWAITING_APPROVAL",
+    "ACCOUNT_STATUS_COMMERCIAL_INFO_PENDING",
+    "ACCOUNT_STATUS_COMMERCIAL_INFO_REJECTED",
+    "ACCOUNT_STATUS_DOCUMENT_APPROVED",
+    "ACCOUNT_STATUS_DOCUMENT_AWAITING_APPROVAL",
+    "ACCOUNT_STATUS_DOCUMENT_PENDING",
+    "ACCOUNT_STATUS_DOCUMENT_REJECTED",
+    "ACCOUNT_STATUS_GENERAL_APPROVAL_APPROVED",
+    "ACCOUNT_STATUS_GENERAL_APPROVAL_AWAITING_APPROVAL",
+    "ACCOUNT_STATUS_GENERAL_APPROVAL_PENDING",
+    "ACCOUNT_STATUS_GENERAL_APPROVAL_REJECTED",
+    "ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRING_SOON",
+    "ACCOUNT_STATUS_COMMERCIAL_INFO_EXPIRED",
+];
+
+export const ASAAS_OPERATIONAL_WEBHOOK_EVENTS = [
+    "PAYMENT_CREATED",
+    "PAYMENT_UPDATED",
+    "PAYMENT_CONFIRMED",
+    "PAYMENT_RECEIVED",
+    "PAYMENT_OVERDUE",
+    "PAYMENT_DELETED",
+    "PAYMENT_REFUNDED",
+    "PAYMENT_REFUND_IN_PROGRESS",
+    "PAYMENT_AWAITING_RISK_ANALYSIS",
+    "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED",
+    "PAYMENT_CHARGEBACK_REQUESTED",
+    "PAYMENT_CHARGEBACK_DISPUTE",
+    "PAYMENT_AWAITING_CHARGEBACK_REVERSAL",
+    "PAYMENT_DUNNING_REQUESTED",
+    "PAYMENT_DUNNING_RECEIVED",
+    "TRANSFER_CREATED",
+    "TRANSFER_PENDING",
+    "TRANSFER_DONE",
+    "TRANSFER_FAILED",
+    "TRANSFER_CANCELLED",
+    ...ASAAS_ACCOUNT_STATUS_EVENTS,
+];
+
+function buildDefaultWebhookConfig() {
+    if (!ASAAS_WEBHOOK_URL) return undefined;
+
+    return {
+        name: `NeuroNex ${ASAAS_ENV === "production" ? "Produção" : "Sandbox"}`,
+        url: ASAAS_WEBHOOK_URL,
+        email: Deno.env.get("ASAAS_WEBHOOK_EMAIL")?.trim() || "webhooks@neuronex.app",
+        sendType: "SEQUENTIALLY",
+        interrupted: false,
+        enabled: true,
+        apiVersion: 3,
+        ...(ASAAS_WEBHOOK_TOKEN ? { authToken: ASAAS_WEBHOOK_TOKEN } : {}),
+        events: ASAAS_OPERATIONAL_WEBHOOK_EVENTS,
+    };
+}
+
 /**
  * Create a new subconta (white-label) for a psychologist.
  */
@@ -234,7 +405,11 @@ export async function createAsaasSubAccount(params: {
     companyType?: string;
     incomeValue?: number;
 }): Promise<AsaasSubAccount> {
-    return asaasRequest<AsaasSubAccount>("/accounts", "POST", params as any);
+    const webhook = buildDefaultWebhookConfig();
+    return asaasRequest<AsaasSubAccount>("/accounts", "POST", {
+        ...params,
+        ...(webhook ? { webhooks: [webhook] } : {}),
+    } as any);
 }
 
 /**
@@ -518,17 +693,24 @@ export async function findOrCreateAsaasCustomer(
         }
     }
 
+    const createPayload: Record<string, unknown> = {
+        name: params.name,
+        email: params.email,
+        phone: params.phone,
+        externalReference: params.externalReference,
+    };
+
+    if (cpf) {
+        createPayload.cpfCnpj = cpf;
+    } else if (ASAAS_ENV === "sandbox") {
+        createPayload.cpfCnpj = "00000000000";
+    }
+
     // Create new customer
     return asaasRequest<AsaasCustomer>(
         "/customers",
         "POST",
-        {
-            name: params.name,
-            cpfCnpj: cpf || "00000000000", // Fallback for sandbox
-            email: params.email,
-            phone: params.phone,
-            externalReference: params.externalReference,
-        },
+        createPayload,
         subAccountApiKey
     );
 }
@@ -611,7 +793,8 @@ export type FinancialUiStatus =
     | "pending_review"
     | "restricted"
     | "active"
-    | "account_missing";
+    | "account_missing"
+    | "disabled";
 
 /**
  * Derive UI status from Asaas account status response.
@@ -718,11 +901,14 @@ export async function syncFinancialAccountFromAsaas(
 
     const payload: Record<string, unknown> = {
         status: uiStatus,
+        asaas_environment: ASAAS_ENV,
         charges_enabled: isActive,
         payouts_enabled: isActive,
         details_submitted:
             accountStatus.commercialInfoStatus !== "NOT_SENT",
         requirements: accountStatus,
+        last_balance_sync_at: new Date().toISOString(),
+        last_sync_error: null,
         updated_at: new Date().toISOString(),
     };
 
@@ -775,7 +961,11 @@ export function calculateFees(
 
 export function validateAsaasWebhookToken(req: Request): boolean {
     if (!ASAAS_WEBHOOK_TOKEN) {
-        console.warn("[asaas-client] No ASAAS_WEBHOOK_TOKEN configured, skipping validation");
+        if (ASAAS_ENV === "production") {
+            console.error("[asaas-client] Missing ASAAS_WEBHOOK_TOKEN in production");
+            return false;
+        }
+        console.warn("[asaas-client] No ASAAS_WEBHOOK_TOKEN configured, skipping validation in sandbox");
         return true;
     }
     const token = req.headers.get("asaas-access-token");
@@ -800,13 +990,22 @@ export async function isAsaasEventProcessed(eventId: string): Promise<boolean> {
 export async function persistAsaasEvent(
     eventType: string,
     eventId: string,
-    payload: unknown
+    payload: unknown,
+    details?: {
+        asaasAccountId?: string | null;
+        providerObjectId?: string | null;
+        providerObjectType?: string | null;
+    }
 ) {
     const { error } = await supabaseAdmin.from("asaas_webhook_events").insert({
         event_type: eventType,
         event_id: eventId,
+        asaas_account_id: details?.asaasAccountId || null,
+        provider_object_id: details?.providerObjectId || null,
+        provider_object_type: details?.providerObjectType || null,
         payload: payload as any,
         status: "pending",
+        event_received_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
     });
@@ -847,6 +1046,17 @@ export async function markAsaasEventFailed(eventId: string, errorMessage?: strin
 
 type LedgerAccountType = "main" | "pending" | "available" | "reserved" | "fees";
 
+function isMissingLedgerTableError(error: unknown) {
+    const message = String((error as { message?: string })?.message || error || "").toLowerCase();
+    const code = String((error as { code?: string })?.code || "");
+    return (
+        code === "PGRST205" ||
+        message.includes("ledger_accounts") ||
+        message.includes("ledger_entries") ||
+        message.includes("schema cache")
+    );
+}
+
 export async function ensureLedgerAccounts(
     userId: string,
     financialAccountId: string
@@ -872,7 +1082,13 @@ export async function ensureLedgerAccounts(
             },
             { onConflict: "user_id,account_type" }
         );
-        if (error) throw error;
+        if (error) {
+            if (isMissingLedgerTableError(error)) {
+                console.warn("[asaas-ledger] Ledger tables are not available; skipping ledger account setup.");
+                return;
+            }
+            throw error;
+        }
     }
 }
 
@@ -904,18 +1120,34 @@ export async function createLedgerEntries(
         .from("ledger_accounts")
         .select("id,account_type")
         .eq("user_id", userId);
-    if (accErr) throw accErr;
+    if (accErr) {
+        if (isMissingLedgerTableError(accErr)) {
+            console.warn("[asaas-ledger] Ledger tables are not available; skipping ledger entries.");
+            return;
+        }
+        throw accErr;
+    }
 
     const idByType = new Map<string, string>();
     for (const a of accounts || []) {
         idByType.set(a.account_type, a.id);
     }
 
+    if (!idByType.size) {
+        console.warn("[asaas-ledger] No ledger accounts configured; skipping ledger entries.");
+        return;
+    }
+
+    const missingAccountTypes = entries
+        .map((entry) => entry.accountType)
+        .filter((accountType) => !idByType.has(accountType));
+    if (missingAccountTypes.length) {
+        console.warn(`[asaas-ledger] Missing ledger account types (${missingAccountTypes.join(", ")}); skipping ledger entries.`);
+        return;
+    }
+
     const rows = entries.map((e) => {
-        const ledgerAccountId = idByType.get(e.accountType);
-        if (!ledgerAccountId) {
-            throw new Error(`Ledger account missing for type: ${e.accountType}`);
-        }
+        const ledgerAccountId = idByType.get(e.accountType)!;
         return {
             ledger_account_id: ledgerAccountId,
             user_id: userId,
@@ -935,5 +1167,11 @@ export async function createLedgerEntries(
     });
 
     const { error } = await supabaseAdmin.from("ledger_entries").insert(rows);
-    if (error) throw error;
+    if (error) {
+        if (isMissingLedgerTableError(error)) {
+            console.warn("[asaas-ledger] Ledger entries table is not available; skipping ledger entries.");
+            return;
+        }
+        throw error;
+    }
 }

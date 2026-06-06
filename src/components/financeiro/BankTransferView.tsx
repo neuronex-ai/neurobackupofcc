@@ -7,16 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Lock, Check, Landmark, ArrowRight } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import { useNeuroFinanceBalance } from "@/hooks/use-neurofinance-balance";
-import { useAuth } from "@/components/auth/SessionContextProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRequestPayout } from "@/hooks/use-neurobank-payouts";
+import { useFinancialAccount } from "@/hooks/use-financial-account";
 
 export const BankTransferView = () => {
-    const { session } = useAuth();
     const { data: balanceData } = useNeuroFinanceBalance();
+    const { account } = useFinancialAccount();
     const balance = balanceData?.balance || 0;
 
     const [amount, setAmount] = useState("");
@@ -25,18 +24,15 @@ export const BankTransferView = () => {
     const [pin, setPin] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const { data: accounts } = useQuery({
-        queryKey: ['user_bank_accounts'],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('user_bank_accounts')
-                .select('*')
-                .eq('user_id', session?.user?.id);
-            if (error) throw error;
-            return data || [];
-        },
-        enabled: !!session?.user?.id
-    });
+    const accounts = account?.bank_code && account?.bank_agency
+        ? [{
+            id: account.id,
+            holder_name: account.bank_holder_name || account.holder_name || "Conta de repasse",
+            bank_code: account.bank_code,
+            agency: account.bank_agency,
+            account_number: `${account.bank_account || ""}${account.bank_account_digit || ""}`,
+        }]
+        : [];
 
     const handleContinue = () => {
         const val = parseFloat(amount.replace(',', '.'));

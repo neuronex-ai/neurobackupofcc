@@ -27,7 +27,7 @@ export function PixPagarCopiaCola() {
     const [decodedInfo, setDecodedInfo] = useState<any>(null);
     const [showValue, setShowValue] = useState(true);
     const [step, setStep] = useState<"input" | "confirm" | "success">("input");
-    const { sendPix } = useNeuroFinancePix();
+    const { payQrCode } = useNeuroFinancePix();
 
     const handlePaste = async () => {
         try {
@@ -47,17 +47,10 @@ export function PixPagarCopiaCola() {
 
         setIsProcessing(true);
         try {
-            // In sandbox, we simulate decoding the PIX payload
-            // In production, this would call the Asaas API to decode and process
-            const mockDecoded = {
-                chave: "sandbox@neurofinance.com",
-                valor: "150.00",
-                nome: "Empresa Sandbox LTDA",
-                cidade: "São Paulo",
-                txid: pixCode.substring(0, 25) || "sandbox-txid",
-            };
-
-            setDecodedInfo(mockDecoded);
+            setDecodedInfo({
+                payload: pixCode.trim(),
+                identificador: pixCode.trim().slice(-32),
+            });
             setStep("confirm");
         } catch (error: any) {
             toast.error(`Erro ao processar: ${error.message}`);
@@ -71,12 +64,7 @@ export function PixPagarCopiaCola() {
 
         setIsProcessing(true);
         try {
-            await sendPix.mutateAsync({
-                valor: parseFloat(decodedInfo.valor),
-                pixKey: decodedInfo.chave,
-                descricao: `Pagamento Pix: ${decodedInfo.nome}`,
-                type: 'pay'
-            });
+            await payQrCode.mutateAsync({ payload: decodedInfo.payload });
 
             setStep("success");
             toast.success("Pagamento Pix processado com sucesso!");
@@ -110,7 +98,7 @@ export function PixPagarCopiaCola() {
                         </p>
                     </div>
                     <div className="ml-auto px-3 py-1 rounded-full bg-white/10 dark:bg-black/5 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900">
-                        Sandbox
+                        Produção
                     </div>
                 </div>
             </div>
@@ -187,10 +175,9 @@ export function PixPagarCopiaCola() {
 
                             <div className="space-y-3">
                                 {[
-                                    { label: "Beneficiário", value: decodedInfo.nome },
-                                    { label: "Chave Pix", value: decodedInfo.chave },
-                                    { label: "Cidade", value: decodedInfo.cidade },
-                                    { label: "Identificador", value: decodedInfo.txid },
+                                    { label: "Operação", value: "Pagamento via QR Code Pix" },
+                                    { label: "Processamento", value: "Asaas API v3" },
+                                    { label: "Identificador", value: decodedInfo.identificador },
                                 ].map((item) => (
                                     <div key={item.label} className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-white/5 last:border-0">
                                         <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">{item.label}</span>
@@ -201,7 +188,7 @@ export function PixPagarCopiaCola() {
                                     <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Valor</span>
                                     <div className="flex items-center gap-2">
                                         <span className="text-lg font-black text-zinc-900 dark:text-white">
-                                            {showValue ? `R$ ${decodedInfo.valor}` : "R$ •••••"}
+                                            {showValue ? "Definido no QR Code" : "Oculto"}
                                         </span>
                                         <button onClick={() => setShowValue(!showValue)} className="text-zinc-400 hover:text-zinc-600 transition-colors">
                                             {showValue ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -243,7 +230,7 @@ export function PixPagarCopiaCola() {
                             Pagamento Realizado
                         </h3>
                         <p className="text-sm text-zinc-500 mt-2 max-w-sm">
-                            Seu pagamento PIX foi processado com sucesso no ambiente sandbox.
+                            Seu pagamento PIX foi enviado com sucesso para processamento.
                         </p>
                         <button
                             onClick={handleReset}

@@ -57,7 +57,7 @@ export const UpcomingSessionsPanel = ({
     return (
         <div className="flex h-full w-full overflow-hidden bg-background">
             {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 pr-12">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:pt-24 pr-12">
                 <div className="max-w-4xl mx-auto space-y-12">
 
                     {/* Header - Floating Bar Style */}
@@ -215,7 +215,7 @@ export const UpcomingSessionsPanel = ({
                     opacity: (selectedSession || nextSession) ? 1 : 0
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="hidden xl:block overflow-hidden h-full border-l border-border/20 pt-8"
+                className="hidden xl:block overflow-hidden h-full border-l border-border/20 pt-8 lg:pt-24"
             >
                 <PatientRecapSidebar
                     patientId={(selectedSession || nextSession)?.patient_id}

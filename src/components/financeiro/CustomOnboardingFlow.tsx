@@ -198,9 +198,11 @@ function buildOnboardingPayload(
             currency: "brl",
             account_holder_type: "individual",
             account_holder_name: fullName,
+            cpfCnpj: onlyDigits(formData.cpf),
             bank_code: onlyDigits(formData.bankCode),
             agency: onlyDigits(formData.agency),
             account_number: onlyDigits(formData.accountNumber),
+            account_type: "CONTA_CORRENTE",
         },
         documents: {
             front_file_id: docs.front || null,
@@ -224,13 +226,18 @@ function GlassCard({
     children: React.ReactNode;
 }) {
     return (
-        <div className="rounded-[28px] border border-black/5 bg-white/80 p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl dark:border-white/5 dark:bg-[#111111]/80 dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
-            <div className="mb-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-black/5 bg-black/[0.02] text-zinc-900 backdrop-blur-xl dark:border-white/5 dark:bg-white/[0.02] dark:text-white">
+        <div className="relative overflow-hidden rounded-[22px] border border-black/[0.07] bg-white/[0.82] p-4 shadow-[0_18px_60px_-38px_rgba(0,0,0,0.35)] backdrop-blur-3xl transition-[border-color,box-shadow,transform] duration-500 sm:p-5 dark:border-white/[0.08] dark:bg-[#111111]/[0.82] dark:shadow-[0_24px_70px_-42px_rgba(0,0,0,0.9)]">
+            <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 opacity-[0.025] mix-blend-multiply dark:mix-blend-screen"
+                style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E\")" }}
+            />
+            <div className="relative z-10 mb-5 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-black/5 bg-black/[0.02] text-zinc-900 backdrop-blur-xl dark:border-white/5 dark:bg-white/[0.02] dark:text-white">
                     {icon}
                 </div>
                 <div>
-                    <h2 className="text-lg font-black uppercase tracking-tight text-zinc-950 dark:text-white">
+                    <h2 className="text-base font-black uppercase tracking-tight text-zinc-950 dark:text-white">
                         {title}
                     </h2>
                     {subtitle ? (
@@ -238,7 +245,7 @@ function GlassCard({
                     ) : null}
                 </div>
             </div>
-            {children}
+            <div className="relative z-10">{children}</div>
         </div>
     );
 }
@@ -269,6 +276,7 @@ export const CustomOnboardingFlow = ({
 
     const fileInputFrontRef = useRef<HTMLInputElement>(null);
     const fileInputBackRef = useRef<HTMLInputElement>(null);
+    const hasPrefilledRef = useRef(false);
 
     const {
         account,
@@ -280,8 +288,48 @@ export const CustomOnboardingFlow = ({
     } = useFinancialAccount();
 
     useEffect(() => {
-        if (!account) return;
-        // Opcional: prefill futuro usando profile/snapshot local
+        if (!account || hasPrefilledRef.current) return;
+
+        const metadata = account.metadata || {};
+        const snapshot = account.onboarding_payload || {};
+        const profile = snapshot.profile || {};
+        const businessProfile = snapshot.business_profile || {};
+        const bankAccount = snapshot.bank_account || {};
+        const accountNumber = [
+            account.bank_account || bankAccount.account_number || "",
+            account.bank_account_digit || bankAccount.account_digit || "",
+        ].join("");
+
+        setFormData((prev) => ({
+            ...prev,
+            firstName: account.holder_name?.split(" ")[0] || profile.first_name || prev.firstName,
+            lastName: account.holder_name?.split(" ").slice(1).join(" ") || profile.last_name || prev.lastName,
+            cpf: maskCpf(account.cpf_cnpj || snapshot.cpfCnpj || prev.cpf),
+            birthDate: account.birth_date || snapshot.birthDate || prev.birthDate,
+            phone: maskPhone(account.mobile_phone || snapshot.mobilePhone || prev.phone),
+            pep: account.pep_status || profile.political_exposure || prev.pep,
+            cep: maskCep(account.address_postal_code || snapshot.postalCode || prev.cep),
+            street: account.address_street || snapshot.address || prev.street,
+            number: account.address_number || snapshot.addressNumber || prev.number,
+            complement: account.address_complement || snapshot.complement || prev.complement,
+            neighborhood: account.address_neighborhood || snapshot.province || prev.neighborhood,
+            city: account.address_city || profile.city || prev.city,
+            state: account.address_state || profile.state || prev.state,
+            companyType: account.company_type || snapshot.companyType || prev.companyType,
+            incomeValue: account.income_value ? String(account.income_value) : (snapshot.incomeValue ? String(snapshot.incomeValue) : prev.incomeValue),
+            businessUrl: account.business_url || snapshot.site || prev.businessUrl,
+            businessDescription: account.business_description || businessProfile.product_description || prev.businessDescription,
+            bankCode: account.bank_code || bankAccount.bank_code || prev.bankCode,
+            agency: account.bank_agency || bankAccount.agency || prev.agency,
+            accountNumber: accountNumber || prev.accountNumber,
+            tosAccepted: Boolean(account.tos_accepted_at || snapshot.tos?.accepted || prev.tosAccepted),
+        }));
+
+        setUploadedDocIds({
+            front: account.document_front_id || snapshot.documents?.front_file_id || metadata.document_front_id || undefined,
+            back: account.document_back_id || snapshot.documents?.back_file_id || metadata.document_back_id || undefined,
+        });
+        hasPrefilledRef.current = true;
     }, [account]);
 
     const steps: Step[] = useMemo(
@@ -463,7 +511,11 @@ export const CustomOnboardingFlow = ({
                 toast.info("Conta criada! Sincronizando dados...");
                 
                 try {
-                    await uploadDocumentsIfNeeded();
+                    const docs = await uploadDocumentsIfNeeded();
+                    const updateResult = await updateAccount.mutateAsync(buildOnboardingPayload(formData, docs));
+                    if (updateResult?.sync_status === "deferred") {
+                        toast.warning("Dados salvos. Alguns campos ainda aguardam validação da Asaas.");
+                    }
                 } catch (docErr) {
                     console.warn("Upload imediato falhou, será tentado novamente:", docErr);
                 }
@@ -477,10 +529,17 @@ export const CustomOnboardingFlow = ({
                 // Account already exists — update it and upload docs
                 const docs = await uploadDocumentsIfNeeded();
                 const payload = buildOnboardingPayload(formData, docs);
-                await updateAccount.mutateAsync(payload);
+                const updateResult = await updateAccount.mutateAsync(payload);
+                if (updateResult?.sync_status === "deferred") {
+                    toast.warning("Dados salvos. A sincronização com a Asaas seguirá em segundo plano.");
+                }
                 
                 // Light sync
-                await syncAccount.mutateAsync();
+                try {
+                    await syncAccount.mutateAsync();
+                } catch (syncError) {
+                    console.warn("[Onboarding] Final sync deferred:", syncError);
+                }
             }
 
             setStep("success");
@@ -524,8 +583,8 @@ export const CustomOnboardingFlow = ({
 
         return (
             <>
-                <div className="flex flex-col h-full overflow-hidden">
-                <div className="shrink-0 mb-6">
+                <div className="flex min-h-0 flex-col h-full overflow-hidden">
+                <div className="shrink-0 mb-5">
                     <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-zinc-950 dark:text-white">
@@ -559,7 +618,7 @@ export const CustomOnboardingFlow = ({
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-1 -mx-1 pb-6 scrollbar-hide">
+                <div className="flex-1 min-h-0 overflow-y-auto px-1 -mx-1 pb-6 scrollbar-hide overscroll-contain">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={step}
@@ -1097,13 +1156,13 @@ export const CustomOnboardingFlow = ({
             </AnimatePresence>
             </div>
 
-            <div className="shrink-0 mt-4 flex flex-col gap-4 border-t border-black/10 pt-6 dark:border-white/10">
+            <div className="shrink-0 mt-3 flex flex-col gap-4 border-t border-black/10 bg-white/70 pt-4 backdrop-blur-2xl dark:border-white/10 dark:bg-[#080808]/70">
                 <div className="flex gap-3">
                     <Button
                         variant="outline"
                         onClick={handleBack}
                         disabled={isSubmitting}
-                        className="h-14 flex-1 rounded-2xl border-black/10 bg-white/50 font-bold uppercase tracking-[0.18em] text-[10px] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.03] hover:bg-black/5 dark:hover:bg-white/5"
+                        className="h-14 flex-1 rounded-2xl border-black/10 bg-white/50 font-bold uppercase tracking-[0.18em] text-[10px] backdrop-blur-xl transition-all duration-300 active:scale-[0.985] dark:border-white/10 dark:bg-white/[0.03] hover:bg-black/5 dark:hover:bg-white/5"
                     >
                         {step === "personal" ? (
                             "Cancelar"
@@ -1118,7 +1177,7 @@ export const CustomOnboardingFlow = ({
                     <Button
                         onClick={handleNext}
                         disabled={isSubmitting}
-                        className="h-14 flex-[1.4] rounded-2xl bg-zinc-950 font-black uppercase tracking-[0.18em] text-[10px] text-white shadow-xl transition-transform hover:scale-[1.01] dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                        className="h-14 flex-[1.4] rounded-2xl bg-zinc-950 font-black uppercase tracking-[0.18em] text-[10px] text-white shadow-[0_18px_36px_-18px_rgba(0,0,0,0.65)] transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.985] dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200"
                     >
                         {isSubmitting ? (
                             <>
@@ -1146,40 +1205,40 @@ export const CustomOnboardingFlow = ({
 
     return (
         <div className={cn(
-            "w-full flex flex-col lg:flex-row overflow-hidden bg-white dark:bg-[#080808]",
+            "relative isolate w-full flex min-h-0 flex-col lg:flex-row overflow-hidden bg-white dark:bg-[#080808]",
             fullScreen 
-                ? "h-full min-h-screen" 
-                : "h-[100dvh] sm:h-[90vh] sm:max-h-[950px] sm:min-h-[800px] shadow-[0_30px_120px_rgba(0,0,0,0.15)] dark:shadow-[0_30px_120px_rgba(0,0,0,0.6)] sm:rounded-[36px] border border-black/5 dark:border-white/5"
+                ? "h-[100dvh] max-h-[100dvh]"
+                : "h-[100dvh] max-h-[100dvh] shadow-[0_30px_120px_rgba(0,0,0,0.15)] dark:shadow-[0_30px_120px_rgba(0,0,0,0.6)] sm:h-[90vh] sm:max-h-[950px] sm:rounded-[36px] border border-black/5 dark:border-white/5"
         )}>
             
             {/* Left Column - 3D Visual & Compliance */}
-            <div className="hidden lg:flex lg:w-[40%] shrink-0 relative bg-zinc-50 dark:bg-[#0c0c0c] border-r border-black/5 dark:border-white/5 overflow-hidden items-center justify-center p-12">
+            <div className="hidden lg:flex lg:w-[34%] xl:w-[36%] shrink-0 relative bg-zinc-50 dark:bg-[#0c0c0c] border-r border-black/5 dark:border-white/5 overflow-hidden items-center justify-center p-8 xl:p-10">
                 <div className="absolute inset-0 bg-radial-gradient from-black/[0.03] dark:from-white/[0.03] to-transparent opacity-60 backdrop-blur-3xl" />
                 
                 {/* Stamp at top-left inner */}
-                <div className="absolute top-10 left-10 z-20">
+                <div className="absolute top-8 left-8 z-20">
                     <AsaasStamp className="opacity-70 scale-90 origin-left hover:opacity-100 transition-opacity" />
                 </div>
                 
                 {/* Text bottom */}
-                <div className="absolute bottom-10 left-10 right-10 z-20">
-                    <h3 className="text-2xl font-black tracking-tight text-zinc-950 dark:text-white mb-2">
+                <div className="absolute bottom-8 left-8 right-8 z-20">
+                    <h3 className="text-xl font-black tracking-tight text-zinc-950 dark:text-white mb-1.5">
                         NeuroFinance
                     </h3>
-                    <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 leading-relaxed">
                         Ativação rápida e segura. Infraestrutura tecnológica viabilizada em parceria com a Instituição de Pagamento Asaas.
                     </p>
                 </div>
                 
                 {/* 3D Model */}
-                <div className="relative z-10 w-full h-full flex items-center justify-center scale-110 xl:scale-125 transition-transform duration-700">
+                <div className="relative z-10 w-full h-full flex items-center justify-center scale-90 xl:scale-100 transition-transform duration-700">
                     <NeuroFinanceCardVisual performanceMode />
                 </div>
             </div>
 
             {/* Right Column - Formulation / Form */}
-            <div className="flex-1 flex flex-col h-full min-w-0 bg-white dark:bg-[#080808] relative overflow-hidden">
-                <div className="flex-1 w-full p-6 sm:p-8 lg:p-10 xl:p-12 flex flex-col h-full overflow-hidden">
+            <div className="flex-1 flex min-h-0 flex-col h-full min-w-0 bg-white dark:bg-[#080808] relative overflow-hidden">
+                <div className="flex-1 min-h-0 w-full p-4 sm:p-5 lg:p-6 xl:p-7 flex flex-col h-full overflow-hidden lg:[zoom:.88] xl:[zoom:.92] 2xl:[zoom:.96]">
                    {renderContent()}
                 </div>
             </div>

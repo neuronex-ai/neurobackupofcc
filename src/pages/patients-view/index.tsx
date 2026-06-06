@@ -70,7 +70,7 @@ export default function Pacientes() {
         { label: "Notas", href: "/notas", icon: NotebookPen },
         { label: "Financeiro", href: "/financeiro", icon: DollarSign },
         { label: "Synapse AI", href: "/synapse-ai", icon: Sparkles },
-        { label: "Integrações", href: "/integracoes", icon: Zap },
+        { label: "Integrações", href: "/ajustes?tab=integrations", icon: Zap },
         { label: "Configurações", href: "/ajustes", icon: Settings },
     ];
 

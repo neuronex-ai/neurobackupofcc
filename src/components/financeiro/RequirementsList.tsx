@@ -41,8 +41,8 @@ export const RequirementsList = ({ onSelectRequirement, activeRequirement }: Req
         <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
           <CheckCircle2 className="w-6 h-6 text-emerald-500" />
         </div>
-        <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-white">Tudo em ordem</h4>
-        <p className="text-[9px] text-zinc-500 uppercase tracking-tight mt-2 leading-relaxed">Não há pendências de verificação na sua conta no momento.</p>
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-white">Sem ações manuais</h4>
+        <p className="text-[9px] text-zinc-500 uppercase tracking-tight mt-2 leading-relaxed">Não há pendências acionáveis para corrigir neste momento.</p>
       </div>
     );
   }
@@ -85,7 +85,7 @@ export const RequirementsList = ({ onSelectRequirement, activeRequirement }: Req
   return (
     <div className="space-y-3">
       <div className="mb-6">
-        <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 mb-4">Pendências Ativas</h5>
+        <h5 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 mb-4">Pendências acionáveis</h5>
       </div>
 
       {allItems.map((item) => (

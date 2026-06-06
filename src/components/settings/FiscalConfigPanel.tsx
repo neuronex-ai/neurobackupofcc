@@ -5,7 +5,7 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Loader2, Building2, FileCheck2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useFiscalSettings } from "@/hooks/use-fiscal-settings";
@@ -21,6 +21,10 @@ const fiscalSchema = z.object({
   focus_nfe_api_key: z.string().optional(),
   focus_nfe_environment: z.enum(["homologacao", "producao"]).default("homologacao"),
   municipal_code: z.string().optional(),
+  auto_issue: z.boolean().default(false),
+  fiscal_provider: z.literal("asaas").default("asaas"),
+  asaas_municipal_service_id: z.string().optional(),
+  asaas_municipal_service_name: z.string().optional(),
 });
 
 type FiscalFormValues = z.infer<typeof fiscalSchema>;
@@ -41,6 +45,10 @@ export const FiscalConfigPanel = () => {
       focus_nfe_api_key: "",
       focus_nfe_environment: "homologacao",
       municipal_code: "",
+      auto_issue: false,
+      fiscal_provider: "asaas",
+      asaas_municipal_service_id: "",
+      asaas_municipal_service_name: "",
     },
   });
 
@@ -57,6 +65,10 @@ export const FiscalConfigPanel = () => {
         focus_nfe_api_key: (settings as any).focus_nfe_api_key || "",
         focus_nfe_environment: (settings as any).focus_nfe_environment || "homologacao",
         municipal_code: (settings as any).municipal_code || "",
+        auto_issue: settings.auto_issue || false,
+        fiscal_provider: "asaas",
+        asaas_municipal_service_id: settings.asaas_municipal_service_id || "",
+        asaas_municipal_service_name: settings.asaas_municipal_service_name || "",
       });
     }
   }, [settings, form]);
@@ -148,46 +160,41 @@ export const FiscalConfigPanel = () => {
           <div className="space-y-6 pt-6 border-t border-border/5">
             <div className="flex items-center gap-2 mb-2">
               <FileCheck2 className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Integração Focus NFe</h3>
+              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Emissão automática via Asaas</h3>
             </div>
 
             <div className="space-y-6">
-              <FormField control={form.control} name="focus_nfe_api_key" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">API Key</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="password" className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl font-mono text-xs focus:border-primary/50 transition-all focus:bg-secondary/30 dark:focus:bg-secondary/10" />
-                  </FormControl>
-                  <FormDescription className="text-[10px] text-muted-foreground">Token de produção ou homologação da Focus NFe.</FormDescription>
-                  <FormMessage />
+              <FormField control={form.control} name="auto_issue" render={({ field }) => (
+                <FormItem className="flex items-center justify-between gap-6 rounded-2xl border border-border/10 bg-secondary/20 p-4">
+                  <div>
+                    <FormLabel className="text-sm font-bold">Emitir NFS-e após confirmação do pagamento</FormLabel>
+                    <FormDescription className="text-[10px] text-muted-foreground">A cobrança paga agenda automaticamente a nota pela API v3 da Asaas.</FormDescription>
+                  </div>
+                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                 </FormItem>
               )} />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField control={form.control} name="focus_nfe_environment" render={({ field }) => (
+                <FormField control={form.control} name="asaas_municipal_service_id" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">Ambiente</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl focus:ring-0 focus:border-primary/50 transition-all">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-popover border-border/10 rounded-xl shadow-xl">
-                        <SelectItem value="homologacao">Homologação (Teste)</SelectItem>
-                        <SelectItem value="producao">Produção</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormLabel className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">ID do serviço municipal Asaas</FormLabel>
+                    <FormControl><Input {...field} className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="asaas_municipal_service_name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">Nome do serviço municipal</FormLabel>
+                    <FormControl><Input {...field} className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
 
                 <FormField control={form.control} name="service_code" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">Cód. Serviço (LC 116)</FormLabel>
-                    <FormControl>
-                      <Input {...field} className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl focus:border-primary/50 transition-all focus:bg-secondary/30 dark:focus:bg-secondary/10" />
-                    </FormControl>
+                    <FormLabel className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">Cód. Serviço (quando não houver ID)</FormLabel>
+                    <FormControl><Input {...field} className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -195,19 +202,7 @@ export const FiscalConfigPanel = () => {
                 <FormField control={form.control} name="iss_aliquot" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">Alíquota ISS (%)</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="number" step="0.01" className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl focus:border-primary/50 transition-all focus:bg-secondary/30 dark:focus:bg-secondary/10" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <FormField control={form.control} name="rps_serie" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">Série RPS</FormLabel>
-                    <FormControl>
-                      <Input {...field} className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl focus:border-primary/50 transition-all focus:bg-secondary/30 dark:focus:bg-secondary/10" />
-                    </FormControl>
+                    <FormControl><Input {...field} type="number" step="0.01" className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />

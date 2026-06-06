@@ -54,28 +54,26 @@ export const CreateBillingModal = ({ open, onOpenChange, patients }: Props) => {
     const onSubmit = async (data: BillingForm) => {
         setLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            
-            const response = await fetch(`${window.location.origin}/functions/v1/asaas-proxy`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${session?.access_token}`,
-                    'Content-Type': 'application/json'
+            const methodMap: Record<BillingForm["billingType"], "pix" | "boleto" | "card" | "undefined"> = {
+                PIX: "pix",
+                BOLETO: "boleto",
+                CREDIT_CARD: "card",
+                UNDEFINED: "undefined",
+            };
+
+            const { data: paymentData, error } = await supabase.functions.invoke("asaas-create-payment", {
+                body: {
+                    patient_id: data.patient_id,
+                    amount: Math.round(data.amount * 100),
+                    payment_method: methodMap[data.billingType],
+                    due_date: data.dueDate,
+                    description: data.description,
+                    installments: data.installments,
                 },
-                body: JSON.stringify({
-                    action: 'create-payment',
-                    payload: {
-                        customer: data.patient_id,
-                        billingType: data.billingType,
-                        value: data.amount,
-                        dueDate: data.dueDate,
-                        description: data.description,
-                        installments: data.installments > 1 ? data.installments : undefined
-                    }
-                })
             });
 
-            if (!response.ok) throw new Error("Erro ao gerar cobrança");
+            if (error) throw error;
+            if ((paymentData as any)?.error) throw new Error((paymentData as any).error);
 
             toast.success("Cobrança gerada com sucesso!");
             onOpenChange(false);
@@ -129,7 +127,7 @@ export const CreateBillingModal = ({ open, onOpenChange, patients }: Props) => {
                             >
                                 <option value="">Selecione um paciente</option>
                                 {patients.map(p => (
-                                    <option key={p.id} value={p.asaas_customer_id || p.id}>{p.name}</option>
+                                    <option key={p.id} value={p.id}>{p.name}</option>
                                 ))}
                             </select>
                             {errors.patient_id && <p className="text-red-500 text-[10px] font-bold px-2">{errors.patient_id.message}</p>}

@@ -188,6 +188,23 @@ export function useNeuroFinancePix() {
         },
     });
 
+    const payQrCode = useMutation<any, Error, { payload: string; valor?: number }>({
+        mutationFn: async ({ payload, valor }) => {
+            const response = await supabase.functions.invoke('asaas-pix', {
+                body: { action: 'pay_qr_code', payload, value: valor },
+            });
+            if (response.error) throw new Error(response.error.message);
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payments'] });
+            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-balance'] });
+            toast.success('Pagamento Pix enviado para processamento.');
+        },
+        onError: (error) => toast.error(`Erro ao pagar Pix: ${error.message}`),
+    });
+
     return {
         // Cobranças imediatas
         createCharge,
@@ -196,6 +213,7 @@ export function useNeuroFinancePix() {
 
         // Transferências (Saída)
         sendPix,
+        payQrCode,
 
         // Cobranças com vencimento
         createCobVencimento,
@@ -203,6 +221,57 @@ export function useNeuroFinancePix() {
 }
 
 // ─── Convenience Hooks for Lists ──────────────────────────────────
+
+export function usePixKeys() {
+    const queryClient = useQueryClient();
+
+    const query = useQuery({
+        queryKey: ['NeuroFinance-pix-keys'],
+        queryFn: async () => {
+            const response = await supabase.functions.invoke('asaas-pix', {
+                body: { action: 'list_keys' },
+            });
+            if (response.error) throw new Error(response.error.message);
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data?.data || [];
+        },
+        staleTime: 30_000,
+    });
+
+    const createKey = useMutation({
+        mutationFn: async () => {
+            const response = await supabase.functions.invoke('asaas-pix', {
+                body: { action: 'create_key', consent: true },
+            });
+            if (response.error) throw new Error(response.error.message);
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-pix-keys'] });
+            toast.success('Chave Pix aleatória criada.');
+        },
+        onError: (error: Error) => toast.error(error.message),
+    });
+
+    const deleteKey = useMutation({
+        mutationFn: async (id: string) => {
+            const response = await supabase.functions.invoke('asaas-pix', {
+                body: { action: 'delete_key', id },
+            });
+            if (response.error) throw new Error(response.error.message);
+            if (response.data?.error) throw new Error(response.data.error);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-pix-keys'] });
+            toast.success('Chave Pix removida.');
+        },
+        onError: (error: Error) => toast.error(error.message),
+    });
+
+    return { ...query, createKey, deleteKey };
+}
 
 /**
  * Hook to list PIX charges.

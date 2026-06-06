@@ -8,6 +8,8 @@ import { useLocation } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileTeleconsulta } from '@/mobile/pages/MobileTeleconsulta';
 import { FeatureGate, LockedFeatureScreen } from '@/components/subscription';
+import { getAppointmentKind, getAppointmentMetadata } from '@/lib/appointment-metadata';
+import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
 
 const TeleconsultaCore = () => {
   const queryClient = useQueryClient();
@@ -36,8 +38,22 @@ const TeleconsultaCore = () => {
     }
   }, [location.state, appointments]);
 
-  const activeAppointment = appointments?.find(apt => apt.id === activeAppointmentId);
-  const upcomingSessions = appointments?.filter(apt => apt.id !== activeAppointmentId) || [];
+  const teleconsultationSessions = (appointments || []).filter((appointment) => {
+    if (isCancelledAppointmentStatus(appointment.status, appointment.notes)) return false;
+    if (getAppointmentKind(appointment) !== 'session') return false;
+
+    const metadata = getAppointmentMetadata(appointment);
+    const appointmentType = appointment.type as string;
+    return (
+      appointmentType === 'online' ||
+      appointmentType === 'teleconsulta' ||
+      metadata.modality === 'online' ||
+      !!appointment.google_meet_link
+    );
+  });
+
+  const activeAppointment = teleconsultationSessions.find(apt => apt.id === activeAppointmentId);
+  const upcomingSessions = teleconsultationSessions.filter(apt => apt.id !== activeAppointmentId);
 
   const startSession = (appointmentId: string) => {
     setActiveAppointmentId(appointmentId);

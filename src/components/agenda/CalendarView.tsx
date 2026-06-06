@@ -360,7 +360,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 </div>
                             ) : (
                                 <Button
-                                    onClick={() => navigate('/ajustes?tab=google')}
+                                    onClick={() => navigate('/ajustes?tab=integrations')}
                                     className="h-6 px-3 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 border border-zinc-900 dark:border-white rounded-full text-[9px] font-bold uppercase tracking-widest transition-all"
                                 >
                                     Conectar

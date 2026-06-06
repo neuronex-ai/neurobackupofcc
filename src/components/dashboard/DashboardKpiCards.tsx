@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarCheck, Cake, Activity } from 'lucide-react';
+import { startOfMonth } from 'date-fns';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useMonthlySessionMetrics } from '@/hooks/use-monthly-session-metrics';
 import { SessionsMetricsModal } from './SessionsMetricsModal';
@@ -8,7 +9,8 @@ import { BirthdaysModal } from './BirthdaysModal';
 import { PatientActivitiesModal } from './PatientActivitiesModal';
 
 export const DashboardKpiCards = () => {
-  const { data } = useMonthlySessionMetrics(new Date());
+  const [currentMonth] = useState(() => startOfMonth(new Date()));
+  const { data } = useMonthlySessionMetrics(currentMonth);
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
   const [isBirthdaysModalOpen, setIsBirthdaysModalOpen] = useState(false);
   const [isActivitiesModalOpen, setIsActivitiesModalOpen] = useState(false);

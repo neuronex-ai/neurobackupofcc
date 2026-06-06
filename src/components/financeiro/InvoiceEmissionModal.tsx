@@ -28,7 +28,7 @@ export const InvoiceEmissionModal = ({ children }: InvoiceEmissionModalProps) =>
     const { settings: fiscalSettings } = useFiscalSettings();
     const navigate = useNavigate();
 
-    const isFiscalConfigured = !!fiscalSettings?.focus_nfe_api_key;
+    const isFiscalConfigured = Boolean(fiscalSettings?.asaas_municipal_service_id || fiscalSettings?.service_code);
     const isAutoEmissionActive = isPaymentConnected && isFiscalConfigured;
 
     const resetView = () => setTimeout(() => setView('menu'), 300);
@@ -81,7 +81,7 @@ export const InvoiceEmissionModal = ({ children }: InvoiceEmissionModalProps) =>
 
                                 <TabsContent value="actions" className="p-8 space-y-4 pt-4 mt-0">
                                     <button
-                                        onClick={() => isAutoEmissionActive ? toast.info("A emissão automática já está ativa.") : navigate('/integrations?tab=fiscal')}
+                                        onClick={() => isAutoEmissionActive ? toast.info("A emissão automática já está ativa.") : navigate('/ajustes?tab=fiscal')}
                                         className={cn(
                                             "w-full p-4 rounded-xl border flex items-center gap-4 text-left transition-all duration-300 group shadow-sm",
                                             isAutoEmissionActive

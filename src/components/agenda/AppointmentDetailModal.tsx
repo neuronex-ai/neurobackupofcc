@@ -66,11 +66,15 @@ const EVENT_CATEGORIES = [
 export const AppointmentDetailModal = ({
   children,
   appointment,
+  open: controlledOpen,
+  onOpenChange,
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   appointment: Appointment;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) => {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [patientData, setPatientData] = useState<any>(null);
   const [transactionData, setTransactionData] = useState<any>(null);
@@ -86,6 +90,8 @@ export const AppointmentDetailModal = ({
   const navigate = useNavigate();
   const sendEmail = useSendEmail();
   const updateAppointment = useUpdateAppointment();
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
 
   const metadata = useMemo(() => getAppointmentMetadata(appointment), [appointment]);
   const kind = metadata.kind || "session";

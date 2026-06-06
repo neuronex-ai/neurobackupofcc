@@ -9,6 +9,7 @@ interface GenerateInvoiceData {
   description: string;
   dueDate: Date;
   billingType?: string;
+  paymentMethodType?: string[];
 }
 
 interface GenerateInvoiceResponse {
@@ -21,6 +22,18 @@ interface GenerateInvoiceResponse {
   expiresAt?: string;
   amount: number;
 }
+
+const normalizePaymentMethod = (value?: string) => {
+  const aliases: Record<string, string> = {
+    pix: "pix",
+    credit_card: "card",
+    card: "card",
+    boleto: "boleto",
+    undefined: "undefined",
+  };
+
+  return aliases[String(value || "undefined").trim().toLowerCase()] || "undefined";
+};
 
 export const useGenerateInvoice = () => {
   const queryClient = useQueryClient();
@@ -38,8 +51,11 @@ export const useGenerateInvoice = () => {
 
       // Call the Edge Function directly - it handles DB insertion into nb_payments
       // Resolve payment methods
-      const methods = data.billingType ? data.billingType.split(',').map(m => m.trim()) : ['undefined'];
-      const primaryMethod = methods[0] || 'pix';
+      const selectedMethods = data.paymentMethodType?.length
+        ? data.paymentMethodType
+        : data.billingType?.split(",") || ["undefined"];
+      const methods = selectedMethods.map(normalizePaymentMethod);
+      const primaryMethod = methods.length === 1 ? methods[0] : "undefined";
 
       const asaasResponse = await fetch(`${baseUrl}/functions/v1/asaas-create-payment`, {
         method: 'POST',

@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { endOfMonth, formatISO, startOfMonth } from 'date-fns';
 
 export type ActivityType =
+  | 'appointment_scheduled'
   | 'appointment_status'
   | 'appointment_rescheduled'
   | 'payment_received'
@@ -23,6 +24,7 @@ export interface DashboardActivity {
   description: string;
   amount?: number;
   status?: string;
+  typeLabel?: string;
 }
 
 export const useDashboardActivities = (selectedDate = new Date()) => {
@@ -80,19 +82,39 @@ export const useDashboardActivities = (selectedDate = new Date()) => {
         const createdAt = appointment.created_at ? new Date(appointment.created_at).getTime() : 0;
         const changedAt = updatedAt ? new Date(updatedAt).getTime() : 0;
         const wasEditedAfterCreate = createdAt > 0 && changedAt - createdAt > 60000;
+        const dateLabel = new Date(appointment.start_time).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+        });
+        const timeLabel = new Date(appointment.start_time).toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        const isCancelled = isCancelledAppointmentStatus(normalizedStatus);
+        const hasPresenceStatus = normalizedStatus !== 'unscored';
+        const activityType: ActivityType = isCancelled || hasPresenceStatus
+          ? 'appointment_status'
+          : wasEditedAfterCreate
+            ? 'appointment_rescheduled'
+            : 'appointment_scheduled';
 
         activities.push({
           id: appointment.id,
-          type: isCancelledAppointmentStatus(normalizedStatus) || normalizedStatus !== 'unscored'
-            ? 'appointment_status'
-            : 'appointment_rescheduled',
+          type: activityType,
           patient_name: patientName,
           patient_id: appointment.patient_id || '',
           date: new Date(updatedAt),
           status: normalizedStatus,
-          description: wasEditedAfterCreate
-            ? `Agendamento atualizado para ${new Date(appointment.start_time).toLocaleDateString('pt-BR')}`
-            : `Sessão registrada para ${new Date(appointment.start_time).toLocaleDateString('pt-BR')}`,
+          typeLabel: activityType === 'appointment_rescheduled'
+            ? 'Reagendamento'
+            : activityType === 'appointment_status'
+              ? 'Status de consulta'
+              : 'Consulta registrada',
+          description: activityType === 'appointment_rescheduled'
+            ? `reagendou a consulta para ${dateLabel} às ${timeLabel}.`
+            : activityType === 'appointment_status'
+              ? `${isCancelled ? 'cancelou' : 'atualizou o status da'} consulta de ${dateLabel} às ${timeLabel}.`
+              : `registrou uma consulta para ${dateLabel} às ${timeLabel}.`,
         });
       });
 
@@ -103,7 +125,8 @@ export const useDashboardActivities = (selectedDate = new Date()) => {
           patient_name: transaction.patients?.name || 'Paciente',
           patient_id: transaction.patient_id || '',
           date: new Date(transaction.created_at || transaction.date),
-          description: 'Pagamento registrado',
+          typeLabel: 'Pagamento',
+          description: 'realizou o pagamento da sessão.',
           amount: Number(transaction.amount || 0),
         });
       });
@@ -115,7 +138,8 @@ export const useDashboardActivities = (selectedDate = new Date()) => {
           patient_name: anamnesis.patients?.name || 'Paciente',
           patient_id: anamnesis.patient_id || '',
           date: new Date(anamnesis.updated_at),
-          description: 'Ficha de anamnese atualizada',
+          typeLabel: 'Anamnese',
+          description: 'preencheu ou atualizou a ficha de anamnese pelo link online.',
         });
       });
 
@@ -126,7 +150,8 @@ export const useDashboardActivities = (selectedDate = new Date()) => {
           patient_name: note.patients?.name || 'Paciente',
           patient_id: note.patient_id || '',
           date: new Date(note.created_at),
-          description: 'Nota clínica registrada',
+          typeLabel: 'Nota clínica',
+          description: 'teve uma nota clínica registrada.',
         });
       });
 

@@ -58,7 +58,7 @@ export function PixSalarios() {
     const totalPagamento = funcionarios.reduce((sum, f) => sum + (parseFloat(f.valor) || 0), 0);
 
     const handleProcessBatch = async () => {
-        const valid = funcionarios.filter(f => f.nome && f.valor && parseFloat(f.valor) > 0);
+        const valid = funcionarios.filter(f => f.nome && f.pixKey && f.valor && parseFloat(f.valor) > 0);
         if (valid.length === 0) {
             toast.error("Adicione pelo menos um funcionário com dados válidos.");
             return;
@@ -70,7 +70,7 @@ export function PixSalarios() {
             for (const func of valid) {
                 await sendPix.mutateAsync({
                     valor: parseFloat(func.valor),
-                    pixKey: func.pixKey || func.cpf || func.nome, // Realistic fallback
+                    pixKey: func.pixKey,
                     descricao: `Pagamento de salário - ${func.nome}`,
                     type: 'transfer'
                 });
@@ -107,7 +107,7 @@ export function PixSalarios() {
                         </p>
                     </div>
                     <div className="ml-auto px-3 py-1 rounded-full bg-white/10 dark:bg-black/5 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900">
-                        Sandbox
+                        Produção
                     </div>
                 </div>
             </div>
@@ -183,7 +183,7 @@ export function PixSalarios() {
                                                 <Trash2 className="w-3 h-3 text-red-500" />
                                             </button>
                                         </div>
-                                        <div className="grid grid-cols-4 gap-3">
+                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
                                             <input
                                                 value={func.nome}
                                                 onChange={(e) => updateFuncionario(func.id, "nome", e.target.value)}
@@ -195,6 +195,12 @@ export function PixSalarios() {
                                                 onChange={(e) => updateFuncionario(func.id, "cpf", e.target.value)}
                                                 placeholder="CPF"
                                                 className="h-10 px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
+                                            />
+                                            <input
+                                                value={func.pixKey}
+                                                onChange={(e) => updateFuncionario(func.id, "pixKey", e.target.value)}
+                                                placeholder="Chave Pix"
+                                                className="md:col-span-2 h-10 px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
                                             />
                                             <input
                                                 type="number"
@@ -258,7 +264,7 @@ export function PixSalarios() {
                             Pagamentos Processados
                         </h3>
                         <p className="text-sm text-zinc-500 mt-2 max-w-sm">
-                            Todos os pagamentos de salário foram enviados via Pix (Sandbox).
+                            Os pagamentos foram enviados individualmente pela API Pix da Asaas.
                         </p>
                         <button
                             onClick={handleReset}

@@ -1,14 +1,26 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Activity, RefreshCcw, Building2, Wallet, Banknote, ShieldCheck } from "lucide-react";
+import { Activity, RefreshCcw, Building2, Wallet, Banknote, ShieldCheck, Copy, Check } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 
 export const AsaasGestaoModal = ({ children }: { children: ReactNode }) => {
     const { account, isApproved, isPending, isRestricted, isAwaitingDocuments, isAwaitingApproval } = useFinancialAccount();
+    const [copiedWebhook, setCopiedWebhook] = useState(false);
+
+    const webhookUrl = useMemo(() => {
+        const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "https://krewdaklcyzqfxkkgvqr.supabase.co").replace(/\/+$/, "");
+        return `${supabaseUrl}/functions/v1/asaas-webhook`;
+    }, []);
+
+    const handleCopyWebhook = async () => {
+        await navigator.clipboard.writeText(webhookUrl);
+        setCopiedWebhook(true);
+        window.setTimeout(() => setCopiedWebhook(false), 1800);
+    };
 
     const getKycStatus = () => {
         if (!account) return { label: "Não iniciada", color: "text-zinc-500", bg: "bg-zinc-100 dark:bg-zinc-800" };
@@ -106,6 +118,34 @@ export const AsaasGestaoModal = ({ children }: { children: ReactNode }) => {
                                 </div>
                             </div>
 
+                        </div>
+                    </div>
+
+                    <div className="mt-8 space-y-4">
+                        <h4 className="text-[10px] uppercase font-black tracking-widest text-zinc-400 px-2">Webhook Produção</h4>
+
+                        <div className="rounded-[28px] border border-zinc-200/70 bg-white p-5 shadow-sm dark:border-white/5 dark:bg-zinc-900/50">
+                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-black text-zinc-900 dark:text-white">URL para eventos Asaas</p>
+                                    <p className="mt-1 break-all font-mono text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                                        {webhookUrl}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleCopyWebhook}
+                                    className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-700 transition-all hover:bg-zinc-100 active:scale-95 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
+                                >
+                                    {copiedWebhook ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                                    {copiedWebhook ? "Copiado" : "Copiar"}
+                                </button>
+                            </div>
+
+                            <p className="mt-4 text-[10px] font-bold uppercase leading-relaxed tracking-[0.16em] text-zinc-400">
+                                No painel Asaas, use esta URL em produção e configure o token de autenticação igual ao secret ASAAS_WEBHOOK_TOKEN.
+                            </p>
                         </div>
                     </div>
 

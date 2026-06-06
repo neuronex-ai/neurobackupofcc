@@ -51,10 +51,12 @@ export const GenerateRPSForm = ({ onBack, onSuccess: _ }: GenerateRPSFormProps) 
         }, {
             onSuccess: (data: any) => {
                 issueInvoice({
-                    invoice_id: data.invoice.id,
-                    patient_id: patientId,
+                    payment_id: data.asaasPaymentId,
                     service_description: description,
-                    amount: parseFloat(amount)
+                    amount: parseFloat(amount),
+                    municipal_service_id: fiscalSettings?.asaas_municipal_service_id || undefined,
+                    municipal_service_code: fiscalSettings?.service_code || undefined,
+                    municipal_service_name: fiscalSettings?.asaas_municipal_service_name || undefined,
                 }, {
                     onSuccess: () => setStep(3),
                     onError: (error: any) => toast.error(error?.message || "Erro fiscal. Verifique os dados do paciente.")

@@ -1,195 +1,81 @@
-/**
- * ─── PixChaves — Gerenciar Chaves Pix ───────────────────────────
- * Manage PIX keys registered in the financial account.
- * Fetches current key from financial_accounts and allows viewing.
- * ─────────────────────────────────────────────────────────────────
- */
-
-import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { Copy, Hash, Key, Loader2, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
-import {
-    Key,
-    Copy,
-    Plus,
-    Mail,
-    Phone,
-    Hash,
-    Fingerprint,
-    CheckCircle2,
-    Shield,
-} from "lucide-react";
-import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { toast } from "sonner";
 
-type KeyType = "evp" | "cpf" | "email" | "telefone";
-
-interface PixKeyItem {
-    type: KeyType;
-    value: string;
-    createdAt: string;
-    status: "active" | "pending";
-}
+import { Button } from "@/components/ui/button";
+import { usePixKeys } from "@/hooks/use-neurofinance-pix";
 
 export function PixChaves() {
-    const { account } = useFinancialAccount();
-    const [showAddForm, setShowAddForm] = useState(false);
+    const { data: keys = [], isLoading, error, createKey, deleteKey } = usePixKeys();
 
-    // Build the list of keys from the account data
-    const keys: PixKeyItem[] = [];
-    if (account?.pix_key) {
-        keys.push({
-            type: "evp",
-            value: account.pix_key,
-            createdAt: new Date().toISOString(),
-            status: "active",
-        });
-    }
-
-    const keyTypeInfo = {
-        evp: { label: "Chave Aleatória", icon: Hash, color: "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900" },
-        cpf: { label: "CPF/CNPJ", icon: Fingerprint, color: "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900" },
-        email: { label: "E-mail", icon: Mail, color: "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900" },
-        telefone: { label: "Telefone", icon: Phone, color: "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900" },
-    };
-
-    const handleCopyKey = (value: string) => {
-        navigator.clipboard.writeText(value);
-        toast.success("Chave Pix copiada!");
+    const copy = async (value: string) => {
+        await navigator.clipboard.writeText(value);
+        toast.success("Chave Pix copiada.");
     };
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="p-6 rounded-[28px] bg-zinc-900 dark:bg-white border border-zinc-800 dark:border-zinc-200">
+            <div className="flex flex-col gap-4 rounded-[24px] border border-black/[0.06] bg-white/70 p-5 backdrop-blur-2xl sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.08] dark:bg-white/[0.025]">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-white/10 dark:bg-black/5 text-white dark:text-zinc-900 flex items-center justify-center shadow-lg">
-                        <Key className="w-6 h-6" />
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-950 text-white shadow-xl dark:bg-white dark:text-zinc-950">
+                        <Key className="h-5 w-5" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-black uppercase tracking-tight text-white dark:text-zinc-900">
-                            Minhas Chaves Pix
-                        </h3>
-                        <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mt-0.5">
-                            Cadastre e gerencie suas chaves • Conta NeuroFinance
-                        </p>
-                    </div>
-                    <div className="ml-auto px-3 py-1 rounded-full bg-white/10 dark:bg-black/5 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900">
-                        Sandbox
+                        <h3 className="text-sm font-black uppercase tracking-tight text-zinc-950 dark:text-white">Minhas chaves Pix</h3>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Dados em tempo real da subconta Asaas</p>
                     </div>
                 </div>
+                <Button
+                    onClick={() => createKey.mutate()}
+                    disabled={createKey.isPending}
+                    className="h-11 rounded-xl bg-zinc-950 px-5 text-[9px] font-black uppercase tracking-[0.16em] text-white active:scale-[0.98] dark:bg-white dark:text-zinc-950"
+                >
+                    {createKey.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="mr-2 h-4 w-4" /> Criar chave aleatória</>}
+                </Button>
             </div>
 
-            {/* Security Notice */}
-            <div className="p-4 rounded-2xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 flex items-start gap-3">
-                <Shield className="w-4 h-4 text-zinc-900 dark:text-white shrink-0 mt-0.5" />
-                <div>
-                    <p className="text-[9px] font-black uppercase tracking-wider text-zinc-900 dark:text-white">
-                        Segurança NeuroFinance
-                    </p>
-                    <p className="text-[10px] text-zinc-600 dark:text-zinc-400 mt-1 leading-relaxed">
-                        Suas chaves Pix são protegidas pela infraestrutura Asaas BaaS, garantindo segurança em todas as transações.
-                    </p>
-                </div>
+            <div className="flex items-start gap-3 rounded-2xl border border-black/[0.06] bg-black/[0.025] p-4 dark:border-white/[0.07] dark:bg-white/[0.025]">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                <p className="text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    Ao criar uma chave, você autoriza o cadastro de uma chave aleatória na sua conta. A Asaas exige conta aprovada e prova de vida concluída.
+                </p>
             </div>
 
-            {/* Keys List */}
-            <div className="space-y-3">
-                <div className="flex items-center justify-between mb-2">
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">
-                        Chaves Cadastradas ({keys.length})
-                    </p>
-                    <button
-                        onClick={() => setShowAddForm(!showAddForm)}
-                        className="px-4 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 hover:opacity-90 transition-opacity"
-                    >
-                        <Plus className="w-3 h-3" />
-                        Nova Chave
-                    </button>
+            {isLoading ? (
+                <div className="flex min-h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
+            ) : error ? (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-5 text-sm text-amber-700 dark:text-amber-300">
+                    {error.message}
                 </div>
-
-                {keys.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <Key className="w-12 h-12 text-zinc-200 dark:text-zinc-700 mb-4" />
-                        <p className="text-sm font-bold text-zinc-400">Nenhuma chave cadastrada</p>
-                        <p className="text-[10px] text-zinc-400 mt-1">
-                            Cadastre sua primeira chave Pix para começar a receber
-                        </p>
-                    </div>
-                ) : (
-                    keys.map((key, index) => {
-                        const info = keyTypeInfo[key.type];
-                        const Icon = info.icon;
-
+            ) : keys.length === 0 ? (
+                <div className="flex min-h-52 flex-col items-center justify-center rounded-[24px] border border-dashed border-black/10 bg-black/[0.015] text-center dark:border-white/10 dark:bg-white/[0.015]">
+                    <Hash className="mb-4 h-9 w-9 text-zinc-300 dark:text-zinc-700" />
+                    <p className="text-sm font-bold text-zinc-600 dark:text-zinc-300">Nenhuma chave cadastrada</p>
+                    <p className="mt-1 text-[10px] text-zinc-400">Crie uma chave aleatória para receber Pix com mais agilidade.</p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {keys.map((item: any, index: number) => {
+                        const value = item.key || item.addressKey || item.value || item.id;
                         return (
                             <motion.div
-                                key={index}
-                                initial={{ opacity: 0, y: 5 }}
+                                key={item.id || value}
+                                initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1 }}
-                                className="p-5 rounded-[20px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06] hover:bg-white dark:hover:bg-white/[0.04] transition-colors group"
+                                transition={{ delay: index * 0.04 }}
+                                className="flex items-center gap-4 rounded-[20px] border border-black/[0.06] bg-white/75 p-4 shadow-sm backdrop-blur-xl dark:border-white/[0.07] dark:bg-white/[0.025]"
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-md", info.color)}>
-                                        <Icon className="w-4 h-4" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-[9px] font-black uppercase tracking-wider text-zinc-400">{info.label}</p>
-                                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-white/10 text-[7px] font-black uppercase tracking-wider text-zinc-900 dark:text-white">
-                                                <CheckCircle2 className="w-2.5 h-2.5" />
-                                                Ativa
-                                            </span>
-                                        </div>
-                                        <p className="text-sm font-bold text-zinc-900 dark:text-white font-mono mt-1 truncate">
-                                            {key.value}
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => handleCopyKey(key.value)}
-                                        className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-zinc-200 dark:hover:bg-white/10"
-                                    >
-                                        <Copy className="w-4 h-4 text-zinc-500" />
-                                    </button>
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"><Hash className="h-4 w-4" /></div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">{item.type || "EVP"} · {item.status || "Ativa"}</p>
+                                    <p className="mt-1 truncate font-mono text-xs font-bold text-zinc-950 dark:text-white">{value}</p>
                                 </div>
+                                <button onClick={() => copy(value)} className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/[0.04] transition-transform active:scale-90 dark:bg-white/[0.05]" title="Copiar chave"><Copy className="h-4 w-4" /></button>
+                                <button onClick={() => deleteKey.mutate(item.id)} disabled={deleteKey.isPending} className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/[0.06] text-rose-500 transition-transform active:scale-90 disabled:opacity-40" title="Excluir chave"><Trash2 className="h-4 w-4" /></button>
                             </motion.div>
                         );
-                    })
-                )}
-            </div>
-
-            {/* Add Key Form (simplified for sandbox) */}
-            {showAddForm && (
-                <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    className="p-6 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06] space-y-4"
-                >
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">
-                        Cadastrar Nova Chave (Sandbox)
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                        {(Object.entries(keyTypeInfo) as [KeyType, typeof keyTypeInfo.evp][]).map(([id, info]) => {
-                            const Icon = info.icon;
-                            return (
-                                <button
-                                    key={id}
-                                    className="p-4 rounded-2xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 flex items-center gap-3 hover:bg-zinc-100 dark:hover:bg-white/[0.05] transition-all text-left"
-                                >
-                                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", info.color)}>
-                                        <Icon className="w-3.5 h-3.5" />
-                                    </div>
-                                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">
-                                        {info.label}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <p className="text-[9px] text-zinc-400 text-center">
-                        No ambiente sandbox, as chaves são gerenciadas automaticamente pelo sistema.
-                    </p>
-                </motion.div>
+                    })}
+                </div>
             )}
         </div>
     );
