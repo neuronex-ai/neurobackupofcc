@@ -44,11 +44,15 @@ import { PixChaves } from "@/components/financeiro/pix/PixChaves";
 import { PixSalarios } from "@/components/financeiro/pix/PixSalarios";
 import { PixLimites } from "@/components/financeiro/pix/PixLimites";
 import { PagamentosAgendamento } from "@/components/financeiro/pagamentos/PagamentosAgendamento";
-import { PagamentosDDA } from "@/components/financeiro/pagamentos/PagamentosDDA";
 import { PagamentosGrupos } from "@/components/financeiro/pagamentos/PagamentosGrupos";
 import { AsaasRegulatoryFooter } from "@/components/financeiro/AsaasRegulatoryFooter";
 import { FiscalConfigPanel } from "@/components/settings/FiscalConfigPanel";
 import { NeuroFinanceTariffs } from "@/components/financeiro/NeuroFinanceTariffs";
+import { AnticipationsList } from "@/components/financeiro/antecipacoes/AnticipationsList";
+import { AnticipationRequest } from "@/components/financeiro/antecipacoes/AnticipationRequest";
+import { AutomaticAnticipation } from "@/components/financeiro/antecipacoes/AutomaticAnticipation";
+import { SalesSimulator } from "@/components/financeiro/cobrancas/SalesSimulator";
+import { ChargebacksPanel } from "@/components/financeiro/cobrancas/ChargebacksPanel";
 import type { Transaction } from "@/types";
 
 export type FinanceView =
@@ -63,8 +67,9 @@ export type FinanceView =
     | "pix-limites"
     | "transferencias"
     | "pagamentos"
+    | "pagamentos-boletos"
+    | "pagamentos-pix"
     | "pagamentos-agendar"
-    | "pagamentos-dda"
     | "pagamentos-grupos"
     | "contas-bancarias"
     | "extrato"
@@ -73,7 +78,12 @@ export type FinanceView =
     | "despesas"
     | "cobrancas-historia"
     | "cobrancas-config"
+    | "cobrancas-simulador"
+    | "cobrancas-chargebacks"
     | "antecipacoes"
+    | "antecipacoes-lista"
+    | "antecipacoes-solicitar"
+    | "antecipacoes-automatica"
     | "antecipacoes-simulador"
     | "antecipacoes-historico"
     | "fiscal-painel"
@@ -287,10 +297,12 @@ export function FinancialDashboard({
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Send} title="Saque" subtitle="Envie fundos para sua conta" onBack={handleGoBack} /><ContentWrapper><BankTransferView /></ContentWrapper></motion.div>;
         case "pagamentos":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Receipt} title="Pagamentos" subtitle="Pague boletos e Pix" onBack={handleGoBack} /><ContentWrapper><PagamentosAgendamento /></ContentWrapper></motion.div>;
+        case "pagamentos-boletos":
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Barcode} title="Pagar boletos" subtitle="Linha digitável, imagem ou PDF" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosAgendamento /></ContentWrapper></motion.div>;
+        case "pagamentos-pix":
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={QrCode} title="Pagar Pix" subtitle="Use o saldo da conta para pagar" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PixPagarCopiaCola /></ContentWrapper></motion.div>;
         case "pagamentos-agendar":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Calendar} title="Pagar contas" subtitle="Boletos e Pix de fornecedores" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosAgendamento /></ContentWrapper></motion.div>;
-        case "pagamentos-dda":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Barcode} title="Boletos no DDA" subtitle="Boletos encontrados para sua conta" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosDDA /></ContentWrapper></motion.div>;
         case "pagamentos-grupos":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={FolderOpen} title="Pagamentos em lote" subtitle="Organize várias contas de uma vez" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosGrupos /></ContentWrapper></motion.div>;
         case "contas-bancarias":
@@ -301,12 +313,21 @@ export function FinancialDashboard({
             return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={WalletCards} title="Todas as cobranças" subtitle="Veja, filtre e crie cobranças" onBack={handleGoBack} /><InvoicesListPanel /></motion.div>;
         case "cobrancas-config":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Settings} title="Regras automáticas" subtitle="Como o sistema cobra por você" onBack={handleGoBack} /><ContentWrapper><CapabilityNotice icon={Settings} title="Cobrança no piloto automático" description="Aqui reuniremos regras simples para cobrar consultas, pacotes e assinaturas sem trabalho manual." /></ContentWrapper></motion.div>;
+        case "cobrancas-simulador":
+            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={BadgeCent} title="Simulador de vendas" subtitle="Veja taxas e valor líquido antes de cobrar" onBack={handleGoBack} /><SalesSimulator /></motion.div>;
+        case "cobrancas-chargebacks":
+            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Activity} title="Chargebacks" subtitle="Contestações e reversões de pagamento" onBack={handleGoBack} /><ChargebacksPanel /></motion.div>;
+        case "antecipacoes-lista":
+            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Repeat} title="Minhas antecipações" subtitle="Acompanhe solicitações e créditos" onBack={handleGoBack} /><AnticipationsList /></motion.div>;
         case "antecipacoes":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={TrendingUp} title="Antecipar recebíveis" subtitle="Receba antes o que já está previsto" onBack={handleGoBack} /><ContentWrapper><CapabilityNotice icon={TrendingUp} title="Antecipações em preparação" description="Em breve você poderá escolher cobranças a receber e pedir a antecipação direto pela sua conta NeuroFinance." /></ContentWrapper></motion.div>;
+        case "antecipacoes-solicitar":
+            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={TrendingUp} title="Antecipar recebimento" subtitle="Receba antes o que já está previsto" onBack={handleGoBack} /><AnticipationRequest /></motion.div>;
+        case "antecipacoes-automatica":
+            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Repeat} title="Antecipação automática" subtitle="Configure quando estiver disponível" onBack={handleGoBack} /><AutomaticAnticipation /></motion.div>;
         case "antecipacoes-simulador":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={WalletCards} title="Simular antecipação" subtitle="Veja o valor antes de confirmar" onBack={() => setActiveView("antecipacoes")} /><ContentWrapper><CapabilityNotice icon={WalletCards} title="Simulador de antecipação" description="A ideia é simples: você informa o recebível, vê o valor líquido e decide se quer antecipar." /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={WalletCards} title="Simular antecipação" subtitle="Veja o valor antes de confirmar" onBack={() => setActiveView("antecipacoes-solicitar")} /><AnticipationRequest /></motion.div>;
         case "antecipacoes-historico":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Repeat} title="Histórico de antecipações" subtitle="O que já foi antecipado" onBack={() => setActiveView("antecipacoes")} /><ContentWrapper><CapabilityNotice icon={Repeat} title="Sem antecipações por enquanto" description="Quando você antecipar recebíveis, o histórico aparecerá aqui de forma clara." /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Repeat} title="Histórico de antecipações" subtitle="O que já foi antecipado" onBack={() => setActiveView("antecipacoes-lista")} /><AnticipationsList /></motion.div>;
         case "fiscal-painel":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={LayoutDashboard} title="NFS-e automática" subtitle="Emissão Asaas após pagamento" onBack={handleGoBack} /><ContentWrapper><FiscalConfigPanel /></ContentWrapper></motion.div>;
         case "fiscal-lista":

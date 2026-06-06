@@ -16,6 +16,7 @@ import { useAuth } from "@/components/auth/SessionContextProvider";
 import { toast } from "sonner";
 import type { NeuroFinancePayment, CreatePaymentResult } from "./use-neurofinance-payments";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import { invokeNeurofinanceFunction } from "@/lib/neurofinance-edge";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -166,18 +167,12 @@ export function useNeuroFinancePix() {
         mutationFn: async (params) => {
             const amountCentavos = Math.round(params.valor * 100);
 
-            const response = await supabase.functions.invoke('asaas-pix-out', {
-                body: {
+            return invokeNeurofinanceFunction('asaas-pix-out', {
                     amount: amountCentavos,
                     pix_key: params.pixKey,
                     description: params.descricao,
                     type: params.type || 'transfer',
-                },
-            });
-
-            if (response.error) throw new Error(response.error.message);
-            if (response.data?.error) throw new Error(response.data.error);
-            return response.data;
+            }, "transfer");
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payments'] });
@@ -191,12 +186,7 @@ export function useNeuroFinancePix() {
 
     const payQrCode = useMutation<any, Error, { payload: string; valor?: number }>({
         mutationFn: async ({ payload, valor }) => {
-            const response = await supabase.functions.invoke('asaas-pix', {
-                body: { action: 'pay_qr_code', payload, value: valor },
-            });
-            if (response.error) throw new Error(response.error.message);
-            if (response.data?.error) throw new Error(response.data.error);
-            return response.data;
+            return invokeNeurofinanceFunction('asaas-pix', { action: 'pay_qr_code', payload, value: valor }, "transfer");
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payments'] });

@@ -65,19 +65,19 @@ const FINANCE_NAV: NavItem[] = [
         label: "NeuroFinance",
         icon: Landmark,
         subItems: [
-            { id: 'conta-digital', label: 'Visão Geral', icon: CreditCard },
+            { id: 'conta-digital', label: 'Vis?o Geral', icon: CreditCard },
             {
                 id: 'pix',
-                label: 'Área Pix',
+                label: '?rea Pix',
                 icon: BadgeCent,
                 subItems: [
-                    { id: 'pix-pagar', label: 'Pagar Pix', icon: QrCode, tag: 'Grátis', description: 'Cole um Pix copia e cola e pague pela conta NeuroFinance' },
-                    { id: 'pix-transferir', label: 'Transferir por Pix', icon: Send, tag: 'Grátis', description: 'Envie dinheiro para uma chave Pix' },
-                    { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Grátis', description: 'Crie um QR Code para receber na hora' },
-                    { id: 'pix-receber', label: 'Pix recebidos', icon: ArrowDownLeft, tag: 'Grátis', description: 'Veja o que entrou por Pix' },
+                    { id: 'pix-pagar', label: 'Pagar Pix', icon: QrCode, tag: 'Gr?tis', description: 'Cole um Pix copia e cola e pague pela conta NeuroFinance' },
+                    { id: 'pix-transferir', label: 'Transferir por Pix', icon: Send, tag: 'Gr?tis', description: 'Envie dinheiro para uma chave Pix' },
+                    { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Gr?tis', description: 'Crie um QR Code para receber na hora' },
+                    { id: 'pix-receber', label: 'Pix recebidos', icon: ArrowDownLeft, tag: 'Gr?tis', description: 'Veja o que entrou por Pix' },
                     { id: 'pix-chaves', label: 'Minhas chaves', icon: Key, description: 'Cadastre e gerencie suas chaves Pix' },
-                    { id: 'pix-salarios', label: 'Pagar salários', icon: Users, tag: 'Grátis', description: 'Envie Pix em lote para sua equipe' },
-                    { id: 'pix-limites', label: 'Limites do Pix', icon: ShieldCheck, tag: 'No App', description: 'Ajuste limites de segurança da conta' },
+                    { id: 'pix-salarios', label: 'Pagar sal?rios', icon: Users, tag: 'Gr?tis', description: 'Envie Pix em lote para sua equipe' },
+                    { id: 'pix-limites', label: 'Limites do Pix', icon: ShieldCheck, tag: 'No App', description: 'Ajuste limites de seguran?a da conta' },
                 ]
             },
             { id: 'transferencias', label: 'Saque', icon: Send },
@@ -86,32 +86,34 @@ const FINANCE_NAV: NavItem[] = [
                 label: 'Pagamentos',
                 icon: Receipt,
                 subItems: [
-                    { id: 'pagamentos-agendar', label: 'Pagar contas', icon: Calendar, description: 'Pague boletos e Pix de fornecedores' },
-                    { id: 'pagamentos-dda', label: 'Boletos no DDA', icon: Barcode, description: 'Veja boletos encontrados para sua conta' },
+                    { id: 'pagamentos-boletos', label: 'Pagar boletos', icon: Barcode, description: 'Digite, arraste imagem ou anexe PDF' },
+                    { id: 'pagamentos-pix', label: 'Pagar Pix', icon: QrCode, description: 'Pague com Pix copia e cola' },
                     { id: 'pagamentos-grupos', label: 'Pagamentos em lote', icon: FolderOpen, description: 'Acompanhe grupos de pagamentos' },
                 ]
             },
-            { id: 'contas-bancarias', label: 'Conta bancária', icon: Landmark },
+            { id: 'contas-bancarias', label: 'Conta banc?ria', icon: Landmark },
             { id: 'extrato', label: 'Extrato Detalhado', icon: FileText },
         ],
     },
     {
         id: 'cobrancas-root',
-        label: "Cobranças",
+        label: "Cobran?as",
         icon: WalletCards,
         subItems: [
-            { id: 'cobrancas-historia', label: 'Todas as cobranças', icon: History },
-            { id: 'cobrancas-config', label: 'Regras automáticas', icon: Settings },
+            { id: 'cobrancas-historia', label: 'Todas as cobran?as', icon: History },
+            { id: 'cobrancas-simulador', label: 'Simulador de vendas', icon: BadgeCent },
+            { id: 'cobrancas-chargebacks', label: 'Chargebacks', icon: Activity },
+            { id: 'cobrancas-config', label: 'Regras autom?ticas', icon: Settings },
         ],
     },
     {
         id: 'antecipacoes-root',
-        label: "Antecipações",
+        label: "Antecipa??es",
         icon: TrendingUp,
         subItems: [
-            { id: 'antecipacoes', label: 'Antecipar recebíveis', icon: TrendingUp },
-            { id: 'antecipacoes-simulador', label: 'Simular antecipação', icon: WalletCards },
-            { id: 'antecipacoes-historico', label: 'Histórico de antecipações', icon: Repeat },
+            { id: 'antecipacoes-lista', label: 'Minhas antecipa??es', icon: History },
+            { id: 'antecipacoes-solicitar', label: 'Antecipar recebimento', icon: TrendingUp },
+            { id: 'antecipacoes-automatica', label: 'Antecipa??o autom?tica', icon: Repeat },
         ],
     },
     {
@@ -127,7 +129,7 @@ const FINANCE_NAV: NavItem[] = [
         label: "Despesas",
         icon: ArrowDownLeft,
         subItems: [
-            { id: 'despesas', label: 'Saídas Confirmadas', icon: ArrowDownLeft },
+            { id: 'despesas', label: 'Sa?das Confirmadas', icon: ArrowDownLeft },
         ]
     },
     {
@@ -141,7 +143,7 @@ const FINANCE_NAV: NavItem[] = [
     },
     {
         id: 'fluxo-caixa-root',
-        label: "Gestão & Análise",
+        label: "Gest?o & An?lise",
         icon: PieChart,
         subItems: [
             { id: 'fluxo-caixa', label: 'Fluxo de Caixa', icon: TrendingUp },
@@ -158,10 +160,10 @@ const FINANCE_NAV: NavItem[] = [
     },
     {
         id: 'config-root',
-        label: "Avançado",
+        label: "Avan?ado",
         icon: Settings,
         subItems: [
-            { id: 'configuracoes', label: 'Preferências', icon: Settings },
+            { id: 'configuracoes', label: 'Prefer?ncias', icon: Settings },
         ]
     }
 ];

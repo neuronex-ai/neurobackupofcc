@@ -135,7 +135,9 @@ Deno.serve(async (req: Request) => {
                     break;
 
                 default:
-                    if (event.startsWith('ACCOUNT_STATUS_')) {
+                    if (event.startsWith('RECEIVABLE_ANTICIPATION_')) {
+                        await handleReceivableAnticipationEvent(body.anticipation || resource, event, webhookFinancialAccount);
+                    } else if (event.startsWith('ACCOUNT_STATUS_')) {
                         await handleAccountStatus(body.accountStatus, event);
                     } else {
                         console.log(`[asaas-webhook] Unhandled event: ${event}`);
@@ -170,6 +172,7 @@ function getWebhookResource(body: any) {
         body?.customer ||
         body?.invoice ||
         body?.pix ||
+        body?.anticipation ||
         null;
 }
 
@@ -181,6 +184,7 @@ function inferProviderObjectType(body: any) {
     if (body?.customer) return 'customer';
     if (body?.invoice) return 'invoice';
     if (body?.pix) return 'pix';
+    if (body?.anticipation) return 'anticipation';
     return 'unknown';
 }
 
@@ -562,6 +566,113 @@ async function handlePaymentInfo(payment: any, event: string) {
 
     await touchFinancialAccountEvent(nbPayment.financial_account_id, event);
     console.log(`[asaas-webhook] Payment info updated (${event}): ${nbPayment.id}`);
+}
+
+function normalizeAnticipationStatus(status: string) {
+    const value = String(status || '').toUpperCase();
+    if (['CREDITED', 'APPROVED', 'DONE'].includes(value)) return 'credited';
+    if (['DENIED', 'REFUSED', 'REJECTED'].includes(value)) return 'denied';
+    if (['CANCELLED', 'CANCELED'].includes(value)) return 'cancelled';
+    if (value === 'DEBITED') return 'debited';
+    if (value === 'OVERDUE') return 'overdue';
+    if (value === 'SCHEDULED') return 'scheduled';
+    return 'pending';
+}
+
+async function handleReceivableAnticipationEvent(anticipation: any, event: string, webhookAccount?: any) {
+    if (!anticipation?.id) return;
+
+    let financialAccount = webhookAccount;
+    const providerPaymentId = anticipation.payment || anticipation.paymentId;
+    let localPayment: any = null;
+
+    if (providerPaymentId) {
+        localPayment = await findPaymentByProviderId(providerPaymentId, 'id, user_id, financial_account_id, provider_payment_id');
+        if (!financialAccount && localPayment?.financial_account_id) {
+            const { data, error } = await supabaseAdmin
+                .from('financial_accounts')
+                .select('*')
+                .eq('id', localPayment.financial_account_id)
+                .maybeSingle();
+            if (error) throw error;
+            financialAccount = data;
+        }
+    }
+
+    if (!financialAccount) {
+        console.warn(`[asaas-webhook] Account not found for anticipation ${anticipation.id}`);
+        return;
+    }
+
+    const normalizedStatus = normalizeAnticipationStatus(anticipation.status);
+    const netAmount = Math.round(Number(anticipation.netValue || anticipation.anticipatedValue || anticipation.value || 0) * 100);
+
+    await supabaseAdmin
+        .from('neurofinance_anticipations')
+        .upsert({
+            user_id: financialAccount.user_id,
+            financial_account_id: financialAccount.id,
+            provider: 'asaas',
+            provider_anticipation_id: anticipation.id,
+            provider_status: anticipation.status || null,
+            normalized_status: normalizedStatus,
+            payment_id: localPayment?.id || null,
+            provider_payment_id: providerPaymentId || null,
+            installment_id: anticipation.installment || anticipation.installmentId || null,
+            gross_amount: Math.round(Number(anticipation.totalValue || anticipation.value || 0) * 100),
+            anticipated_amount: Math.round(Number(anticipation.anticipatedValue || anticipation.value || 0) * 100),
+            fee_amount: Math.round(Number(anticipation.fee || anticipation.anticipationFee || 0) * 100),
+            net_amount: netAmount,
+            anticipation_days: Number(anticipation.anticipationDays || 0) || null,
+            anticipation_date: anticipation.anticipationDate || null,
+            due_date: anticipation.dueDate || null,
+            requested_at: anticipation.dateCreated || new Date().toISOString(),
+            credited_at: anticipation.creditedDate || null,
+            documents_required: Boolean(anticipation.isDocumentationRequired),
+            denial_observation: anticipation.denialObservation || null,
+            provider_payload: anticipation,
+            updated_at: new Date().toISOString(),
+        }, { onConflict: 'provider,provider_anticipation_id' });
+
+    if (providerPaymentId && ['scheduled', 'credited'].includes(normalizedStatus)) {
+        await supabaseAdmin
+            .from('nb_payments')
+            .update({ anticipated: true, updated_at: new Date().toISOString() })
+            .eq('provider_payment_id', providerPaymentId);
+    }
+
+    if (normalizedStatus === 'credited' && netAmount > 0) {
+        await upsertAccountMovement({
+            userId: financialAccount.user_id,
+            financialAccountId: financialAccount.id,
+            movementType: 'anticipation_credit',
+            direction: 'credit',
+            amount: netAmount,
+            description: 'Antecipação creditada',
+            referenceType: 'anticipation',
+            referenceId: anticipation.id,
+            occurredAt: anticipation.creditedDate || new Date().toISOString(),
+            metadata: { source: 'webhook', event },
+        });
+    }
+
+    if (normalizedStatus === 'debited' && netAmount > 0) {
+        await upsertAccountMovement({
+            userId: financialAccount.user_id,
+            financialAccountId: financialAccount.id,
+            movementType: 'anticipation_debit',
+            direction: 'debit',
+            amount: netAmount,
+            description: 'Débito de antecipação',
+            referenceType: 'anticipation',
+            referenceId: anticipation.id,
+            occurredAt: new Date().toISOString(),
+            metadata: { source: 'webhook', event },
+        });
+    }
+
+    await refreshOverviewSnapshot(financialAccount.id);
+    await touchFinancialAccountEvent(financialAccount.id, event);
 }
 
 async function handleTransferPending(transfer: any) {

@@ -1,8 +1,8 @@
 /**
  * asaas-pix-out
  *
- * Sends a Pix transfer from the psychologist's Asaas subaccount to an external Pix key.
- * The available balance is read from Asaas, not from the deprecated local ledger.
+ * Sends a Pix transfer from the psychologist's subaccount to an external Pix key.
+ * Pix-out is recorded as a payout, never as a negative payment.
  */
 
 import {
@@ -25,18 +25,18 @@ Deno.serve(async (req: Request) => {
         const { amount, pix_key, description, type = 'transfer' } = await req.json();
 
         if (!amount || amount <= 0) {
-            return errorResponse('Valor inválido para transferência.');
+            return errorResponse('Informe um valor válido para a transferência.');
         }
 
         if (!pix_key) {
-            return errorResponse('Chave Pix é obrigatória.');
+            return errorResponse('Informe a chave Pix de destino.');
         }
 
         const financialAccount = await getFinancialAccount(user.id);
         const subApiKey = getFinancialAccountAsaasApiKey(financialAccount);
 
         if (!financialAccount || !subApiKey) {
-            return errorResponse('Conta financeira não configurada.', 403);
+            return errorResponse('Sua conta ainda não está pronta para enviar Pix.', 403);
         }
 
         const asaasBalance = await getAsaasBalance(subApiKey);
@@ -55,25 +55,29 @@ Deno.serve(async (req: Request) => {
                 : `Transferência Pix para ${pix_key}`),
         });
 
-        const { data: paymentRecord, error: insertError } = await supabaseAdmin
-            .from('nb_payments')
+        const { data: payoutRecord, error: insertError } = await supabaseAdmin
+            .from('nb_payouts')
             .insert({
                 user_id: user.id,
                 financial_account_id: financialAccount.id,
-                payment_method_type: 'pix',
                 provider: 'asaas',
-                status: 'processing',
-                gross_amount: -amount,
-                net_amount: -amount,
-                platform_fee_amount: 0,
-                description: description || `Transferência Pix para ${pix_key}`,
+                provider_payout_id: transfer.id,
+                provider_status: String(transfer.status || 'PENDING').toUpperCase(),
+                operation_type: type === 'pay' ? 'pix_payment' : 'pix_transfer',
+                pix_key,
+                amount,
+                currency: 'brl',
+                status: 'pending',
+                destination_type: 'pix_key',
+                destination_summary: description || `Pix para ${pix_key}`,
+                requested_at: new Date().toISOString(),
                 metadata: {
                     pix_key,
                     type,
                     asaas_transfer_id: transfer.id,
                     source: 'neurofinance_pix_out',
                 },
-                paid_at: new Date().toISOString(),
+                provider_payload: transfer,
             })
             .select()
             .single();
@@ -82,14 +86,14 @@ Deno.serve(async (req: Request) => {
 
         return jsonResponse({
             success: true,
-            payment_id: paymentRecord.id,
+            payout_id: payoutRecord.id,
             asaas_transfer_id: transfer.id,
             amount,
             pix_key,
-            status: 'processing',
+            status: 'pending',
         });
     } catch (error: any) {
         console.error('asaas-pix-out error:', error);
-        return errorResponse(error.message || 'Internal error', 500);
+        return errorResponse(error.message || 'Não conseguimos enviar este Pix agora.', error?.status || 500);
     }
 });

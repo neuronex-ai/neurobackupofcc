@@ -7,7 +7,38 @@ import {
     getFinancialAccountAsaasApiKey,
     jsonResponse,
     recordBaasOperation,
+    supabaseAdmin,
 } from '../_shared/asaas-client.ts';
+
+function cents(value: unknown) {
+    return Math.round(Number(value || 0) * 100);
+}
+
+function billInput(body: Record<string, any>) {
+    const identificationField = String(body.identificationField || '').replace(/\D/g, '');
+    const barCode = String(body.barCode || body.barcode || '').replace(/\D/g, '');
+    return { identificationField, barCode };
+}
+
+function billRow(userId: string, accountId: string, input: { identificationField?: string; barCode?: string }, payload: any, status: string) {
+    return {
+        user_id: userId,
+        financial_account_id: accountId,
+        identification_field: input.identificationField || null,
+        barcode: input.barCode || null,
+        status,
+        amount: cents(payload?.value || payload?.amount),
+        fee_amount: cents(payload?.fee),
+        due_date: payload?.dueDate || payload?.due_date || null,
+        scheduled_date: payload?.scheduleDate || payload?.scheduledDate || null,
+        beneficiary_name: payload?.beneficiaryName || payload?.beneficiary?.name || null,
+        beneficiary_document: payload?.beneficiaryDocument || payload?.beneficiary?.cpfCnpj || null,
+        bank_code: payload?.bank || payload?.bankCode || null,
+        bank_name: payload?.bankName || payload?.bank?.name || null,
+        provider_payload: payload || {},
+        updated_at: new Date().toISOString(),
+    };
+}
 
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return corsResponse();
@@ -19,7 +50,9 @@ Deno.serve(async (req: Request) => {
         const account = await getFinancialAccount(user.id);
         const apiKey = getFinancialAccountAsaasApiKey(account);
 
-        if (!account || !apiKey) return errorResponse('Conta financeira não configurada.', 403);
+        if (!account || !apiKey) {
+            return errorResponse('Sua conta ainda não está pronta para pagar contas.', 403);
+        }
 
         if (action === 'list') {
             const result = await asaasRequest('/bill?limit=100&offset=0', 'GET', undefined, apiKey);
@@ -27,17 +60,33 @@ Deno.serve(async (req: Request) => {
         }
 
         if (action === 'simulate') {
-            if (!body.identificationField) return errorResponse('Linha digitável é obrigatória.', 400);
-            const result = await asaasRequest('/bill/simulate', 'POST', {
-                identificationField: body.identificationField,
-            }, apiKey);
-            return jsonResponse({ success: true, bill: result });
+            const input = billInput(body);
+            if (!input.identificationField && !input.barCode) {
+                return errorResponse('Informe a linha digitável ou o código de barras do boleto.', 400);
+            }
+
+            const simulatePayload = input.identificationField
+                ? { identificationField: input.identificationField }
+                : { barCode: input.barCode };
+            const result = await asaasRequest('/bill/simulate', 'POST', simulatePayload, apiKey);
+
+            const { data: record } = await supabaseAdmin
+                .from('neurofinance_bill_payments')
+                .insert(billRow(user.id, account.id, input, result, 'validated'))
+                .select()
+                .single();
+
+            return jsonResponse({ success: true, bill: result, record });
         }
 
         if (action === 'create') {
-            if (!body.identificationField) return errorResponse('Linha digitável é obrigatória.', 400);
+            const input = billInput(body);
+            if (!input.identificationField) {
+                return errorResponse('Para pagar o boleto, informe a linha digitável. Se você só tiver a imagem, valide primeiro e confirme os dados encontrados.', 400);
+            }
+
             const payload: Record<string, unknown> = {
-                identificationField: body.identificationField,
+                identificationField: input.identificationField,
                 description: body.description || 'Pagamento de conta via NeuroFinance',
                 externalReference: body.externalReference || crypto.randomUUID(),
             };
@@ -51,12 +100,24 @@ Deno.serve(async (req: Request) => {
                 description: String(payload.description),
                 payload,
             });
-            return jsonResponse({ success: true, bill: result });
+
+            const { data: record } = await supabaseAdmin
+                .from('neurofinance_bill_payments')
+                .insert({
+                    ...billRow(user.id, account.id, input, result, 'processing'),
+                    provider_bill_id: (result as any)?.id || null,
+                    external_reference: String(payload.externalReference),
+                    description: String(payload.description),
+                })
+                .select()
+                .single();
+
+            return jsonResponse({ success: true, bill: result, record });
         }
 
-        return errorResponse('Ação de pagamento não suportada.', 400);
+        return errorResponse('Esta ação de pagamento não está disponível.', 400);
     } catch (error: any) {
         console.error('asaas-bill-payment error:', error);
-        return errorResponse(error?.message || 'Erro ao processar pagamento de conta.', error?.status || 500);
+        return errorResponse(error?.message || 'Não conseguimos processar este boleto agora.', error?.status || 500);
     }
 });
