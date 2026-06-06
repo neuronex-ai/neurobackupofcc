@@ -7,7 +7,7 @@ import { useDashboardActivities, type ActivityType, type DashboardActivity } fro
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Activity, CalendarClock, CheckCircle2, CreditCard, FileText, NotebookPen, Sparkles, X } from 'lucide-react';
+import { Activity, CalendarClock, CheckCircle2, CreditCard, FileText, NotebookPen, RefreshCw, Sparkles, X } from 'lucide-react';
 
 interface PatientActivitiesModalProps {
   isOpen: boolean;
@@ -27,7 +27,7 @@ const FILTERS: Array<{ id: ActivityFilter; label: string }> = [
 const APPOINTMENT_TYPES: ActivityType[] = ['appointment_scheduled', 'appointment_status', 'appointment_rescheduled'];
 
 export const PatientActivitiesModal = ({ isOpen, onClose }: PatientActivitiesModalProps) => {
-  const { data: activities, isLoading } = useDashboardActivities();
+  const { data: activities, isLoading, isError, refetch, isFetching } = useDashboardActivities();
   const [filter, setFilter] = useState<ActivityFilter>('all');
 
   const filteredActivities = useMemo(() => {
@@ -71,10 +71,10 @@ export const PatientActivitiesModal = ({ isOpen, onClose }: PatientActivitiesMod
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[880px] w-[95vw] max-h-[86vh] p-0 bg-white/90 dark:bg-[#080809]/95 backdrop-blur-2xl border border-zinc-200/60 dark:border-white/10 overflow-hidden flex flex-col rounded-[34px] shadow-[0_40px_120px_-50px_rgba(0,0,0,0.55)]">
+      <DialogContent className="max-w-[880px] w-[95vw] max-h-[86vh] p-0 bg-white dark:bg-[#080809] text-zinc-950 dark:text-white border border-zinc-200/80 dark:border-white/10 overflow-hidden flex flex-col rounded-[34px] shadow-[0_42px_120px_-42px_rgba(24,24,27,0.38)]">
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_16%_0%,rgba(255,255,255,0.85),transparent_28%),radial-gradient(circle_at_92%_8%,rgba(161,161,170,0.18),transparent_30%)] dark:bg-[radial-gradient(circle_at_16%_0%,rgba(255,255,255,0.08),transparent_30%),radial-gradient(circle_at_92%_8%,rgba(161,161,170,0.12),transparent_30%)]" />
 
-        <div className="relative flex items-center justify-between gap-4 px-8 py-6 bg-white/70 dark:bg-zinc-950/55 border-b border-zinc-200/70 dark:border-white/10 shrink-0 backdrop-blur-2xl">
+        <div className="relative flex items-center justify-between gap-4 px-8 py-6 bg-white/70 dark:bg-zinc-950/[0.72] border-b border-zinc-200/70 dark:border-white/10 shrink-0 backdrop-blur-2xl">
           <div className="flex items-center gap-4 min-w-0">
             <div className="w-12 h-12 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-zinc-950 shadow-sm">
               <Activity className="w-5 h-5" />
@@ -118,6 +118,25 @@ export const PatientActivitiesModal = ({ isOpen, onClose }: PatientActivitiesMod
             <div className="h-full flex items-center justify-center py-20">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-white" />
             </div>
+          ) : isError ? (
+            <div className="min-h-[300px] flex flex-col items-center justify-center text-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200/80 dark:border-rose-500/20 flex items-center justify-center text-rose-500">
+                <Activity className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-zinc-800 dark:text-zinc-100">Não foi possível carregar as atividades.</p>
+                <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-1">Tente sincronizar novamente em alguns instantes.</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="h-10 rounded-xl gap-2 border-zinc-200 bg-white text-zinc-800 shadow-sm dark:border-white/10 dark:bg-white/[0.04] dark:text-white"
+              >
+                <RefreshCw className={cn('w-4 h-4', isFetching && 'animate-spin')} />
+                Tentar novamente
+              </Button>
+            </div>
           ) : filteredActivities.length > 0 ? (
             <div className="space-y-5 relative before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-px before:bg-zinc-200/80 dark:before:bg-white/10">
               {filteredActivities.map((activity, index) => {
@@ -135,7 +154,7 @@ export const PatientActivitiesModal = ({ isOpen, onClose }: PatientActivitiesMod
                       {getIcon(activity)}
                     </div>
 
-                    <div className="bg-white/78 dark:bg-white/[0.035] rounded-[26px] border border-zinc-200/70 dark:border-white/10 p-5 flex items-center justify-between gap-4 group hover:bg-white dark:hover:bg-white/[0.06] hover:shadow-[0_18px_48px_-30px_rgba(0,0,0,0.45)] transition-all">
+                    <div className="bg-white dark:bg-white/[0.035] rounded-[26px] border border-zinc-200/80 dark:border-white/10 p-5 flex items-center justify-between gap-4 group hover:border-zinc-300 dark:hover:bg-white/[0.06] hover:shadow-[0_18px_48px_-30px_rgba(0,0,0,0.35)] transition-all">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className="text-xs font-black text-zinc-950 dark:text-white uppercase tracking-widest truncate">{activity.patient_name}</span>

@@ -137,24 +137,17 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
         }
     }, [isPendingModalOpen, refetchPending, refetchBalance]);
 
-    // Fallbacks
     const incomeTransactions = useMemo(() => {
-        const hasValidAsaasData = Array.isArray(incomeDetails) && incomeDetails.some(t => t && t.amount > 0 && t.date);
-        if (hasValidAsaasData) return incomeDetails;
-        return transactions.filter(t => t.type === 'income' && t.status === 'completed');
-    }, [incomeDetails, transactions]);
+        return Array.isArray(incomeDetails) ? incomeDetails : [];
+    }, [incomeDetails]);
 
     const expenseTransactions = useMemo(() => {
-        const hasValidAsaasData = Array.isArray(expensesDetails) && expensesDetails.some(t => t && t.amount > 0 && t.date);
-        if (hasValidAsaasData) return expensesDetails;
-        return transactions.filter(t => t.type === 'expense' && t.status === 'completed');
-    }, [expensesDetails, transactions]);
+        return Array.isArray(expensesDetails) ? expensesDetails : [];
+    }, [expensesDetails]);
 
     const pendingTransactions = useMemo(() => {
-        const hasValidAsaasData = Array.isArray(pendingDetails) && pendingDetails.some(t => t && t.amount > 0 && t.date);
-        if (hasValidAsaasData) return pendingDetails;
-        return transactions.filter(t => t.status === 'pending');
-    }, [pendingDetails, transactions]);
+        return Array.isArray(pendingDetails) ? pendingDetails : [];
+    }, [pendingDetails]);
 
 
     const actionButtons = useMemo(() => (
@@ -463,7 +456,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                 <div className="flex flex-col justify-center gap-2 md:gap-3 w-full xl:w-auto shrink-0 bg-zinc-100/50 dark:bg-white/5 p-3 rounded-[32px] border border-zinc-200/50 dark:border-white/5 backdrop-blur-xl h-full min-h-[160px]">
                                     <div
                                         className="px-4 py-3 rounded-[20px] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-white/10 shadow-lg cursor-pointer hover:scale-[1.02] transition-transform w-full xl:w-[110px]"
-                                        onClick={() => setIsStatementOpen(true)}
+                                        onClick={() => setIsIncomeModalOpen(true)}
                                     >
                                         <p className="text-[7.5px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.15em] mb-1.5 leading-none">Quanto Entrou</p>
                                         <p className="text-sm md:text-base font-black text-zinc-900 dark:text-white tracking-tighter leading-none flex items-baseline gap-1">

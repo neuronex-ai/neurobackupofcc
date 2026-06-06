@@ -31,8 +31,8 @@ export function NeuroFinanceVerificationModal({
 }: NeuroFinanceVerificationModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[88vh] flex-col overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/92 p-0 shadow-[0_40px_120px_-48px_rgba(0,0,0,0.75)] backdrop-blur-3xl dark:border-white/10 dark:bg-zinc-950/95 sm:max-w-[1180px]">
-        <DialogHeader className="shrink-0 border-b border-zinc-100 bg-white/82 p-8 pb-6 dark:border-white/5 dark:bg-zinc-950/82">
+      <DialogContent className="flex h-[88vh] flex-col overflow-hidden rounded-[34px] border border-zinc-200/80 bg-white p-0 text-zinc-950 shadow-[0_42px_120px_-42px_rgba(24,24,27,0.38)] dark:border-white/10 dark:bg-zinc-950 dark:text-white sm:max-w-[1180px]">
+        <DialogHeader className="shrink-0 border-b border-zinc-200/80 bg-white px-8 py-7 dark:border-white/[0.07] dark:bg-zinc-950">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
             Análise cadastral
           </DialogTitle>
@@ -41,10 +41,10 @@ export function NeuroFinanceVerificationModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="relative flex flex-1 overflow-hidden bg-white dark:bg-zinc-950">
-          <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.02]" />
+        <div className="relative flex flex-1 overflow-hidden bg-zinc-50/80 dark:bg-zinc-950">
+          <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.012] dark:opacity-[0.035]" />
 
-          <aside className="relative z-10 hidden w-[360px] space-y-6 overflow-y-auto border-r border-zinc-100 bg-white/70 p-7 dark:border-white/5 dark:bg-zinc-950/70 lg:block">
+          <aside className="relative z-10 hidden w-[360px] space-y-6 overflow-y-auto border-r border-zinc-200/70 bg-white p-7 dark:border-white/[0.07] dark:bg-zinc-950 lg:block">
             <RequirementsList
               onSelectRequirement={setSelectedRequirement}
               activeRequirement={selectedRequirement}
@@ -63,7 +63,7 @@ export function NeuroFinanceVerificationModal({
             </div>
           </aside>
 
-          <div className="relative z-10 flex-1 overflow-auto bg-zinc-50/50 p-6 dark:bg-black/40 sm:p-10 lg:p-12">
+          <div className="relative z-10 flex-1 overflow-auto bg-zinc-50/[0.94] p-6 dark:bg-black/30 sm:p-10 lg:p-12">
             <AnimatePresence mode="wait">
               {selectedRequirement ? (
                 <motion.div

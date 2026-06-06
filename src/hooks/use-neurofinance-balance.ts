@@ -1,9 +1,7 @@
 /**
  * use-NeuroFinance-balance.ts
  * 
- * Reads balance from the financial account sync response (Asaas API).
- * The balance is fetched from the Asaas API via the asaas-account-sync
- * edge function — no local ledger table is used.
+ * Reads balance and current-month cash flow directly from Asaas.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -37,34 +35,38 @@ export const useNeuroFinanceBalance = () => {
         queryFn: async () => {
             if (!user?.id) throw new Error('Não autenticado');
 
-            // Fetch balance from the Asaas account sync endpoint
-            const { data, error } = await supabase.functions.invoke('asaas-account-sync', {
+            const { data, error } = await supabase.functions.invoke('asaas-balance-details', {
                 body: {},
             });
 
             if (error) {
-                console.warn('[useNeuroFinanceBalance] Sync error:', error.message);
+                throw new Error(error.message);
             }
 
-            const availableCentavos = data?.balance?.available ?? 0;
-            const pendingCentavos = data?.balance?.pending ?? 0;
+            const summary = data?.summary || {};
+            const availableCentavos = summary.available_balance ?? data?.balance?.available ?? 0;
+            const pendingCentavos = summary.pending_balance ?? data?.balance?.pending ?? 0;
+            const grossVolume = summary.gross_volume ?? 0;
+            const feesTotal = summary.fees_total ?? 0;
+            const netVolume = summary.net_volume ?? 0;
+            const paidOut = summary.paid_out_balance ?? 0;
 
             return {
                 balance: availableCentavos / 100,
                 pending: pendingCentavos / 100,
                 reserved: 0,
-                totalReceived: 0,
-                feesTotal: 0,
-                netVolume: 0,
-                paidOut: 0,
+                totalReceived: grossVolume / 100,
+                feesTotal: feesTotal / 100,
+                netVolume: netVolume / 100,
+                paidOut: paidOut / 100,
                 raw: {
                     available_balance: availableCentavos,
                     pending_balance: pendingCentavos,
                     reserved_balance: 0,
-                    gross_volume: 0,
-                    fees_total: 0,
-                    net_volume: 0,
-                    paid_out_balance: 0,
+                    gross_volume: grossVolume,
+                    fees_total: feesTotal,
+                    net_volume: netVolume,
+                    paid_out_balance: paidOut,
                 },
             };
         },

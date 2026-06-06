@@ -15,6 +15,7 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
     isLoading,
     needsInitialOnboarding,
     needsVerification,
+    isAccountMissing,
   } = useFinancialAccount();
 
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -53,7 +54,7 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {(needsInitialOnboarding || needsVerification) && (
+      {(needsInitialOnboarding || needsVerification || isAccountMissing) && (
         <OnboardingPendingNotice onRequestOnboarding={handleOpenOnboarding} />
       )}
 

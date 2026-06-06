@@ -130,10 +130,10 @@ export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalPro
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[860px] w-[95vw] max-h-[86vh] p-0 bg-white/90 dark:bg-[#080809]/95 backdrop-blur-2xl border border-zinc-200/60 dark:border-white/10 overflow-hidden flex flex-col rounded-[34px] shadow-[0_40px_120px_-50px_rgba(0,0,0,0.55)]">
+      <DialogContent className="max-w-[860px] w-[95vw] max-h-[86vh] p-0 bg-white dark:bg-[#080809] text-zinc-950 dark:text-white border border-zinc-200/80 dark:border-white/10 overflow-hidden flex flex-col rounded-[34px] shadow-[0_42px_120px_-42px_rgba(24,24,27,0.38)]">
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.85),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(161,161,170,0.18),transparent_28%)] dark:bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.08),transparent_32%),radial-gradient(circle_at_85%_10%,rgba(161,161,170,0.10),transparent_28%)]" />
 
-        <div className="relative flex items-center justify-between gap-4 px-8 py-6 bg-white/70 dark:bg-zinc-950/55 border-b border-zinc-200/70 dark:border-white/10 shrink-0 backdrop-blur-2xl">
+        <div className="relative flex items-center justify-between gap-4 px-8 py-6 bg-white/70 dark:bg-zinc-950/[0.72] border-b border-zinc-200/70 dark:border-white/10 shrink-0 backdrop-blur-2xl">
           <div className="flex items-center gap-4 min-w-0">
             <div className="w-12 h-12 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-zinc-950 shadow-sm">
               <Gift className="w-5 h-5" />
@@ -194,7 +194,7 @@ export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalPro
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.025 }}
-                  className="group bg-white/78 dark:bg-white/[0.035] rounded-[24px] border border-zinc-200/70 dark:border-white/10 p-4 flex items-center gap-5 hover:bg-white dark:hover:bg-white/[0.06] hover:shadow-[0_18px_48px_-30px_rgba(0,0,0,0.45)] transition-all"
+                  className="group bg-white dark:bg-white/[0.035] rounded-[24px] border border-zinc-200/80 dark:border-white/10 p-4 flex items-center gap-5 hover:border-zinc-300 dark:hover:bg-white/[0.06] hover:shadow-[0_18px_48px_-30px_rgba(0,0,0,0.35)] transition-all"
                 >
                   <div className="flex flex-col items-center justify-center min-w-[64px] h-16 bg-zinc-50 dark:bg-white/[0.04] rounded-2xl border border-zinc-200/70 dark:border-white/10">
                     <span className="text-xl font-black text-zinc-950 dark:text-white tabular-nums leading-none">{patient.birth_day}</span>
@@ -234,7 +234,7 @@ export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalPro
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 bg-white/72 dark:bg-black/72 backdrop-blur-xl flex items-center justify-center p-8"
+              className="absolute inset-0 z-50 bg-white/[0.92] dark:bg-black/[0.82] backdrop-blur-xl flex items-center justify-center p-8"
             >
               <motion.div
                 initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -328,7 +328,7 @@ const ContactActionButton = ({
     onClick={onClick}
     className={cn(
       'h-11 w-11 rounded-2xl p-0 bg-zinc-50/80 dark:bg-white/[0.04] border-zinc-200/80 dark:border-white/10 text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-white dark:hover:bg-white/[0.08] transition-all',
-      disabled && 'opacity-35 cursor-not-allowed hover:text-zinc-500 hover:bg-zinc-50/80 dark:hover:bg-white/[0.04]'
+      disabled && 'opacity-[0.35] cursor-not-allowed hover:text-zinc-500 hover:bg-zinc-50/80 dark:hover:bg-white/[0.04]'
     )}
   >
     {icon}

@@ -170,8 +170,8 @@ export const useFinancialAccount = () => {
   const isAwaitingDocuments = accountState.hasActionableStages && !isApproved;
   const hasActionableRequirements = isAwaitingDocuments || isRestricted || isAccountMissing;
   const needsVerification = isAccountCreated && accountState.hasOpenStages;
-  const needsInitialOnboarding =
-    !isAccountCreated || uiStatus === "account_missing";
+  const needsInitialOnboarding = !isAccountCreated && uiStatus !== "account_missing";
+  const isOperationallyConnected = isAccountCreated && !isAccountMissing;
 
   return {
     account,
@@ -181,7 +181,7 @@ export const useFinancialAccount = () => {
     startOnboarding,
     updateAccount,
     uploadFile,
-    isConnected: isAccountCreated,
+    isConnected: isOperationallyConnected,
     hasAccount: isAccountCreated,
     isApproved,
     isPending,

@@ -26,10 +26,9 @@ export const useNeuroFinanceBalanceDetails = (view: BalanceDetailView) => {
                 throw error;
             }
 
-            return data as Transaction[];
+            return Array.isArray(data?.transactions) ? data.transactions as Transaction[] : [];
         },
         enabled: !!user?.id,
         staleTime: 1000 * 60 * 2, // 2 minutes
     });
 };
-

@@ -7,10 +7,12 @@ import { useMonthlySessionMetrics } from '@/hooks/use-monthly-session-metrics';
 import { SessionsMetricsModal } from './SessionsMetricsModal';
 import { BirthdaysModal } from './BirthdaysModal';
 import { PatientActivitiesModal } from './PatientActivitiesModal';
+import { useDashboardActivities } from '@/hooks/use-dashboard-activities';
 
 export const DashboardKpiCards = () => {
   const [currentMonth] = useState(() => startOfMonth(new Date()));
   const { data } = useMonthlySessionMetrics(currentMonth);
+  const { data: activities } = useDashboardActivities(currentMonth);
   const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
   const [isBirthdaysModalOpen, setIsBirthdaysModalOpen] = useState(false);
   const [isActivitiesModalOpen, setIsActivitiesModalOpen] = useState(false);
@@ -37,7 +39,7 @@ export const DashboardKpiCards = () => {
     {
       id: 'activities',
       title: 'atividades de pacientes',
-      value: data?.activityCount || 0,
+      value: activities?.length || 0,
       label: 'registradas este mês',
       icon: Activity,
       color: 'zinc',

@@ -212,7 +212,6 @@ Deno.serve(async (req: Request) => {
             tos_accepted_at: body.tos?.accepted ? now : null,
             onboarding_payload: body,
             metadata: {
-                asaas_api_key: subAccount.apiKey,
                 asaas_wallet_id: subAccount.walletId,
                 asaas_account_id: subAccount.id,
                 asaas_account_number: subAccount.accountNumber || null,

@@ -34,9 +34,9 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[1280px] w-[95vw] h-[90vh] p-0 bg-white/92 dark:bg-[#080809]/95 backdrop-blur-2xl border border-zinc-200/60 dark:border-white/10 overflow-hidden flex flex-col rounded-[34px] shadow-[0_40px_120px_-50px_rgba(0,0,0,0.55)]">
+      <DialogContent className="max-w-[1280px] w-[95vw] h-[90vh] p-0 bg-white dark:bg-[#080809] text-zinc-950 dark:text-white border border-zinc-200/80 dark:border-white/10 overflow-hidden flex flex-col rounded-[34px] shadow-[0_42px_120px_-42px_rgba(24,24,27,0.38)]">
         {/* Header Customizado */}
-        <div className="flex items-center justify-between px-8 py-6 bg-white/80 dark:bg-zinc-950/55 border-b border-zinc-200/70 dark:border-white/10 shrink-0 backdrop-blur-2xl">
+        <div className="flex items-center justify-between px-8 py-6 bg-white dark:bg-zinc-950 border-b border-zinc-200/80 dark:border-white/10 shrink-0">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-zinc-950 dark:bg-white flex items-center justify-center text-white dark:text-zinc-900">
               <Calendar className="w-5 h-5" />
@@ -72,7 +72,8 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8 bg-zinc-50/70 dark:bg-black/10">
+        <div className="relative flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8 bg-zinc-50/90 dark:bg-black/20">
+          <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.01] dark:opacity-[0.035]" />
           {isLoading ? (
             <div className="h-full flex items-center justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 dark:border-white" />
@@ -93,7 +94,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
               {/* Middle Section: Patient Metrics */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Active Clients Card */}
-                <div className="bg-white/82 dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/70 dark:border-white/10 space-y-6 shadow-[0_18px_50px_-42px_rgba(0,0,0,0.65)]">
+                <div className="bg-white dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/80 dark:border-white/10 space-y-6 shadow-[0_18px_50px_-42px_rgba(0,0,0,0.4)]">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-zinc-900 dark:text-white max-w-[160px] leading-tight">Clientes ativos com agendamentos futuros</h3>
                     <div className="w-8 h-8 rounded-lg bg-zinc-50 dark:bg-white/5 flex items-center justify-center">
@@ -131,7 +132,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
                 </div>
 
                 {/* Top Patient Card */}
-                <div className="bg-white/82 dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/70 dark:border-white/10 flex flex-col items-center justify-center text-center space-y-4 shadow-[0_18px_50px_-42px_rgba(0,0,0,0.65)]">
+                <div className="bg-white dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/80 dark:border-white/10 flex flex-col items-center justify-center text-center space-y-4 shadow-[0_18px_50px_-42px_rgba(0,0,0,0.4)]">
                   <span className="text-sm font-bold text-zinc-900 dark:text-white max-w-[200px] leading-tight">
                     {data.patients.topPatientName} possui
                   </span>
@@ -144,7 +145,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
 
                 {/* Online/Presencial Card */}
                 <div className="space-y-4">
-                  <div className="bg-white/82 dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/70 dark:border-white/10 flex flex-col items-center justify-center text-center shadow-[0_18px_50px_-42px_rgba(0,0,0,0.65)]">
+                  <div className="bg-white dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/80 dark:border-white/10 flex flex-col items-center justify-center text-center shadow-[0_18px_50px_-42px_rgba(0,0,0,0.4)]">
                     <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-4">De {data.kpis.totalScheduled} agendamentos...</span>
                     <div className="space-y-4 w-full">
                       <div className="flex items-center justify-center gap-3">
@@ -159,7 +160,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
                     <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-6">no período selecionado</span>
                   </div>
 
-                  <div className="bg-white/82 dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/70 dark:border-white/10 flex flex-col items-center justify-center text-center shadow-[0_18px_50px_-42px_rgba(0,0,0,0.65)]">
+                  <div className="bg-white dark:bg-white/[0.035] rounded-[32px] p-8 border border-zinc-200/80 dark:border-white/10 flex flex-col items-center justify-center text-center shadow-[0_18px_50px_-42px_rgba(0,0,0,0.4)]">
                     <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-white/10 flex items-center justify-center mb-4">
                         <AppWindow className="w-6 h-6 text-zinc-500 dark:text-zinc-300" />
                     </div>
@@ -173,7 +174,7 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
               </div>
 
               {/* Presence Status Chart */}
-              <div className="bg-white/82 dark:bg-white/[0.035] rounded-[32px] p-10 border border-zinc-200/70 dark:border-white/10 space-y-10 shadow-[0_18px_50px_-42px_rgba(0,0,0,0.65)]">
+              <div className="bg-white dark:bg-white/[0.035] rounded-[32px] p-10 border border-zinc-200/80 dark:border-white/10 space-y-10 shadow-[0_18px_50px_-42px_rgba(0,0,0,0.4)]">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Status de presença</h3>
                   <div className="flex items-center gap-4">
@@ -205,13 +206,16 @@ export const SessionsMetricsModal = ({ isOpen, onClose }: SessionsMetricsModalPr
                       />
                       <Tooltip 
                         contentStyle={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                          backgroundColor: 'hsl(var(--popover))',
+                          color: 'hsl(var(--popover-foreground))',
                           borderRadius: '16px', 
-                          border: 'none', 
-                          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+                          border: '1px solid hsl(var(--border))',
+                          boxShadow: '0 20px 45px -18px rgba(0, 0, 0, 0.28)',
                           fontSize: '12px',
                           fontWeight: 'bold'
-                        }} 
+                        }}
+                        labelStyle={{ color: 'hsl(var(--popover-foreground))', fontWeight: 800 }}
+                        itemStyle={{ fontWeight: 700 }}
                       />
                       <Legend 
                         iconType="circle" 

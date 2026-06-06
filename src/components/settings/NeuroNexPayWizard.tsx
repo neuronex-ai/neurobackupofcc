@@ -7,6 +7,7 @@ import {
   Clock3,
   Landmark,
   Loader2,
+  MessageCircle,
   RefreshCw,
   ShieldAlert,
   WalletCards,
@@ -20,6 +21,8 @@ import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { useProfile } from "@/hooks/use-profile";
 import { getAsaasAccountSituation } from "@/lib/asaas-account-status";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/SessionContextProvider";
+import { buildNeuroFinanceSupportUrl } from "@/lib/neurofinance-support";
 
 interface NeuroNexPayWizardProps {
   onSuccess?: () => void;
@@ -56,6 +59,13 @@ const statusVisual = {
     description: "Existe uma pendência cadastral impedindo o uso completo da conta.",
     tone: "border-red-500/20 bg-red-500/[0.08] text-red-700 dark:text-red-300",
   },
+  account_missing: {
+    icon: ShieldAlert,
+    title: "Conta desconectada",
+    label: "Suporte necessário",
+    description: "A subconta não está mais acessível pela Asaas. O histórico foi preservado e nossa equipe pode recuperar a conexão.",
+    tone: "border-red-500/20 bg-red-500/[0.08] text-red-700 dark:text-red-300",
+  },
   default: {
     icon: Landmark,
     title: "Ativar NeuroFinance",
@@ -67,6 +77,7 @@ const statusVisual = {
 
 export const NeuroNexPayWizard = ({ onSuccess, isMobile = false }: NeuroNexPayWizardProps) => {
   const { data: profile } = useProfile();
+  const { user } = useAuth();
   const {
     account,
     accountState,
@@ -74,6 +85,8 @@ export const NeuroNexPayWizard = ({ onSuccess, isMobile = false }: NeuroNexPayWi
     isApproved,
     isLoading,
     needsInitialOnboarding,
+    isAccountMissing,
+    lastSyncError,
     syncAccount,
   } = useFinancialAccount();
 
@@ -83,6 +96,8 @@ export const NeuroNexPayWizard = ({ onSuccess, isMobile = false }: NeuroNexPayWi
 
   const statusKey = isApproved
     ? "active"
+    : isAccountMissing
+      ? "account_missing"
     : accountState?.uiStatus === "restricted"
       ? "restricted"
       : accountState?.hasActionableStages
@@ -97,6 +112,23 @@ export const NeuroNexPayWizard = ({ onSuccess, isMobile = false }: NeuroNexPayWi
     .join(" / ");
 
   const handlePrimary = () => {
+    if (isAccountMissing) {
+      const url = buildNeuroFinanceSupportUrl({
+        professionalName:
+          profile?.full_name ||
+          profile?.name ||
+          [profile?.first_name, profile?.last_name].filter(Boolean).join(" "),
+        professionalEmail: user?.email,
+        userId: user?.id,
+        accountId: account?.asaas_account_id || account?.id,
+        error: lastSyncError,
+        occurredAt:
+          account?.metadata?.provider_connection?.detected_at ||
+          account?.updated_at,
+      });
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
     if (needsInitialOnboarding) {
       setShowWizard(true);
       return;
@@ -196,15 +228,25 @@ export const NeuroNexPayWizard = ({ onSuccess, isMobile = false }: NeuroNexPayWi
                   onClick={handlePrimary}
                   className="h-14 flex-1 rounded-[20px] bg-zinc-900 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-xl transition-all hover:scale-[1.015] active:scale-[0.985] dark:bg-white dark:text-zinc-900"
                 >
-                  {needsInitialOnboarding ? "Ativar conta" : isApproved ? "Ver análise cadastral" : "Ver pendências"}
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  {isAccountMissing
+                    ? "Falar com o suporte"
+                    : needsInitialOnboarding
+                      ? "Ativar conta"
+                      : isApproved
+                        ? "Ver análise cadastral"
+                        : "Ver pendências"}
+                  {isAccountMissing ? (
+                    <MessageCircle className="ml-2 h-4 w-4" />
+                  ) : (
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  )}
                 </Button>
 
                 <Button
                   variant="outline"
                   onClick={() => syncAccount.mutate()}
                   disabled={syncAccount.isPending}
-                  className="h-14 rounded-[20px] border-zinc-200 bg-white/65 px-6 text-[10px] font-black uppercase tracking-[0.2em] dark:border-white/10 dark:bg-white/[0.04]"
+                  className="h-14 rounded-[20px] border-zinc-200 bg-white/[0.76] px-6 text-[10px] font-black uppercase tracking-[0.2em] dark:border-white/10 dark:bg-white/[0.04]"
                 >
                   <RefreshCw className={cn("mr-2 h-4 w-4", syncAccount.isPending && "animate-spin")} />
                   Sincronizar
@@ -246,7 +288,7 @@ const InfoRow = ({
   label: string;
   value: string;
 }) => (
-  <div className="group flex items-center gap-4 rounded-[22px] border border-zinc-200/55 bg-white/62 p-4 text-left transition-all hover:border-zinc-300 dark:border-white/[0.06] dark:bg-white/[0.025]">
+  <div className="group flex items-center gap-4 rounded-[22px] border border-zinc-200/[0.62] bg-white/[0.86] p-4 text-left transition-all hover:border-zinc-300 dark:border-white/[0.06] dark:bg-white/[0.025]">
     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-700 transition-colors group-hover:bg-zinc-900 group-hover:text-white dark:bg-white/[0.06] dark:text-zinc-200 dark:group-hover:bg-white dark:group-hover:text-zinc-950">
       <Icon className="h-4 w-4" />
     </div>

@@ -173,10 +173,7 @@ export function toNullableString(value?: string | null) {
 
 export function getFinancialAccountAsaasApiKey(financialAccount: any): string {
     const topLevelKey = financialAccount?.asaas_api_key?.trim?.();
-    const metadataKey = financialAccount?.metadata?.asaas_api_key?.trim?.();
-
-    // The typed column is the source of truth. Metadata is kept only as a legacy fallback.
-    return topLevelKey || metadataKey || "";
+    return topLevelKey || "";
 }
 
 export async function recordBaasOperation(
@@ -528,6 +525,72 @@ export async function getAsaasFinancialTransactions(
 
     return asaasRequest(
         `/financialTransactions${qs ? `?${qs}` : ""}`,
+        "GET",
+        undefined,
+        subAccountApiKey
+    );
+}
+
+/**
+ * List charges from a subaccount. Webhooks remain the source for continuous
+ * updates; this endpoint is used for reconciliation and dashboard snapshots.
+ */
+export async function getAsaasPayments(
+    subAccountApiKey: string,
+    params?: {
+        offset?: number;
+        limit?: number;
+        status?: string;
+        dateCreatedFrom?: string;
+        dateCreatedTo?: string;
+        paymentDateFrom?: string;
+        paymentDateTo?: string;
+    }
+): Promise<any> {
+    const query = new URLSearchParams();
+    if (params?.offset !== undefined) query.set("offset", String(params.offset));
+    if (params?.limit !== undefined) query.set("limit", String(params.limit));
+    if (params?.status) query.set("status", params.status);
+    if (params?.dateCreatedFrom) query.set("dateCreated[ge]", params.dateCreatedFrom);
+    if (params?.dateCreatedTo) query.set("dateCreated[le]", params.dateCreatedTo);
+    if (params?.paymentDateFrom) query.set("paymentDate[ge]", params.paymentDateFrom);
+    if (params?.paymentDateTo) query.set("paymentDate[le]", params.paymentDateTo);
+
+    return asaasRequest(
+        `/payments?${query.toString()}`,
+        "GET",
+        undefined,
+        subAccountApiKey
+    );
+}
+
+/**
+ * List charges from a subaccount. Webhooks remain the source for continuous
+ * updates; this endpoint is used for reconciliation and dashboard snapshots.
+ */
+export async function getAsaasPayments(
+    subAccountApiKey: string,
+    params?: {
+        offset?: number;
+        limit?: number;
+        status?: string;
+        dateCreatedFrom?: string;
+        dateCreatedTo?: string;
+        paymentDateFrom?: string;
+        paymentDateTo?: string;
+    }
+): Promise<any> {
+    const query = new URLSearchParams();
+    if (params?.offset !== undefined) query.set("offset", String(params.offset));
+    if (params?.limit !== undefined) query.set("limit", String(params.limit));
+    if (params?.status) query.set("status", params.status);
+    if (params?.dateCreatedFrom) query.set("dateCreated[ge]", params.dateCreatedFrom);
+    if (params?.dateCreatedTo) query.set("dateCreated[le]", params.dateCreatedTo);
+    if (params?.paymentDateFrom) query.set("paymentDate[ge]", params.paymentDateFrom);
+    if (params?.paymentDateTo) query.set("paymentDate[le]", params.paymentDateTo);
+
+    return asaasRequest(
+        `/payments?${query.toString()}`,
         "GET",
         undefined,
         subAccountApiKey

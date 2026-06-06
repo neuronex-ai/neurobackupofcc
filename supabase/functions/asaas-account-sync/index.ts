@@ -30,6 +30,59 @@ import {
     type AsaasAccountStatus,
 } from '../_shared/asaas-client.ts';
 
+async function findExistingSubAccount(user: any, financialAccount?: any) {
+    let existingSubAccount = user.email
+        ? await findAsaasSubAccountByEmail(user.email)
+        : null;
+
+    if (!existingSubAccount && financialAccount?.cpf_cnpj) {
+        existingSubAccount = await findAsaasSubAccountByCpfCnpj(financialAccount.cpf_cnpj);
+    }
+
+    return existingSubAccount;
+}
+
+async function markConnectionUnavailable(financialAccount: any, err: any) {
+    const now = new Date().toISOString();
+    const message = 'Não foi possível validar a conexão com a conta Asaas.';
+    const metadata = {
+        ...(financialAccount?.metadata || {}),
+        provider_connection: {
+            status: 'account_missing',
+            detected_at: now,
+            recovery_attempted_at: now,
+            error_code: err?.status || 'PROVIDER_CONNECTION_ERROR',
+            error_message: err?.message || message,
+            support_required: true,
+        },
+    };
+
+    const { error } = await supabaseAdmin
+        .from('financial_accounts')
+        .update({
+            status: 'account_missing',
+            charges_enabled: false,
+            payouts_enabled: false,
+            last_sync_error: message,
+            metadata,
+            updated_at: now,
+        })
+        .eq('id', financialAccount.id);
+
+    if (error) throw error;
+
+    return {
+        status: 'account_missing',
+        financial_account_id: financialAccount.id,
+        asaas_account_id: financialAccount.asaas_account_id,
+        message,
+        recovery_required: true,
+        charges_enabled: false,
+        payouts_enabled: false,
+        metadata,
+    };
+}
+
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return corsResponse();
 
@@ -43,21 +96,7 @@ Deno.serve(async (req: Request) => {
         if (!financialAccount) {
             console.log(`[asaas-account-sync] No local record for user ${user.id}, searching Asaas...`);
             
-            // Try to find by email first
-            let existingSubAccount = await findAsaasSubAccountByEmail(user.email || '');
-            
-            // If not found by email, try by CPF from profile
-            if (!existingSubAccount) {
-                const { data: profile } = await supabaseAdmin
-                    .from('profiles')
-                    .select('cpf')
-                    .eq('id', user.id)
-                    .maybeSingle();
-                
-                if (profile?.cpf) {
-                    existingSubAccount = await findAsaasSubAccountByCpfCnpj(profile.cpf);
-                }
-            }
+            const existingSubAccount = await findExistingSubAccount(user);
 
             if (existingSubAccount) {
                 console.log(`[asaas-account-sync] Found existing Asaas subconta: ${existingSubAccount.id}`);
@@ -71,7 +110,6 @@ Deno.serve(async (req: Request) => {
                     asaas_environment: ASAAS_ENV,
                     status: 'pending_review',
                     metadata: {
-                        asaas_api_key: existingSubAccount.apiKey,
                         auto_linked: true,
                         linked_at: new Date().toISOString(),
                     },
@@ -106,31 +144,38 @@ Deno.serve(async (req: Request) => {
         } catch (err: any) {
             console.error('[asaas-account-sync] Failed to fetch account status:', err);
 
-            // If 404-like, account may have been deleted 
-            if (err?.status === 404 || err?.status === 401) {
-                await supabaseAdmin
-                    .from('financial_accounts')
-                    .update({
-                        status: 'disabled',
-                        charges_enabled: false,
-                        payouts_enabled: false,
-                        last_sync_error: err?.message || 'N?o foi poss?vel acessar a conta Asaas.',
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', financialAccount.id);
+            if ([401, 403, 404].includes(Number(err?.status))) {
+                const existingSubAccount = await findExistingSubAccount(user, financialAccount);
+                const recoveredApiKey = existingSubAccount?.apiKey;
 
-                return jsonResponse({
-                    status: 'disabled',
-                    financial_account_id: financialAccount.id,
-                    error: 'N?o foi poss?vel acessar a conta Asaas. Contate o suporte.',
-                    charges_enabled: false,
-                    payouts_enabled: false,
-                });
+                if (existingSubAccount && recoveredApiKey) {
+                    const recoveredAt = new Date().toISOString();
+                    financialAccount = await upsertFinancialAccountRecord(user.id, {
+                        asaas_account_id: existingSubAccount.id,
+                        asaas_wallet_id: existingSubAccount.walletId,
+                        asaas_api_key: recoveredApiKey,
+                        asaas_environment: ASAAS_ENV,
+                        last_sync_error: null,
+                        metadata: {
+                            ...(financialAccount.metadata || {}),
+                            provider_connection: {
+                                status: 'recovered',
+                                recovered_at: recoveredAt,
+                                previous_account_id: financialAccount.asaas_account_id,
+                            },
+                        },
+                    });
+                    accountStatus = await getAsaasAccountStatus(recoveredApiKey);
+                } else {
+                    return jsonResponse(await markConnectionUnavailable(financialAccount, err));
+                }
+            } else {
+                throw err;
             }
-            throw err;
         }
 
         // 4. Sync status to DB
+        const activeApiKey = getFinancialAccountAsaasApiKey(financialAccount);
         const uiStatus = deriveUiStatusFromAsaasAccount(accountStatus);
         const requirementsSnapshot = buildAsaasRequirementSnapshot(accountStatus, 'sync');
         await syncFinancialAccountFromAsaas(financialAccount.id, accountStatus, 'sync');
@@ -139,7 +184,7 @@ Deno.serve(async (req: Request) => {
         let balance = { available: 0, pending: 0 };
         if (uiStatus === 'active') {
             try {
-                balance = await getBalanceFromAsaas(asaasApiKey);
+                balance = await getBalanceFromAsaas(activeApiKey || asaasApiKey);
             } catch (balErr) {
                 console.error('[asaas-account-sync] Balance fetch error (non-fatal):', balErr);
             }

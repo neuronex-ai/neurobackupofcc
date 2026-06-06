@@ -286,24 +286,28 @@ export const buildAsaasApprovalStages = (account: any): AsaasApprovalStage[] => 
 
 export const getAsaasAccountState = (account: any): AsaasAccountState => {
   const hasAsaasAccount = !!account?.asaas_account_id;
+  const storedStatus = String(account?.status || "");
   const stages = buildAsaasApprovalStages(account);
   const openStages = stages.filter((stage) => stage.tone !== "approved");
   const actionableStages = stages.filter((stage) => stage.actionable);
-  const isApproved = hasAsaasAccount && openStages.length === 0;
+  const allStagesApproved = hasAsaasAccount && openStages.length === 0;
   const hasRejected = stages.some((stage) => stage.tone === "rejected");
 
   let uiStatus: AsaasFinancialUiStatus = "not_started";
-  if (!hasAsaasAccount) {
-    uiStatus = account?.status === "account_missing" ? "account_missing" : "not_started";
-  } else if (isApproved) {
-    uiStatus = "active";
-  } else if (hasRejected || ["restricted", "disabled"].includes(String(account?.status || ""))) {
+  if (storedStatus === "account_missing") {
+    uiStatus = "account_missing";
+  } else if (!hasAsaasAccount) {
+    uiStatus = "not_started";
+  } else if (hasRejected || ["restricted", "disabled"].includes(storedStatus)) {
     uiStatus = "restricted";
+  } else if (allStagesApproved) {
+    uiStatus = "active";
   } else if (actionableStages.length > 0) {
     uiStatus = "onboarding";
   } else {
     uiStatus = "pending_review";
   }
+  const isApproved = uiStatus === "active";
 
   const requirementsSnapshot = {
     overall_status: uiStatus,
@@ -345,6 +349,7 @@ export const isAsaasAccountApproved = (account: any) =>
 export const getAsaasAccountSituation = (account: any) => {
   const state = getAsaasAccountState(account);
 
+  if (state.uiStatus === "account_missing") return "Conta desconectada";
   if (!account?.asaas_account_id) return "Conta não criada";
   if (state.isApproved) return "Conta aprovada";
   if (state.uiStatus === "restricted" || state.uiStatus === "disabled") return "Conta restrita";

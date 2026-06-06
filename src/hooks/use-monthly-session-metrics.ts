@@ -106,32 +106,12 @@ export const useMonthlySessionMetrics = (selectedDate: Date) => {
         })
         .sort((a, b) => a.birth_day - b.birth_day);
 
-      const [{ count: notesCount }, { count: transactionsCount }, { count: anamnesisCount }, { data: appointmentActivities }] = await Promise.all([
-        supabase
-          .from('session_notes')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .gte('created_at', formatISO(startMonth))
-          .lte('created_at', formatISO(endMonth)),
-        supabase
-          .from('transactions')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .gte('created_at', formatISO(startMonth))
-          .lte('created_at', formatISO(endMonth)),
-        supabase
-          .from('patient_anamneses')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .gte('updated_at', formatISO(startMonth))
-          .lte('updated_at', formatISO(endMonth)),
-        supabase
-          .from('appointments')
-          .select('*')
-          .eq('user_id', userId)
-          .gte('updated_at', formatISO(startMonth))
-          .lte('updated_at', formatISO(endMonth)),
-      ]);
+      const { count: activityCount } = await supabase
+        .from('dashboard_patient_activity_v')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('occurred_at', formatISO(startMonth))
+        .lte('occurred_at', formatISO(endMonth));
 
       const appointments = ((monthApts || []) as Appointment[]).filter(isClinicalSession);
       const yearAppointments = ((yearApts || []) as Appointment[]).filter(isClinicalSession);
@@ -218,11 +198,7 @@ export const useMonthlySessionMetrics = (selectedDate: Date) => {
         chartData,
         monthlyBirthdays,
         birthdayCount: monthlyBirthdays.length,
-        activityCount:
-          ((appointmentActivities || []) as Appointment[]).filter(isClinicalSession).length +
-          (notesCount || 0) +
-          (transactionsCount || 0) +
-          (anamnesisCount || 0),
+        activityCount: activityCount || 0,
       };
     },
     enabled: !!userId,

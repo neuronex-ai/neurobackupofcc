@@ -13,6 +13,7 @@ import {
   type AsaasApprovalStage,
   type AsaasApprovalTone,
 } from "@/lib/asaas-account-status";
+import { getNeuroFinanceSyncErrorMessage } from "@/lib/neurofinance-support";
 
 const toneStyles: Record<AsaasApprovalTone, { pill: string; dot: string; line: string; icon: ElementType }> = {
   approved: {
@@ -67,7 +68,7 @@ export function AsaasAccountStatusTimeline({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[28px] border border-black/[0.06] bg-white/[0.72] shadow-[0_24px_90px_-58px_rgba(0,0,0,0.55)] backdrop-blur-3xl backdrop-saturate-150 dark:border-white/[0.08] dark:bg-white/[0.035]",
+        "relative overflow-hidden rounded-[28px] border border-zinc-200/80 bg-white shadow-[0_24px_80px_-52px_rgba(24,24,27,0.36)] dark:border-white/[0.08] dark:bg-white/[0.035]",
         compact ? "p-5" : "p-7"
       )}
     >
@@ -111,8 +112,8 @@ export function AsaasAccountStatusTimeline({
         </div>
 
         {lastSyncError ? (
-          <div className="rounded-2xl border border-red-500/15 bg-red-500/[0.06] px-4 py-3 text-xs font-semibold text-red-700 dark:text-red-300">
-            {lastSyncError}
+          <div className="rounded-2xl border border-red-500/[0.15] bg-red-500/[0.06] px-4 py-3 text-xs font-semibold text-red-700 dark:text-red-300">
+            {getNeuroFinanceSyncErrorMessage(lastSyncError)}
           </div>
         ) : null}
 
@@ -143,7 +144,7 @@ const TimelineRow = ({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "relative grid items-center gap-4 rounded-2xl border border-black/[0.055] bg-white/55 px-4 backdrop-blur-2xl dark:border-white/[0.07] dark:bg-white/[0.025]",
+        "relative grid items-center gap-4 rounded-2xl border border-zinc-200/75 bg-zinc-50/80 px-4 shadow-[0_10px_30px_-26px_rgba(24,24,27,0.5)] dark:border-white/[0.07] dark:bg-white/[0.025]",
         compact ? "grid-cols-[1fr_auto] py-3" : "grid-cols-[1fr_auto] py-4 pl-8"
       )}
     >
