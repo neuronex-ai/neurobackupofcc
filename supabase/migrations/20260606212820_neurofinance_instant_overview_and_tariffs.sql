@@ -603,3 +603,69 @@ begin
   end if;
 end;
 $$;
+
+create schema if not exists private;
+create extension if not exists pg_net with schema extensions;
+create extension if not exists pg_cron with schema pg_catalog;
+
+create or replace function private.request_neurofinance_reconciliation(sync_mode text)
+returns bigint
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  cron_secret text;
+  request_id bigint;
+begin
+  select decrypted_secret
+  into cron_secret
+  from vault.decrypted_secrets
+  where name = 'neurofinance_cron_secret'
+  order by created_at desc
+  limit 1;
+
+  if cron_secret is null then
+    raise warning 'NeuroFinance reconciliation secret is not configured.';
+    return null;
+  end if;
+
+  select net.http_post(
+    url := 'https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/asaas-financial-sync',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-neurofinance-cron-secret', cron_secret
+    ),
+    body := jsonb_build_object('mode', sync_mode)
+  )
+  into request_id;
+
+  return request_id;
+end;
+$$;
+
+revoke all on function private.request_neurofinance_reconciliation(text) from public;
+grant usage on schema private to service_role;
+grant execute on function private.request_neurofinance_reconciliation(text) to service_role;
+
+do $$
+declare job_id bigint;
+begin
+  select jobid into job_id from cron.job where jobname = 'neurofinance-incremental-sync';
+  if job_id is not null then perform cron.unschedule(job_id); end if;
+
+  select jobid into job_id from cron.job where jobname = 'neurofinance-daily-full-sync';
+  if job_id is not null then perform cron.unschedule(job_id); end if;
+
+  perform cron.schedule(
+    'neurofinance-incremental-sync',
+    '*/10 * * * *',
+    'select private.request_neurofinance_reconciliation(''incremental'');'
+  );
+  perform cron.schedule(
+    'neurofinance-daily-full-sync',
+    '15 3 * * *',
+    'select private.request_neurofinance_reconciliation(''full'');'
+  );
+end;
+$$;

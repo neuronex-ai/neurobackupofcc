@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
+import { toUserFacingError } from '@/lib/user-facing-error';
 
 interface GenerateInvoiceData {
   patientId: string;
@@ -101,7 +102,8 @@ export const useGenerateInvoice = () => {
     },
     onError: (error) => {
       console.error('useGenerateInvoice error:', error);
-      toast.error(`Erro ao gerar cobrança: ${error.message}`);
+      const friendlyError = toUserFacingError(error, "payment");
+      toast.error(friendlyError.title, { description: friendlyError.message });
     }
   });
 };

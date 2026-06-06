@@ -48,6 +48,7 @@ import { PagamentosDDA } from "@/components/financeiro/pagamentos/PagamentosDDA"
 import { PagamentosGrupos } from "@/components/financeiro/pagamentos/PagamentosGrupos";
 import { AsaasRegulatoryFooter } from "@/components/financeiro/AsaasRegulatoryFooter";
 import { FiscalConfigPanel } from "@/components/settings/FiscalConfigPanel";
+import { NeuroFinanceTariffs } from "@/components/financeiro/NeuroFinanceTariffs";
 import type { Transaction } from "@/types";
 
 export type FinanceView =
@@ -80,6 +81,7 @@ export type FinanceView =
     | "repasses-convenio"
     | "repasses-profissional"
     | "repasses-salas"
+    | "tarifas"
     | "configuracoes";
 
 const SectionHeader = ({
@@ -311,6 +313,8 @@ export function FinancialDashboard({
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={FileText} title="Minhas NFS-e" subtitle="Histórico fiscal" onBack={handleGoBack} /><ContentWrapper><InvoicesHistoryList /></ContentWrapper></motion.div>;
         case "repasses-profissional":
             return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Users} title="Split & Repasses" subtitle="Destino bancário e regras de divisão" onBack={handleGoBack} /><ContentWrapper><BankAccountsView /></ContentWrapper><ContentWrapper><SmartSplit /></ContentWrapper></motion.div>;
+        case "tarifas":
+            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Receipt} title="Tarifas" subtitle="Custos e prazos, sem letras miúdas" onBack={handleGoBack} /><NeuroFinanceTariffs /></motion.div>;
         case "configuracoes":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Settings} title="Configurações" subtitle="Preferências do sistema" onBack={handleGoBack} /><ContentWrapper><div className="py-20 text-center"><Settings className="mx-auto mb-4 h-12 w-12 text-zinc-300" /><p className="text-xs font-black uppercase tracking-widest text-zinc-500">Configurações avançadas em desenvolvimento.</p></div></ContentWrapper></motion.div>;
         default:

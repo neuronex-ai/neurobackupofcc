@@ -149,6 +149,14 @@ const FINANCE_NAV: NavItem[] = [
         ]
     },
     {
+        id: 'tarifas-root',
+        label: "Tarifas",
+        icon: Receipt,
+        subItems: [
+            { id: 'tarifas', label: 'Custos e prazos', icon: Receipt },
+        ]
+    },
+    {
         id: 'config-root',
         label: "Avançado",
         icon: Settings,

@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
+import { toUserFacingError } from '@/lib/user-facing-error';
 
 export interface NeuroFinancePayout {
     id: string;
@@ -70,11 +71,12 @@ export const useRequestPayout = () => {
         },
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payouts'] });
-            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-balance'] });
+            queryClient.invalidateQueries({ queryKey: ['neurofinance-overview'] });
             toast.success(`Saque de R$${(data.amount / 100).toFixed(2)} solicitado com sucesso!`);
         },
         onError: (error) => {
-            toast.error(`Erro ao solicitar saque: ${error.message}`);
+            const friendlyError = toUserFacingError(error, 'transfer');
+            toast.error(friendlyError.title, { description: friendlyError.message });
         },
     });
 };

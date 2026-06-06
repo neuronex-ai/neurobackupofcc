@@ -1,23 +1,23 @@
-/**
- * use-NeuroFinance-balance.ts
- * 
- * Reads balance and current-month cash flow directly from Asaas.
- */
-
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/auth/SessionContextProvider';
+import { useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/auth/SessionContextProvider";
+import type { FinancialOverviewSnapshot } from "@/lib/neurofinance-types";
 
 export interface NeuroFinanceBalance {
-    balance: number;       // Available balance in reais (from centavos)
-    pending: number;       // Pending balance in reais
-    reserved: number;      // Reserved balance in reais (disputes)
-    totalReceived: number; // Gross volume in reais
-    feesTotal: number;     // Total fees in reais
-    netVolume: number;     // Net volume in reais
-    paidOut: number;       // Total paid out in reais
+    balance: number;
+    pending: number;
+    reserved: number;
+    totalReceived: number;
+    feesTotal: number;
+    netVolume: number;
+    paidOut: number;
+    isStale: boolean;
+    lastUpdatedAt: string | null;
+    lastSyncError: string | null;
+    reconciliationDifference: number;
     raw: {
-        available_balance: number;  // centavos
+        available_balance: number;
         pending_balance: number;
         reserved_balance: number;
         gross_volume: number;
@@ -27,50 +27,139 @@ export interface NeuroFinanceBalance {
     };
 }
 
+const EMPTY_BALANCE: NeuroFinanceBalance = {
+    balance: 0,
+    pending: 0,
+    reserved: 0,
+    totalReceived: 0,
+    feesTotal: 0,
+    netVolume: 0,
+    paidOut: 0,
+    isStale: true,
+    lastUpdatedAt: null,
+    lastSyncError: null,
+    reconciliationDifference: 0,
+    raw: {
+        available_balance: 0,
+        pending_balance: 0,
+        reserved_balance: 0,
+        gross_volume: 0,
+        fees_total: 0,
+        net_volume: 0,
+        paid_out_balance: 0,
+    },
+};
+
+function mapSnapshot(snapshot: FinancialOverviewSnapshot | null): NeuroFinanceBalance {
+    if (!snapshot) return EMPTY_BALANCE;
+
+    return {
+        balance: Number(snapshot.available_balance || 0) / 100,
+        pending: Number(snapshot.pending_receivables || 0) / 100,
+        reserved: 0,
+        totalReceived: Number(snapshot.gross_received || 0) / 100,
+        feesTotal: Number(snapshot.fees_total || 0) / 100,
+        netVolume: Number(snapshot.calculated_available_balance || 0) / 100,
+        paidOut: Number(snapshot.total_outflow || 0) / 100,
+        isStale: Boolean(snapshot.is_stale),
+        lastUpdatedAt: snapshot.provider_as_of || snapshot.updated_at || null,
+        lastSyncError: snapshot.last_sync_error || null,
+        reconciliationDifference: Number(snapshot.reconciliation_difference || 0) / 100,
+        raw: {
+            available_balance: Number(snapshot.available_balance || 0),
+            pending_balance: Number(snapshot.pending_receivables || 0),
+            reserved_balance: 0,
+            gross_volume: Number(snapshot.gross_received || 0),
+            fees_total: Number(snapshot.fees_total || 0),
+            net_volume: Number(snapshot.calculated_available_balance || 0),
+            paid_out_balance: Number(snapshot.total_outflow || 0),
+        },
+    };
+}
+
 export const useNeuroFinanceBalance = () => {
     const { user } = useAuth();
+    const queryClient = useQueryClient();
+    const queryKey = ["neurofinance-overview", user?.id];
 
-    return useQuery<NeuroFinanceBalance, Error>({
-        queryKey: ['NeuroFinance-balance', user?.id],
+    const query = useQuery<NeuroFinanceBalance, Error>({
+        queryKey,
         queryFn: async () => {
-            if (!user?.id) throw new Error('Não autenticado');
+            if (!user?.id) return EMPTY_BALANCE;
 
-            const { data, error } = await supabase.functions.invoke('asaas-balance-details', {
-                body: {},
-            });
+            const { data, error } = await supabase
+                .from("neurofinance_overview_snapshot_v")
+                .select("*")
+                .eq("user_id", user.id)
+                .maybeSingle();
 
-            if (error) {
-                throw new Error(error.message);
-            }
-
-            const summary = data?.summary || {};
-            const availableCentavos = summary.available_balance ?? data?.balance?.available ?? 0;
-            const pendingCentavos = summary.pending_balance ?? data?.balance?.pending ?? 0;
-            const grossVolume = summary.gross_volume ?? 0;
-            const feesTotal = summary.fees_total ?? 0;
-            const netVolume = summary.net_volume ?? 0;
-            const paidOut = summary.paid_out_balance ?? 0;
-
-            return {
-                balance: availableCentavos / 100,
-                pending: pendingCentavos / 100,
-                reserved: 0,
-                totalReceived: grossVolume / 100,
-                feesTotal: feesTotal / 100,
-                netVolume: netVolume / 100,
-                paidOut: paidOut / 100,
-                raw: {
-                    available_balance: availableCentavos,
-                    pending_balance: pendingCentavos,
-                    reserved_balance: 0,
-                    gross_volume: grossVolume,
-                    fees_total: feesTotal,
-                    net_volume: netVolume,
-                    paid_out_balance: paidOut,
-                },
-            };
+            if (error) throw error;
+            return mapSnapshot(data as FinancialOverviewSnapshot | null);
         },
-        enabled: !!user?.id,
-        staleTime: 1000 * 60 * 2,
+        enabled: Boolean(user?.id),
+        staleTime: 1000 * 60 * 10,
+        placeholderData: EMPTY_BALANCE,
     });
+
+    const sync = useMutation({
+        mutationFn: async (force = false) => {
+            const { data, error } = await supabase.functions.invoke("asaas-financial-sync", {
+                body: { mode: "incremental", force },
+            });
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey });
+            queryClient.invalidateQueries({ queryKey: ["neurofinance-overview-items"] });
+            queryClient.invalidateQueries({ queryKey: ["neurofinance-statement"] });
+        },
+    });
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const channel = supabase
+            .channel(`neurofinance-overview-${user.id}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "neurofinance_overview_snapshots",
+                    filter: `user_id=eq.${user.id}`,
+                },
+                () => {
+                    queryClient.invalidateQueries({ queryKey });
+                    queryClient.invalidateQueries({ queryKey: ["neurofinance-overview-items"] });
+                    queryClient.invalidateQueries({ queryKey: ["neurofinance-statement"] });
+                },
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [queryClient, user?.id]);
+
+    useEffect(() => {
+        if (!user?.id || sync.isPending || !query.data) return;
+        const updatedAt = query.data.lastUpdatedAt
+            ? new Date(query.data.lastUpdatedAt).getTime()
+            : 0;
+        const shouldRefresh =
+            !updatedAt ||
+            query.data.isStale ||
+            Date.now() - updatedAt > 10 * 60 * 1000;
+
+        if (shouldRefresh) sync.mutate(false);
+    }, [query.data?.lastUpdatedAt, query.data?.isStale, user?.id]);
+
+    return {
+        ...query,
+        data: query.data || EMPTY_BALANCE,
+        syncNow: () => sync.mutateAsync(false),
+        isSyncing: sync.isPending,
+        syncError: sync.error,
+    };
 };

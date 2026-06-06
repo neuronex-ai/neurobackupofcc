@@ -29,6 +29,7 @@ import { useGenerateInvoice } from "@/hooks/use-generate-invoice";
 import { usePatients } from "@/hooks/use-patients";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { cn } from "@/lib/utils";
+import { toUserFacingError } from "@/lib/user-facing-error";
 
 const NewInvoiceSchema = z.object({
   patientId: z.string().min(1, { message: "Selecione um paciente." }),
@@ -116,7 +117,8 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
         },
         onError: (err: any) => {
           console.error("Erro ao gerar fatura:", err);
-          toast.error("Erro ao gerar cobrança.", { description: err.message });
+          const friendlyError = toUserFacingError(err, "payment");
+          toast.error(friendlyError.title, { description: friendlyError.message });
         },
       }
     );
@@ -173,7 +175,7 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
           <div className="flex flex-col items-center gap-6 rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
             <div className="flex items-center gap-2 self-start">
               <QrCode className="h-4 w-4 text-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">QR Code Pix - Asaas</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">QR Code Pix</span>
             </div>
             <div className="rounded-3xl border border-zinc-100 bg-white p-5 shadow-2xl">
               <img

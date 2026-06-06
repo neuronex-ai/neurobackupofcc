@@ -1,66 +1,57 @@
-/**
- * use-NeuroFinance-statement.ts
- * 
- * Reads the financial statement/transaction history from 
- * the Asaas API via the asaas-balance-details edge function.
- * No local ledger tables are used.
- */
-
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/auth/SessionContextProvider';
-import { Transaction, PaymentMethod } from '@/types';
-import { format, subDays } from 'date-fns';
+import { useQuery } from "@tanstack/react-query";
+import { format, subDays } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/auth/SessionContextProvider";
+import type { PaymentMethod, Transaction } from "@/types";
+import type { AccountMovement } from "@/lib/neurofinance-types";
 
 export const useNeuroFinanceStatement = (startDate?: Date, endDate?: Date) => {
     const { user } = useAuth();
-
-    // Use stable date strings (yyyy-MM-dd) for the query key to prevent infinite re-renders
-    const queryStart = startDate ? format(startDate, 'yyyy-MM-dd') : format(subDays(new Date(), 30), 'yyyy-MM-dd');
-    const queryEnd = endDate ? format(endDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+    const queryStart = format(startDate || subDays(new Date(), 30), "yyyy-MM-dd");
+    const queryEnd = format(endDate || new Date(), "yyyy-MM-dd");
 
     return useQuery<Transaction[], Error>({
-        queryKey: ['NeuroFinance-statement', user?.id, queryStart, queryEnd],
-        queryFn: async (): Promise<Transaction[]> => {
-            if (!user?.id) throw new Error('Não autenticado');
+        queryKey: ["neurofinance-statement", user?.id, queryStart, queryEnd],
+        queryFn: async () => {
+            if (!user?.id) return [];
 
-            // Fetch transactions from the Asaas API via edge function
-            const { data, error } = await supabase.functions.invoke('asaas-balance-details', {
-                body: { 
-                    view: 'total',
-                    startDate: queryStart,
-                    endDate: queryEnd,
-                },
-            });
+            const { data, error } = await supabase
+                .from("neurofinance_overview_items_v")
+                .select("*")
+                .eq("user_id", user.id)
+                .gte("occurred_at", `${queryStart}T00:00:00`)
+                .lte("occurred_at", `${queryEnd}T23:59:59`)
+                .order("occurred_at", { ascending: false });
 
-            if (error) {
-                console.warn('[useNeuroFinanceStatement] Edge function error:', error.message);
-                return [];
-            }
+            if (error) throw error;
 
-            // The edge function returns Transaction[] directly
-            if (!data || !Array.isArray(data)) {
-                return [];
-            }
-
-            // Ensure proper typing
-            return (data as any[]).map(item => ({
-                id: item.id || crypto.randomUUID(),
+            return ((data || []) as AccountMovement[]).map((item) => ({
+                id: item.id,
                 user_id: user.id,
-                description: item.description || 'Movimentação NeuroFinance',
-                amount: item.amount || 0,
-                type: item.type || (item.value > 0 ? 'income' : 'expense'),
-                category: item.category || 'OUTROS',
-                date: item.date || item.dateCreated || item.created_at,
-                appointment_id: item.appointment_id || null,
-                created_at: item.created_at || item.dateCreated,
-                payment_method: (item.payment_method || item.billingType || 'pix') as PaymentMethod,
-                status: item.status === 'CONFIRMED' || item.status === 'RECEIVED' 
-                    ? 'completed' 
-                    : item.status === 'completed' ? 'completed' : 'pending',
-            } as Transaction));
+                description: item.patient_name
+                    ? `${item.patient_name} · ${item.description}`
+                    : item.description,
+                amount: Number(item.amount || 0) / 100,
+                type: item.overview_group === "outflow" ? "expense" : "income",
+                category: item.item_type,
+                date: item.occurred_at,
+                appointment_id: null,
+                created_at: item.occurred_at,
+                payment_method: (
+                    item.payment_method === "card"
+                        ? "credit_card"
+                        : item.payment_method === "debit"
+                            ? "debit_card"
+                            : item.payment_method
+                ) as PaymentMethod | undefined,
+                status: item.status === "paid" || item.status === "posted"
+                    ? "completed"
+                    : "pending",
+                external_reference: item.reference_id || undefined,
+                origin: "gateway_auto",
+            }));
         },
-        enabled: !!user?.id,
+        enabled: Boolean(user?.id),
         staleTime: 1000 * 60 * 5,
     });
 };

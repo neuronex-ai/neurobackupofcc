@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getAsaasAccountState } from "@/lib/asaas-account-status";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 type FinancialUiStatus =
   | "not_started"
@@ -15,9 +16,6 @@ type FinancialUiStatus =
   | "account_missing"
   | "disabled"
   | string;
-
-const getErrorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : String(error || "Erro desconhecido");
 
 const FINANCIAL_ACCOUNT_PUBLIC_FIELDS = [
   "id", "user_id", "status", "provider", "onboarding_started_at", "onboarding_completed_at",
@@ -73,56 +71,51 @@ export const useFinancialAccount = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchAndSyncAccount = async () => {
+  const fetchLocalAccount = async () => {
     if (!userId) return null;
 
-    const { data: localData, error: localError } = await supabase
+    const { data, error } = await supabase
       .from("financial_accounts")
       .select(FINANCIAL_ACCOUNT_PUBLIC_FIELDS)
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (localError) throw localError;
-
-    try {
-      const syncData = await invokeAsaasFunction("asaas-account-sync", {});
-
-      const { data: freshData } = await supabase
-        .from("financial_accounts")
-        .select(FINANCIAL_ACCOUNT_PUBLIC_FIELDS)
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      return {
-        ...(localData || {}),
-        ...(freshData || {}),
-        ...(syncData || {}),
-        metadata: {
-          ...((localData as any)?.metadata || {}),
-          ...((freshData as any)?.metadata || {}),
-          ...((syncData as any)?.metadata || {}),
-        },
-      };
-    } catch (error) {
-      console.error("[useFinancialAccount] Erro ao sincronizar com Asaas", error);
-      return localData
-        ? { ...localData, last_sync_error: getErrorMessage(error) }
-        : { status: "not_started", last_sync_error: getErrorMessage(error) };
-    }
+    if (error) throw error;
+    return data;
   };
 
   const { data: account, isLoading, refetch } = useQuery({
     queryKey: ["financial-account", userId],
-    queryFn: fetchAndSyncAccount,
+    queryFn: fetchLocalAccount,
     enabled: !!userId,
-    staleTime: 1000 * 60,
-    refetchInterval: userId ? 1000 * 45 : false,
+    staleTime: 1000 * 60 * 5,
   });
+
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`financial-account-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "financial_accounts",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => queryClient.invalidateQueries({ queryKey: ["financial-account", userId] }),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, userId]);
 
   const invalidateFinancialQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["financial-account"] });
-    queryClient.invalidateQueries({ queryKey: ["NeuroFinance-balance"] });
-    queryClient.invalidateQueries({ queryKey: ["asaas-balance-details"] });
+    queryClient.invalidateQueries({ queryKey: ["neurofinance-overview"] });
+    queryClient.invalidateQueries({ queryKey: ["neurofinance-overview-items"] });
     queryClient.invalidateQueries({ queryKey: ["dashboardAlerts"] });
   };
 
@@ -134,7 +127,15 @@ export const useFinancialAccount = () => {
   };
 
   const syncAccount = useMutation({
-    mutationFn: fetchAndSyncAccount,
+    mutationFn: async () => {
+      try {
+        await invokeAsaasFunction("asaas-account-sync", {});
+      } catch (error) {
+        console.error("[useFinancialAccount] Falha na sincronização cadastral", error);
+        throw new Error(getUserFacingErrorMessage(error, "sync"));
+      }
+      return fetchLocalAccount();
+    },
     onSuccess: cacheAndInvalidateFinancialAccount,
   });
 

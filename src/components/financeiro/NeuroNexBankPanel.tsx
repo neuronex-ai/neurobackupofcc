@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import {
     Wallet,
@@ -19,7 +19,8 @@ import {
     ArrowDownLeft,
     PieChart,
     Package,
-    FileText
+    FileText,
+    RefreshCw
 } from "lucide-react";
 import { NeuroNexCard } from "@/components/financeiro/NeuroNexCard";
 import { useProfile } from "@/hooks/use-profile";
@@ -31,6 +32,7 @@ import { AsaasGestaoModal } from "./AsaasGestaoModal";
 import { GlobalPlanosModal } from "./GlobalPlanosModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FinancialStatement } from "./FinancialStatement";
 import { Transaction } from "@/types";
@@ -39,6 +41,7 @@ import { useNeuroFinanceBalance } from "@/hooks/use-neurofinance-balance";
 import { motion, AnimatePresence } from "framer-motion";
 import TransactionDetailView from "./TransactionDetailView";
 import { useNeuroFinanceBalanceDetails } from "@/hooks/use-neurofinance-balance-details";
+import { toUserFacingError } from "@/lib/user-facing-error";
 
 
 interface NeuroNexBankPanelProps {
@@ -80,7 +83,12 @@ const MiniActionBlock = ({ icon: Icon, label, onClick, disabled = false, variant
 export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = false, onNavigate }: NeuroNexBankPanelProps) => {
     // 1. Hooks de dados
     const { isConnected } = useFinancialAccount();
-    const { data: balanceData, isLoading: isLoadingBalance, refetch: refetchBalance } = useNeuroFinanceBalance();
+    const {
+        data: balanceData,
+        isLoading: isLoadingBalance,
+        syncNow,
+        isSyncing,
+    } = useNeuroFinanceBalance();
     const { data: profile } = useProfile();
 
     // 2. Estado local
@@ -93,6 +101,9 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
 
     const [searchQuery, setSearchQuery] = useState("");
     const [cardExpanded, setCardExpanded] = useState(false);
+    const [detailPeriod, setDetailPeriod] = useState("all");
+    const [detailMethod, setDetailMethod] = useState("all");
+    const [detailStatus, setDetailStatus] = useState("all");
 
     // 3. Memos e Callbacks (Nível Superior)
     const bankBalance = useMemo(() => balanceData || { balance: 0, pending: 0, totalReceived: 0, paidOut: 0 }, [balanceData]);
@@ -111,31 +122,9 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
     }, [transactions, searchQuery]);
 
     // Hooks individuais para cada modal (Real-time Asaas BaaS Data)
-    const { data: incomeDetails, isLoading: isLoadingIncome, refetch: refetchIncome } = useNeuroFinanceBalanceDetails('total');
-    const { data: expensesDetails, isLoading: isLoadingExpenses, refetch: refetchExpenses } = useNeuroFinanceBalanceDetails('andamento');
-    const { data: pendingDetails, isLoading: isLoadingPending, refetch: refetchPending } = useNeuroFinanceBalanceDetails('futuro');
-
-    // Refetch data when modals open
-    useEffect(() => {
-        if (isIncomeModalOpen) {
-            refetchIncome();
-            refetchBalance();
-        }
-    }, [isIncomeModalOpen, refetchIncome, refetchBalance]);
-
-    useEffect(() => {
-        if (isExpensesModalOpen) {
-            refetchExpenses();
-            refetchBalance();
-        }
-    }, [isExpensesModalOpen, refetchExpenses, refetchBalance]);
-
-    useEffect(() => {
-        if (isPendingModalOpen) {
-            refetchPending();
-            refetchBalance();
-        }
-    }, [isPendingModalOpen, refetchPending, refetchBalance]);
+    const { data: incomeDetails, isLoading: isLoadingIncome } = useNeuroFinanceBalanceDetails('total');
+    const { data: expensesDetails, isLoading: isLoadingExpenses } = useNeuroFinanceBalanceDetails('andamento');
+    const { data: pendingDetails, isLoading: isLoadingPending } = useNeuroFinanceBalanceDetails('futuro');
 
     const incomeTransactions = useMemo(() => {
         return Array.isArray(incomeDetails) ? incomeDetails : [];
@@ -148,6 +137,70 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
     const pendingTransactions = useMemo(() => {
         return Array.isArray(pendingDetails) ? pendingDetails : [];
     }, [pendingDetails]);
+
+    const filterDetailTransactions = useCallback((items: Transaction[]) => {
+        const cutoff = detailPeriod === "30"
+            ? Date.now() - 30 * 24 * 60 * 60 * 1000
+            : detailPeriod === "90"
+                ? Date.now() - 90 * 24 * 60 * 60 * 1000
+                : null;
+
+        return items.filter((item) => {
+            const matchesPeriod = !cutoff || new Date(item.date).getTime() >= cutoff;
+            const matchesMethod = detailMethod === "all" || item.payment_method === detailMethod;
+            const matchesStatus = detailStatus === "all" || item.status === detailStatus;
+            return matchesPeriod && matchesMethod && matchesStatus;
+        });
+    }, [detailMethod, detailPeriod, detailStatus]);
+
+    const filteredIncomeTransactions = useMemo(
+        () => filterDetailTransactions(incomeTransactions),
+        [filterDetailTransactions, incomeTransactions],
+    );
+    const filteredExpenseTransactions = useMemo(
+        () => filterDetailTransactions(expenseTransactions),
+        [expenseTransactions, filterDetailTransactions],
+    );
+    const filteredPendingTransactions = useMemo(
+        () => filterDetailTransactions(pendingTransactions),
+        [filterDetailTransactions, pendingTransactions],
+    );
+
+    const detailFilters = (
+        <div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <Select value={detailPeriod} onValueChange={setDetailPeriod}>
+                <SelectTrigger className="h-11 rounded-[15px] border-zinc-200 bg-white text-xs font-bold dark:border-white/10 dark:bg-white/[0.04]">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todo o período</SelectItem>
+                    <SelectItem value="30">Últimos 30 dias</SelectItem>
+                    <SelectItem value="90">Últimos 90 dias</SelectItem>
+                </SelectContent>
+            </Select>
+            <Select value={detailMethod} onValueChange={setDetailMethod}>
+                <SelectTrigger className="h-11 rounded-[15px] border-zinc-200 bg-white text-xs font-bold dark:border-white/10 dark:bg-white/[0.04]">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todos os métodos</SelectItem>
+                    <SelectItem value="pix">Pix</SelectItem>
+                    <SelectItem value="boleto">Boleto</SelectItem>
+                    <SelectItem value="credit_card">Cartão</SelectItem>
+                </SelectContent>
+            </Select>
+            <Select value={detailStatus} onValueChange={setDetailStatus}>
+                <SelectTrigger className="h-11 rounded-[15px] border-zinc-200 bg-white text-xs font-bold dark:border-white/10 dark:bg-white/[0.04]">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="completed">Concluído</SelectItem>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+    );
 
 
     const actionButtons = useMemo(() => (
@@ -212,6 +265,18 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
             error: 'Erro ao exportar',
         });
     }, []);
+
+    const handleSync = useCallback(async () => {
+        try {
+            await syncNow();
+            toast.success("Dados financeiros atualizados.");
+        } catch (error) {
+            const friendlyError = toUserFacingError(error, "balance");
+            toast.error(friendlyError.title, {
+                description: friendlyError.message,
+            });
+        }
+    }, [syncNow]);
 
     const handleCloseStatement = useCallback(() => {
         setIsStatementOpen(false);
@@ -299,7 +364,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                 <DialogTitle className="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-[0.2em] leading-none mb-1.5">
                                     Quanto Entrou
                                 </DialogTitle>
-                                <p className="text-[9px] text-zinc-400 font-black uppercase tracking-[0.3em] opacity-60">Volume Bruto de Pagamentos (Asaas)</p>
+                                <p className="text-[9px] text-zinc-400 font-black uppercase tracking-[0.3em] opacity-60">Pagamentos disponíveis na conta</p>
                             </div>
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => { setIsIncomeModalOpen(false); setSelectedTransaction(null); }} className="h-10 w-10 rounded-full">
@@ -316,8 +381,9 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                 />
                             ) : (
                                 <motion.div key="income-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                    {detailFilters}
                                     <FinancialStatement
-                                        transactions={incomeTransactions}
+                                        transactions={filteredIncomeTransactions}
                                         isLoading={isLoadingIncome}
                                         onSelectTransaction={setSelectedTransaction}
                                     />
@@ -340,7 +406,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                 <DialogTitle className="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-[0.2em] leading-none mb-1.5">
                                     Quanto Saiu
                                 </DialogTitle>
-                                <p className="text-[9px] text-zinc-400 font-black uppercase tracking-[0.3em] opacity-60">Saques e Transferências Efetuadas</p>
+                                <p className="text-[9px] text-zinc-400 font-black uppercase tracking-[0.3em] opacity-60">Transferências, tarifas e ajustes</p>
                             </div>
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => { setIsExpensesModalOpen(false); setSelectedTransaction(null); }} className="h-10 w-10 rounded-full">
@@ -357,8 +423,9 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                 />
                             ) : (
                                 <motion.div key="expense-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                    {detailFilters}
                                     <FinancialStatement
-                                        transactions={expenseTransactions}
+                                        transactions={filteredExpenseTransactions}
                                         isLoading={isLoadingExpenses}
                                         onSelectTransaction={setSelectedTransaction}
                                     />
@@ -381,7 +448,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                 <DialogTitle className="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-[0.2em] leading-none mb-1.5">
                                     Vai Cair
                                 </DialogTitle>
-                                <p className="text-[9px] text-zinc-400 font-black uppercase tracking-[0.3em] opacity-60">Saldos Pendentes de Liquidação</p>
+                                <p className="text-[9px] text-zinc-400 font-black uppercase tracking-[0.3em] opacity-60">Valores válidos a receber</p>
                             </div>
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => { setIsPendingModalOpen(false); setSelectedTransaction(null); }} className="h-10 w-10 rounded-full">
@@ -398,8 +465,9 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                 />
                             ) : (
                                 <motion.div key="pending-list" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                    {detailFilters}
                                     <FinancialStatement
-                                        transactions={pendingTransactions}
+                                        transactions={filteredPendingTransactions}
                                         isLoading={isLoadingPending}
                                         onSelectTransaction={setSelectedTransaction}
                                     />
@@ -418,13 +486,22 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-[18px] bg-zinc-900 dark:bg-white text-white dark:text-black flex items-center justify-center shadow-lg">
                                     <Wallet className="h-4 w-4 md:h-5 md:w-5" />
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                     <h2 className="text-base md:text-lg font-black text-zinc-900 dark:text-white tracking-[0.1em] uppercase leading-none mb-1">NeuroFinance</h2>
                                     <div className="flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                         <p className="text-[8px] md:text-[9px] text-zinc-400 font-black uppercase tracking-[0.2em]">Conta PJ Conectada</p>
                                     </div>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={handleSync}
+                                    disabled={isSyncing}
+                                    title="Sincronizar dados financeiros"
+                                    className="ml-auto flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-all hover:text-zinc-950 active:scale-95 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-400 dark:hover:text-white"
+                                >
+                                    <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                                </button>
                             </div>
 
                             <div className="flex flex-col xl:flex-row items-center gap-6 xl:gap-8 w-full max-w-4xl">
@@ -450,6 +527,17 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                                 {(displayBalance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                             </p>
                                         </div>
+                                    )}
+                                    {bankBalance.lastUpdatedAt && (
+                                        <p className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500">
+                                            Atualizado em {new Date(bankBalance.lastUpdatedAt).toLocaleString("pt-BR", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            })}
+                                            {bankBalance.isStale ? " · atualização em andamento" : ""}
+                                        </p>
                                     )}
                                 </motion.div>
 

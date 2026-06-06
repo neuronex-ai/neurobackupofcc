@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
+import { toUserFacingError } from '@/lib/user-facing-error';
 
 export interface NeuroFinancePayment {
     id: string;
@@ -104,14 +105,15 @@ export const useCreatePayment = () => {
         },
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payments'] });
-            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-balance'] });
+            queryClient.invalidateQueries({ queryKey: ['neurofinance-overview'] });
 
             if (data.checkout_url) {
                 toast.success('Cobrança criada com sucesso!');
             }
         },
         onError: (error) => {
-            toast.error(`Erro ao criar cobrança: ${error.message}`);
+            const friendlyError = toUserFacingError(error, 'payment');
+            toast.error(friendlyError.title, { description: friendlyError.message });
         },
     });
 };
@@ -203,12 +205,13 @@ export const useRefundPayment = () => {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payments'] });
-            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-balance'] });
+            queryClient.invalidateQueries({ queryKey: ['neurofinance-overview'] });
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payment'] });
             toast.success('Reembolso solicitado com sucesso!');
         },
         onError: (error) => {
-            toast.error(`Erro ao solicitar reembolso: ${error.message}`);
+            const friendlyError = toUserFacingError(error, 'payment');
+            toast.error(friendlyError.title, { description: friendlyError.message });
         },
     });
 };

@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { toast } from "sonner";
 import type { NeuroFinancePayment, CreatePaymentResult } from "./use-neurofinance-payments";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -88,12 +89,12 @@ export function useNeuroFinancePix() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payments'] });
-            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-balance'] });
+            queryClient.invalidateQueries({ queryKey: ['neurofinance-overview'] });
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-pix-charges'] });
             toast.success('Cobrança PIX criada com sucesso!');
         },
         onError: (error) => {
-            toast.error(`Erro ao criar cobrança PIX: ${error.message}`);
+            toast.error(getUserFacingErrorMessage(error, "payment"));
         },
     });
 
@@ -123,11 +124,11 @@ export function useNeuroFinancePix() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payments'] });
-            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-balance'] });
+            queryClient.invalidateQueries({ queryKey: ['neurofinance-overview'] });
             toast.success('Cobrança com vencimento criada!');
         },
         onError: (error) => {
-            toast.error(`Erro ao criar cobrança: ${error.message}`);
+            toast.error(getUserFacingErrorMessage(error, "payment"));
         },
     });
 
@@ -180,11 +181,11 @@ export function useNeuroFinancePix() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payments'] });
-            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-balance'] });
+            queryClient.invalidateQueries({ queryKey: ['neurofinance-overview'] });
             toast.success('Transferência Pix realizada com sucesso!');
         },
         onError: (error) => {
-            toast.error(`Erro na transferência: ${error.message}`);
+            toast.error(getUserFacingErrorMessage(error, "transfer"));
         },
     });
 
@@ -199,10 +200,10 @@ export function useNeuroFinancePix() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payments'] });
-            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-balance'] });
+            queryClient.invalidateQueries({ queryKey: ['neurofinance-overview'] });
             toast.success('Pagamento Pix enviado para processamento.');
         },
-        onError: (error) => toast.error(`Erro ao pagar Pix: ${error.message}`),
+        onError: (error) => toast.error(getUserFacingErrorMessage(error, "transfer")),
     });
 
     return {
@@ -251,7 +252,7 @@ export function usePixKeys() {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-pix-keys'] });
             toast.success('Chave Pix aleatória criada.');
         },
-        onError: (error: Error) => toast.error(error.message),
+        onError: (error: Error) => toast.error(getUserFacingErrorMessage(error, "save")),
     });
 
     const deleteKey = useMutation({
@@ -267,7 +268,7 @@ export function usePixKeys() {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-pix-keys'] });
             toast.success('Chave Pix removida.');
         },
-        onError: (error: Error) => toast.error(error.message),
+        onError: (error: Error) => toast.error(getUserFacingErrorMessage(error, "delete")),
     });
 
     return { ...query, createKey, deleteKey };
