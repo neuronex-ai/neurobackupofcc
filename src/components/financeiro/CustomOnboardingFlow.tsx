@@ -31,6 +31,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { NeuroFinanceCardVisual } from "@/components/landing/Feature3DVisuals";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface CustomOnboardingFlowProps {
     onComplete: () => void;
@@ -545,7 +546,7 @@ export const CustomOnboardingFlow = ({
             setStep("success");
         } catch (error: any) {
             console.error("[CustomOnboardingFlow] submit error", error);
-            toast.error(error?.message || "Não foi possível concluir o onboarding.");
+            toast.error(getUserFacingErrorMessage(error, "save"));
         } finally {
             setIsSubmitting(false);
             setIsPolling(false);

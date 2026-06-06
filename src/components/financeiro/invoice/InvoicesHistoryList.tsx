@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 export const InvoicesHistoryList = () => {
     const { data: invoices, isLoading } = useInvoices();
@@ -40,7 +41,7 @@ export const InvoicesHistoryList = () => {
             queryClient.invalidateQueries({ queryKey: ['pendingInvoicesTotal'] });
         } catch (e: any) {
             console.error(e);
-            toast.error("Erro ao excluir cobrança: " + (e.message || "Erro desconhecido"));
+            toast.error(getUserFacingErrorMessage(e, "delete"));
         } finally {
             setDeletingId(null);
         }

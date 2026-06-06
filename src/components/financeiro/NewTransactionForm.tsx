@@ -16,6 +16,7 @@ import { NewTransactionFormValues, NewTransactionSchema } from "@/lib/validation
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Calendar as CalendarIcon, Check, CreditCard, FileText, Loader2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface NewTransactionFormProps {
   onSuccess: () => void;
@@ -56,7 +57,8 @@ export const NewTransactionForm = ({ onSuccess }: NewTransactionFormProps) => {
       toast.success("Movimentação registrada!");
       onSuccess();
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("[NewTransactionForm] Falha ao registrar movimentação", error);
+      toast.error(getUserFacingErrorMessage(error, "save"));
     }
   };
 

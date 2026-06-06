@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useFinancialAccount } from '@/hooks/use-financial-account';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 interface AccountResolutionFormProps {
     requirement: string;
@@ -68,7 +69,7 @@ export const AccountResolutionForm = ({ requirement, onSuccess }: AccountResolut
             }, 1500);
         } catch (err: any) {
             console.error('Update error:', err);
-            toast.error(err.message || 'Não foi possível processar sua solicitação no momento.');
+            toast.error(getUserFacingErrorMessage(err, 'save'));
         } finally {
             setLoading(false);
         }

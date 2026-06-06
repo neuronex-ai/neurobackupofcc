@@ -19,6 +19,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { toast } from "sonner";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -121,7 +122,8 @@ export function useNeuroFinanceScheduledPayments() {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payment-groups'] });
         },
         onError: (error: Error) => {
-            toast.error(`Erro ao validar pagamentos: ${error.message}`);
+            console.error("[ScheduledPayments] Falha na validação", error);
+            toast.error(getUserFacingErrorMessage(error, "payment"));
         },
     });
 
@@ -157,7 +159,8 @@ export function useNeuroFinanceScheduledPayments() {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payment-groups'] });
         },
         onError: (error: Error) => {
-            toast.error(`Erro ao remover: ${error.message}`);
+            console.error("[ScheduledPayments] Falha ao remover pagamentos", error);
+            toast.error(getUserFacingErrorMessage(error, "delete"));
         },
     });
 
@@ -173,7 +176,8 @@ export function useNeuroFinanceScheduledPayments() {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payment-groups'] });
         },
         onError: (error: Error) => {
-            toast.error(`Erro ao remover: ${error.message}`);
+            console.error("[ScheduledPayments] Falha ao remover pagamento", error);
+            toast.error(getUserFacingErrorMessage(error, "delete"));
         },
     });
 
@@ -210,7 +214,8 @@ export function useNeuroFinanceScheduledPayments() {
             queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payment-groups'] });
         },
         onError: (error: Error) => {
-            toast.error(`Erro ao submeter: ${error.message}`);
+            console.error("[ScheduledPayments] Falha no envio do grupo", error);
+            toast.error(getUserFacingErrorMessage(error, "payment"));
         },
     });
 

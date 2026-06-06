@@ -10,6 +10,7 @@ import { Loader2, Trash2, Split, Building2, Users, GraduationCap, X, Sparkles, S
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, formatCurrency } from '@/lib/utils';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 interface SplitConfig {
     id: string;
@@ -70,7 +71,10 @@ export const SmartSplit = () => {
             setNewSplit({ recipient_type: 'professional', split_type: 'percentage', is_active: true });
             toast.success("Regra de split criada!");
         },
-        onError: (err) => toast.error(`Erro: ${err.message}`)
+        onError: (err) => {
+            console.error("[SmartSplit] Falha ao criar regra", err);
+            toast.error(getUserFacingErrorMessage(err, "save"));
+        }
     });
 
     // Delete mutation

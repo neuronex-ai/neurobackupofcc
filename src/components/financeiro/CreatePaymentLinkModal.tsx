@@ -19,6 +19,7 @@ import {
     X
 } from "lucide-react";
 import { usePatients } from "@/hooks/use-patients";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface CreatePaymentLinkModalProps {
     open: boolean;
@@ -84,7 +85,7 @@ export const CreatePaymentLinkModal = ({ open, onOpenChange }: CreatePaymentLink
             }
         } catch (err: any) {
             console.error("Link error:", err);
-            toast.error(err.message || "Não foi possível gerar a cobrança agora.");
+            toast.error(getUserFacingErrorMessage(err, "payment"));
         } finally {
             setLoading(false);
         }

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNeuroFinancePix } from "@/hooks/use-neurofinance-pix";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 export function PixPagarCopiaCola() {
     const [pixCode, setPixCode] = useState("");
@@ -53,7 +54,8 @@ export function PixPagarCopiaCola() {
             });
             setStep("confirm");
         } catch (error: any) {
-            toast.error(`Erro ao processar: ${error.message}`);
+            console.error("[PixPagarCopiaCola] Falha ao ler o código Pix", error);
+            toast.error(getUserFacingErrorMessage(error, "payment"));
         } finally {
             setIsProcessing(false);
         }

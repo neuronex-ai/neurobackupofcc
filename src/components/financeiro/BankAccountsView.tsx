@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 const digits = (value: string) => value.replace(/\D/g, "");
 
@@ -74,7 +75,8 @@ export const BankAccountsView = () => {
                 toast.success("Conta de repasse atualizada.");
             }
         } catch (error: any) {
-            toast.error(error?.message || "Não foi possível atualizar a conta.");
+            console.error("[BankAccountsView] Falha ao atualizar conta de repasse", error);
+            toast.error(getUserFacingErrorMessage(error, "save"));
         }
     };
 

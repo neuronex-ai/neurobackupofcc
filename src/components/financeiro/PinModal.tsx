@@ -7,6 +7,7 @@ import { ArrowLeft, Lock, ShieldCheck, Unlock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 const VERIFY_PIN_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/verify-financial-pin";
 
@@ -57,7 +58,11 @@ export const PinModal = ({ open, onOpenChange, onSuccess }: PinModalProps) => {
       }, 800); // Delay para mostrar animação de sucesso
       
     } catch (e: any) {
-      toast.error(e.message, { position: 'bottom-center' });
+      console.error("[PinModal] Falha na verificação do PIN", e);
+      const message = String(e?.message || "").toLowerCase().includes("pin")
+        ? "PIN incorreto. Confira os números e tente novamente."
+        : getUserFacingErrorMessage(e, "generic");
+      toast.error(message, { position: 'bottom-center' });
       setError(true);
       setPin("");
     } finally {

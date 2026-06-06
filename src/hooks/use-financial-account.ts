@@ -45,9 +45,14 @@ const invokeAsaasFunction = async (name: string, body?: unknown) => {
     } catch {
       // The generic Functions error remains the fallback.
     }
-    throw new Error(detail || response.error.message);
+    const technicalError = detail || response.error.message;
+    console.error(`[NeuroFinance:${name}]`, technicalError);
+    throw new Error(getUserFacingErrorMessage(technicalError, "sync"));
   }
-  if ((response.data as any)?.error) throw new Error((response.data as any).error);
+  if ((response.data as any)?.error) {
+    console.error(`[NeuroFinance:${name}]`, (response.data as any).error);
+    throw new Error(getUserFacingErrorMessage((response.data as any).error, "sync"));
+  }
 
   return response.data as any;
 };

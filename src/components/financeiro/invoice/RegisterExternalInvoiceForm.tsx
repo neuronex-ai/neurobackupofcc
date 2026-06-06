@@ -12,6 +12,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 const ExternalInvoiceSchema = z.object({
   patientId: z.string().min(1, "Selecione um paciente"),
@@ -82,7 +83,7 @@ export const RegisterExternalInvoiceForm = ({ onBack, onSuccess }: RegisterExter
       onSuccess();
     } catch (error: any) {
       console.error(error);
-      toast.error(`Erro ao registrar: ${error.message}`);
+      toast.error(getUserFacingErrorMessage(error, "save"));
     } finally {
       setIsSubmitting(false);
     }

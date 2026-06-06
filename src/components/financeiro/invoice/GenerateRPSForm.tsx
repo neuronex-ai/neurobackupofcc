@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface GenerateRPSFormProps {
     onBack: () => void;
@@ -59,7 +60,10 @@ export const GenerateRPSForm = ({ onBack, onSuccess: _ }: GenerateRPSFormProps) 
                     municipal_service_name: fiscalSettings?.asaas_municipal_service_name || undefined,
                 }, {
                     onSuccess: () => setStep(3),
-                    onError: (error: any) => toast.error(error?.message || "Erro fiscal. Verifique os dados do paciente.")
+                    onError: (error: any) => {
+                        console.error("[GenerateRPSForm] Falha ao emitir documento fiscal", error);
+                        toast.error(getUserFacingErrorMessage(error, "payment"));
+                    }
                 });
             }
         });
