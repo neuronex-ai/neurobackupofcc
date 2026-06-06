@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { format, isSameDay } from 'date-fns';
 import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
+import { getAsaasAccountState } from '@/lib/asaas-account-status';
 
 export interface DashboardAlert {
   id: string;
@@ -31,11 +32,13 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
 
   const { data: financialAccount } = await supabase
     .from('financial_accounts')
-    .select('id, status, charges_enabled, payouts_enabled, details_submitted, last_sync_error, last_asaas_event_type, last_asaas_event_at')
+    .select('id, status, asaas_account_id, charges_enabled, payouts_enabled, details_submitted, requirements, last_sync_error, last_asaas_event_type, last_asaas_event_at')
     .eq('user_id', userId)
     .maybeSingle();
 
-  if (!financialAccount || financialAccount.status === 'not_started' || financialAccount.status === 'account_missing') {
+  const accountState = getAsaasAccountState(financialAccount);
+
+  if (!financialAccount || accountState.uiStatus === 'not_started' || accountState.uiStatus === 'account_missing') {
     alerts.push({
       id: 'payment-connect',
       type: 'warning',
