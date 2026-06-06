@@ -56,6 +56,109 @@ function movementType(providerType?: string, direction?: "credit" | "debit") {
     return direction === "credit" ? "credit_adjustment" : "debit_adjustment";
 }
 
+function isProviderAccountUnavailable(error: any) {
+    const status = Number(error?.status || 0);
+    const message = String(error?.message || "").toLowerCase();
+    return (
+        [401, 403, 404].includes(status) ||
+        message.includes("chave api") ||
+        message.includes("access token") ||
+        message.includes("não pertence a este ambiente") ||
+        message.includes("does not belong to this environment")
+    );
+}
+
+async function recordSyncFailure(financialAccount: any, error: any) {
+    const accountUnavailable = isProviderAccountUnavailable(error);
+    const occurredAt = new Date().toISOString();
+    const friendlyMessage = accountUnavailable
+        ? "Não conseguimos acessar sua conta financeira. Reconecte a conta ou fale com o suporte."
+        : "Não conseguimos atualizar os dados financeiros agora.";
+
+    const metadata = {
+        ...(financialAccount.metadata || {}),
+        provider_connection: {
+            ...((financialAccount.metadata || {}).provider_connection || {}),
+            status: accountUnavailable ? "account_missing" : "sync_failed",
+            detected_at: occurredAt,
+            error_code: accountUnavailable
+                ? "PROVIDER_ACCOUNT_UNAVAILABLE"
+                : "FINANCIAL_SYNC_UNAVAILABLE",
+            support_required: accountUnavailable,
+        },
+    };
+
+    await Promise.all([
+        supabaseAdmin
+            .from("financial_accounts")
+            .update({
+                ...(accountUnavailable
+                    ? {
+                        status: "account_missing",
+                        charges_enabled: false,
+                        payouts_enabled: false,
+                    }
+                    : {}),
+                last_sync_error: friendlyMessage,
+                metadata,
+                updated_at: occurredAt,
+            })
+            .eq("id", financialAccount.id),
+        supabaseAdmin
+            .from("neurofinance_overview_snapshots")
+            .update({
+                is_stale: true,
+                last_sync_error: friendlyMessage,
+                updated_at: occurredAt,
+            })
+            .eq("financial_account_id", financialAccount.id),
+    ]);
+
+    return accountUnavailable ? "account_unavailable" : "sync_failed";
+}
+
+async function reconcilePaymentsMissingFromProvider(
+    financialAccountId: string,
+    providerPayments: any[]
+) {
+    const providerIds = new Set(
+        providerPayments.map((payment) => String(payment?.id || "")).filter(Boolean)
+    );
+    const { data: localPayments, error } = await supabaseAdmin
+        .from("nb_payments")
+        .select("id, provider_payment_id")
+        .eq("financial_account_id", financialAccountId)
+        .eq("provider", "asaas")
+        .in("normalized_status", ["pending", "processing", "confirmed"]);
+    if (error) throw error;
+
+    const missingIds = (localPayments || [])
+        .filter((payment) =>
+            payment.provider_payment_id &&
+            !providerIds.has(payment.provider_payment_id)
+        )
+        .map((payment) => payment.id);
+
+    for (let offset = 0; offset < missingIds.length; offset += 100) {
+        const batch = missingIds.slice(offset, offset + 100);
+        const { error: updateError } = await supabaseAdmin
+            .from("nb_payments")
+            .update({
+                status: "canceled",
+                provider_status: "NOT_RETURNED_BY_RECONCILIATION",
+                normalized_status: "deleted",
+                funds_status: "canceled",
+                reconciliation_status: "not_found",
+                reconciled_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            })
+            .in("id", batch);
+        if (updateError) throw updateError;
+    }
+
+    return missingIds.length;
+}
+
 async function syncAccount(financialAccount: any, mode: "incremental" | "full") {
     const apiKey = getFinancialAccountAsaasApiKey(financialAccount);
     if (!apiKey || financialAccount.status === "account_missing") {
@@ -97,6 +200,10 @@ async function syncAccount(financialAccount: any, mode: "incremental" | "full") 
     for (const payment of payments) {
         await upsertPaymentFromProvider(financialAccount, payment, "RECONCILIATION");
     }
+
+    const missingPayments = mode === "full" && payments.length < MAX_FULL_PAGES * PAGE_SIZE
+        ? await reconcilePaymentsMissingFromProvider(financialAccount.id, payments)
+        : 0;
 
     for (const transfer of transfers) {
         const status = String(transfer.status || "PENDING").toUpperCase();
@@ -200,6 +307,7 @@ async function syncAccount(financialAccount: any, mode: "incremental" | "full") 
     return {
         account_id: financialAccount.id,
         payments: payments.length,
+        payments_marked_missing: missingPayments,
         transfers: transfers.length,
         movements: statement.length,
         available_balance: availableBalance,
@@ -233,14 +341,8 @@ Deno.serve(async (req: Request) => {
                     results.push({ success: true, ...(await syncAccount(account, mode)) });
                 } catch (error: any) {
                     console.error("[asaas-financial-sync] Account sync failed:", account.id, error);
-                    await supabaseAdmin
-                        .from("financial_accounts")
-                        .update({
-                            last_sync_error: "Não conseguimos atualizar os dados financeiros agora.",
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq("id", account.id);
-                    results.push({ success: false, account_id: account.id });
+                    const reason = await recordSyncFailure(account, error);
+                    results.push({ success: false, account_id: account.id, reason });
                 }
             }
 
@@ -267,11 +369,16 @@ Deno.serve(async (req: Request) => {
             });
         }
 
-        return jsonResponse({
-            success: true,
-            mode,
-            result: await syncAccount(financialAccount, mode),
-        });
+        try {
+            return jsonResponse({
+                success: true,
+                mode,
+                result: await syncAccount(financialAccount, mode),
+            });
+        } catch (error: any) {
+            await recordSyncFailure(financialAccount, error);
+            throw error;
+        }
     } catch (error: any) {
         console.error("[asaas-financial-sync] Fatal error:", error);
         return errorResponse(

@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 const createReminder = async ({
   userId,
@@ -33,7 +34,8 @@ export const useCreateReminder = () => {
       toast.success('Lembrete criado com sucesso.');
     },
     onError: (error) => {
-      toast.error(`Erro ao criar lembrete: ${error.message}`);
+      console.error('[useCreateReminder] Falha ao criar lembrete', error);
+      toast.error(getUserFacingErrorMessage(error, 'save'));
     },
   });
 };

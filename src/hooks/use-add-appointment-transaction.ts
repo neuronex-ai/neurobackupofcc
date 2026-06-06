@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 interface NewAppointmentTransactionData {
   appointmentId: string;
@@ -65,7 +66,8 @@ export const useAddAppointmentTransaction = () => {
       queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
     },
     onError: (error) => {
-      toast.error(`Erro ao registrar transação: ${error.message}`);
+      console.error('[useAddAppointmentTransaction] Falha ao registrar movimentação', error);
+      toast.error(getUserFacingErrorMessage(error, 'save'));
     }
   });
 };

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 export interface NoteModule {
   id: string;
@@ -63,7 +64,10 @@ export const useNoteModules = () => {
       toast.success("Módulo criado.");
       queryClient.invalidateQueries({ queryKey: ['noteModules'] });
     },
-    onError: (e) => toast.error(`Erro: ${e.message}`)
+    onError: (e) => {
+      console.error('[useNoteModules] Falha ao criar módulo', e);
+      toast.error(getUserFacingErrorMessage(e, 'save'));
+    }
   });
 
   const deleteMutation = useMutation({

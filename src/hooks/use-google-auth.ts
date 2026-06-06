@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 // URL da Edge Function para iniciar o fluxo OAuth
 const GOOGLE_AUTH_INIT_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/google-auth-init";
@@ -95,7 +96,8 @@ export const useGoogleAuth = () => {
       window.history.replaceState({}, '', window.location.pathname);
     } else if (status === 'error' && service === 'google') {
       const message = urlParams.get('message');
-      toast.error(`Erro ao conectar: ${message || 'Falha desconhecida'}`);
+      console.error('[useGoogleAuth] Retorno OAuth com erro', message);
+      toast.error(getUserFacingErrorMessage(message, 'sync'));
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [checkConnectionStatus]);
@@ -129,7 +131,7 @@ export const useGoogleAuth = () => {
 
     } catch (error: any) {
       console.error("Google Auth Init Error:", error);
-      toast.error(`Erro ao conectar: ${error.message}`);
+      toast.error(getUserFacingErrorMessage(error, 'sync'));
       setIsLoading(false);
     }
   }, [session]);
@@ -145,7 +147,8 @@ export const useGoogleAuth = () => {
       .eq('user_id', user.id);
 
     if (error) {
-      toast.error("Erro ao desconectar: " + error.message);
+      console.error('[useGoogleAuth] Falha ao desconectar', error);
+      toast.error(getUserFacingErrorMessage(error, 'delete'));
       setIsLoading(false);
     } else {
       localStorage.removeItem(SPREADSHEET_ID_KEY);

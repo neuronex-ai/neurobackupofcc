@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 export interface InviteOptions {
   paymentType: string;
@@ -81,7 +82,7 @@ export const useInvitePatient = () => {
     },
     onError: (error) => {
       console.error(error);
-      toast.error(`Erro ao enviar convite: ${error.message}`);
+      toast.error(getUserFacingErrorMessage(error, 'generic'));
     }
   });
 };

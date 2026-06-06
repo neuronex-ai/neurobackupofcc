@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { usePixKeys } from "@/hooks/use-neurofinance-pix";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 export function PixChaves() {
     const { data: keys = [], isLoading, error, createKey, deleteKey } = usePixKeys();
@@ -45,7 +46,7 @@ export function PixChaves() {
                 <div className="flex min-h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
             ) : error ? (
                 <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-5 text-sm text-amber-700 dark:text-amber-300">
-                    {error.message}
+                    {getUserFacingErrorMessage(error, "load")}
                 </div>
             ) : keys.length === 0 ? (
                 <div className="flex min-h-52 flex-col items-center justify-center rounded-[24px] border border-dashed border-black/10 bg-black/[0.015] text-center dark:border-white/10 dark:bg-white/[0.015]">

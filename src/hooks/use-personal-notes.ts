@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
 import { PersonalNote } from '@/types';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 const fetchNotes = async (userId: string): Promise<PersonalNote[]> => {
   const { data, error } = await supabase
@@ -76,7 +77,10 @@ export const usePersonalNotes = () => {
     onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['personalNotes'] });
     },
-    onError: (e) => toast.error(e.message)
+    onError: (e) => {
+      console.error('[usePersonalNotes] Falha ao criar nota', e);
+      toast.error(getUserFacingErrorMessage(e, 'save'));
+    }
   });
 
   const updateMutation = useMutation({
@@ -87,7 +91,10 @@ export const usePersonalNotes = () => {
     onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['personalNotes'] });
     },
-    onError: (e) => toast.error(e.message)
+    onError: (e) => {
+      console.error('[usePersonalNotes] Falha ao atualizar nota', e);
+      toast.error(getUserFacingErrorMessage(e, 'save'));
+    }
   });
 
   const deleteMutation = useMutation({

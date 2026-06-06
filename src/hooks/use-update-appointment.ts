@@ -4,6 +4,7 @@ import { Appointment } from '@/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 interface UpdateAppointmentData {
   id: string;
@@ -133,7 +134,8 @@ export const useUpdateAppointment = () => {
       if (context?.previousAppointments) {
         queryClient.setQueriesData({ queryKey: ['appointments'] }, context.previousAppointments);
       }
-      toast.error(`Erro ao atualizar: ${error.message}`);
+      console.error('[useUpdateAppointment] Falha ao atualizar agendamento', error);
+      toast.error(getUserFacingErrorMessage(error, 'save'));
     },
     onSettled: (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointmentsByDateRange'] });

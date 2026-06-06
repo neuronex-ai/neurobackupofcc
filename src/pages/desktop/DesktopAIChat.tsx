@@ -11,6 +11,7 @@ import { History, Phone, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 // Components
 import { ChatInputArea } from "@/components/ai-chat/ChatInputArea";
@@ -107,7 +108,8 @@ export default function DesktopAIChat() {
                 activeSessionId = newSession.id;
                 setCurrentSessionId(newSession.id);
             } catch (e: any) {
-                toast.error(`Erro ao iniciar conversa: ${e.message}`);
+                console.error("[DesktopAIChat] Falha ao iniciar conversa", e);
+                toast.error(getUserFacingErrorMessage(e, "save"));
                 return;
             }
         }
@@ -128,7 +130,8 @@ export default function DesktopAIChat() {
                     uploadedFiles.push({ name: file.name, url: publicUrl });
                 }
             } catch (e: any) {
-                toast.error(`Erro no upload: ${e.message}`);
+                console.error("[DesktopAIChat] Falha no envio de anexo", e);
+                toast.error(getUserFacingErrorMessage(e, "save"));
                 setIsUploading(false);
                 return;
             }

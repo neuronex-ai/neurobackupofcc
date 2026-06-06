@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 const fetchProfile = async (userId: string): Promise<Profile | null> => {
   const { data, error } = await supabase
@@ -56,7 +57,8 @@ export const useProfile = () => {
       queryClient.invalidateQueries({ queryKey: ['profile', userId] });
     },
     onError: (error) => {
-      toast.error(`Erro ao atualizar perfil: ${error.message}`);
+      console.error('[useProfile] Falha ao atualizar perfil', error);
+      toast.error(getUserFacingErrorMessage(error, 'save'));
     }
   });
 

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 interface DeletePatientOptions {
   patientId: string;
@@ -95,7 +96,7 @@ export const useDeletePatient = () => {
     onError: (error: Error) => {
       console.error('[useDeletePatient] Error:', error);
       toast.error('Erro ao excluir paciente', {
-        description: error.message,
+        description: getUserFacingErrorMessage(error, 'delete'),
       });
     },
   });

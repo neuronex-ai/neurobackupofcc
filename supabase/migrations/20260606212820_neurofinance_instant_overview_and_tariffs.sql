@@ -119,12 +119,37 @@ alter table public.nb_payments
   add column if not exists reconciled_at timestamptz;
 
 alter table public.nb_payouts
+  add column if not exists provider_payout_id text,
   add column if not exists provider_status text,
   add column if not exists operation_type text not null default 'transfer',
   add column if not exists fee_amount integer,
   add column if not exists completed_at timestamptz,
   add column if not exists reconciliation_status text not null default 'unverified',
   add column if not exists reconciled_at timestamptz;
+
+update public.nb_payments
+set provider_payment_id = coalesce(
+  provider_payment_id,
+  nullif(metadata->>'asaas_payment_id', ''),
+  nullif(metadata->>'payment_id', '')
+)
+where provider_payment_id is null
+  and coalesce(
+    nullif(metadata->>'asaas_payment_id', ''),
+    nullif(metadata->>'payment_id', '')
+  ) is not null;
+
+update public.nb_payments
+set payment_method_type = case upper(coalesce(payment_method_type, ''))
+  when 'PIX' then 'pix'
+  when 'BOLETO' then 'boleto'
+  when 'CREDIT_CARD' then 'card'
+  when 'CARD' then 'card'
+  when 'DEBIT_CARD' then 'debit'
+  when 'DEBIT' then 'debit'
+  when 'UNDEFINED' then null
+  else nullif(lower(payment_method_type), '')
+end;
 
 create unique index if not exists idx_nb_payments_provider_payment_unique
   on public.nb_payments(provider, provider_payment_id)

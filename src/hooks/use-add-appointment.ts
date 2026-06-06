@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Appointment, Patient } from '@/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 interface NewAppointmentData {
   patient_id: string | null;
@@ -177,7 +178,8 @@ export const useAddAppointment = () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-activities'] });
     },
     onError: (error) => {
-      toast.error(`Erro: ${error.message}`);
+      console.error('[useAddAppointment] Falha ao criar agendamento', error);
+      toast.error(getUserFacingErrorMessage(error, 'save'));
     }
   });
 };

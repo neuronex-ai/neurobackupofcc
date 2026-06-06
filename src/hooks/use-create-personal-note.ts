@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 const createNote = async ({
   userId,
@@ -37,7 +38,8 @@ export const useCreatePersonalNote = () => {
       toast.success('Anotação salva em "Notas Pessoais".');
     },
     onError: (error) => {
-      toast.error(`Erro ao salvar nota: ${error.message}`);
+      console.error('[useCreatePersonalNote] Falha ao salvar nota', error);
+      toast.error(getUserFacingErrorMessage(error, 'save'));
     },
   });
 };

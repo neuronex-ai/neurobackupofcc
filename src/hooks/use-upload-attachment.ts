@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
+import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
 const uploadAttachment = async ({
   patientId,
@@ -61,7 +62,8 @@ export const useUploadAttachment = () => {
       queryClient.invalidateQueries({ queryKey: ['patient-attachments', data.patient_id] });
     },
     onError: (error: Error) => {
-      toast.error(`Falha no envio: ${error.message}`);
+      console.error('[useUploadAttachment] Falha no envio', error);
+      toast.error(getUserFacingErrorMessage(error, 'save'));
     },
   });
 };
