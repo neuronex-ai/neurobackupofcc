@@ -32,6 +32,8 @@ import {
     createAsaasSubAccount,
     getAsaasAccountStatus,
     deriveUiStatusFromAsaasAccount,
+    buildAsaasRequirementSnapshot,
+    syncFinancialAccountFromAsaas,
     upsertFinancialAccountRecord,
     sanitizeDigits,
     asaasRequest,
@@ -94,6 +96,8 @@ Deno.serve(async (req: Request) => {
                 }
                 const status = await getAsaasAccountStatus(existingApiKey);
                 const uiStatus = deriveUiStatusFromAsaasAccount(status);
+                const requirements = buildAsaasRequirementSnapshot(status, 'sync');
+                await syncFinancialAccountFromAsaas(existingAccount.id, status, 'sync');
 
                 return jsonResponse({
                     success: true,
@@ -103,6 +107,7 @@ Deno.serve(async (req: Request) => {
                     status: uiStatus,
                     onboarding_url: existingAccount.asaas_onboarding_url,
                     account_status: status,
+                    requirements,
                 });
             } catch (err) {
                 console.error('Error syncing existing account:', err);
@@ -215,6 +220,18 @@ Deno.serve(async (req: Request) => {
             },
         });
 
+        let status = 'onboarding';
+        let accountStatus = null;
+        let requirements = null;
+        try {
+            accountStatus = await getAsaasAccountStatus(subAccount.apiKey);
+            status = deriveUiStatusFromAsaasAccount(accountStatus);
+            requirements = buildAsaasRequirementSnapshot(accountStatus, 'onboarding');
+            await syncFinancialAccountFromAsaas(financialAccount.id, accountStatus, 'onboarding');
+        } catch (statusErr) {
+            console.warn('[asaas-connect-onboarding] Initial status sync deferred:', statusErr);
+        }
+
         // 4. Create onboarding session record
         await supabaseAdmin
             .from('financial_onboarding_sessions')
@@ -234,7 +251,9 @@ Deno.serve(async (req: Request) => {
             asaas_account_id: subAccount.id,
             wallet_id: subAccount.walletId,
             onboarding_url: subAccount.onboardingUrl,
-            status: 'onboarding',
+            status,
+            account_status: accountStatus,
+            requirements,
             account_number: subAccount.accountNumber || null,
         });
 

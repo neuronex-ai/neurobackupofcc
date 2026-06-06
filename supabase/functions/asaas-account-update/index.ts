@@ -37,6 +37,9 @@ import {
     getFinancialAccountAsaasApiKey,
     normalizeAccountNumber,
     ASAAS_ENV,
+    getAsaasAccountStatus,
+    buildAsaasRequirementSnapshot,
+    syncFinancialAccountFromAsaas,
 } from '../_shared/asaas-client.ts';
 
 Deno.serve(async (req: Request) => {
@@ -174,12 +177,25 @@ Deno.serve(async (req: Request) => {
             }
         }
 
+        let accountStatus = null;
+        let requirements = null;
+        try {
+            accountStatus = await getAsaasAccountStatus(subApiKey);
+            requirements = buildAsaasRequirementSnapshot(accountStatus, 'sync');
+            await syncFinancialAccountFromAsaas(financialAccount.id, accountStatus, 'sync');
+        } catch (statusError: any) {
+            console.warn('[asaas-account-update] Status sync deferred:', statusError);
+            warnings.push(statusError?.message || 'Situação cadastral aguardando sincronização com a Asaas.');
+        }
+
         return jsonResponse({
             success: true,
             sync_status: warnings.length ? 'deferred' : 'synced',
             warnings,
             commercial_info: commercialResult,
             bank_info: bankResult,
+            account_status: accountStatus,
+            requirements,
         });
 
     } catch (error: any) {
