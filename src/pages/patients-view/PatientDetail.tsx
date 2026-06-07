@@ -196,55 +196,63 @@ export default function PatientDetail() {
     }
 
     return (
-        <div className="min-h-screen w-full pt-10 pb-32 md:pb-40 relative selection:bg-zinc-900/10 dark:selection:bg-white/10 selection:text-zinc-900 dark:selection:text-white font-sans text-zinc-900 dark:text-zinc-100">
+        <div className="relative min-h-screen w-full bg-background pb-28 pt-5 font-sans text-foreground selection:bg-zinc-900/10 dark:selection:bg-white/10">
+            <div className="pointer-events-none fixed inset-0 z-0 premium-noise opacity-[0.025] dark:opacity-[0.035]" />
+            <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+                <div className="absolute right-[-12%] top-[-22%] h-[620px] w-[780px] rounded-full bg-zinc-400/[0.035] blur-[170px] dark:bg-white/[0.018]" />
+            </div>
+
+            <div className="relative z-10 mx-auto w-full max-w-[2200px] px-5">
+                <section className="relative isolate overflow-visible rounded-[30px] border border-zinc-200/75 bg-white/62 shadow-[0_24px_64px_-42px_rgba(24,24,27,0.22),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/[0.065] dark:bg-white/[0.018] dark:shadow-[0_24px_64px_-42px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.025)]">
+                    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[30px] premium-noise opacity-[0.012] dark:opacity-[0.018]" />
 
             {/* ─── Header Top Bar ─── */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: "circOut" }}
-                className="mb-8 sticky top-4 z-40 w-full max-w-[1920px] mx-auto px-6 md:px-12 lg:px-20 xl:px-24"
+                className="sticky top-3 z-40 w-full rounded-t-[30px] border-b border-zinc-200/65 bg-white/78 px-4 py-3 backdrop-blur-3xl dark:border-white/[0.055] dark:bg-[#080809]/76"
             >
                 <div className="w-full">
-                    <div className="w-full flex items-center justify-between p-2 pl-6 bg-white dark:bg-[#080809] backdrop-blur-3xl border border-black/[0.04] dark:border-white/[0.08] rounded-full shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)]">
+                    <div className="flex w-full items-center justify-between gap-4">
 
                         {/* Left Side: Back & Title */}
-                        <div className="flex items-center gap-6">
+                        <div className="flex min-w-0 items-center gap-4">
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => navigate('/pacientes')}
-                                className="h-10 w-10 rounded-full bg-zinc-100 dark:bg-white/5 hover:bg-zinc-900 dark:hover:bg-white text-zinc-500 hover:text-white dark:text-zinc-400 dark:hover:text-black transition-all border border-transparent shadow-sm"
+                                className="h-10 w-10 shrink-0 rounded-xl border border-zinc-200/70 bg-white text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:border-white/[0.07] dark:bg-white/[0.035] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black"
                             >
                                 <ArrowLeft className="h-4 w-4" />
                             </Button>
 
-                            <div className="flex flex-col justify-center h-full -space-y-0.5">
-                                <span className="text-[9px] font-black text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.3em] pl-0.5">Prontuário Digital</span>
-                                <h1 className="text-base md:text-lg font-black text-zinc-900 dark:text-zinc-100 tracking-tighter leading-none">{patient.name}</h1>
+                            <div className="flex min-w-0 flex-col justify-center">
+                                <span className="text-[8px] font-black uppercase tracking-[0.28em] text-zinc-400 dark:text-zinc-600">Prontuário clínico</span>
+                                <h1 className="truncate text-base font-black leading-tight tracking-tight text-zinc-950 dark:text-zinc-100 md:text-lg">{patient.name}</h1>
                             </div>
                         </div>
 
                         {/* Right Side: Actions */}
-                        <div className="flex items-center gap-3 pr-1">
+                        <div className="flex shrink-0 items-center gap-2">
 
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={handleRepeatLastAppointment}
                                 disabled={isScheduling}
-                                className="hidden sm:flex h-11 rounded-full px-6 text-[10px] uppercase font-black tracking-[0.2em] gap-3 text-zinc-500 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/5 transition-all"
+                                className="hidden h-10 gap-2 rounded-xl px-4 text-[9px] font-black uppercase tracking-[0.18em] text-zinc-500 transition-all hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-500 dark:hover:bg-white/[0.055] dark:hover:text-white sm:flex"
                             >
                                 {isScheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
-                                Agendamento
+                                Repetir sessão
                             </Button>
 
-                            <div className="h-6 w-px bg-zinc-200 dark:bg-white/5 mx-2 hidden sm:block" />
+                            <div className="mx-1 hidden h-5 w-px bg-zinc-200 dark:bg-white/[0.055] sm:block" />
 
                             <Select value={patient.status || ""} onValueChange={handleStatusChange}>
-                                <SelectTrigger className="h-11 w-auto gap-3 px-6 rounded-full border-none bg-zinc-100/50 dark:bg-white/[0.04] hover:bg-zinc-100 dark:hover:bg-white/[0.08] transition-all text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 dark:text-zinc-300 ring-0 focus:ring-0 shadow-sm">
+                                <SelectTrigger className="h-10 w-auto gap-2 rounded-xl border border-zinc-200/70 bg-white px-4 text-[9px] font-black uppercase tracking-[0.17em] text-zinc-600 shadow-sm ring-0 transition-all hover:bg-zinc-100 focus:ring-0 dark:border-white/[0.07] dark:bg-white/[0.035] dark:text-zinc-300 dark:hover:bg-white/[0.07]">
                                     <div className="flex items-center gap-3">
-                                        <span className={cn("w-2 h-2 rounded-full shadow-lg",
+                                        <span className={cn("h-1.5 w-1.5 rounded-full shadow-lg",
                                             patient.status === 'active' ? "bg-emerald-500 shadow-emerald-500/20" :
                                                 patient.status === 'archived' ? "bg-orange-500" : "bg-zinc-400")}
                                         />
@@ -264,63 +272,63 @@ export default function PatientDetail() {
 
 
             {/* ─── Main Layout Grid ─── */}
-            <div className="max-w-[1920px] mx-auto px-6 md:px-12 lg:px-20 xl:px-24 relative z-10">
-                <div className="grid grid-cols-1 xl:grid-cols-[380px_1fr] gap-8 md:gap-16 items-start">
+            <div className="relative z-10">
+                <div className="grid grid-cols-1 items-start xl:grid-cols-[310px_minmax(0,1fr)]">
 
                     {/* LEFT COLUMN: Patient Info */}
-                    <aside className="xl:sticky xl:top-24 z-20 w-full space-y-6">
+                    <aside className="z-20 w-full space-y-5 border-b border-zinc-200/65 p-5 dark:border-white/[0.055] xl:sticky xl:top-[86px] xl:border-b-0 xl:border-r">
                         <GlassCard
-                            className="w-full"
+                            className="w-full !rounded-[24px] !border-zinc-200/70 !bg-white/55 !shadow-none !backdrop-blur-none dark:!border-white/[0.06] dark:!bg-white/[0.014]"
                             innerClassName="p-0"
                         >
-                            <div className="p-8 md:p-10 relative overflow-hidden group">
-                                <div className="flex flex-col items-center text-center relative z-10 mb-8 md:mb-10">
-                                    <div className="relative mb-6 md:mb-8">
+                            <div className="group relative overflow-hidden p-5">
+                                <div className="relative z-10 mb-6 flex flex-col items-center text-center">
+                                    <div className="relative mb-4">
                                         <div className="absolute inset-0 bg-zinc-500/10 dark:bg-white/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                                        <Avatar className="h-28 w-28 md:h-36 md:w-36 border-[6px] border-white dark:border-[#0C0C0E] shadow-2xl relative z-10 rounded-3xl">
-                                            <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white text-4xl md:text-5xl font-black">
+                                        <Avatar className="relative z-10 h-24 w-24 rounded-[24px] border-4 border-white shadow-xl dark:border-[#0C0C0E]">
+                                            <AvatarFallback className="bg-zinc-100 text-3xl font-black text-zinc-900 dark:bg-zinc-800 dark:text-white">
                                                 {patient.name.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                     </div>
-                                    <h3 className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">{patient.name}</h3>
-                                    <p className="text-[11px] md:text-xs text-zinc-500 dark:text-zinc-500 mt-2 font-bold uppercase tracking-widest">{patient.email}</p>
+                                    <h3 className="text-xl font-black tracking-tight text-zinc-950 dark:text-white">{patient.name}</h3>
+                                    <p className="mt-1.5 max-w-full truncate text-[9px] font-bold uppercase tracking-[0.15em] text-zinc-500">{patient.email}</p>
                                 </div>
 
-                                <div className="space-y-3 md:space-y-4">
-                                    <div className="flex items-center gap-4 p-4 md:p-5 rounded-2xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-100 dark:hover:bg-white/[0.05] transition-all duration-300">
-                                        <Phone className="h-4 w-4 text-zinc-400" />
-                                        <span className="text-xs md:text-sm text-zinc-700 dark:text-zinc-300 font-bold tracking-tight">{patient.phone || "Não informado"}</span>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-3 rounded-xl border border-zinc-200/60 bg-white/70 p-3 transition-colors hover:bg-white dark:border-white/[0.055] dark:bg-white/[0.025] dark:hover:bg-white/[0.045]">
+                                        <Phone className="h-3.5 w-3.5 text-zinc-400" />
+                                        <span className="text-[11px] font-bold tracking-tight text-zinc-700 dark:text-zinc-300">{patient.phone || "Não informado"}</span>
                                     </div>
-                                    <div className="flex items-center gap-4 p-4 md:p-5 rounded-2xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-100 dark:hover:bg-white/[0.05] transition-all duration-300">
-                                        <MapPin className="h-4 w-4 text-zinc-400" />
-                                        <span className="text-xs md:text-sm text-zinc-700 dark:text-zinc-300 font-bold tracking-tight truncate">{patient.address || "Endereço ausente"}</span>
+                                    <div className="flex items-center gap-3 rounded-xl border border-zinc-200/60 bg-white/70 p-3 transition-colors hover:bg-white dark:border-white/[0.055] dark:bg-white/[0.025] dark:hover:bg-white/[0.045]">
+                                        <MapPin className="h-3.5 w-3.5 text-zinc-400" />
+                                        <span className="truncate text-[11px] font-bold tracking-tight text-zinc-700 dark:text-zinc-300">{patient.address || "Endereço ausente"}</span>
                                     </div>
-                                    <div className="flex items-center gap-4 p-4 md:p-5 rounded-2xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/[0.06] hover:bg-zinc-100 dark:hover:bg-white/[0.05] transition-all duration-300">
-                                        <Cake className="h-4 w-4 text-zinc-400" />
-                                        <span className="text-xs md:text-sm text-zinc-700 dark:text-zinc-300 font-bold tracking-tight">
+                                    <div className="flex items-center gap-3 rounded-xl border border-zinc-200/60 bg-white/70 p-3 transition-colors hover:bg-white dark:border-white/[0.055] dark:bg-white/[0.025] dark:hover:bg-white/[0.045]">
+                                        <Cake className="h-3.5 w-3.5 text-zinc-400" />
+                                        <span className="text-[11px] font-bold tracking-tight text-zinc-700 dark:text-zinc-300">
                                             {patient.birth_date ? format(new Date(patient.birth_date), 'dd/MM/yyyy') : "Nascimento ausente"}
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3 md:gap-4 pt-8 md:pt-10 mt-8 md:mt-10 border-t border-zinc-100 dark:border-white/[0.08]">
+                                <div className="mt-6 grid grid-cols-2 gap-2 border-t border-zinc-200/60 pt-5 dark:border-white/[0.06]">
                                     <EditPatientModal patient={patient}>
-                                        <Button variant="ghost" className="w-full h-12 md:h-14 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-900 dark:hover:bg-white hover:text-white dark:hover:text-black text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400 transition-all shadow-sm">
+                                        <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-white/[0.04] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
                                             <Edit className="h-4 w-4 mr-2" /> Editar
                                         </Button>
                                     </EditPatientModal>
                                     <DocumentGeneratorModal patient={patient}>
-                                        <Button variant="ghost" className="w-full h-12 md:h-14 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-900 dark:hover:bg-white hover:text-white dark:hover:text-black text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400 transition-all shadow-sm">
+                                        <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-white/[0.04] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
                                             <FileOutput className="h-4 w-4 mr-2" /> Docs
                                         </Button>
                                     </DocumentGeneratorModal>
                                 </div>
 
                                 {/* Medications Block in Sidebar */}
-                                <div className="mt-8 pt-8 border-t border-zinc-100 dark:border-white/[0.08]">
-                                    <div className="flex items-center justify-between mb-5">
-                                        <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500">Medicações</h4>
+                                <div className="mt-6 border-t border-zinc-200/60 pt-5 dark:border-white/[0.06]">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-400 dark:text-zinc-500">Medicações</h4>
                                         <MedicationUpdateModal patient={patient}>
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-xl transition-all hover:bg-zinc-100 dark:hover:bg-white/10">
                                                 <Edit2 className="h-3.5 w-3.5" />
@@ -353,20 +361,20 @@ export default function PatientDetail() {
                             </div>
                         </GlassCard>
 
-                        <GlassCard className="h-[650px]" innerClassName="p-0">
+                        <div className="h-[520px] overflow-hidden rounded-[24px]">
                             <SideNotes />
-                        </GlassCard>
+                        </div>
                     </aside>
 
                     {/* RIGHT COLUMN: Content Area */}
-                    <main className="space-y-10 md:space-y-12 min-w-0 pb-20">
+                    <main className="min-w-0 space-y-7 p-5 pb-16 md:p-7 lg:p-8">
 
                         <ClinicalSummaryCard latestNote={latestNote} patient={patient} />
 
-                        <div className="w-full flex flex-col min-h-[800px] relative">
+                        <div className="relative flex min-h-[760px] w-full flex-col">
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
 
-                                <div className="sticky top-[72px] md:top-24 z-30 mb-3 md:mb-4">
+                                <div className="sticky top-[84px] z-30 mb-5">
                                     <div
                                         ref={scrollContainerRef}
                                         onMouseDown={handleMouseDown}
@@ -374,12 +382,12 @@ export default function PatientDetail() {
                                         onMouseUp={handleMouseLeaveOrUp}
                                         onMouseMove={handleMouseMove}
                                         className={cn(
-                                            "bg-white/95 dark:bg-[#080809]/95 backdrop-blur-3xl border border-black/[0.04] dark:border-white/[0.08] p-2.5 rounded-3xl flex items-center shadow-2xl w-full overflow-x-auto ring-1 ring-black/5 dark:ring-white/5 select-none transition-all duration-300",
-                                            isDragging ? "cursor-grabbing scale-[0.99]" : "cursor-grab",
+                                            "flex w-full select-none items-center overflow-x-auto rounded-2xl border border-zinc-200/70 bg-white/82 p-1.5 shadow-[0_18px_50px_-36px_rgba(24,24,27,0.35)] backdrop-blur-3xl transition-colors dark:border-white/[0.07] dark:bg-[#080809]/82 dark:shadow-[0_18px_50px_-36px_rgba(0,0,0,0.8)]",
+                                            isDragging ? "cursor-grabbing" : "cursor-grab",
                                             "custom-premium-scrollbar"
                                         )}
                                     >
-                                        <TabsList className="bg-transparent h-auto p-0 gap-2 w-full justify-between min-w-max">
+                                        <TabsList className="h-auto w-full min-w-max justify-between gap-1 bg-transparent p-0">
                                             {[
                                                 { val: "history", label: "Histórico", icon: FileText },
                                                 { val: "anamnesis", label: "Anamneses", icon: ClipboardList },
@@ -393,13 +401,12 @@ export default function PatientDetail() {
                                                     key={tab.val}
                                                     value={tab.val}
                                                     className={cn(
-                                                        "relative h-12 rounded-[18px] px-6 text-[11px] font-black uppercase tracking-[0.25em] transition-all duration-500",
-                                                        "data-[state=active]:bg-zinc-900 data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-black data-[state=active]:shadow-2xl data-[state=active]:scale-[1.02]",
-                                                        "text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.04]",
-                                                        "flex items-center gap-3 whitespace-nowrap active:scale-95"
+                                                        "relative flex h-10 items-center gap-2 whitespace-nowrap rounded-xl px-4 text-[9px] font-black uppercase tracking-[0.16em] transition-all duration-200 active:scale-95",
+                                                        "data-[state=active]:bg-zinc-950 data-[state=active]:text-white data-[state=active]:shadow-lg dark:data-[state=active]:bg-white dark:data-[state=active]:text-black",
+                                                        "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-500 dark:hover:bg-white/[0.045] dark:hover:text-white"
                                                     )}
                                                 >
-                                                    <tab.icon className="h-4.5 w-4.5" />
+                                                    <tab.icon className="h-3.5 w-3.5" />
                                                     {tab.label}
                                                 </TabsTrigger>
                                             ))}
@@ -462,6 +469,8 @@ export default function PatientDetail() {
                         </div>
                     </main>
                 </div>
+            </div>
+                </section>
             </div>
         </div>
     );
