@@ -414,10 +414,10 @@ const Ajustes = () => {
                                                         <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 blur-3xl pointer-events-none opacity-40" />
                                                         <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
                                                             <div className={cn(
-                                                                "w-16 h-16 rounded-[24px] flex items-center justify-center border transition-all duration-700 shadow-2xl shrink-0 ring-1 ring-white/5",
+                                                                "w-16 h-16 rounded-[24px] flex items-center justify-center border transition-all duration-700 shadow-2xl shrink-0 ring-1 ring-inset",
                                                                 isTodoistConnected
-                                                                    ? "bg-zinc-950 border-white/30 ring-4 ring-red-500/15"
-                                                                    : "bg-zinc-900/50 border-white/10 grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100"
+                                                                    ? "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-white/30 ring-red-500/15"
+                                                                    : "bg-zinc-100 dark:bg-zinc-900/50 border-zinc-200 dark:border-white/10 grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 ring-transparent"
                                                             )}>
                                                                 <TodoistIcon className="h-8 w-8" />
                                                             </div>
@@ -451,10 +451,10 @@ const Ajustes = () => {
                                                         <div className="absolute top-0 right-0 w-32 h-32 bg-stone-500/10 blur-3xl pointer-events-none opacity-40" />
                                                         <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
                                                             <div className={cn(
-                                                                "w-16 h-16 rounded-[24px] flex items-center justify-center border transition-all duration-700 shadow-2xl shrink-0 ring-1 ring-white/5",
+                                                                "w-16 h-16 rounded-[24px] flex items-center justify-center border transition-all duration-700 shadow-2xl shrink-0 ring-1 ring-inset",
                                                                 isNotionConnected
-                                                                    ? "bg-zinc-950 border-white/30 ring-4 ring-stone-500/15"
-                                                                    : "bg-zinc-900/50 border-white/10 grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100"
+                                                                    ? "bg-white dark:bg-zinc-950 border-zinc-200 dark:border-white/30 ring-stone-500/15"
+                                                                    : "bg-zinc-100 dark:bg-zinc-900/50 border-zinc-200 dark:border-white/10 grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 ring-transparent"
                                                             )}>
                                                                 <NotionIcon className="h-9 w-9 text-zinc-800 dark:text-white" />
                                                             </div>
@@ -483,6 +483,73 @@ const Ajustes = () => {
                                                         </Button>
                                                     </div>
 
+                                                </div>
+
+                                                <div className="relative overflow-hidden rounded-[40px] border border-zinc-200 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 p-8 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.35)] dark:shadow-[0_32px_120px_-36px_rgba(0,0,0,0.95)] backdrop-blur-2xl">
+                                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.65),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%)] dark:bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.12),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.05),transparent_45%)] pointer-events-none" />
+                                                    <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] items-center">
+                                                        <div className="space-y-5">
+                                                            <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-100/80 dark:bg-white/[0.04] px-3 py-1.5">
+                                                                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">Em breve</span>
+                                                            </div>
+                                                            <div>
+                                                                <h4 className="text-2xl font-black tracking-tight text-zinc-950 dark:text-white">
+                                                                    Mais aplicativos essenciais para a clínica.
+                                                                </h4>
+                                                                <p className="mt-3 max-w-md text-sm font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
+                                                                    Estamos preparando novas conexões para prontuário, comunicação, documentos, tarefas e operações do dia a dia.
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex flex-col gap-3 sm:flex-row">
+                                                                <input
+                                                                    value={integrationSuggestion}
+                                                                    onChange={(event) => setIntegrationSuggestion(event.target.value)}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === "Enter") handleIntegrationSuggestion();
+                                                                    }}
+                                                                    placeholder="Qual app você quer ver aqui?"
+                                                                    className="h-12 flex-1 rounded-2xl border border-zinc-200 bg-white/80 px-4 text-sm font-semibold text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-zinc-200/70 dark:border-white/10 dark:bg-white/[0.04] dark:text-white dark:placeholder:text-zinc-600 dark:focus:border-white/30 dark:focus:ring-white/10"
+                                                                />
+                                                                <Button
+                                                                    onClick={handleIntegrationSuggestion}
+                                                                    className="h-12 rounded-2xl px-6 text-[10px] font-black uppercase tracking-[0.16em] shadow-xl transition-all hover:-translate-y-0.5"
+                                                                >
+                                                                    Sugerir app
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="relative min-h-[240px] [perspective:900px]">
+                                                            <motion.div
+                                                                animate={{ rotateX: [58, 52, 58], rotateZ: [-12, -7, -12], y: [0, -8, 0] }}
+                                                                transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+                                                                className="absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-[36px] border border-zinc-200 bg-gradient-to-br from-white via-zinc-100 to-zinc-300 shadow-[0_32px_80px_-28px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/10 dark:from-zinc-700 dark:via-zinc-900 dark:to-black dark:shadow-[0_42px_100px_-28px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.18)] [transform-style:preserve-3d]"
+                                                            >
+                                                                <div className="absolute inset-4 rounded-[28px] border border-white/60 bg-white/45 shadow-inner dark:border-white/10 dark:bg-white/[0.03]" />
+                                                                <div className="absolute inset-x-10 top-9 h-4 rounded-full bg-zinc-300/80 dark:bg-white/15" />
+                                                                <div className="absolute inset-x-12 bottom-11 h-3 rounded-full bg-zinc-400/70 dark:bg-white/10" />
+                                                            </motion.div>
+
+                                                            {[
+                                                                { label: "CRM", x: "10%", y: "12%", delay: 0 },
+                                                                { label: "Docs", x: "68%", y: "10%", delay: 0.6 },
+                                                                { label: "Chat", x: "75%", y: "62%", delay: 1.1 },
+                                                                { label: "Forms", x: "8%", y: "68%", delay: 1.7 },
+                                                            ].map((item) => (
+                                                                <motion.div
+                                                                    key={item.label}
+                                                                    animate={{ y: [0, -10, 0], rotate: [-2, 2, -2] }}
+                                                                    transition={{ duration: 4.5, delay: item.delay, repeat: Infinity, ease: "easeInOut" }}
+                                                                    className="absolute h-16 w-16 rounded-3xl border border-zinc-200 bg-white/85 p-3 text-center shadow-[0_18px_40px_-22px_rgba(0,0,0,0.55)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06]"
+                                                                    style={{ left: item.x, top: item.y }}
+                                                                >
+                                                                    <div className="mx-auto mb-2 h-5 w-5 rounded-lg bg-zinc-900/85 dark:bg-white/85" />
+                                                                    <span className="text-[8px] font-black uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">{item.label}</span>
+                                                                </motion.div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </TabsContent>
