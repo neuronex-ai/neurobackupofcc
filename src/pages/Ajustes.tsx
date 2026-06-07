@@ -483,42 +483,6 @@ const Ajustes = () => {
                                                         </Button>
                                                     </div>
 
-                                                    {/* Microsoft To Do */}
-                                                    <div className="p-8 rounded-[40px] bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-white/10 flex flex-col md:flex-row items-center justify-between gap-8 group shadow-2xl hover:shadow-blue-500/5 transition-all relative overflow-hidden backdrop-blur-lg">
-                                                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl pointer-events-none opacity-40" />
-                                                        <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
-                                                            <div className={cn(
-                                                                "w-16 h-16 rounded-[24px] flex items-center justify-center border transition-all duration-700 shadow-2xl shrink-0 ring-1 ring-white/5",
-                                                                isMicrosoftConnected
-                                                                    ? "bg-zinc-950 border-white/30 ring-4 ring-blue-500/15"
-                                                                    : "bg-zinc-900/50 border-white/10 grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100"
-                                                            )}>
-                                                                <MicrosoftTodoIcon className="h-8 w-8" />
-                                                            </div>
-                                                            <div>
-                                                                <div className="flex items-center gap-3">
-                                                                    <h4 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Microsoft To Do</h4>
-                                                                    {isMicrosoftConnected && <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider border border-emerald-500/30">Ativo</span>}
-                                                                </div>
-                                                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-medium max-w-[200px]">
-                                                                    Sincronize suas tarefas do Outlook.
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <Button
-                                                            onClick={isMicrosoftConnected ? disconnectMicrosoft : connectMicrosoft}
-                                                            disabled={isLoadingMicrosoftAuth}
-                                                            variant={isMicrosoftConnected ? "outline" : "default"}
-                                                            className={cn(
-                                                                "h-10 px-6 rounded-xl text-[10px] font-bold uppercase tracking-wider w-full md:w-auto transition-all",
-                                                                isMicrosoftConnected
-                                                                    ? "bg-transparent border-white/20 hover:bg-destructive/15 hover:text-destructive hover:border-destructive/40 shadow-xl"
-                                                                    : "bg-zinc-100 hover:bg-white text-zinc-950 shadow-2xl hover:-translate-y-0.5"
-                                                            )}
-                                                        >
-                                                            {isMicrosoftConnected ? "Desconectar" : "Conectar"}
-                                                        </Button>
-                                                    </div>
                                                 </div>
                                             </div>
                                         </TabsContent>
