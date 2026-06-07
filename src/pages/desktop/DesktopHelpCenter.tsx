@@ -40,7 +40,7 @@ const CategoryCard = ({
     <FadeIn delay={delay}>
         <div className="desktop-tactile desktop-apple-surface group flex h-full flex-col justify-between rounded-[22px] p-6 hover:border-foreground/15">
             <div>
-                <div className="w-12 h-12 rounded-xl bg-foreground/[0.03] flex items-center justify-center text-foreground/40 border border-border/30 mb-6 group-hover:text-foreground group-hover:border-foreground/20 group-hover:scale-110 transition-all duration-500">
+                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-border/30 bg-foreground/[0.03] text-foreground/40 transition-all duration-300 group-hover:scale-[1.04] group-hover:border-foreground/20 group-hover:text-foreground">
                     <Icon className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground mb-1 tracking-tight">
@@ -118,7 +118,7 @@ const DesktopHelpCenter = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-16">
                         <FadeIn delay={0.35}>
                             <div className="desktop-tactile desktop-apple-surface group rounded-[22px] p-6 hover:border-foreground/15">
-                                <div className="w-12 h-12 rounded-xl bg-foreground/[0.03] flex items-center justify-center text-foreground/40 border border-border/30 mb-4 group-hover:text-foreground group-hover:scale-110 transition-all duration-500">
+                                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-border/30 bg-foreground/[0.03] text-foreground/40 transition-all duration-300 group-hover:scale-[1.04] group-hover:text-foreground">
                                     <Monitor className="w-5 h-5" />
                                 </div>
                                 <h3 className="text-base font-bold text-foreground mb-2 tracking-tight">
@@ -147,7 +147,7 @@ const DesktopHelpCenter = () => {
 
                         <FadeIn delay={0.45}>
                             <div className="desktop-tactile desktop-apple-surface group rounded-[22px] p-6 hover:border-foreground/15">
-                                <div className="w-12 h-12 rounded-xl bg-foreground/[0.03] flex items-center justify-center text-foreground/40 border border-border/30 mb-4 group-hover:text-foreground group-hover:scale-110 transition-all duration-500">
+                                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-border/30 bg-foreground/[0.03] text-foreground/40 transition-all duration-300 group-hover:scale-[1.04] group-hover:text-foreground">
                                     <Keyboard className="w-5 h-5" />
                                 </div>
                                 <h3 className="text-base font-bold text-foreground mb-2 tracking-tight">
@@ -175,7 +175,7 @@ const DesktopHelpCenter = () => {
 
                         <FadeIn delay={0.55}>
                             <div className="desktop-tactile desktop-apple-surface group rounded-[22px] p-6 hover:border-foreground/15">
-                                <div className="w-12 h-12 rounded-xl bg-foreground/[0.03] flex items-center justify-center text-foreground/40 border border-border/30 mb-4 group-hover:text-foreground group-hover:scale-110 transition-all duration-500">
+                                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-border/30 bg-foreground/[0.03] text-foreground/40 transition-all duration-300 group-hover:scale-[1.04] group-hover:text-foreground">
                                     <RefreshCw className="w-5 h-5" />
                                 </div>
                                 <h3 className="text-base font-bold text-foreground mb-2 tracking-tight">
@@ -257,7 +257,7 @@ const DesktopHelpCenter = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 py-12 border-t border-border/20">
                         <FadeIn delay={0.6}>
                             <div className="desktop-tactile desktop-apple-surface group flex flex-col items-center rounded-[22px] p-6 text-center hover:border-foreground/20">
-                                <div className="w-12 h-12 rounded-full bg-foreground/[0.03] border border-border/30 flex items-center justify-center text-foreground/40 mb-4 group-hover:scale-110 group-hover:text-foreground transition-all duration-500">
+                                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-border/30 bg-foreground/[0.03] text-foreground/40 transition-all duration-300 group-hover:scale-[1.04] group-hover:text-foreground">
                                     <Zap className="w-5 h-5" />
                                 </div>
                                 <h3 className="text-base font-bold text-foreground mb-2 tracking-tight">
@@ -275,7 +275,7 @@ const DesktopHelpCenter = () => {
 
                         <FadeIn delay={0.7}>
                             <div className="desktop-tactile desktop-apple-surface group flex flex-col items-center rounded-[22px] p-6 text-center hover:border-foreground/20">
-                                <div className="w-12 h-12 rounded-full bg-foreground/[0.03] border border-border/30 flex items-center justify-center text-foreground/40 mb-4 group-hover:scale-110 group-hover:text-foreground transition-all duration-500">
+                                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-border/30 bg-foreground/[0.03] text-foreground/40 transition-all duration-300 group-hover:scale-[1.04] group-hover:text-foreground">
                                     <HelpCircle className="w-5 h-5" />
                                 </div>
                                 <h3 className="text-base font-bold text-foreground mb-2 tracking-tight">
@@ -296,7 +296,7 @@ const DesktopHelpCenter = () => {
 
                         <FadeIn delay={0.8}>
                             <div className="desktop-tactile desktop-apple-surface group flex flex-col items-center rounded-[22px] p-6 text-center hover:border-foreground/20">
-                                <div className="w-12 h-12 rounded-full bg-foreground/[0.03] border border-border/30 flex items-center justify-center text-foreground/40 mb-4 group-hover:scale-110 group-hover:text-foreground transition-all duration-500">
+                                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-border/30 bg-foreground/[0.03] text-foreground/40 transition-all duration-300 group-hover:scale-[1.04] group-hover:text-foreground">
                                     <MessageSquare className="w-5 h-5" />
                                 </div>
                                 <h3 className="text-base font-bold text-foreground mb-2 tracking-tight">
