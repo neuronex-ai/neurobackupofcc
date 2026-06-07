@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { lazy, Suspense, useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,13 +10,12 @@ import { useReminders } from "@/hooks/use-reminders";
 import { Navbar } from "@/components/layout/Navbar";
 import { CommandMenu } from "@/components/layout/CommandMenu";
 import { Button } from "@/components/ui/button";
-import { Plus, LayoutPanelLeft, ListFilter } from "lucide-react";
+import { Plus } from "lucide-react";
 
 // Sub-components
 import { NotesSidebar } from "@/components/notes/NotesSidebar";
 import { NotesListPanel } from "@/components/notes/NotesListPanel";
 import { TaskBoard } from "@/components/notes/TaskBoard";
-import { NoteEditor } from "@/components/notes/NoteEditor";
 import { NeuroView } from "@/components/notes/NeuroView";
 import { NeuroFlow } from "@/components/notes/NeuroFlow";
 import { NeuroFlowVault } from "@/components/notes/NeuroFlowVault";
@@ -29,6 +28,47 @@ import { NeuroViewSearch } from "@/components/notes/NeuroViewSearch";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileNotes } from "@/mobile/pages/MobileNotes";
 
+const NoteEditor = lazy(() =>
+    import("@/components/notes/NoteEditor").then((module) => ({ default: module.NoteEditor }))
+);
+
+const NOTES_LAYOUT_STORAGE_KEY = "neuronex:notes-layout";
+
+const loadLayoutPreference = () => {
+    try {
+        const stored = window.localStorage.getItem(NOTES_LAYOUT_STORAGE_KEY);
+        if (!stored) return { sidebarCollapsed: false, listCollapsed: false };
+        const parsed = JSON.parse(stored);
+        return {
+            sidebarCollapsed: Boolean(parsed.sidebarCollapsed),
+            listCollapsed: Boolean(parsed.listCollapsed),
+        };
+    } catch {
+        return { sidebarCollapsed: false, listCollapsed: false };
+    }
+};
+
+const NoteEditorSkeleton = () => (
+    <div className="flex h-full flex-col animate-pulse">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.05] px-7 [.light_&]:border-zinc-200/60">
+            <div className="h-8 w-40 rounded-xl bg-white/[0.04] [.light_&]:bg-zinc-100" />
+            <div className="flex gap-2">
+                <div className="h-8 w-8 rounded-xl bg-white/[0.04] [.light_&]:bg-zinc-100" />
+                <div className="h-8 w-20 rounded-xl bg-white/[0.04] [.light_&]:bg-zinc-100" />
+            </div>
+        </div>
+        <div className="mx-auto w-full max-w-[820px] flex-1 space-y-7 px-12 py-12">
+            <div className="h-12 w-2/3 rounded-2xl bg-white/[0.045] [.light_&]:bg-zinc-100" />
+            <div className="h-px bg-white/[0.05] [.light_&]:bg-zinc-200" />
+            <div className="space-y-4">
+                <div className="h-4 w-full rounded bg-white/[0.035] [.light_&]:bg-zinc-100" />
+                <div className="h-4 w-11/12 rounded bg-white/[0.035] [.light_&]:bg-zinc-100" />
+                <div className="h-4 w-4/5 rounded bg-white/[0.035] [.light_&]:bg-zinc-100" />
+            </div>
+        </div>
+    </div>
+);
+
 export default function Notes() {
     const isMobile = useIsMobile();
     const [searchParams] = useSearchParams();
@@ -40,13 +80,22 @@ export default function Notes() {
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedNotionPageId, setSelectedNotionPageId] = useState<string | null>(null);
-    const [isListCollapsed, setIsListCollapsed] = useState(false);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const initialLayout = useMemo(loadLayoutPreference, []);
+    const [isListCollapsed, setIsListCollapsed] = useState(initialLayout.listCollapsed);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(initialLayout.sidebarCollapsed);
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-    const { notes, createNote, updateNote, deleteNote, isLoading: isLoadingNotes } = usePersonalNotes();
+    const {
+        notes,
+        createNote,
+        updateNote,
+        updateNoteAsync,
+        deleteNote,
+        isLoading: isLoadingNotes,
+        isCreatingNote,
+    } = usePersonalNotes();
     const { reminders, toggleReminder, deleteReminder, createReminder, updateReminderCategory, updateReminder } = useReminders();
 
     useEffect(() => {
@@ -74,6 +123,13 @@ export default function Notes() {
         };
     }, []);
 
+    useEffect(() => {
+        window.localStorage.setItem(NOTES_LAYOUT_STORAGE_KEY, JSON.stringify({
+            sidebarCollapsed: isSidebarCollapsed,
+            listCollapsed: isListCollapsed,
+        }));
+    }, [isListCollapsed, isSidebarCollapsed]);
+
     // Ctrl+Shift+K for NeuroView Search
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -99,6 +155,7 @@ export default function Notes() {
     if (isMobile) return <MobileNotes />;
 
     const handleCreateNote = async () => {
+        if (isCreatingNote) return;
         try {
             const newNote = await createNote({
                 title: "Nova Nota",
@@ -150,43 +207,44 @@ export default function Notes() {
             default:
                 return (
                     <div className="flex-1 flex h-full overflow-hidden relative">
-                        <AnimatePresence>
-                            {(!isListCollapsed && !isFocusMode) && (
-                                <motion.div
-                                    initial={{ width: 0, opacity: 0 }}
-                                    animate={{ width: 380, opacity: 1 }}
-                                    exit={{ width: 0, opacity: 0 }}
-                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                    className="relative flex shrink-0 flex-col overflow-hidden border-r border-white/[0.05] bg-black/10 [.light_&]:border-zinc-200/50 [.light_&]:bg-zinc-50/10"
-                                >
-                                    <div className="w-[380px] h-full relative z-10">
-                                        <NotesListPanel
-                                            searchQuery={searchQuery}
-                                            setSearchQuery={setSearchQuery}
-                                            items={filteredNotes}
-                                            selectedId={selectedNoteId}
-                                            onSelect={setSelectedNoteId}
-                                            onCreate={handleCreateNote}
-                                            onDeleteNote={(id) => { deleteNote(id); if (selectedNoteId === id) setSelectedNoteId(null); }}
-                                            isLoading={isLoadingNotes}
-                                        />
-                                    </div>
-                                    <div className="absolute inset-0 premium-noise opacity-[0.02] pointer-events-none" />
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                        {!isFocusMode && (
+                            <motion.div
+                                initial={false}
+                                animate={{ width: isListCollapsed ? 52 : 330 }}
+                                transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
+                                className="relative flex shrink-0 flex-col overflow-hidden border-r border-white/[0.05] bg-white/[0.008] [.light_&]:border-zinc-200/60 [.light_&]:bg-white/25"
+                            >
+                                <div className={cn("h-full relative z-10", isListCollapsed ? "w-[52px]" : "w-[330px]")}>
+                                    <NotesListPanel
+                                        searchQuery={searchQuery}
+                                        setSearchQuery={setSearchQuery}
+                                        items={filteredNotes}
+                                        selectedId={selectedNoteId}
+                                        onSelect={setSelectedNoteId}
+                                        onCreate={handleCreateNote}
+                                        onDeleteNote={(id) => { deleteNote(id); if (selectedNoteId === id) setSelectedNoteId(null); }}
+                                        isLoading={isLoadingNotes}
+                                        isCollapsed={isListCollapsed}
+                                        onToggleCollapsed={() => setIsListCollapsed((current) => !current)}
+                                        isCreatingNote={isCreatingNote}
+                                    />
+                                </div>
+                            </motion.div>
+                        )}
 
                         <div className="flex-1 min-w-0 bg-transparent relative flex flex-col group/editor">
                             <AnimatePresence mode="wait">
                                 {activeNote ? (
                                     <motion.div key={activeNote.id} {...motionProps} className="flex-1 flex flex-col h-full relative z-10">
-                                        <NoteEditor
-                                            note={activeNote}
-                                            onUpdate={(id, updates) => updateNote({ id, updates })}
-                                            onDelete={(id) => { deleteNote(id); setSelectedNoteId(null); }}
-                                            isFocusMode={isFocusMode}
-                                            onToggleFocus={() => setIsFocusMode(!isFocusMode)}
-                                        />
+                                        <Suspense fallback={<NoteEditorSkeleton />}>
+                                            <NoteEditor
+                                                note={activeNote}
+                                                onUpdate={(id, updates) => updateNoteAsync({ id, updates })}
+                                                onDelete={(id) => { deleteNote(id); setSelectedNoteId(null); }}
+                                                isFocusMode={isFocusMode}
+                                                onToggleFocus={() => setIsFocusMode(!isFocusMode)}
+                                            />
+                                        </Suspense>
                                     </motion.div>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center h-full text-center relative z-10 p-12 space-y-12 animate-in fade-in duration-1000">

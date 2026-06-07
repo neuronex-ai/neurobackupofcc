@@ -28,7 +28,7 @@ import {
     Strikethrough, Subscript as SubscriptIcon,
     Superscript as SuperscriptIcon, Underline as UnderlineIcon
 } from 'lucide-react';
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from 'sonner';
 import tippy from 'tippy.js';
 import { BlockActionsMenu } from './BlockActionsMenu';
@@ -76,6 +76,11 @@ export const RichTextEditor = ({
   patients = [],
   isFocusMode = false
 }: RichTextEditorProps) => {
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const editor = useEditor({
     extensions: [
@@ -184,7 +189,7 @@ export const RichTextEditor = ({
     content: content,
     editable: editable,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      onChangeRef.current(editor.getHTML());
     },
     editorProps: {
       attributes: {
@@ -280,7 +285,7 @@ export const RichTextEditor = ({
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
       if (!editor.isFocused) {
-        editor.commands.setContent(content);
+        editor.commands.setContent(content, false);
       }
     }
   }, [content, editor]);

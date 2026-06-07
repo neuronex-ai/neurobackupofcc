@@ -36,11 +36,10 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { RichTextEditor } from "./RichTextEditor";
-import { EurekaSidebar } from "./EurekaSidebar";
 
 interface NoteEditorProps {
   note: any;
-  onUpdate: (id: string, updates: any) => void;
+  onUpdate: (id: string, updates: any) => Promise<unknown>;
   onDelete: (id: string) => void;
   isFocusMode: boolean;
   onToggleFocus: () => void;
@@ -53,32 +52,110 @@ export const NoteEditor = ({
   isFocusMode,
   onToggleFocus
 }: NoteEditorProps) => {
-  const [title, setTitle] = useState(note.title);
-  const [content, setContent] = useState(note.content);
-  const [isSaving, setIsSaving] = useState(false);
+  const [title, setTitle] = useState(note.title || "");
+  const [content, setContent] = useState(note.content || "");
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'pending' | 'saving' | 'error'>('saved');
   const [newTag, setNewTag] = useState("");
   const [showToolbar, setShowToolbar] = useState(true);
   const toolbarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [isEurekaOpen, setIsEurekaOpen] = useState(false);
+  const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const latestDraftRef = useRef({ title: note.title || "", content: note.content || "" });
+  const lastSavedDraftRef = useRef({ title: note.title || "", content: note.content || "" });
+  const saveInFlightRef = useRef<Promise<void> | null>(null);
+  const saveQueuedRef = useRef(false);
+  const flushSaveRef = useRef<() => Promise<void>>(async () => undefined);
 
   const { data: patients } = usePatients();
 
   useEffect(() => {
-    setTitle(note.title);
-    setContent(note.content);
-  }, [note.id, note.title, note.content]);
+    const nextDraft = { title: note.title || "", content: note.content || "" };
+    setTitle(nextDraft.title);
+    setContent(nextDraft.content);
+    latestDraftRef.current = nextDraft;
+    lastSavedDraftRef.current = nextDraft;
+    setSaveStatus('saved');
+  }, [note.id]);
 
-  const handleUpdate = useCallback((updates: any) => {
-    setIsSaving(true);
-    onUpdate(note.id, updates);
-    setTimeout(() => setIsSaving(false), 800);
-  }, [note.id, onUpdate]);
+  const draftsMatch = useCallback((
+    first: { title: string; content: string },
+    second: { title: string; content: string },
+  ) => first.title === second.title && first.content === second.content, []);
 
-  const handleAutoSave = useCallback(() => {
-    if (title !== note.title || content !== note.content) {
-      handleUpdate({ title, content });
+  useEffect(() => {
+    const serverDraft = { title: note.title || "", content: note.content || "" };
+    const localDraft = latestDraftRef.current;
+    const lastSavedDraft = lastSavedDraftRef.current;
+    const localIsClean = draftsMatch(localDraft, lastSavedDraft);
+
+    if (draftsMatch(serverDraft, localDraft)) {
+      lastSavedDraftRef.current = serverDraft;
+      if (saveStatus !== 'saving') setSaveStatus('saved');
+      return;
     }
-  }, [title, content, note.title, note.content, handleUpdate]);
+
+    if (localIsClean) {
+      setTitle(serverDraft.title);
+      setContent(serverDraft.content);
+      latestDraftRef.current = serverDraft;
+      lastSavedDraftRef.current = serverDraft;
+    }
+  }, [draftsMatch, note.title, note.content, saveStatus]);
+
+  const flushSave = useCallback(async () => {
+    if (saveInFlightRef.current) {
+      saveQueuedRef.current = true;
+      await saveInFlightRef.current;
+      return;
+    }
+
+    const draftToSave = { ...latestDraftRef.current };
+    if (draftsMatch(draftToSave, lastSavedDraftRef.current)) {
+      setSaveStatus('saved');
+      return;
+    }
+
+    setSaveStatus('saving');
+    const request = onUpdate(note.id, draftToSave)
+      .then(() => {
+        lastSavedDraftRef.current = draftToSave;
+        setSaveStatus(draftsMatch(latestDraftRef.current, draftToSave) ? 'saved' : 'pending');
+      })
+      .catch(() => {
+        setSaveStatus('error');
+      })
+      .finally(() => {
+        saveInFlightRef.current = null;
+        const shouldContinue = saveQueuedRef.current
+          || !draftsMatch(latestDraftRef.current, lastSavedDraftRef.current);
+        saveQueuedRef.current = false;
+        if (shouldContinue) void flushSaveRef.current();
+      });
+
+    saveInFlightRef.current = request;
+    await request;
+  }, [draftsMatch, note.id, onUpdate]);
+
+  useEffect(() => {
+    flushSaveRef.current = flushSave;
+  }, [flushSave]);
+
+  const updateDraft = useCallback((updates: Partial<{ title: string; content: string }>) => {
+    const nextDraft = { ...latestDraftRef.current, ...updates };
+    latestDraftRef.current = nextDraft;
+    if (updates.title !== undefined) setTitle(updates.title);
+    if (updates.content !== undefined) setContent(updates.content);
+    setSaveStatus(draftsMatch(nextDraft, lastSavedDraftRef.current) ? 'saved' : 'pending');
+  }, [draftsMatch]);
+
+  const handleMetadataUpdate = useCallback(async (updates: any) => {
+    setSaveStatus('saving');
+    try {
+      await onUpdate(note.id, updates);
+      setSaveStatus(draftsMatch(latestDraftRef.current, lastSavedDraftRef.current) ? 'saved' : 'pending');
+    } catch {
+      setSaveStatus('error');
+    }
+  }, [draftsMatch, note.id, onUpdate]);
 
   // Zen Mode Toolbar Visibility
   useEffect(() => {
@@ -117,23 +194,31 @@ export const NoteEditor = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        handleAutoSave();
+        void flushSave();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleAutoSave]);
+  }, [flushSave]);
 
-  // Auto-save with debounce
+  // Keep one serialized autosave queue per note.
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (title !== note.title || content !== note.content) {
-        handleAutoSave();
-      }
-    }, 2000);
+    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+    if (saveStatus !== 'pending') return;
 
-    return () => clearTimeout(timeoutId);
-  }, [title, content, note.title, note.content, handleAutoSave]);
+    autosaveTimeoutRef.current = setTimeout(() => {
+      void flushSave();
+    }, 900);
+
+    return () => {
+      if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+    };
+  }, [content, flushSave, saveStatus, title]);
+
+  useEffect(() => () => {
+    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+    void flushSaveRef.current();
+  }, []);
 
   const selectedPatient = useMemo(() =>
     patients?.find(p => p.id === note.patient_id),
@@ -144,14 +229,14 @@ export const NoteEditor = ({
     if (!newTag.trim()) return;
     const tags = note.tags || [];
     if (!tags.includes(newTag.trim())) {
-      handleUpdate({ tags: [...tags, newTag.trim()] });
+      void handleMetadataUpdate({ tags: [...tags, newTag.trim()] });
     }
     setNewTag("");
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
     const tags = note.tags || [];
-    handleUpdate({ tags: tags.filter((t: string) => t !== tagToRemove) });
+    void handleMetadataUpdate({ tags: tags.filter((t: string) => t !== tagToRemove) });
   };
 
   const getPlainTextContent = useCallback(() => {
@@ -282,7 +367,7 @@ export const NoteEditor = ({
                         {patients?.map((patient) => (
                           <CommandItem
                             key={patient.id}
-                            onSelect={() => handleUpdate({ patient_id: patient.id })}
+                            onSelect={() => void handleMetadataUpdate({ patient_id: patient.id })}
                             className="flex items-center justify-between px-3 py-2 cursor-pointer rounded-lg mx-1 aria-selected:bg-zinc-100 dark:aria-selected:bg-white/5 dark:text-zinc-200"
                           >
                             <div className="flex items-center gap-3">
@@ -296,7 +381,7 @@ export const NoteEditor = ({
                         ))}
                         {note.patient_id && (
                           <CommandItem
-                            onSelect={() => handleUpdate({ patient_id: null })}
+                            onSelect={() => void handleMetadataUpdate({ patient_id: null })}
                             className="flex items-center gap-2 px-3 py-2 cursor-pointer text-destructive focus:text-destructive rounded-lg mx-1 mt-1"
                           >
                             <X className="h-3.5 w-3.5" />
@@ -332,7 +417,7 @@ export const NoteEditor = ({
                         if (date) {
                           const newDate = note.reference_date ? new Date(note.reference_date) : new Date();
                           newDate.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-                          handleUpdate({ reference_date: newDate.toISOString() });
+                          void handleMetadataUpdate({ reference_date: newDate.toISOString() });
                         }
                       }}
                       className="rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm dark:bg-black dark:text-zinc-200"
@@ -346,7 +431,7 @@ export const NoteEditor = ({
                           const [hours, minutes] = e.target.value.split(':');
                           const newDate = note.reference_date ? new Date(note.reference_date) : new Date();
                           newDate.setHours(parseInt(hours), parseInt(minutes));
-                          handleUpdate({ reference_date: newDate.toISOString() });
+                          void handleMetadataUpdate({ reference_date: newDate.toISOString() });
                         }}
                         className="h-8 w-full bg-zinc-100 dark:bg-white/5 border-transparent rounded-md text-xs dark:text-white"
                       />
@@ -355,10 +440,17 @@ export const NoteEditor = ({
                 </PopoverContent>
               </Popover>
 
-              {isSaving && (
-                <div className="flex items-center gap-2 px-3 h-7 rounded-full bg-zinc-100 border border-zinc-200 dark:bg-white/5 dark:border-white/10 transition-all duration-500">
-                  <div className="h-1 w-1 rounded-full bg-zinc-900 dark:bg-white animate-pulse shadow-[0_0_8px_rgba(0,0,0,0.2)]" />
-                  <span className="text-[8px] text-zinc-500 dark:text-zinc-200 font-black uppercase tracking-[0.2em] leading-none">Gravando</span>
+              {(saveStatus === 'saving' || saveStatus === 'saved' || saveStatus === 'error') && (
+                <div className="flex items-center gap-2 px-3 h-7 rounded-full border border-white/[0.06] bg-white/[0.035] transition-all duration-300 [.light_&]:border-zinc-200/70 [.light_&]:bg-zinc-100/80">
+                  <div className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    saveStatus === 'saving' && "animate-pulse bg-zinc-300",
+                    saveStatus === 'saved' && "bg-emerald-400",
+                    saveStatus === 'error' && "bg-red-400",
+                  )} />
+                  <span className="text-[8px] font-black uppercase tracking-[0.18em] leading-none text-zinc-400 [.light_&]:text-zinc-600">
+                    {saveStatus === 'saving' ? 'Salvando' : saveStatus === 'error' ? 'Não foi salvo' : 'Salvo'}
+                  </span>
                 </div>
               )}
             </div>
@@ -377,22 +469,6 @@ export const NoteEditor = ({
                 title={isFocusMode ? "Sair do modo foco" : "Modo foco"}
               >
                 {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
-
-              {/* Eureka Toggle */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsEurekaOpen(!isEurekaOpen)}
-                className={cn(
-                  "h-9 w-9 rounded-lg transition-all duration-200",
-                  isEurekaOpen
-                    ? "bg-amber-500/10 text-amber-500"
-                    : "text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/5"
-                )}
-                title="Motor Eureka"
-              >
-                💡
               </Button>
 
               <DropdownMenu>
@@ -484,7 +560,7 @@ export const NoteEditor = ({
               </DropdownMenu>
 
               <Button
-                onClick={handleAutoSave}
+                onClick={() => void flushSave()}
                 size="sm"
                 className="ml-2 h-9 px-4 rounded-lg font-semibold text-xs shadow-sm active:scale-95 transition-all gap-2 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
               >
@@ -536,8 +612,8 @@ export const NoteEditor = ({
               animate={isFocusMode ? { scale: 1.05, y: -20 } : { scale: 1, y: 0 }}
               transition={{ type: "spring", damping: 20, stiffness: 100 }}
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={handleAutoSave}
+              onChange={(e) => updateDraft({ title: e.target.value })}
+              onBlur={() => void flushSave()}
               placeholder="Sinfonia Sem Título"
               className={cn(
                 "w-full bg-transparent border-none focus:ring-0 font-black tracking-tighter text-zinc-900 placeholder:text-zinc-300 focus:outline-none py-2 selection:bg-zinc-900/10 leading-[1.1] transition-all dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:selection:bg-white/10",
@@ -582,8 +658,8 @@ export const NoteEditor = ({
           <div className="min-h-[500px] pb-32 animate-in fade-in duration-700 delay-100">
             <RichTextEditor
               content={content}
-              onChange={(html) => { setContent(html); }}
-              placeholder="Sinfonia Sem Título... Digite '/' para comandos."
+              onChange={(html) => updateDraft({ content: html })}
+              placeholder="Comece a escrever... Digite '/' para comandos."
               className="prose-lg focus:outline-none max-w-none text-zinc-800 leading-relaxed font-sans dark:text-zinc-100"
               editable={true}
               patients={patients?.map(p => ({ id: p.id, name: p.name }))}
@@ -592,14 +668,6 @@ export const NoteEditor = ({
           </div>
         </div>
       </div>
-
-      {/* Eureka Sidebar */}
-      <EurekaSidebar
-        isOpen={isEurekaOpen}
-        onClose={() => setIsEurekaOpen(false)}
-        editorContent={content}
-        patientId={note.patient_id}
-      />
 
       {/* Accessibility Hint */}
       <AnimatePresence>

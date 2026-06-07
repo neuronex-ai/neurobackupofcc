@@ -1,12 +1,22 @@
 "use client";
 
-import React from "react";
-import { cn } from "@/lib/utils";
-import { Search, Plus, Trash2, Sparkles, Clock, FileText } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, Clock, FileText, ListFilter, Plus, Search, Sparkles, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 interface NotesListPanelProps {
   searchQuery: string;
@@ -17,7 +27,19 @@ interface NotesListPanelProps {
   onCreate: () => void;
   onDeleteNote: (id: string) => void;
   isLoading?: boolean;
+  isCollapsed: boolean;
+  onToggleCollapsed: () => void;
+  isCreatingNote?: boolean;
 }
+
+const toPlainText = (content = "") =>
+  content
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 export const NotesListPanel = ({
   searchQuery,
@@ -27,149 +49,195 @@ export const NotesListPanel = ({
   onSelect,
   onCreate,
   onDeleteNote,
-  isLoading
+  isLoading,
+  isCollapsed,
+  onToggleCollapsed,
+  isCreatingNote = false,
 }: NotesListPanelProps) => {
+  const [noteToDelete, setNoteToDelete] = useState<{ id: string; title: string } | null>(null);
+  const preparedItems = useMemo(
+    () => items.map((item) => ({ ...item, excerpt: toPlainText(item.content).slice(0, 120) })),
+    [items],
+  );
 
-  const handleDragStart = (e: React.DragEvent, noteId: string) => {
-    e.dataTransfer.setData("noteId", noteId);
-    e.dataTransfer.effectAllowed = "move";
+  const handleDragStart = (event: React.DragEvent, noteId: string) => {
+    event.dataTransfer.setData("noteId", noteId);
+    event.dataTransfer.effectAllowed = "move";
   };
 
-  return (
-    <div className="flex flex-col h-full w-full bg-transparent font-sans relative">
-      <div className="absolute inset-0 premium-noise opacity-[0.02] pointer-events-none" />
-
-      {/* Header Section */}
-      <div className="px-6 pt-10 pb-6 shrink-0 space-y-8 relative z-10">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h2 className="text-4xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase">Notas</h2>
-            <div className="flex items-center gap-2">
-              <div className="h-1 w-1 rounded-full bg-zinc-900 opacity-20" />
-              <span className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-400">
-                {items.length} Registros
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={onCreate}
-            className="h-12 w-12 rounded-2xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 flex items-center justify-center transition-all active:scale-95 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15)] group/btn"
-          >
-            <Plus className="h-6 w-6 stroke-[3] transition-transform duration-500 group-hover/btn:rotate-90" />
-          </button>
+  if (isCollapsed) {
+    return (
+      <div className="relative flex h-full w-full flex-col items-center border-r border-white/[0.05] bg-white/[0.012] py-4 [.light_&]:border-zinc-200/60 [.light_&]:bg-white/35">
+        <button
+          onClick={onToggleCollapsed}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.04] text-zinc-400 transition-all hover:bg-white/[0.09] hover:text-white active:scale-95 [.light_&]:border-zinc-200/70 [.light_&]:bg-white [.light_&]:text-zinc-500 [.light_&]:hover:bg-zinc-100 [.light_&]:hover:text-zinc-950"
+          title="Expandir lista de notas"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+        <div className="mt-6 flex flex-col items-center gap-2 text-zinc-600 [.light_&]:text-zinc-400">
+          <ListFilter className="h-4 w-4" />
+          <span className="text-[8px] font-black tabular-nums">{items.length}</span>
         </div>
-
-        <div className="relative group/search">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 transition-colors group-focus-within/search:text-zinc-900 dark:text-zinc-600 dark:group-focus-within/search:text-white" strokeWidth={1.5} />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filtrar pensamentos..."
-            className="h-12 pl-12 bg-zinc-100 border-transparent focus:border-zinc-200 rounded-2xl text-[12px] font-bold placeholder:text-zinc-400 text-zinc-900 transition-all ring-inset focus-visible:ring-0 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-600 dark:focus:border-zinc-700"
-          />
-        </div>
+        <button
+          onClick={onCreate}
+          disabled={isCreatingNote}
+          className="mt-auto flex h-9 w-9 items-center justify-center rounded-xl bg-white text-zinc-950 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 [.light_&]:bg-zinc-950 [.light_&]:text-white"
+          title="Nova nota"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
       </div>
+    );
+  }
 
-      {/* Scrollable List */}
-      <div className="flex-1 overflow-y-auto px-4 pb-12 space-y-4 custom-scrollbar relative z-10">
-        {isLoading ? (
-          <div className="space-y-4 pt-2">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-28 rounded-[24px] bg-white/[0.01] border border-white/5 animate-pulse" />
-            ))}
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center space-y-6 opacity-30 mt-10 animate-in fade-in zoom-in duration-1000">
-            <div className="w-20 h-20 rounded-[32px] bg-white/[0.01] border border-white/5 flex items-center justify-center shadow-inner relative group/empty">
-              <Sparkles className="h-8 w-8 text-zinc-700 transition-colors duration-1000 group-hover/empty:text-white" strokeWidth={1} />
-              <div className="absolute inset-0 bg-white/5 blur-2xl rounded-full opacity-0 group-hover/empty:opacity-100 transition-opacity duration-1000" />
+  return (
+    <>
+      <div className="relative flex h-full w-full flex-col bg-transparent font-sans">
+        <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.018]" />
+
+        <div className="relative z-10 shrink-0 space-y-5 border-b border-white/[0.045] px-5 pb-5 pt-6 [.light_&]:border-zinc-200/60">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="text-2xl font-black leading-none tracking-tight text-zinc-100 [.light_&]:text-zinc-950">Notas</h2>
+              <p className="mt-2 text-[8px] font-black uppercase tracking-[0.25em] text-zinc-600 [.light_&]:text-zinc-400">
+                {items.length} {items.length === 1 ? "registro" : "registros"}
+              </p>
             </div>
-            <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600">Vazio Estrutural</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onCreate}
+                disabled={isCreatingNote}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-zinc-950 shadow-[0_15px_30px_-18px_rgba(255,255,255,0.45)] transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-95 disabled:opacity-50 [.light_&]:bg-zinc-950 [.light_&]:text-white [.light_&]:shadow-[0_15px_30px_-18px_rgba(0,0,0,0.35)]"
+                title="Nova nota"
+              >
+                <Plus className={cn("h-4 w-4", isCreatingNote && "animate-pulse")} strokeWidth={2.5} />
+              </button>
+              <button
+                onClick={onToggleCollapsed}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.035] text-zinc-400 transition-all hover:bg-white/[0.08] hover:text-white active:scale-95 [.light_&]:border-zinc-200/70 [.light_&]:bg-white [.light_&]:text-zinc-500 [.light_&]:hover:bg-zinc-100 [.light_&]:hover:text-zinc-950"
+                title="Recolher lista"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        ) : (
-          <AnimatePresence initial={false} mode="popLayout">
-            {items.map((item) => {
-              const isActive = selectedId === item.id;
-              return (
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  key={item.id}
-                  draggable
-                  onDragStart={(e: any) => handleDragStart(e, item.id)}
-                  onClick={() => onSelect(item.id)}
-                  className={cn(
-                    "group relative p-5 rounded-[28px] cursor-pointer transition-all duration-500 border overflow-hidden",
-                    isActive
-                      ? "bg-zinc-900 text-white shadow-[0_30px_60px_-15px_rgba(0,0,0,0.15)] border-transparent dark:bg-white dark:text-black dark:shadow-[0_30px_60px_-15px_rgba(255,255,255,0.1)]"
-                      : "bg-white border-zinc-100 hover:border-zinc-200 hover:bg-zinc-50 text-zinc-400 shadow-sm dark:bg-black/20 dark:border-white/[0.05] dark:text-zinc-500 dark:hover:bg-white/[0.05] dark:hover:text-zinc-300"
-                  )}
-                >
-                  {isActive && (
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                      <FileText className="h-12 w-12 text-white dark:text-black" strokeWidth={0.5} />
-                    </div>
-                  )}
 
-                  <div className="flex flex-col gap-3 relative z-10">
-                    <div className="flex items-center justify-between">
-                      <h3 className={cn(
-                        "text-[14px] font-black leading-tight tracking-tight line-clamp-1 transition-colors",
-                        isActive ? "text-white dark:text-black" : "text-zinc-900 group-hover:text-zinc-900 dark:text-zinc-200 dark:group-hover:text-white"
+          <div className="group/search relative">
+            <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600 transition-colors group-focus-within/search:text-zinc-300 [.light_&]:text-zinc-400 [.light_&]:group-focus-within/search:text-zinc-800" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Buscar notas..."
+              className="h-11 rounded-xl border-white/[0.055] bg-white/[0.03] pl-10 text-xs font-semibold text-zinc-200 placeholder:text-zinc-600 focus-visible:border-white/15 focus-visible:ring-0 [.light_&]:border-zinc-200/70 [.light_&]:bg-white/80 [.light_&]:text-zinc-900 [.light_&]:placeholder:text-zinc-400 [.light_&]:focus-visible:border-zinc-300"
+            />
+          </div>
+        </div>
+
+        <div className="relative z-10 flex-1 space-y-2.5 overflow-y-auto px-3 pb-8 pt-3 custom-scrollbar">
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((item) => (
+                <div key={item} className="h-24 animate-pulse rounded-2xl border border-white/[0.04] bg-white/[0.025] [.light_&]:border-zinc-200/60 [.light_&]:bg-zinc-100/70" />
+              ))}
+            </div>
+          ) : preparedItems.length === 0 ? (
+            <div className="flex h-64 flex-col items-center justify-center gap-4 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.025] text-zinc-700 [.light_&]:border-zinc-200/60 [.light_&]:bg-zinc-100 [.light_&]:text-zinc-400">
+                <Sparkles className="h-5 w-5" strokeWidth={1.4} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-zinc-400 [.light_&]:text-zinc-600">Nenhuma nota encontrada</p>
+                <p className="mt-1 text-[10px] text-zinc-600 [.light_&]:text-zinc-400">Crie uma nota ou ajuste sua busca.</p>
+              </div>
+            </div>
+          ) : (
+            <AnimatePresence initial={false}>
+              {preparedItems.map((item, index) => {
+                const isActive = selectedId === item.id;
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.22, delay: Math.min(index * 0.015, 0.12) }}
+                    draggable
+                    onDragStart={(event) => handleDragStart(event as unknown as React.DragEvent, item.id)}
+                    onClick={() => onSelect(item.id)}
+                    className={cn(
+                      "group relative cursor-pointer overflow-hidden rounded-2xl border p-4 transition-colors duration-250",
+                      isActive
+                        ? "border-white/10 bg-white text-zinc-950 shadow-[0_18px_42px_-26px_rgba(255,255,255,0.5)] [.light_&]:border-zinc-950 [.light_&]:bg-zinc-950 [.light_&]:text-white [.light_&]:shadow-[0_18px_42px_-26px_rgba(0,0,0,0.45)]"
+                        : "border-white/[0.045] bg-white/[0.018] text-zinc-300 hover:border-white/[0.09] hover:bg-white/[0.045] [.light_&]:border-zinc-200/60 [.light_&]:bg-white/55 [.light_&]:text-zinc-700 [.light_&]:hover:border-zinc-300 [.light_&]:hover:bg-white"
+                    )}
+                  >
+                    {isActive && <FileText className="pointer-events-none absolute -right-2 -top-2 h-14 w-14 opacity-[0.035]" strokeWidth={1} />}
+                    <div className="relative z-10">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="line-clamp-1 text-[13px] font-black leading-tight tracking-tight">
+                          {item.title || "Nota sem título"}
+                        </h3>
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setNoteToDelete({ id: item.id, title: item.title || "Nota sem título" });
+                          }}
+                          className={cn(
+                            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg opacity-0 transition-all group-hover:opacity-100",
+                            isActive
+                              ? "text-zinc-500 hover:bg-black/5 hover:text-red-500 [.light_&]:text-zinc-400 [.light_&]:hover:bg-white/10 [.light_&]:hover:text-red-300"
+                              : "text-zinc-600 hover:bg-white/[0.06] hover:text-red-400 [.light_&]:text-zinc-400 [.light_&]:hover:bg-red-50 [.light_&]:hover:text-red-500"
+                          )}
+                          title="Excluir nota"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <p className={cn(
+                        "mt-2 line-clamp-2 min-h-8 text-[10.5px] font-medium leading-relaxed",
+                        isActive ? "text-zinc-600 [.light_&]:text-zinc-400" : "text-zinc-600 [.light_&]:text-zinc-500"
                       )}>
-                        {item.title || "Indefinido"}
-                      </h3>
-                      {isActive && <div className="h-1.5 w-1.5 rounded-full bg-white/40 dark:bg-black/20" />}
-                    </div>
+                        {item.excerpt || "Comece a escrever para visualizar um resumo."}
+                      </p>
 
-                    <p className={cn(
-                      "text-[11px] leading-relaxed line-clamp-2 font-bold tracking-tight opacity-60",
-                      isActive ? "text-zinc-300 dark:text-zinc-600" : "text-zinc-500 dark:text-zinc-500"
-                    )}>
-                      {item.content?.replace(/<[^>]*>/g, '').slice(0, 120) || "Sinopse ausente..."}
-                    </p>
-
-                    <div className={cn(
-                      "flex items-center justify-between mt-2 pt-3 border-t",
-                      isActive ? "border-white/10 dark:border-black/5" : "border-zinc-100 dark:border-white/5"
-                    )}>
                       <div className={cn(
-                        "flex items-center gap-2 text-[8px] font-black uppercase tracking-[0.2em]",
-                        isActive ? "text-zinc-400 dark:text-zinc-500" : "text-zinc-400 group-hover:text-zinc-600 dark:text-zinc-600 dark:group-hover:text-zinc-400"
+                        "mt-3 flex items-center gap-2 border-t pt-3 text-[8px] font-black uppercase tracking-[0.16em]",
+                        isActive ? "border-black/[0.06] text-zinc-500 [.light_&]:border-white/10 [.light_&]:text-zinc-400" : "border-white/[0.045] text-zinc-700 [.light_&]:border-zinc-200/60 [.light_&]:text-zinc-400"
                       )}>
                         <Clock className="h-3 w-3" />
                         {item.reference_date ? format(new Date(item.reference_date), "dd MMM", { locale: ptBR }) : "Agora"}
                       </div>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm("Deletar permanentemente?")) onDeleteNote(item.id);
-                        }}
-                        className={cn(
-                          "opacity-0 group-hover:opacity-100 transition-all p-2 rounded-xl",
-                          isActive ? "hover:bg-white/10 text-white/40 hover:text-white dark:hover:bg-black/10 dark:text-black/40 dark:hover:text-black" : "hover:bg-zinc-100 text-zinc-400 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white"
-                        )}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
                     </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        )}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          )}
+        </div>
       </div>
 
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 0px; }
-        .custom-scrollbar:hover::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-      `}</style>
-    </div>
+      <AlertDialog open={!!noteToDelete} onOpenChange={(open) => !open && setNoteToDelete(null)}>
+        <AlertDialogContent className="rounded-[28px] border border-white/[0.08] bg-[#101012]/95 text-white shadow-2xl backdrop-blur-3xl [.light_&]:border-zinc-200/80 [.light_&]:bg-white [.light_&]:text-zinc-950">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir “{noteToDelete?.title}”?</AlertDialogTitle>
+            <AlertDialogDescription>Essa ação remove a nota permanentemente e não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl border-white/10 bg-transparent [.light_&]:border-zinc-200">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (noteToDelete) onDeleteNote(noteToDelete.id);
+                setNoteToDelete(null);
+              }}
+              className="rounded-xl bg-red-500 text-white hover:bg-red-600"
+            >
+              Excluir nota
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
