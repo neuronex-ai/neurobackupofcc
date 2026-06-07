@@ -204,7 +204,7 @@ export const ActiveSessionPanel = ({
     }, []);
 
     const renderLobby = () => (
-        <div className="flex items-center justify-center h-full w-full bg-white/60 dark:bg-[#050505]/40 backdrop-blur-[60px] rounded-[40px] border border-black/5 dark:border-white/5 relative overflow-hidden shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]">
+        <div className="desktop-apple-shell relative flex h-full w-full items-center justify-center overflow-hidden rounded-[30px]">
             {/* Background Effects */}
             <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay pointer-events-none" />
             <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-emerald-500/[0.03] blur-[150px] rounded-full pointer-events-none" />
@@ -345,10 +345,10 @@ export const ActiveSessionPanel = ({
 
     return (
         <>
-            <div className="fixed inset-0 bg-background z-[100] flex flex-col overflow-hidden">
+            <div className="desktop-page-canvas fixed inset-0 z-[100] flex flex-col overflow-hidden">
                 <div className="flex-1 flex w-full h-full p-6 gap-6">
                     <div className={cn("relative transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] flex flex-col h-full", isFocusMode ? "w-full" : "flex-1")}>
-                        <div className="flex-1 rounded-[40px] overflow-hidden shadow-2xl relative bg-zinc-50 dark:bg-black border border-zinc-200 dark:border-white/10">
+                        <div className="desktop-apple-shell relative flex-1 overflow-hidden rounded-[30px]">
                             {renderVideoArea()}
                             <RiskAlert riskScore={patient?.risk_score || 0} />
 

@@ -48,21 +48,21 @@ export const UpcomingSessionsPanel = ({
 
     if (isLoading) {
         return (
-            <div className="h-full flex items-center justify-center bg-background">
+            <div className="flex h-full items-center justify-center bg-transparent">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/50" />
             </div>
         );
     }
 
     return (
-        <div className="flex h-full w-full overflow-hidden bg-background">
+        <div className="desktop-apple-shell mx-auto flex h-[calc(100vh-132px)] w-full max-w-[2100px] overflow-hidden rounded-[30px]">
             {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:pt-24 pr-12">
-                <div className="max-w-4xl mx-auto space-y-12">
+            <div className="desktop-content-scroll custom-scrollbar flex-1 overflow-y-auto p-7 pr-10 lg:pt-12">
+                <div className="mx-auto max-w-5xl space-y-9">
 
                     {/* Header - Floating Bar Style */}
                     <div className="mb-8 relative z-40 w-full animate-fade-in group">
-                        <div className="w-full h-[72px] flex items-center justify-between px-6 py-2 bg-white/60 dark:bg-[#050505]/60 backdrop-blur-[40px] border border-white/20 dark:border-white/10 rounded-[32px] shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] hover:border-white/30 dark:hover:border-white/20 transition-all duration-500 ease-out">
+                        <div className="desktop-apple-surface flex h-[68px] w-full items-center justify-between rounded-[24px] px-6 py-2 transition-colors hover:border-zinc-300 dark:hover:border-white/15">
 
                             {/* Left: Title & Badge */}
                             <div className="flex items-center gap-4 h-full">
@@ -83,9 +83,8 @@ export const UpcomingSessionsPanel = ({
 
                     {/* Hero Card: Next Session */}
                     {nextSession ? (
-                        <div className="relative group rounded-[32px] p-1 transition-all duration-500 hover:scale-[1.01]">
-                            <div className="absolute inset-0 bg-gradient-to-r from-zinc-500/10 to-zinc-500/5 dark:from-white/10 dark:to-white/5 rounded-[32px] blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
-                            <div className="relative bg-white/40 dark:bg-[#050505]/40 backdrop-blur-[40px] rounded-[32px] border border-white/20 dark:border-white/10 p-10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] overflow-hidden">
+                        <div className="group relative rounded-[28px]">
+                            <div className="desktop-apple-surface relative overflow-hidden rounded-[28px] p-9">
 
                                 <div className="relative z-10 flex items-center justify-between gap-8">
                                     {/* Left Content */}
@@ -121,7 +120,7 @@ export const UpcomingSessionsPanel = ({
                                         <div className="flex-shrink-0">
                                             <Button
                                                 onClick={() => startSession(nextSession.id)}
-                                                className="h-14 px-10 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-black font-bold uppercase tracking-widest text-xs hover:scale-105 active:scale-95 transition-all duration-500 shadow-xl hover:shadow-2xl hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                                                className="desktop-tactile h-14 rounded-2xl bg-zinc-900 px-10 text-xs font-bold uppercase tracking-widest text-white shadow-lg hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
                                             >
                                                 <Play className="w-5 h-5 mr-3 fill-current" /> Iniciar Agora
                                             </Button>
@@ -135,7 +134,7 @@ export const UpcomingSessionsPanel = ({
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white/30 dark:bg-[#050505]/30 backdrop-blur-xl border border-white/20 dark:border-white/5 rounded-[40px] p-12 text-center shadow-lg">
+                        <div className="desktop-apple-surface rounded-[28px] p-12 text-center">
                             <Calendar className="w-12 h-12 mx-auto mb-4 text-zinc-400/50 dark:text-zinc-600/50" />
                             <p className="text-zinc-500 dark:text-zinc-400 font-medium">Nenhuma sessão agendada.</p>
                         </div>
@@ -150,7 +149,7 @@ export const UpcomingSessionsPanel = ({
                             </div>
                             <div className="space-y-3">
                                 {futureSessions.length > 0 ? futureSessions.map(session => (
-                                    <div key={session.id} className="group p-4 rounded-3xl bg-white/40 dark:bg-[#050505]/40 backdrop-blur-md border border-white/20 dark:border-white/5 hover:bg-white/60 dark:hover:bg-[#050505]/60 hover:border-white/40 dark:hover:border-white/10 transition-all flex items-center justify-between shadow-[0_4px_16px_0_rgba(0,0,0,0.02)]">
+                                    <div key={session.id} className="desktop-tactile desktop-apple-surface group flex items-center justify-between rounded-[20px] p-4 hover:border-zinc-300 dark:hover:border-white/12">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center text-xs font-bold text-zinc-700 dark:text-zinc-300 border border-black/5 dark:border-white/5">
                                                 {getInitials(session.patient_name || '')}
@@ -179,7 +178,7 @@ export const UpcomingSessionsPanel = ({
                                         key={session.id}
                                         onClick={() => setSelectedSession(session)}
                                         className={cn(
-                                            "group p-4 rounded-[24px] border flex items-center justify-between transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer relative overflow-hidden",
+                                            "desktop-tactile group p-4 rounded-[20px] border flex items-center justify-between cursor-pointer relative overflow-hidden",
                                             selectedSession?.id === session.id
                                                 ? "bg-black/5 dark:bg-white/10 border-black/10 dark:border-white/20 opacity-100 scale-[1.02] shadow-lg"
                                                 : "bg-white/20 dark:bg-[#050505]/20 border-white/10 dark:border-white/5 opacity-60 hover:opacity-100 hover:bg-white/40 dark:hover:bg-[#050505]/40 hover:border-white/20 dark:hover:border-white/10 hover:scale-[1.01] shadow-[0_4px_16px_0_rgba(0,0,0,0.02)]"
@@ -215,12 +214,12 @@ export const UpcomingSessionsPanel = ({
                     opacity: (selectedSession || nextSession) ? 1 : 0
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="hidden xl:block overflow-hidden h-full border-l border-border/20 pt-8 lg:pt-24"
+                className="hidden h-full overflow-hidden border-l border-black/[0.06] pt-12 xl:block dark:border-white/[0.06]"
             >
                 <PatientRecapSidebar
                     patientId={(selectedSession || nextSession)?.patient_id}
                     patientName={(selectedSession || nextSession)?.patient_name}
-                    className="w-[400px] bg-card/30 backdrop-blur-3xl"
+                    className="w-[400px] bg-transparent"
                 />
             </motion.div>
         </div>
