@@ -2,6 +2,16 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import {
     Command,
@@ -57,6 +67,7 @@ export const NoteEditor = ({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'pending' | 'saving' | 'error'>('saved');
   const [newTag, setNewTag] = useState("");
   const [showToolbar, setShowToolbar] = useState(true);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const toolbarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const latestDraftRef = useRef({ title: note.title || "", content: note.content || "" });
@@ -552,7 +563,7 @@ export const NoteEditor = ({
                   <DropdownMenuSeparator className="bg-zinc-200 my-1" />
                   <DropdownMenuItem
                     className="rounded-lg px-2 py-2 text-xs font-medium gap-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-                    onClick={() => { if (confirm("Deseja realmente excluir esta nota permanentemente?")) onDelete(note.id); }}
+                    onClick={() => setIsDeleteDialogOpen(true)}
                   >
                     <Trash2 className="h-4 w-4" /> Excluir Nota
                   </DropdownMenuItem>
@@ -685,6 +696,30 @@ export const NoteEditor = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="max-w-md rounded-[26px] border-white/[0.08] bg-zinc-950/95 p-0 text-white shadow-[0_36px_100px_-32px_rgba(0,0,0,0.9)] backdrop-blur-3xl [.light_&]:border-zinc-200/80 [.light_&]:bg-white/95 [.light_&]:text-zinc-950">
+          <div className="p-6">
+            <AlertDialogHeader className="space-y-3">
+              <AlertDialogTitle className="text-xl font-black tracking-tight">Excluir esta nota?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm leading-relaxed text-zinc-400 [.light_&]:text-zinc-600">
+                Esta ação é permanente e a nota não poderá ser recuperada depois.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-7 gap-2">
+              <AlertDialogCancel className="h-11 rounded-xl border-white/[0.08] bg-white/[0.04] text-white hover:bg-white/[0.08] hover:text-white [.light_&]:border-zinc-200 [.light_&]:bg-white [.light_&]:text-zinc-700 [.light_&]:hover:bg-zinc-100">
+                Manter nota
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => onDelete(note.id)}
+                className="h-11 rounded-xl bg-red-500 text-white hover:bg-red-600"
+              >
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }

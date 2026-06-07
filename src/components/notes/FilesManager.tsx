@@ -31,6 +31,16 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,6 +117,7 @@ export const FilesManager = () => {
     // Rename
     const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState("");
+    const [pendingDeletePath, setPendingDeletePath] = useState<string | null>(null);
 
     // Patient linking dialog (after upload on patient tab)
     const [showPatientLinkDialog, setShowPatientLinkDialog] = useState(false);
@@ -243,8 +254,14 @@ export const FilesManager = () => {
     };
 
     // ─── DELETE ─────────────────────────────────────────────────
-    const handleDelete = async (path: string) => {
-        if (!confirm("Excluir este arquivo permanentemente?")) return;
+    const handleDelete = (path: string) => {
+        setPendingDeletePath(path);
+    };
+
+    const confirmDelete = async () => {
+        if (!pendingDeletePath) return;
+        const path = pendingDeletePath;
+        setPendingDeletePath(null);
         const { error } = await supabase.storage.from(BUCKET_NAME).remove([path]);
         if (error) {
             toast.error("Erro ao excluir arquivo.");
@@ -868,6 +885,27 @@ export const FilesManager = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!pendingDeletePath} onOpenChange={(open) => !open && setPendingDeletePath(null)}>
+                <AlertDialogContent className="max-w-md rounded-[26px] border-white/[0.08] bg-zinc-950/95 p-0 text-white shadow-[0_36px_100px_-32px_rgba(0,0,0,0.9)] backdrop-blur-3xl [.light_&]:border-zinc-200/80 [.light_&]:bg-white/95 [.light_&]:text-zinc-950">
+                    <div className="p-6">
+                        <AlertDialogHeader className="space-y-3">
+                            <AlertDialogTitle className="text-xl font-black tracking-tight">Excluir este arquivo?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-sm leading-relaxed text-zinc-400 [.light_&]:text-zinc-600">
+                                O arquivo será removido permanentemente e não poderá ser recuperado.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="mt-7 gap-2">
+                            <AlertDialogCancel className="h-11 rounded-xl border-white/[0.08] bg-white/[0.04] text-white hover:bg-white/[0.08] hover:text-white [.light_&]:border-zinc-200 [.light_&]:bg-white [.light_&]:text-zinc-700 [.light_&]:hover:bg-zinc-100">
+                                Cancelar
+                            </AlertDialogCancel>
+                            <AlertDialogAction onClick={() => void confirmDelete()} className="h-11 rounded-xl bg-red-500 text-white hover:bg-red-600">
+                                Excluir
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </div>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }

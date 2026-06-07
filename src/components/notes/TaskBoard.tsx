@@ -32,6 +32,16 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -91,6 +101,10 @@ export const TaskBoard = ({
     const [newTitle, setNewTitle] = useState("");
     const [newDate, setNewDate] = useState<Date | undefined>(new Date());
     const [newCategory, setNewCategory] = useState<Reminder['category']>("Geral");
+    const [columnDialogMode, setColumnDialogMode] = useState<'add' | 'rename' | null>(null);
+    const [columnName, setColumnName] = useState("");
+    const [columnToRename, setColumnToRename] = useState<string | null>(null);
+    const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
 
     const [categories, setCategories] = useState<string[]>(["Geral", "Clínico", "Financeiro", "Pessoal", "Urgente"]);
 
@@ -130,35 +144,58 @@ export const TaskBoard = ({
     };
 
     const handleAddColumn = () => {
-        const name = prompt("Nome da nova coluna:");
-        if (name && !categories.includes(name)) {
-            setCategories([...categories, name]);
-            toast.success(`Coluna "${name}" adicionada.`);
-        }
+        setColumnName("");
+        setColumnToRename(null);
+        setColumnDialogMode('add');
     };
 
     const handleRenameColumn = (oldName: string) => {
-        const newName = prompt("Renomear coluna:", oldName);
-        if (newName && newName !== oldName && !categories.includes(newName)) {
-            setCategories(categories.map(c => c === oldName ? newName : c));
-            // Update all tasks in this column to the new category
-            const tasksInColumn = tasks.filter(t => t.category === oldName);
-            tasksInColumn.forEach(t => onUpdateCategory?.(t.id, newName as any));
-            toast.success(`Coluna renomeada para "${newName}".`);
-        }
+        setColumnName(oldName);
+        setColumnToRename(oldName);
+        setColumnDialogMode('rename');
     };
 
     const handleDeleteColumn = (name: string) => {
-        const tasksInColumn = tasks.filter(t => t.category === name);
-        const msg = tasksInColumn.length > 0
-            ? `Excluir coluna "${name}"? As ${tasksInColumn.length} tarefa(s) serão movidas para "Geral".`
-            : `Excluir coluna "${name}"?`;
-        if (confirm(msg)) {
-            // Move tasks to Geral before deleting
-            tasksInColumn.forEach(t => onUpdateCategory?.(t.id, "Geral" as any));
-            setCategories(categories.filter(c => c !== name));
-            toast.success(`Coluna "${name}" excluída.`);
+        setColumnToDelete(name);
+    };
+
+    const handleSaveColumn = () => {
+        const normalizedName = columnName.trim();
+        if (!normalizedName) {
+            toast.error("Digite um nome para a coluna.");
+            return;
         }
+        if (categories.some(category => category !== columnToRename && category.toLowerCase() === normalizedName.toLowerCase())) {
+            toast.error("Já existe uma coluna com esse nome.");
+            return;
+        }
+
+        if (columnDialogMode === 'rename' && columnToRename) {
+            if (normalizedName !== columnToRename) {
+                setCategories(categories.map(category => category === columnToRename ? normalizedName : category));
+                tasks
+                    .filter(task => task.category === columnToRename)
+                    .forEach(task => onUpdateCategory?.(task.id, normalizedName as any));
+                toast.success(`Coluna renomeada para "${normalizedName}".`);
+            }
+        } else {
+            setCategories([...categories, normalizedName]);
+            toast.success(`Coluna "${normalizedName}" adicionada.`);
+        }
+
+        setColumnDialogMode(null);
+        setColumnToRename(null);
+        setColumnName("");
+    };
+
+    const confirmDeleteColumn = () => {
+        if (!columnToDelete) return;
+        const name = columnToDelete;
+        const tasksInColumn = tasks.filter(t => t.category === name);
+        tasksInColumn.forEach(t => onUpdateCategory?.(t.id, "Geral" as any));
+        setCategories(categories.filter(c => c !== name));
+        setColumnToDelete(null);
+        toast.success(`Coluna "${name}" excluída.`);
     };
 
     const handleDragStart = (event: DragStartEvent) => {
@@ -473,6 +510,73 @@ export const TaskBoard = ({
                     </DndContext>
                 </div>
             </div>
+
+            <Dialog
+                open={columnDialogMode !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setColumnDialogMode(null);
+                        setColumnToRename(null);
+                        setColumnName("");
+                    }
+                }}
+            >
+                <DialogContent className="max-w-md rounded-[26px] border-white/[0.08] bg-zinc-950/95 p-0 text-white shadow-[0_36px_100px_-32px_rgba(0,0,0,0.9)] backdrop-blur-3xl [.light_&]:border-zinc-200/80 [.light_&]:bg-white/95 [.light_&]:text-zinc-950">
+                    <div className="p-6">
+                        <DialogHeader className="space-y-2 text-left">
+                            <DialogTitle className="text-xl font-black tracking-tight">
+                                {columnDialogMode === 'rename' ? 'Renomear coluna' : 'Nova coluna'}
+                            </DialogTitle>
+                            <p className="text-sm leading-relaxed text-zinc-400 [.light_&]:text-zinc-600">
+                                Use um nome curto para manter o quadro fácil de percorrer.
+                            </p>
+                        </DialogHeader>
+                        <Input
+                            value={columnName}
+                            onChange={(event) => setColumnName(event.target.value)}
+                            onKeyDown={(event) => event.key === 'Enter' && handleSaveColumn()}
+                            autoFocus
+                            placeholder="Ex.: Retornos"
+                            className="mt-6 h-12 rounded-xl border-white/[0.08] bg-white/[0.045] text-white placeholder:text-zinc-600 [.light_&]:border-zinc-200 [.light_&]:bg-zinc-50 [.light_&]:text-zinc-950"
+                        />
+                        <DialogFooter className="mt-7 gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => setColumnDialogMode(null)}
+                                className="h-11 rounded-xl border-white/[0.08] bg-white/[0.04] text-white hover:bg-white/[0.08] hover:text-white [.light_&]:border-zinc-200 [.light_&]:bg-white [.light_&]:text-zinc-700 [.light_&]:hover:bg-zinc-100"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button onClick={handleSaveColumn} className="h-11 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 [.light_&]:bg-zinc-950 [.light_&]:text-white [.light_&]:hover:bg-zinc-800">
+                                {columnDialogMode === 'rename' ? 'Salvar nome' : 'Criar coluna'}
+                            </Button>
+                        </DialogFooter>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={!!columnToDelete} onOpenChange={(open) => !open && setColumnToDelete(null)}>
+                <AlertDialogContent className="max-w-md rounded-[26px] border-white/[0.08] bg-zinc-950/95 p-0 text-white shadow-[0_36px_100px_-32px_rgba(0,0,0,0.9)] backdrop-blur-3xl [.light_&]:border-zinc-200/80 [.light_&]:bg-white/95 [.light_&]:text-zinc-950">
+                    <div className="p-6">
+                        <AlertDialogHeader className="space-y-3">
+                            <AlertDialogTitle className="text-xl font-black tracking-tight">Excluir esta coluna?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-sm leading-relaxed text-zinc-400 [.light_&]:text-zinc-600">
+                                {columnToDelete && tasks.some(task => task.category === columnToDelete)
+                                    ? 'As tarefas desta coluna serão movidas para Geral.'
+                                    : 'A coluna será removida do quadro.'}
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="mt-7 gap-2">
+                            <AlertDialogCancel className="h-11 rounded-xl border-white/[0.08] bg-white/[0.04] text-white hover:bg-white/[0.08] hover:text-white [.light_&]:border-zinc-200 [.light_&]:bg-white [.light_&]:text-zinc-700 [.light_&]:hover:bg-zinc-100">
+                                Cancelar
+                            </AlertDialogCancel>
+                            <AlertDialogAction onClick={confirmDeleteColumn} className="h-11 rounded-xl bg-red-500 text-white hover:bg-red-600">
+                                Excluir
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </div>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };
