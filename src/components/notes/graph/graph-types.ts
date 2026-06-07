@@ -19,6 +19,11 @@ export interface GraphNode extends NodeObject {
   targetGlow: number;
   currentOpacity?: number;
   currentScale?: number;
+  revealProgress?: number;
+  revealTarget?: number;
+  bloomIntensity?: number;
+  dragPulse?: number;
+  pulseSeed?: number;
 
   // Physics state (from d3)
   x?: number;
@@ -33,6 +38,9 @@ export interface GraphLink extends LinkObject {
   value: number;
   currentOpacity?: number;
   currentWidth?: number;
+  revealProgress?: number;
+  revealTarget?: number;
+  pulseSeed?: number;
 }
 
 export const GRAPH_COLORS = {

@@ -144,7 +144,7 @@ export default function Notes() {
                     />
                 </motion.div>
             );
-            case 'neuroview': return <motion.div {...motionProps} className="flex-1 h-full"><NeuroView /></motion.div>;
+            case 'neuroview': return <motion.div {...motionProps} className="flex-1 h-full min-w-0 overflow-hidden"><NeuroView /></motion.div>;
             case 'neuroflow': return <motion.div {...motionProps} className="flex-1 h-full">{selectedFlowId ? <NeuroFlow flowId={selectedFlowId} onBack={() => setSelectedFlowId(null)} /> : <NeuroFlowVault onOpenFlow={setSelectedFlowId} />}</motion.div>;
             case 'neuropulse': return <motion.div {...motionProps} className="flex-1 h-full"><NeuroPulse /></motion.div>;
             default:

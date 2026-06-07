@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
-import { forceCollide, forceX, forceY } from "d3-force";
+import { forceCollide, forceRadial, forceX, forceY } from "d3-force";
 import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import { Loader2 } from "lucide-react";
 import { NeuroConfig, NeuroViewControls } from "./NeuroViewControls";
@@ -14,9 +14,9 @@ import { NeuroViewUniverse } from "./NeuroViewUniverse";
 
 // --- DEFAULT CONFIG ---
 const DEFAULT_CONFIG: NeuroConfig = {
-    repulsion: -200,
-    linkDistance: 60,
-    centerForce: 0.1,
+    repulsion: -420,
+    linkDistance: 88,
+    centerForce: 0.09,
     performanceMode: false,
     showPatients: true,
     showNotes: true,
@@ -31,7 +31,9 @@ export const NeuroView = () => {
     const graphRef = useRef<ForceGraphMethods>();
     const containerRef = useRef<HTMLDivElement>(null);
     const animationFrameRef = useRef<number>();
+    const animationTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
     const timeRef = useRef<number>(0);
+    const [graphSize, setGraphSize] = useState({ width: 0, height: 0 });
 
     // Check theme manually since `next-themes` might not be fully available in this context or standard
     // Ideally use useTheme(), but fallback to class check on documentElement for simplicity if needed
@@ -59,6 +61,38 @@ export const NeuroView = () => {
     const [selectedNote, setSelectedNote] = useState<PersonalNote | null>(null);
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
     const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
+    const [isPatientSidebarOpen, setIsPatientSidebarOpen] = useState(true);
+
+    useEffect(() => {
+        const element = containerRef.current;
+        if (!element) return;
+
+        const updateGraphSize = () => {
+            const rect = element.getBoundingClientRect();
+            setGraphSize({
+                width: Math.max(320, Math.floor(rect.width)),
+                height: Math.max(320, Math.floor(rect.height)),
+            });
+        };
+
+        updateGraphSize();
+
+        const resizeObserver = new ResizeObserver(updateGraphSize);
+        resizeObserver.observe(element);
+        window.addEventListener("resize", updateGraphSize);
+
+        return () => {
+            resizeObserver.disconnect();
+            window.removeEventListener("resize", updateGraphSize);
+        };
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            animationTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+            animationTimeoutsRef.current = [];
+        };
+    }, []);
 
     // 4. Animation Loop
     useEffect(() => {
@@ -67,8 +101,8 @@ export const NeuroView = () => {
             const lerpFactor = 0.15;
 
             graphData.nodes.forEach((n) => {
-                const baseRadius = n.type === 'patient' ? 5 : (n.type === 'note' ? 3 : 2);
-                const baseGlow = n.type === 'patient' ? 20 : (n.type === 'note' ? 15 : 10);
+                const baseRadius = n.type === 'patient' ? 6 : (n.type === 'note' ? 4.2 : 2.8);
+                const baseGlow = n.type === 'patient' ? 26 : (n.type === 'note' ? 18 : 12);
 
                 // Determine targets based on hover state
                 let targetRadius = baseRadius;
@@ -87,8 +121,16 @@ export const NeuroView = () => {
 
                 n.currentRadius = lerp(n.currentRadius || baseRadius, targetRadius * (1 + breathe * 0.1), lerpFactor);
                 n.currentGlow = lerp(n.currentGlow || baseGlow, targetGlow * (1 + breathe * 0.2), lerpFactor);
+                n.revealProgress = lerp(n.revealProgress ?? 1, n.revealTarget ?? 1, 0.12);
+                n.bloomIntensity = lerp(n.bloomIntensity ?? 0, 0, 0.08);
+                n.dragPulse = lerp(n.dragPulse ?? 0, 0, 0.1);
             });
 
+            graphData.links.forEach((l) => {
+                l.revealProgress = lerp(l.revealProgress ?? 1, l.revealTarget ?? 1, 0.12);
+            });
+
+            (graphRef.current as any)?.refresh?.();
             animationFrameRef.current = requestAnimationFrame(animate);
         };
 
@@ -127,57 +169,107 @@ export const NeuroView = () => {
     const handleAnimate = useCallback(() => {
         if (!graphRef.current) return;
         const fg = graphRef.current;
-        const totalNodes = graphData.nodes.length;
+        const getEndpointId = (endpoint: GraphLink["source"] | GraphLink["target"]) => (
+            typeof endpoint === "string" ? endpoint : endpoint?.id
+        );
+
+        animationTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+        animationTimeoutsRef.current = [];
+
+        const adjacency = new Map<string, string[]>();
+        graphData.nodes.forEach((node) => adjacency.set(node.id, []));
+        graphData.links.forEach((link) => {
+            const sourceId = getEndpointId(link.source);
+            const targetId = getEndpointId(link.target);
+            if (!sourceId || !targetId) return;
+
+            adjacency.get(sourceId)?.push(targetId);
+            adjacency.get(targetId)?.push(sourceId);
+        });
+
+        const delays = new Map<string, number>();
+        const roots = graphData.nodes.filter((node) => node.type === "patient");
+        const queue = (roots.length ? roots : graphData.nodes.slice(0, 1)).map((node) => ({ id: node.id, depth: 0 }));
+
+        queue.forEach((item) => delays.set(item.id, 0));
+
+        for (let index = 0; index < queue.length; index += 1) {
+            const item = queue[index];
+            adjacency.get(item.id)?.forEach((neighborId) => {
+                if (delays.has(neighborId)) return;
+
+                const seed = Array.from(neighborId).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+                delays.set(neighborId, item.depth * 160 + 90 + (seed % 85));
+                queue.push({ id: neighborId, depth: item.depth + 1 });
+            });
+        }
 
         // 1. Reset all to zero/hidden state
         graphData.nodes.forEach((n) => {
+            const baseRadius = n.type === 'patient' ? 6 : (n.type === 'note' ? 4.2 : 2.8);
+            const baseGlow = n.type === 'patient' ? 26 : (n.type === 'note' ? 18 : 12);
+
             n.currentRadius = 0;
             n.currentGlow = 0;
             n.currentOpacity = 0;
+            n.revealProgress = 0;
+            n.revealTarget = 0;
+            n.bloomIntensity = 0;
+            n.dragPulse = 0;
+            n.targetRadius = baseRadius;
+            n.targetGlow = baseGlow;
         });
         graphData.links.forEach((l) => {
             l.currentOpacity = 0;
             l.currentWidth = 0;
+            l.revealProgress = 0;
+            l.revealTarget = 0;
         });
 
-        // 2. Randomize node order for organic feel
-        const shuffledNodes = [...graphData.nodes].sort(() => Math.random() - 0.5);
+        graphData.nodes.forEach((n, index) => {
+            const delay = delays.get(n.id) ?? (index * 70);
+            const baseRadius = n.type === 'patient' ? 6 : (n.type === 'note' ? 4.2 : 2.8);
+            const baseGlow = n.type === 'patient' ? 26 : (n.type === 'note' ? 18 : 12);
 
-        // 3. Staggered appearance: each node "blooms" progressively
-        shuffledNodes.forEach((n, index) => {
-            const delay = 50 + index * 40; // Staggered delay: 50ms base + 40ms per node
-            const baseRadius = n.type === 'patient' ? 5 : (n.type === 'note' ? 3 : 2);
-            const baseGlow = n.type === 'patient' ? 20 : (n.type === 'note' ? 15 : 10);
+            const timeout = setTimeout(() => {
+                const angle = ((n.pulseSeed || index * 97) % 360) * (Math.PI / 180);
 
-            setTimeout(() => {
-                // Bloom effect: start slightly bigger then settle
-                n.currentRadius = baseRadius * 1.5;
-                n.currentGlow = baseGlow * 2;
-                n.currentOpacity = 0.4;
+                n.currentRadius = baseRadius * 0.28;
+                n.currentGlow = baseGlow * 0.4;
+                n.currentOpacity = 0.15;
+                n.revealTarget = 1;
+                n.bloomIntensity = 1;
 
-                // Ease to target value over time (this smooths via the main animation loop)
-                setTimeout(() => {
-                    n.currentRadius = baseRadius;
-                    n.currentGlow = baseGlow;
-                    n.currentOpacity = 1;
-                }, 200);
+                (n as any).vx = ((n as any).vx || 0) + Math.cos(angle) * (n.type === "patient" ? 1.1 : 2.4);
+                (n as any).vy = ((n as any).vy || 0) + Math.sin(angle) * (n.type === "patient" ? 1.1 : 2.4);
+
+                fg.d3ReheatSimulation();
             }, delay);
+
+            animationTimeoutsRef.current.push(timeout);
         });
 
-        // 4. Animate links after nodes
-        const linkDelay = totalNodes * 40 + 200;
         graphData.links.forEach((l, index) => {
-            setTimeout(() => {
-                l.currentOpacity = 0.5;
-                l.currentWidth = 1;
-            }, linkDelay + index * 20);
+            const sourceId = getEndpointId(l.source);
+            const targetId = getEndpointId(l.target);
+            const linkDelay = Math.max(delays.get(sourceId || "") ?? 0, delays.get(targetId || "") ?? 0) + 130 + (index % 8) * 18;
+
+            const timeout = setTimeout(() => {
+                l.revealTarget = 1;
+                l.currentOpacity = 0.05;
+                l.currentWidth = 0.2;
+            }, linkDelay);
+
+            animationTimeoutsRef.current.push(timeout);
         });
 
-        // 5. Camera movement: Smoothly pull back then zoom to fit
-        setTimeout(() => {
+        const finalDelay = Math.max(800, ...Array.from(delays.values())) + 500;
+        const finalTimeout = setTimeout(() => {
             fg.d3ReheatSimulation();
-            fg.zoomToFit(800, 80);
-        }, linkDelay + 200);
+            fg.zoomToFit(900, 80);
+        }, finalDelay);
+
+        animationTimeoutsRef.current.push(finalTimeout);
 
     }, [graphData]);
 
@@ -194,22 +286,38 @@ export const NeuroView = () => {
 
             const charge = fg.d3Force('charge');
             if (charge) {
-                (charge as any).strength(config.repulsion).distanceMax(500);
+                (charge as any)
+                    .strength((node: any) => {
+                        if (node.type === "patient") return config.repulsion * 1.25;
+                        if (node.type === "tag") return config.repulsion * 0.48;
+                        return config.repulsion;
+                    })
+                    .distanceMin(18)
+                    .distanceMax(620);
             }
 
             const link = fg.d3Force('link');
             if (link) {
-                (link as any).distance(config.linkDistance);
+                (link as any)
+                    .distance((l: any) => config.linkDistance * ((l.value || 1) >= 2 ? 1.15 : 0.72))
+                    .strength((l: any) => ((l.value || 1) >= 2 ? 0.54 : 0.36))
+                    .iterations(2);
             }
 
             // Radial forces for centering
-            fg.d3Force('x', forceX(0).strength(config.centerForce));
-            fg.d3Force('y', forceY(0).strength(config.centerForce));
+            fg.d3Force('x', forceX(0).strength(config.centerForce * 0.45));
+            fg.d3Force('y', forceY(0).strength(config.centerForce * 0.45));
+            fg.d3Force('radial', forceRadial((node: any) => {
+                if (node.type === "patient") return 72;
+                if (node.type === "note") return 165;
+                return 240;
+            }).strength(config.centerForce * 0.16));
 
             // Collision to prevent overlap
             fg.d3Force('collide', forceCollide((node: any) => {
-                return (node.type === 'patient' ? 10 : 5) + 3;
-            }));
+                const radius = node.type === 'patient' ? 15 : (node.type === 'note' ? 10 : 7);
+                return radius + Math.max(0, node.currentRadius || 0);
+            }).strength(0.82).iterations(2));
 
             fg.d3ReheatSimulation();
         }
@@ -217,12 +325,12 @@ export const NeuroView = () => {
 
     // Canvas Objects Handlers
     const handleNodeCanvasObject = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-        drawNode(node as GraphNode, ctx, globalScale, hoverNode, isDarkMode);
-    }, [hoverNode, isDarkMode]);
+        drawNode(node as GraphNode, ctx, globalScale, hoverNode, isDarkMode, timeRef.current, config.performanceMode);
+    }, [hoverNode, isDarkMode, config.performanceMode]);
 
     const handleLinkCanvasObject = useCallback((link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-        drawLink(link as GraphLink, ctx, globalScale, hoverNode, isDarkMode);
-    }, [hoverNode, isDarkMode]);
+        drawLink(link as GraphLink, ctx, globalScale, hoverNode, isDarkMode, timeRef.current, config.performanceMode);
+    }, [hoverNode, isDarkMode, config.performanceMode]);
 
     return (
         <div ref={containerRef} className="relative w-full h-full overflow-hidden group/canvas bg-[#F5F5F7] dark:bg-[#020204]">
@@ -244,10 +352,13 @@ export const NeuroView = () => {
                 onZoomOut={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 400)}
                 onCenter={() => graphRef.current?.zoomToFit(400)}
                 onAnimate={handleAnimate}
+                sidebarOffset={isPatientSidebarOpen ? 276 : 64}
             />
 
             <NeuroViewSidebar
                 patients={patients || []}
+                isOpen={isPatientSidebarOpen}
+                onOpenChange={setIsPatientSidebarOpen}
                 onHoverNode={(id) => id && nodeMap[id] ? setHoverNode(nodeMap[id]) : setHoverNode(null)}
                 onSelectPatient={(p) => {
                     const id = `pat-${p.id}`;
@@ -267,6 +378,8 @@ export const NeuroView = () => {
             <ForceGraph2D
                 ref={graphRef}
                 graphData={graphData}
+                width={Math.max(1, graphSize.width)}
+                height={Math.max(1, graphSize.height)}
                 nodeLabel={() => ""}
                 nodeColor={() => "transparent"}
                 nodeCanvasObject={handleNodeCanvasObject}
@@ -280,10 +393,23 @@ export const NeuroView = () => {
                 backgroundColor="transparent"
                 onNodeClick={(node) => handleNodeClick(node as GraphNode)}
                 onNodeHover={(node) => setHoverNode((node as GraphNode) || null)}
-                d3AlphaDecay={0.015}
-                d3VelocityDecay={0.35}
-                cooldownTicks={150}
-                warmupTicks={50}
+                onNodeDrag={(node) => {
+                    const graphNode = node as GraphNode;
+                    graphNode.dragPulse = 1;
+                    graphNode.currentGlow = Math.max(graphNode.currentGlow || 0, graphNode.type === "patient" ? 34 : 24);
+                    setHoverNode(graphNode);
+                }}
+                onNodeDragEnd={(node) => {
+                    const graphNode = node as GraphNode;
+                    graphNode.dragPulse = 0.65;
+                    setHoverNode(null);
+                    graphRef.current?.d3ReheatSimulation();
+                }}
+                autoPauseRedraw={false}
+                d3AlphaDecay={0.011}
+                d3VelocityDecay={0.24}
+                cooldownTicks={220}
+                warmupTicks={90}
                 onEngineStop={() => graphRef.current?.zoomToFit(600, 80)}
             />
 

@@ -15,14 +15,17 @@ interface NeuroViewSidebarProps {
     patients: Patient[];
     onHoverNode: (id: string | null) => void;
     onSelectPatient: (patient: Patient) => void;
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
 }
 
 export const NeuroViewSidebar = ({
     patients,
     onHoverNode,
-    onSelectPatient
+    onSelectPatient,
+    isOpen,
+    onOpenChange
 }: NeuroViewSidebarProps) => {
-    const [isOpen, setIsOpen] = useState(true);
     const [search, setSearch] = useState("");
 
     const getInitials = (name: string) => {
@@ -54,7 +57,7 @@ export const NeuroViewSidebar = ({
                                 <Button
                                     size="icon"
                                     variant="ghost"
-                                    onClick={() => setIsOpen(false)}
+                                    onClick={() => onOpenChange(false)}
                                     className="h-6 w-6 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground dark:text-white/50 dark:hover:text-white"
                                 >
                                     <ChevronLeft className="h-3.5 w-3.5" />
@@ -134,7 +137,7 @@ export const NeuroViewSidebar = ({
                         <Button
                             size="icon"
                             variant="outline"
-                            onClick={() => setIsOpen(true)}
+                            onClick={() => onOpenChange(true)}
                             className="h-10 w-10 rounded-xl bg-card/80 dark:bg-[#0A0A0B]/80 backdrop-blur-xl border border-border/10 dark:border-white/10 hover:bg-secondary/80 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground dark:text-white/70 dark:hover:text-white shadow-xl"
                         >
                             <ChevronRight className="h-4 w-4" />

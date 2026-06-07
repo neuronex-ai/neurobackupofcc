@@ -55,19 +55,23 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
       if (n.type === 'note' && !config.showNotes) return;
       if (n.type === 'tag' && !config.showTags) return;
 
-      const baseRadius = n.type === 'patient' ? 3.5 : (n.type === 'note' ? 3 : 2);
-      const baseGlow = n.type === 'patient' ? 8 : (n.type === 'note' ? 5 : 3);
+      const baseRadius = n.type === 'patient' ? 6 : (n.type === 'note' ? 4.2 : 2.8);
+      const baseGlow = n.type === 'patient' ? 24 : (n.type === 'note' ? 16 : 10);
+      const pulseSeed = Array.from(String(n.id)).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 997;
 
       const node: GraphNode = {
         ...n,
-        val: n.type === 'patient' ? 15 : (n.type === 'note' ? 8 : 4),
+        val: n.type === 'patient' ? 22 : (n.type === 'note' ? 11 : 5),
         neighbors: [],
         links: [],
         imgObj: n.imgUrl ? getOrLoadImage(n.imgUrl) : undefined,
         currentRadius: baseRadius,
         targetRadius: baseRadius,
         currentGlow: baseGlow,
-        targetGlow: baseGlow
+        targetGlow: baseGlow,
+        revealProgress: 1,
+        revealTarget: 1,
+        pulseSeed
       };
 
       nodes.push(enhanceNode(node));
@@ -106,7 +110,7 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
 
       // Link Note -> Patient
       if (n.patient_id && addedIds.has(`pat-${n.patient_id}`) && addedIds.has(noteId)) {
-        links.push({ source: `pat-${n.patient_id}`, target: noteId, value: 2 });
+        links.push({ source: `pat-${n.patient_id}`, target: noteId, value: 2, revealProgress: 1, revealTarget: 1 });
       }
 
       // Tags
@@ -116,7 +120,7 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
           addNode({ id: tagId, label: `#${tag}`, type: 'tag', color: GRAPH_COLORS.tag });
         }
         if (addedIds.has(noteId) && addedIds.has(tagId)) {
-          links.push({ source: noteId, target: tagId, value: 1 });
+          links.push({ source: noteId, target: tagId, value: 1, revealProgress: 1, revealTarget: 1 });
         }
       });
     });
@@ -126,6 +130,7 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
       const a = map[link.source as string];
       const b = map[link.target as string];
       if (a && b) {
+        link.pulseSeed = ((a.pulseSeed || 0) + (b.pulseSeed || 0)) % 997;
         a.neighbors?.push(b);
         b.neighbors?.push(a);
         a.links?.push(link);
