@@ -14,9 +14,9 @@ import { NeuroViewUniverse } from "./NeuroViewUniverse";
 
 // --- DEFAULT CONFIG ---
 const DEFAULT_CONFIG: NeuroConfig = {
-    repulsion: -420,
-    linkDistance: 88,
-    centerForce: 0.09,
+    repulsion: -360,
+    linkDistance: 96,
+    centerForce: 0.055,
     performanceMode: false,
     showPatients: true,
     showNotes: true,
@@ -288,36 +288,36 @@ export const NeuroView = () => {
             if (charge) {
                 (charge as any)
                     .strength((node: any) => {
-                        if (node.type === "patient") return config.repulsion * 1.25;
-                        if (node.type === "tag") return config.repulsion * 0.48;
-                        return config.repulsion;
+                        if (node.type === "patient") return config.repulsion * 1.05;
+                        if (node.type === "tag") return config.repulsion * 0.42;
+                        return config.repulsion * 0.82;
                     })
                     .distanceMin(18)
-                    .distanceMax(620);
+                    .distanceMax(560);
             }
 
             const link = fg.d3Force('link');
             if (link) {
                 (link as any)
                     .distance((l: any) => config.linkDistance * ((l.value || 1) >= 2 ? 1.15 : 0.72))
-                    .strength((l: any) => ((l.value || 1) >= 2 ? 0.54 : 0.36))
+                    .strength((l: any) => ((l.value || 1) >= 2 ? 0.32 : 0.22))
                     .iterations(2);
             }
 
             // Radial forces for centering
-            fg.d3Force('x', forceX(0).strength(config.centerForce * 0.45));
-            fg.d3Force('y', forceY(0).strength(config.centerForce * 0.45));
+            fg.d3Force('x', forceX(0).strength(config.centerForce * 0.22));
+            fg.d3Force('y', forceY(0).strength(config.centerForce * 0.22));
             fg.d3Force('radial', forceRadial((node: any) => {
                 if (node.type === "patient") return 72;
                 if (node.type === "note") return 165;
                 return 240;
-            }).strength(config.centerForce * 0.16));
+            }).strength(config.centerForce * 0.055));
 
             // Collision to prevent overlap
             fg.d3Force('collide', forceCollide((node: any) => {
                 const radius = node.type === 'patient' ? 15 : (node.type === 'note' ? 10 : 7);
                 return radius + Math.max(0, node.currentRadius || 0);
-            }).strength(0.82).iterations(2));
+            }).strength(0.66).iterations(2));
 
             fg.d3ReheatSimulation();
         }
@@ -352,7 +352,6 @@ export const NeuroView = () => {
                 onZoomOut={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 400)}
                 onCenter={() => graphRef.current?.zoomToFit(400)}
                 onAnimate={handleAnimate}
-                sidebarOffset={isPatientSidebarOpen ? 276 : 64}
             />
 
             <NeuroViewSidebar
@@ -402,14 +401,15 @@ export const NeuroView = () => {
                 onNodeDragEnd={(node) => {
                     const graphNode = node as GraphNode;
                     graphNode.dragPulse = 0.65;
+                    (graphNode as any).vx = ((graphNode as any).vx || 0) * 0.16;
+                    (graphNode as any).vy = ((graphNode as any).vy || 0) * 0.16;
                     setHoverNode(null);
-                    graphRef.current?.d3ReheatSimulation();
                 }}
                 autoPauseRedraw={false}
-                d3AlphaDecay={0.011}
-                d3VelocityDecay={0.24}
-                cooldownTicks={220}
-                warmupTicks={90}
+                d3AlphaDecay={0.016}
+                d3VelocityDecay={0.39}
+                cooldownTicks={260}
+                warmupTicks={110}
                 onEngineStop={() => graphRef.current?.zoomToFit(600, 80)}
             />
 
