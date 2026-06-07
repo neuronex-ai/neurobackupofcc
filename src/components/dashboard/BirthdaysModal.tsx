@@ -69,10 +69,10 @@ export const BirthdaysModal = ({ isOpen, onClose, birthdays }: BirthdaysModalPro
   const fillTemplate = (patient: PatientBirthday, template: string) => {
     const firstName = patient.name.split(' ')[0] || patient.name;
     return template
-      .replaceAll('{{nome_do_paciente}}', firstName)
-      .replaceAll('{{nome_completo_do_paciente}}', patient.name)
-      .replaceAll('{{nome_do_profissional}}', professionalName)
-      .replaceAll('{{data_aniversario}}', getBirthdayLabel(patient));
+      .replace(/\{\{nome_do_paciente\}\}/g, firstName)
+      .replace(/\{\{nome_completo_do_paciente\}\}/g, patient.name)
+      .replace(/\{\{nome_do_profissional\}\}/g, professionalName)
+      .replace(/\{\{data_aniversario\}\}/g, getBirthdayLabel(patient));
   };
 
   const finishSend = () => {

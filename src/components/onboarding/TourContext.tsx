@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { useAuth } from '@/components/auth/SessionContextProvider';
 
 const TOUR_COMPLETED_KEY = 'neuro_nex_tour_completed';
 

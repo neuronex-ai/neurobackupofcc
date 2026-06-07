@@ -4,20 +4,18 @@
 export const TodoistIcon = ({ className = "h-8 w-8" }: { className?: string }) => {
   return (
     <div className={`${className} relative group transition-all duration-500`}>
-      {/* Modo Claro: Inativo (Cinza) -> Ativo (Vermelho/Colorido) */}
       <img 
-        src="/@docs/logos/todoist_colored.png" 
+        src="/images/integrations/todoist_black.png" 
         alt="Todoist"
         className="
           w-full h-full object-contain dark:hidden
           transition-all duration-500 ease-out
-          grayscale opacity-40 brightness-150
+          opacity-50 grayscale
           group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-110
         "
       />
-      {/* Modo Escuro: Inativo (Cinza) -> Ativo (Branco) */}
       <img 
-        src="/@docs/logos/todoist_white.png" 
+        src="/images/integrations/todoist_white.png" 
         alt="Todoist"
         className="
           w-full h-full object-contain hidden dark:block

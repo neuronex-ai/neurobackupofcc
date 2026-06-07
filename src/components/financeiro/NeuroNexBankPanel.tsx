@@ -106,7 +106,14 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
     const [detailStatus, setDetailStatus] = useState("all");
 
     // 3. Memos e Callbacks (Nível Superior)
-    const bankBalance = useMemo(() => balanceData || { balance: 0, pending: 0, totalReceived: 0, paidOut: 0 }, [balanceData]);
+    const bankBalance = useMemo(() => balanceData || {
+        balance: 0,
+        pending: 0,
+        totalReceived: 0,
+        paidOut: 0,
+        lastUpdatedAt: null,
+        isStale: false,
+    }, [balanceData]);
 
     const cardName = useMemo(() => profile
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim().toUpperCase()

@@ -5,9 +5,8 @@ import { Logo } from "@/components/ui/Logo";
 
 export const Footer = () => {
   const navigate = useNavigate();
-  const currentYear = new Date().getFullYear();
 
-  const footerLinks = {
+  const footerLinks: Record<string, Array<{ label: string; path: string }>> = {
     produto: [
       { label: "Central de Ajuda", path: "/help" },
     ],

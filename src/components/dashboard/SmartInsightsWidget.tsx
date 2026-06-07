@@ -110,13 +110,6 @@ const CompactChurnItem = ({ alert }: { alert: ChurnAlert }) => {
 
 const InsightCard = ({ insight }: { insight: SmartInsight }) => {
   const navigate = useNavigate();
-  const Icon = INSIGHT_ICONS[insight.icon] || Sparkles;
-  const typeColors: Record<string, string> = {
-    pattern: 'text-blue-500/80',
-    action: 'text-emerald-500/80',
-    risk: 'text-red-500/80',
-    opportunity: 'text-amber-500/80',
-  };
 
   return (
     <motion.div
@@ -368,4 +361,3 @@ export const SmartInsightsWidget = ({ variant = 'default' }: SmartInsightsWidget
     </div>
   );
 };
-

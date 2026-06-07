@@ -6,7 +6,6 @@ import { Mic, FileText, X, Loader2, Check, Edit3, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
 
 interface NewProntuarioModalProps {
   children?: React.ReactNode;

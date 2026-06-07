@@ -22,7 +22,6 @@ import {
     FolderOpen,
     CreditCard,
     ArrowDownLeft,
-    Calendar,
     ArrowUpRight,
     PieChart,
     ChevronRight,
@@ -30,7 +29,8 @@ import {
     Sparkles,
     History,
     Repeat,
-    WalletCards
+    WalletCards,
+    Activity,
 } from "lucide-react";
 
 import { useFinancialMetrics } from "@/hooks/use-financial-metrics";

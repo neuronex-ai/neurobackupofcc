@@ -17,7 +17,7 @@ import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    ArrowLeft, Bell, Calendar, ChevronRight, DollarSign, History, MessageSquare, Mic, Phone, Plus, Send, Sparkles, Trash2, Users, SquarePen, X
+    ArrowLeft, Bell, Calendar, DollarSign, History, MessageSquare, Mic, Phone, Plus, Send, Sparkles, Trash2, Users, SquarePen, X
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -171,17 +171,20 @@ export const MobileAIChat = () => {
         }
     };
 
-    const groupedSessions = (Array.isArray(sessions) ? sessions : []).reduce((acc, session) => {
+    const sessionList = Array.isArray(sessions) ? sessions : [];
+    type ChatSession = (typeof sessionList)[number];
+    const groupedSessions = sessionList.reduce((acc, session) => {
         const date = new Date(session.created_at);
         let key = format(date, "yyyy-MM-dd");
         if (isToday(date)) key = "Hoje";
         else if (isYesterday(date)) key = "Ontem";
         else key = format(date, "dd/MM", { locale: ptBR });
 
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(session);
+        const group = acc[key] || [];
+        group.push(session);
+        acc[key] = group;
         return acc;
-    }, {} as Record<string, typeof sessions>);
+    }, {} as Record<string, ChatSession[]>);
 
     const hasMessages = messages && messages.length > 0;
 
@@ -240,7 +243,7 @@ export const MobileAIChat = () => {
                                     <div key={label} className="space-y-4">
                                         <p className="text-[10px] font-black text-muted-foreground/40 dark:text-muted-foreground/30 uppercase tracking-[0.3em] px-2">{label}</p>
                                         <div className="space-y-2.5">
-                                            {list.map(s => (
+                                            {list.map((s) => (
                                                 <div
                                                     key={s.id}
                                                     onClick={() => { setSessionId(s.id); setIsHistoryOpen(false); }}

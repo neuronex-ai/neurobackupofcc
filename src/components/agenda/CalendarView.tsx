@@ -266,7 +266,6 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                             return (
                                 <GridDroppableColumn
                                     key={dayId}
-                                    id={dayId}
                                     day={day}
                                     appointments={appointments}
                                     isToday={isToday}
@@ -294,7 +293,6 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                     id={day.toISOString()}
                     day={day}
                     appointments={appointments}
-                    isMonthly
                     isDraggingAny={!!activeId}
                     activeAppointment={activeAppointment}
                     isTarget={overId === day.toISOString()}
@@ -533,14 +531,12 @@ const HourDroppableSlot = ({
 };
 
 const GridDroppableColumn = ({
-    id,
     day,
     appointments,
     isToday,
     isBlocked,
     onSlotClick
 }: {
-    id: string;
     day: Date;
     appointments: Appointment[];
     isToday: boolean;
@@ -667,7 +663,6 @@ const MonthDroppableColumn = ({
     id,
     day,
     appointments,
-    isMonthly,
     isDraggingAny,
     activeAppointment,
     isTarget,
@@ -676,7 +671,6 @@ const MonthDroppableColumn = ({
     id: string,
     day: Date,
     appointments: Appointment[],
-    isMonthly?: boolean,
     isDraggingAny?: boolean,
     activeAppointment?: Appointment,
     isTarget?: boolean,

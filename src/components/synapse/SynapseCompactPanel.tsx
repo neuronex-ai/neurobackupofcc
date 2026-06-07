@@ -28,7 +28,6 @@ import {
     MessageSquare,
     Smartphone,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SynapseWidgetRenderer } from './SynapseWidgetRenderer';
@@ -66,7 +65,6 @@ export const SynapseCompactPanel = () => {
     const { currentContext } = useAI();
     const { send, messages, isSending, sessionReady, clearSession } = useSynapseChat();
 
-    const navigate = useNavigate();
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<any>(null);

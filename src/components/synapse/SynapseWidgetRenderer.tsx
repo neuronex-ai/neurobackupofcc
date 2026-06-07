@@ -6,17 +6,12 @@ import {
     Stethoscope,
     AlertTriangle,
     DollarSign,
-    FileText,
-    Clock,
     CheckCircle2,
-    XCircle,
-    Activity,
     Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from '@/lib/appointment-status';
-import type React from 'react';
 
 interface SynapseWidgetProps {
     widgetData: {
@@ -41,20 +36,6 @@ const toBrazilTime = (iso: string) => {
     }
 };
 
-const toBrazilDate = (iso: string) => {
-    try {
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return iso;
-        return new Intl.DateTimeFormat('pt-BR', {
-            timeZone: 'America/Sao_Paulo',
-            day: '2-digit',
-            month: 'short',
-        }).format(d);
-    } catch {
-        return iso;
-    }
-};
-
 // ─── Status badge ──────────────────────────────────────────────────
 const StatusBadge = ({ status, notes }: { status: string; notes?: string | null }) => {
     const meta = getAppointmentStatusMeta(status, notes);
@@ -70,7 +51,7 @@ const StatusBadge = ({ status, notes }: { status: string; notes?: string | null 
 // ─── Main Widget Component ─────────────────────────────────────────
 export const SynapseWidgetRenderer = ({ widgetData }: SynapseWidgetProps) => {
     const navigate = useNavigate();
-    const { __actionType, data: rawData, title } = widgetData;
+    const { __actionType, data: rawData } = widgetData;
 
     // Normaliza dados vindos da IA
     let dataArray: any[] | null = null;

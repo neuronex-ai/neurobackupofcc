@@ -35,6 +35,8 @@ export interface Profile {
   id: string;
   first_name: string | null;
   last_name: string | null;
+  full_name?: string | null;
+  name?: string | null;
   clinic_name: string | null;
   crp: string | null;
   address: string | null;

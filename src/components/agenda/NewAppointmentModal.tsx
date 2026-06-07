@@ -64,7 +64,6 @@ import {
   buildEventMetadata,
   buildEventNotes as buildEventNotesFromMetadata,
   buildSessionMetadata,
-  getEventCategoryLabel,
 } from "@/lib/appointment-metadata";
 
 // ─── Validação ────────────────────────────────────────────────────────
@@ -277,7 +276,6 @@ export function NewAppointmentModal({
   const selectedPackageId = form.watch("packageId");
   const usePackageSwitch = form.watch("usePackage");
   const shouldCreateTransaction = form.watch("shouldCreateTransaction");
-  const recurrence = form.watch("recurrence");
   const startTime = form.watch("startTime");
 
   useEffect(() => {
@@ -1233,7 +1231,6 @@ export function NewAppointmentModal({
   // ─── Footer Button Logic ──────────────────────────────────────────
 
   const canAdvance = step < totalSteps;
-  const isLastStep = step === totalSteps;
 
   const handleContinue = async () => {
     if (eventType === "session" && step === 1) {

@@ -1,5 +1,4 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
 import { X, Sparkles, Activity, ChevronRight } from 'lucide-react';
 
 interface SynapseAllActionsModalProps {

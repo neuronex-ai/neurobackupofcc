@@ -15,7 +15,6 @@ import {
     ChevronLeft,
     ArrowDownLeft,
     PieChart,
-    History as HistoryIcon,
     Calendar,
     Send,
     Barcode,

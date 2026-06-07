@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Layers, PieChart, Menu, X, ArrowRight } from "lucide-react";
+import { Menu, X, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -19,7 +19,7 @@ export const LandingMobileNav = () => {
     // Eagerly prefetch public pages for instant load on mobile - REMOVED FOR LEAN MVP
     useEffect(() => {
         const prefetchPages = () => {
-            const prefetchQueue = [
+            const prefetchQueue: Array<() => void> = [
                 // Pages removed
             ];
             if ('requestIdleCallback' in window) {

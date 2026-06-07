@@ -31,7 +31,6 @@ import { toast } from "sonner";
 
 export default function Pacientes() {
     const [searchTerm, setSearchTerm] = useState("");
-    const [isSearchVisible, setIsSearchVisible] = useState(false);
     const [showUpsellModal, setShowUpsellModal] = useState(false);
     const { data: patients, isLoading } = usePatients();
     const navigate = useNavigate();

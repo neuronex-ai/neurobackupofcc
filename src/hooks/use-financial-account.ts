@@ -17,6 +17,68 @@ type FinancialUiStatus =
   | "disabled"
   | string;
 
+export interface FinancialAccountRecord {
+  id: string;
+  user_id: string;
+  status?: string | null;
+  ui_status?: string | null;
+  provider?: string | null;
+  onboarding_started_at?: string | null;
+  onboarding_completed_at?: string | null;
+  charges_enabled?: boolean | null;
+  payouts_enabled?: boolean | null;
+  details_submitted?: boolean | null;
+  default_currency?: string | null;
+  bank_account_last4?: string | null;
+  bank_name?: string | null;
+  pix_enabled?: boolean | null;
+  card_enabled?: boolean | null;
+  platform_fee_percent?: number | null;
+  platform_fee_fixed?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  asaas_account_id?: string | null;
+  asaas_wallet_id?: string | null;
+  requirements?: Record<string, any> | null;
+  metadata?: Record<string, any> | null;
+  asaas_onboarding_url?: string | null;
+  asaas_environment?: string | null;
+  last_asaas_event_type?: string | null;
+  last_asaas_event_at?: string | null;
+  last_balance_sync_at?: string | null;
+  last_sync_error?: string | null;
+  holder_name?: string | null;
+  cpf_cnpj?: string | null;
+  birth_date?: string | null;
+  mobile_phone?: string | null;
+  pep_status?: string | null;
+  address_street?: string | null;
+  address_number?: string | null;
+  address_complement?: string | null;
+  address_neighborhood?: string | null;
+  address_city?: string | null;
+  address_state?: string | null;
+  address_postal_code?: string | null;
+  company_type?: string | null;
+  income_value?: number | string | null;
+  business_url?: string | null;
+  business_description?: string | null;
+  business_mcc?: string | null;
+  bank_code?: string | null;
+  bank_agency?: string | null;
+  bank_account?: string | null;
+  bank_account_digit?: string | null;
+  bank_account_type?: string | null;
+  bank_holder_name?: string | null;
+  bank_holder_cpf_cnpj?: string | null;
+  document_front_id?: string | null;
+  document_back_id?: string | null;
+  tos_accepted_at?: string | null;
+  onboarding_payload?: Record<string, any> | null;
+  account_status?: Record<string, any> | null;
+  accountStatus?: Record<string, any> | null;
+}
+
 const FINANCIAL_ACCOUNT_PUBLIC_FIELDS = [
   "id", "user_id", "status", "provider", "onboarding_started_at", "onboarding_completed_at",
   "charges_enabled", "payouts_enabled", "details_submitted", "default_currency",
@@ -33,7 +95,7 @@ const FINANCIAL_ACCOUNT_PUBLIC_FIELDS = [
   "tos_accepted_at", "onboarding_payload",
 ].join(",");
 
-const invokeAsaasFunction = async (name: string, body?: unknown) => {
+const invokeAsaasFunction = async (name: string, body?: Record<string, unknown> | FormData) => {
   const response = await supabase.functions.invoke(name, { body });
 
   if (response.error) {
@@ -76,17 +138,18 @@ export const useFinancialAccount = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchLocalAccount = async () => {
+  const fetchLocalAccount = async (): Promise<FinancialAccountRecord | null> => {
     if (!userId) return null;
 
     const { data, error } = await supabase
       .from("financial_accounts")
       .select(FINANCIAL_ACCOUNT_PUBLIC_FIELDS)
       .eq("user_id", userId)
+      .returns<FinancialAccountRecord[]>()
       .maybeSingle();
 
     if (error) throw error;
-    return data;
+    return data || null;
   };
 
   const { data: account, isLoading, refetch } = useQuery({

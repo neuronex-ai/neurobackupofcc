@@ -7,16 +7,14 @@ import { User, MessageSquare, Building, CreditCard, LogOut, Bell, CheckCircle2, 
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { TodoistIcon } from "@/components/icons/TodoistIcon";
 import { NotionIcon } from "@/components/icons/NotionIcon";
-import { MicrosoftTodoIcon } from "@/components/icons/MicrosoftTodoIcon";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 // Hooks
 import { useGoogleAuth } from "@/hooks/use-google-auth";
 import { useTodoistAuth } from "@/hooks/use-todoist-auth";
 import { useNotionAuth } from "@/hooks/use-notion-auth";
-import { useMicrosoftAuth } from "@/hooks/use-microsoft-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { useProfile } from "@/hooks/use-profile";
 import { useTour } from "@/components/onboarding/TourContext";
@@ -48,7 +46,6 @@ const Ajustes = () => {
     const { isConnected: isGoogleConnected, isLoading: isLoadingGoogleAuth, connectGoogle, disconnectGoogle } = useGoogleAuth();
     const { isConnected: isTodoistConnected, isLoading: isLoadingTodoistAuth, connectTodoist, disconnectTodoist } = useTodoistAuth();
     const { isConnected: isNotionConnected, isLoading: isLoadingNotionAuth, connectNotion, disconnectNotion } = useNotionAuth();
-    const { isConnected: isMicrosoftConnected, isLoading: isLoadingMicrosoftAuth, connectMicrosoft, disconnectMicrosoft } = useMicrosoftAuth();
     const { theme, toggleTheme } = useTheme();
     const { data: profile } = useProfile();
     const { canAccess, plan, status } = useSubscription();
@@ -60,6 +57,7 @@ const Ajustes = () => {
     const queryClient = useQueryClient();
     const [callbackStatus, setCallbackStatus] = useState<'success' | 'failure' | null>(null);
     const [callbackMessage, setCallbackMessage] = useState<string | undefined>(undefined);
+    const [integrationSuggestion, setIntegrationSuggestion] = useState("");
 
     const params = new URLSearchParams(location.search);
     const getTabFromParams = () => {
@@ -93,6 +91,22 @@ const Ajustes = () => {
         setTimeout(() => {
             startTour();
         }, 300);
+    };
+
+    const handleIntegrationSuggestion = () => {
+        const suggestion = integrationSuggestion.trim();
+        if (!suggestion) {
+            toast.info("Digite o nome de um aplicativo para sugerir.");
+            return;
+        }
+
+        const savedSuggestions = JSON.parse(localStorage.getItem("neuronex:integration-suggestions") || "[]") as string[];
+        localStorage.setItem(
+            "neuronex:integration-suggestions",
+            JSON.stringify([...savedSuggestions, suggestion].slice(-20))
+        );
+        setIntegrationSuggestion("");
+        toast.success("Sugestão registrada. Vamos considerar nas próximas integrações.");
     };
 
     const menuItems = [
@@ -346,14 +360,14 @@ const Ajustes = () => {
                                         </TabsContent>
 
                                         <TabsContent value="integrations" className="mt-0 animate-in fade-in zoom-in-95 duration-500 relative z-10">
-                                            <div className="flex flex-col gap-10 max-w-2xl">
+                                            <div className="flex flex-col gap-10 max-w-3xl">
                                                 <div>
                                                     <div className="flex items-center gap-3 mb-4">
                                                         <Link2 className="h-5 w-5 text-primary" />
                                                         <h3 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-100">Integrações</h3>
                                                     </div>
                                                     <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">
-                                                        Conecte seus aplicativos favoritos para sincronizar dados e automatizar seu fluxo de trabalho.
+                                                        Conecte os aplicativos que fazem parte da rotina clínica e deixe o trabalho repetitivo rodar em segundo plano.
                                                     </p>
                                                 </div>
 
@@ -376,7 +390,7 @@ const Ajustes = () => {
                                                                     {isGoogleConnected && <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider border border-emerald-500/30">Ativo</span>}
                                                                 </div>
                                                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-medium max-w-[200px]">
-                                                                    Calendar, Drive, Meet e Gmail.
+                                                                    Gmail e Calendar funcionando no automático.
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -413,7 +427,7 @@ const Ajustes = () => {
                                                                     {isTodoistConnected && <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider border border-emerald-500/30">Ativo</span>}
                                                                 </div>
                                                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-medium max-w-[200px]">
-                                                                    Sincronize tarefas e projetos.
+                                                                    Tarefas clínicas, lembretes e follow-ups no lugar certo.
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -450,7 +464,7 @@ const Ajustes = () => {
                                                                     {isNotionConnected && <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider border border-emerald-500/30">Ativo</span>}
                                                                 </div>
                                                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-medium max-w-[200px]">
-                                                                    Sincronize páginas e bancos de dados.
+                                                                    Páginas, protocolos e bases clínicas sempre por perto.
                                                                 </p>
                                                             </div>
                                                         </div>

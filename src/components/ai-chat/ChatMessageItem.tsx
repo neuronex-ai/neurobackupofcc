@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
-import { User, Sparkles, Copy, Check, FileText, Calendar, DollarSign, ArrowRight } from "lucide-react";
+import { User, Copy, Check, FileText, Calendar, DollarSign, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";

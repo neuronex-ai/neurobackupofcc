@@ -39,7 +39,6 @@ import {
   FileText,
   Loader2,
   Mail,
-  MapPin,
   MessageCircle,
   QrCode,
   ShieldCheck,

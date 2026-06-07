@@ -11,18 +11,10 @@ const GOOGLE_SCOPES = [
   // Identity
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/userinfo.profile",
-  // Calendar & Meet
-  "https://www.googleapis.com/auth/calendar",
-  // Email
+  // Calendar sync.
+  "https://www.googleapis.com/auth/calendar.events",
+  // Appointment reminders and consultation emails sent from the psychologist's account.
   "https://www.googleapis.com/auth/gmail.send",
-  // Files (app-created only)
-  "https://www.googleapis.com/auth/drive.file",
-  "https://www.googleapis.com/auth/documents",
-  "https://www.googleapis.com/auth/spreadsheets",
-  // Contacts
-  "https://www.googleapis.com/auth/contacts.readonly",
-  "https://www.googleapis.com/auth/contacts.other.readonly",
-  "https://www.googleapis.com/auth/directory.readonly",
 ].join(" ");
 
 serve(async (req) => {

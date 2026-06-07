@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
-import { DownloadCloud, Eye, FileText, FolderOpen, Loader2, Trash2, Upload, X } from "lucide-react";
+import { DownloadCloud, Eye, FileText, FolderOpen, Loader2, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";

@@ -22,7 +22,7 @@ interface MorningBriefingProps {
     pendingPatients: number;
 }
 
-export const MorningBriefing = ({ appointments, pendingPatients }: MorningBriefingProps) => {
+export const MorningBriefing = ({ appointments }: MorningBriefingProps) => {
     const { user } = useAuth();
     const { plan } = useSubscription();
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);

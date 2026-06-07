@@ -6,7 +6,7 @@ export const NotionIcon = ({ className = "h-8 w-8" }: { className?: string }) =>
     <div className={`${className} relative group transition-all duration-500`}>
       {/* Modo Claro: Começa cinza, acende para preto */}
       <img 
-        src="/@docs/logos/notion_black.png" 
+        src="/images/integrations/notion_black.png" 
         alt="Notion"
         className="
           w-full h-full object-contain dark:hidden
@@ -17,7 +17,7 @@ export const NotionIcon = ({ className = "h-8 w-8" }: { className?: string }) =>
       />
       {/* Modo Escuro: Começa cinza, acende para branco puro */}
       <img 
-        src="/@docs/logos/notion_white.png" 
+        src="/images/integrations/notion_white.png" 
         alt="Notion"
         className="
           w-full h-full object-contain hidden dark:block

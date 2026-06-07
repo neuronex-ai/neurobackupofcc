@@ -9,8 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    ArrowLeft, Banknote, Bell, Building, Calendar, CheckCircle2, ChevronRight, CreditCard, ExternalLink, FileBarChart, Loader2, LogOut, Mail, MessageSquare, Monitor, Moon, Shield, ShieldCheck,
-    Smartphone, Sun, User, Wallet, ArrowRight, Sparkles
+    ArrowLeft, Bell, Building, Calendar, CheckCircle2, ChevronRight, CreditCard, ExternalLink, FileBarChart, Loader2, LogOut, Mail, MessageSquare, Monitor, Moon, Shield, ShieldCheck,
+    Smartphone, Sun, User, Wallet, Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
