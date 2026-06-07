@@ -333,7 +333,7 @@ export const TaskBoard = ({
 
     return (
         <div
-            className="bg-zinc-50 dark:bg-[#020202] relative font-sans selection:bg-zinc-900 selection:text-white dark:selection:bg-white dark:selection:text-black"
+            className="relative bg-[#020202] font-sans selection:bg-white selection:text-black [.light_&]:bg-zinc-50 [.light_&]:selection:bg-zinc-900 [.light_&]:selection:text-white"
             style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden', minHeight: 0, minWidth: 0 }}
         >
             <div className="absolute inset-0 bg-[radial-gradient(#444_1px,transparent_1px)] [background-size:64px_64px] opacity-[0.03] dark:opacity-[0.05] pointer-events-none" />
@@ -356,24 +356,24 @@ export const TaskBoard = ({
                 <header className="px-8 pt-8 pb-6 flex items-center justify-between gap-8 shrink-0">
                     <div className="flex items-center gap-8 flex-1">
                         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                            <h2 className="text-4xl font-black tracking-tighter text-zinc-900 dark:text-white">Ações</h2>
+                            <h2 className="text-4xl font-black tracking-tighter text-white [.light_&]:text-zinc-900">Ações</h2>
                             <div className="flex items-center gap-3 mt-1.5">
                                 <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.3em]">{filteredTasks.length} registros</span>
                             </div>
                         </motion.div>
                         <div className="relative group flex-1 max-w-xl">
                             <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-600 transition-colors group-focus-within:text-zinc-900 dark:group-focus-within:text-white" />
-                            <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar ações..." className="h-12 pl-12 bg-white dark:bg-white/[0.03] border-zinc-200/60 dark:border-white/[0.06] focus:border-zinc-300 dark:focus:border-white/15 rounded-2xl text-sm font-medium text-zinc-900 dark:text-white transition-all shadow-sm focus:shadow-md outline-none ring-0 focus-visible:ring-0" />
+                            <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar ações..." className="h-12 rounded-2xl border-white/[0.06] bg-white/[0.03] pl-12 text-sm font-medium text-white shadow-sm outline-none ring-0 transition-all focus:border-white/15 focus:shadow-md focus-visible:ring-0 [.light_&]:border-zinc-200/60 [.light_&]:bg-white [.light_&]:text-zinc-900 [.light_&]:focus:border-zinc-300" />
                         </div>
                     </div>
                     <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                        <DialogTrigger asChild><Button className="h-12 w-12 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-100 shadow-sm transition-all duration-300 hover:scale-105 active:scale-95"><Plus className="h-5 w-5 stroke-[2.5]" /></Button></DialogTrigger>
-                        <DialogContent className="sm:max-w-[480px] rounded-[28px] bg-white dark:bg-[#0A0A0A] border border-zinc-200/60 dark:border-white/[0.08] p-8 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.2)]">
-                            <DialogHeader className="mb-8"><DialogTitle className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Nova Ação</DialogTitle></DialogHeader>
+                        <DialogTrigger asChild><Button className="h-12 w-12 rounded-2xl bg-white text-black shadow-sm transition-all duration-300 hover:scale-105 hover:bg-zinc-100 active:scale-95 [.light_&]:bg-zinc-900 [.light_&]:text-white [.light_&]:hover:bg-zinc-800"><Plus className="h-5 w-5 stroke-[2.5]" /></Button></DialogTrigger>
+                        <DialogContent className="sm:max-w-[480px] rounded-[28px] border border-white/[0.08] bg-[#0A0A0A] p-8 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.45)] [.light_&]:border-zinc-200/60 [.light_&]:bg-white [.light_&]:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.2)]">
+                            <DialogHeader className="mb-8"><DialogTitle className="text-2xl font-black text-white tracking-tight [.light_&]:text-zinc-900">Nova Ação</DialogTitle></DialogHeader>
                             <div className="space-y-6">
                                 <div className="space-y-2.5">
-                                    <Label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-600">Descrição</Label>
-                                    <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Defina a próxima ação..." className="h-12 rounded-2xl bg-zinc-50 dark:bg-white/[0.03] border-zinc-200/60 dark:border-white/[0.06] text-base font-medium" />
+                                    <Label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Descrição</Label>
+                                    <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Defina a próxima ação..." className="h-12 rounded-2xl border-white/[0.06] bg-white/[0.03] text-base font-medium [.light_&]:border-zinc-200/60 [.light_&]:bg-zinc-50" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2.5">
@@ -392,7 +392,7 @@ export const TaskBoard = ({
                                     </div>
                                 </div>
                             </div>
-                            <DialogFooter className="mt-8"><Button onClick={handleCreate} className="w-full h-12 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-black font-bold text-sm shadow-sm hover:bg-black dark:hover:bg-zinc-200 transition-all">Criar Ação</Button></DialogFooter>
+                            <DialogFooter className="mt-8"><Button onClick={handleCreate} className="h-12 w-full rounded-2xl bg-white text-sm font-bold text-black shadow-sm transition-all hover:bg-zinc-200 [.light_&]:bg-zinc-900 [.light_&]:text-white [.light_&]:hover:bg-black">Criar Ação</Button></DialogFooter>
                         </DialogContent>
                     </Dialog>
                 </header>

@@ -502,11 +502,11 @@ export const NeuroView = () => {
     }, [hoverNode, isDarkMode, config.performanceMode]);
 
     return (
-        <div ref={containerRef} className="relative w-full h-full overflow-hidden group/canvas bg-[#F5F5F7] dark:bg-[#020204]">
+        <div ref={containerRef} className="group/canvas relative h-full w-full overflow-hidden bg-[#020204] [.light_&]:bg-[#F5F5F7]">
 
             {/* Cinematic Background */}
             <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0)_0%,rgba(0,0,0,0.05)_100%)] dark:bg-[radial-gradient(ellipse_at_center,#1a1a1a_0%,#0d0d0d_40%,#000000_100%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#1a1a1a_0%,#0d0d0d_40%,#000000_100%)] [.light_&]:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0)_0%,rgba(0,0,0,0.05)_100%)]" />
                 <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
             </div>
 
@@ -597,7 +597,7 @@ export const NeuroView = () => {
             {!isUniverseMode && (
                 <button
                     onClick={() => setIsUniverseMode(true)}
-                    className="absolute top-5 right-5 z-40 rounded-[18px] border border-black/[0.08] bg-white/72 px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-700 shadow-[0_22px_64px_-38px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-3xl transition-all duration-500 hover:-translate-y-0.5 hover:bg-white hover:text-zinc-950 dark:border-white/[0.1] dark:bg-white/[0.075] dark:text-white/72 dark:shadow-[0_24px_70px_-40px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)] dark:hover:bg-white/[0.12] dark:hover:text-white"
+                    className="absolute right-5 top-5 z-40 rounded-[18px] border border-white/[0.1] bg-white/[0.075] px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] text-white/72 shadow-[0_24px_70px_-40px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-3xl transition-all duration-500 hover:-translate-y-0.5 hover:bg-white/[0.12] hover:text-white [.light_&]:border-black/[0.08] [.light_&]:bg-white/72 [.light_&]:text-zinc-700 [.light_&]:shadow-[0_22px_64px_-38px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.65)] [.light_&]:hover:bg-white [.light_&]:hover:text-zinc-950"
                 >
                     Modo 3D
                 </button>

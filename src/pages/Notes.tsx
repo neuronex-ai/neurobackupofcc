@@ -157,7 +157,7 @@ export default function Notes() {
                                     animate={{ width: 380, opacity: 1 }}
                                     exit={{ width: 0, opacity: 0 }}
                                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                    className="shrink-0 border-r border-zinc-200/50 dark:border-white/[0.05] bg-zinc-50/10 dark:bg-black/10 flex flex-col overflow-hidden relative"
+                                    className="relative flex shrink-0 flex-col overflow-hidden border-r border-white/[0.05] bg-black/10 [.light_&]:border-zinc-200/50 [.light_&]:bg-zinc-50/10"
                                 >
                                     <div className="w-[380px] h-full relative z-10">
                                         <NotesListPanel
@@ -191,18 +191,18 @@ export default function Notes() {
                                 ) : (
                                     <div className="flex flex-col items-center justify-center h-full text-center relative z-10 p-12 space-y-12 animate-in fade-in duration-1000">
                                         <div className="relative group/gate">
-                                            <div className="absolute inset-0 bg-zinc-900/5 dark:bg-white/5 blur-[120px] rounded-full scale-150 opacity-0 group-hover/gate:opacity-100 transition-opacity duration-1000" />
-                                            <div className="w-40 h-40 rounded-[64px] bg-white/40 dark:bg-black/40 border border-zinc-200/50 dark:border-white/[0.05] flex items-center justify-center shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] relative z-10 backdrop-blur-3xl overflow-hidden group/icon">
-                                                <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.06] premium-noise pointer-events-none" />
+                                            <div className="absolute inset-0 scale-150 rounded-full bg-white/5 blur-[120px] opacity-0 transition-opacity duration-1000 group-hover/gate:opacity-100 [.light_&]:bg-zinc-900/5" />
+                                            <div className="relative z-10 flex h-40 w-40 items-center justify-center overflow-hidden rounded-[64px] border border-white/[0.05] bg-black/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.22)] backdrop-blur-3xl group/icon [.light_&]:border-zinc-200/50 [.light_&]:bg-white/40 [.light_&]:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
+                                                <div className="absolute inset-0 premium-noise opacity-[0.06] pointer-events-none [.light_&]:opacity-[0.03]" />
                                                 <img src="/favicon-dark.png" alt="NeuroNex" className="h-16 w-16 dark:hidden transition-all duration-1000 group-hover/gate:scale-110" />
                                                 <img src="/favicon-light.png" alt="NeuroNex" className="h-16 w-16 hidden dark:block transition-all duration-1000 group-hover/gate:scale-110" />
                                             </div>
                                         </div>
                                         <div className="space-y-4">
-                                            <h3 className="text-6xl font-black tracking-tighter text-zinc-900 dark:text-zinc-100 leading-none">NeuroDrive</h3>
-                                            <p className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-400 dark:text-zinc-500 max-w-xs leading-relaxed mx-auto">Sinfonia de dados para mentes complexas.</p>
+                                            <h3 className="text-6xl font-black tracking-tighter text-zinc-100 leading-none [.light_&]:text-zinc-900">NeuroDrive</h3>
+                                            <p className="mx-auto max-w-xs text-[10px] font-black uppercase tracking-[0.6em] text-zinc-500 leading-relaxed">Sinfonia de dados para mentes complexas.</p>
                                         </div>
-                                        <Button onClick={handleCreateNote} className="h-16 px-12 rounded-[24px] bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black font-black text-[11px] uppercase tracking-[0.3em] hover:opacity-90 transition-all shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] dark:shadow-[0_30px_60px_-15px_rgba(255,255,255,0.05)] active:scale-95 group/btn">
+                                        <Button onClick={handleCreateNote} className="h-16 rounded-[24px] bg-zinc-100 px-12 text-[11px] font-black uppercase tracking-[0.3em] text-black shadow-[0_30px_60px_-15px_rgba(255,255,255,0.05)] transition-all hover:opacity-90 active:scale-95 group/btn [.light_&]:bg-zinc-900 [.light_&]:text-white [.light_&]:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)]">
                                             <Plus className="h-4 w-4 mr-3 stroke-[3]" />
                                             Nova Nota
                                         </Button>
@@ -216,13 +216,13 @@ export default function Notes() {
     };
 
     return (
-        <div className="h-screen w-screen flex flex-col overflow-hidden font-sans relative bg-[#fdfdfd] dark:bg-[#030303] text-zinc-900 dark:text-zinc-50 selection:bg-zinc-900/10 dark:selection:bg-white/10">
+        <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-[#030303] font-sans text-zinc-50 selection:bg-white/10 [.light_&]:bg-[#fdfdfd] [.light_&]:text-zinc-900 [.light_&]:selection:bg-zinc-900/10">
             {/* Master Texture Overlay */}
-            <div className="absolute inset-0 premium-noise opacity-[0.03] dark:opacity-[0.06] pointer-events-none fixed z-[100] mix-blend-overlay" />
+            <div className="fixed inset-0 z-[100] premium-noise opacity-[0.06] pointer-events-none mix-blend-overlay [.light_&]:opacity-[0.03]" />
 
             {/* Ambient Background Glows */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute top-0 right-0 w-[800px] h-[600px] bg-zinc-200/20 dark:bg-zinc-400/[0.03] blur-[150px] rounded-full -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute right-0 top-0 h-[600px] w-[800px] -translate-y-1/2 translate-x-1/2 rounded-full bg-zinc-400/[0.03] blur-[150px] [.light_&]:bg-zinc-200/20" />
             </div>
 
             <div className="relative z-40 w-full shrink-0">
@@ -232,27 +232,27 @@ export default function Notes() {
 
             {/* Layout Controls Dock - Aligned with Navbar Content */}
             {!isFocusMode && (
-                <div className="fixed top-[22px] left-8 z-[100] flex items-center gap-1.5 p-1 rounded-2xl bg-white/40 dark:bg-black/20 border border-zinc-200/50 dark:border-white/[0.05] backdrop-blur-3xl shadow-[0_8px_32px_-12px_rgba(0,0,0,0.05)] transition-all duration-500 hover:border-zinc-300 dark:hover:border-white/10 group/dock">
+                <div className="group/dock fixed left-8 top-[22px] z-[100] flex items-center gap-1.5 rounded-2xl border border-white/[0.05] bg-black/20 p-1 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.25)] backdrop-blur-3xl transition-all duration-500 hover:border-white/10 [.light_&]:border-zinc-200/50 [.light_&]:bg-white/40 [.light_&]:shadow-[0_8px_32px_-12px_rgba(0,0,0,0.05)] [.light_&]:hover:border-zinc-300">
                     <button
                         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                         className={cn(
                             "h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-300",
                             isSidebarCollapsed
-                                ? "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/5"
-                                : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black shadow-lg scale-[1.05]"
+                                ? "text-zinc-500 hover:bg-white/5 hover:text-white [.light_&]:text-zinc-400 [.light_&]:hover:bg-zinc-100 [.light_&]:hover:text-zinc-900"
+                                : "scale-[1.05] bg-zinc-100 text-black shadow-lg [.light_&]:bg-zinc-900 [.light_&]:text-white"
                         )}
                         title={isSidebarCollapsed ? "Expandir Menu" : "Recolher Menu"}
                     >
                         <LayoutPanelLeft className="h-4 w-4" strokeWidth={isSidebarCollapsed ? 1.5 : 2.5} />
                     </button>
-                    <div className="w-px h-4 bg-zinc-200/50 dark:bg-white/5 mx-0.5" />
+                    <div className="mx-0.5 h-4 w-px bg-white/5 [.light_&]:bg-zinc-200/50" />
                     <button
                         onClick={() => setIsListCollapsed(!isListCollapsed)}
                         className={cn(
                             "h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-300",
                             isListCollapsed
-                                ? "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/5"
-                                : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black shadow-lg scale-[1.05]"
+                                ? "text-zinc-500 hover:bg-white/5 hover:text-white [.light_&]:text-zinc-400 [.light_&]:hover:bg-zinc-100 [.light_&]:hover:text-zinc-900"
+                                : "scale-[1.05] bg-zinc-100 text-black shadow-lg [.light_&]:bg-zinc-900 [.light_&]:text-white"
                         )}
                         title={isListCollapsed ? "Expandir Lista" : "Recolher Lista"}
                     >
@@ -266,9 +266,9 @@ export default function Notes() {
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex-1 flex overflow-hidden shadow-[0_36px_90px_-24px_rgba(0,0,0,0.12)] dark:shadow-[0_36px_90px_-24px_rgba(0,0,0,0.42)] bg-zinc-10 dark:bg-zinc-950 border border-white dark:border-white/[0.05] ring-1 ring-black/[0.02] dark:ring-0 backdrop-blur-3xl rounded-[34px] relative group/main-window"
+                    className="group/main-window relative flex flex-1 overflow-hidden rounded-[34px] border border-white/[0.05] bg-zinc-950 shadow-[0_36px_90px_-24px_rgba(0,0,0,0.42)] backdrop-blur-3xl [.light_&]:border-white [.light_&]:bg-zinc-50 [.light_&]:shadow-[0_36px_90px_-24px_rgba(0,0,0,0.12)] [.light_&]:ring-1 [.light_&]:ring-black/[0.02]"
                 >
-                    <div className="absolute inset-0 premium-noise opacity-[0.02] dark:opacity-[0.04] pointer-events-none" />
+                    <div className="absolute inset-0 premium-noise opacity-[0.04] pointer-events-none [.light_&]:opacity-[0.02]" />
                     <AnimatePresence>
                         {(!isSidebarCollapsed && !isFocusMode) && (
                             <motion.div
@@ -276,7 +276,7 @@ export default function Notes() {
                                 animate={{ width: 244, opacity: 1 }}
                                 exit={{ width: 0, opacity: 0 }}
                                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                className="hidden lg:flex shrink-0 border-r border-black/[0.05] dark:border-white/[0.05] bg-zinc-50/30 dark:bg-black/10 overflow-hidden relative"
+                                className="relative hidden shrink-0 overflow-hidden border-r border-white/[0.05] bg-black/10 lg:flex [.light_&]:border-black/[0.05] [.light_&]:bg-zinc-50/30"
                             >
                                 <div className="absolute inset-0 premium-noise opacity-[0.02] pointer-events-none" />
                                 <div className="w-[244px] h-full relative z-10">

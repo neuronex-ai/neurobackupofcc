@@ -48,6 +48,7 @@ export const Navbar = () => {
   const { data: profile } = useProfile();
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const isDarkTheme = theme === "dark";
   const [hasViewedNotifications, setHasViewedNotifications] = useState(false);
   const hasAlerts = alerts && alerts.length > 0 && !hasViewedNotifications;
   const isMobile = useIsMobile();
@@ -70,6 +71,38 @@ export const Navbar = () => {
 
   const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Usuário';
 
+  const dockItemClass = (active: boolean) => cn(
+    "relative flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-500 cursor-pointer group",
+    active
+      ? isDarkTheme
+        ? "bg-white text-black shadow-[0_18px_48px_-28px_rgba(255,255,255,0.48),inset_0_1px_0_rgba(255,255,255,0.65)]"
+        : "bg-zinc-950 text-white shadow-[0_18px_44px_-26px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.12)]"
+      : isDarkTheme
+        ? "text-white/42 hover:bg-white/[0.065] hover:text-white"
+        : "text-zinc-400 hover:bg-black/[0.045] hover:text-zinc-900"
+  );
+
+  const activeDotClass = cn(
+    "absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full",
+    isDarkTheme
+      ? "bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+      : "bg-zinc-900 shadow-[0_0_8px_rgba(24,24,27,0.18)]"
+  );
+
+  const utilityButtonClass = cn(
+    "w-10 h-10 rounded-2xl transition-all duration-500",
+    isDarkTheme
+      ? "text-white/42 hover:bg-white/[0.065] hover:text-white"
+      : "text-zinc-400 hover:bg-black/[0.045] hover:text-zinc-900"
+  );
+
+  const tooltipClass = cn(
+    "text-[9px] font-black uppercase px-4 py-2 rounded-xl tracking-[0.2em] backdrop-blur-xl",
+    isDarkTheme
+      ? "border-white/10 bg-[#0A0A0C]/95 text-white/58"
+      : "border-zinc-200 bg-white/95 text-zinc-500"
+  );
+
   const NavItem = ({ item }: { item: typeof navigation[0] }) => {
     const Icon = item.icon;
     const isActive = location.pathname === item.href || (item.href !== '/dashboard' && location.pathname.startsWith(item.href));
@@ -81,22 +114,15 @@ export const Navbar = () => {
         <Tooltip key={item.name}>
           <TooltipTrigger asChild>
             <Link to={item.href} id={`nav-${item.href.replace('/', '')}`}>
-              <div
-                className={cn(
-                  "relative flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-500 cursor-pointer group",
-                  isFinanceActive
-                    ? "bg-zinc-950 text-white shadow-[0_18px_44px_-26px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.12)] dark:bg-white dark:text-black dark:shadow-[0_18px_48px_-28px_rgba(255,255,255,0.48),inset_0_1px_0_rgba(255,255,255,0.65)]"
-                    : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-black/[0.045] dark:hover:bg-white/[0.055]"
-                )}
-              >
+              <div className={dockItemClass(isFinanceActive)}>
                 <Icon className={cn("h-4 w-4 transition-transform duration-500", isFinanceActive ? "scale-100" : "group-hover:scale-110")} />
                 {isFinanceActive && (
-                  <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-zinc-900 dark:bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                  <span className={activeDotClass} />
                 )}
               </div>
             </Link>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="bg-white/95 dark:bg-[#0A0A0C]/95 border-zinc-200 dark:border-white/10 text-[9px] font-black uppercase px-4 py-2 rounded-xl text-zinc-500 tracking-[0.2em] backdrop-blur-xl">
+          <TooltipContent side="bottom" className={tooltipClass}>
             {item.name}
           </TooltipContent>
         </Tooltip>
@@ -107,23 +133,16 @@ export const Navbar = () => {
       <Tooltip key={item.name}>
         <TooltipTrigger asChild>
           <Link to={item.href} id={`nav-${item.href.replace('/', '')}`}>
-            <div
-              className={cn(
-                "relative flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-500 cursor-pointer group",
-                isActive
-                  ? "bg-zinc-950 text-white shadow-[0_18px_44px_-26px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.12)] dark:bg-white dark:text-black dark:shadow-[0_18px_48px_-28px_rgba(255,255,255,0.48),inset_0_1px_0_rgba(255,255,255,0.65)]"
-                  : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-black/[0.045] dark:hover:bg-white/[0.055]"
-              )}
-            >
+            <div className={dockItemClass(isActive)}>
               <Icon className={cn("h-4 w-4 transition-transform duration-500", isActive ? "scale-100" : "group-hover:scale-110")} />
 
               {isActive && (
-                <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-zinc-900 dark:bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                <span className={activeDotClass} />
               )}
             </div>
           </Link>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="bg-white/95 dark:bg-[#0A0A0C]/95 border-zinc-200 dark:border-white/10 text-[9px] font-black uppercase px-4 py-2 rounded-xl text-zinc-500 tracking-[0.2em] backdrop-blur-xl">
+        <TooltipContent side="bottom" className={tooltipClass}>
           {item.name}
         </TooltipContent>
       </Tooltip>
@@ -134,21 +153,35 @@ export const Navbar = () => {
 
   return (
     <nav id="navbar-container" className="fixed top-7 left-0 right-0 z-[60] flex justify-center pointer-events-none px-4">
-      <div className="pointer-events-auto flex items-center gap-3 rounded-[30px] border border-black/[0.075] bg-white/[0.72] px-2.5 py-2.5 shadow-[0_30px_90px_-46px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.7)] ring-1 ring-white/40 backdrop-blur-3xl transition-all duration-700 ease-apple hover:-translate-y-0.5 hover:bg-white/[0.78] hover:shadow-[0_42px_112px_-56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.8)] active:scale-[0.99] dark:border-white/[0.09] dark:bg-[#070708]/72 dark:shadow-[0_32px_96px_-52px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.08)] dark:ring-white/[0.035] dark:hover:bg-[#09090a]/80 dark:hover:shadow-[0_44px_120px_-62px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.1)]" >
+      <div
+        className={cn(
+          "pointer-events-auto flex items-center gap-3 rounded-[30px] px-2.5 py-2.5 backdrop-blur-3xl transition-all duration-700 ease-apple hover:-translate-y-0.5 active:scale-[0.99]",
+          isDarkTheme
+            ? "border border-white/[0.09] bg-[#070708]/72 shadow-[0_32px_96px_-52px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/[0.035] hover:bg-[#09090a]/80 hover:shadow-[0_44px_120px_-62px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.1)]"
+            : "border border-black/[0.075] bg-white/[0.72] shadow-[0_30px_90px_-46px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.7)] ring-1 ring-white/40 hover:bg-white/[0.78] hover:shadow-[0_42px_112px_-56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.8)]"
+        )}
+      >
 
         {/* Logo Area */}
-        <div className="flex items-center pr-4 border-r border-black/[0.055] dark:border-white/[0.08]">
+        <div className={cn("flex items-center pr-4 border-r", isDarkTheme ? "border-white/[0.08]" : "border-black/[0.055]")}>
           <Link
             to="/synapse-ai"
             className="relative flex items-center justify-center w-10 h-10 rounded-[18px] transition-all duration-500 group mr-3"
           >
-            <div className="absolute inset-0 rounded-[18px] bg-zinc-950 shadow-[0_18px_48px_-28px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.12)] transition-transform group-hover:scale-105 dark:bg-white dark:shadow-[0_18px_48px_-28px_rgba(255,255,255,0.5)]" />
+            <div
+              className={cn(
+                "absolute inset-0 rounded-[18px] transition-transform group-hover:scale-105",
+                isDarkTheme
+                  ? "bg-white shadow-[0_18px_48px_-28px_rgba(255,255,255,0.5)]"
+                  : "bg-zinc-950 shadow-[0_18px_48px_-28px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.12)]"
+              )}
+            />
             <div className="absolute inset-0 flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-white dark:text-zinc-900" />
+              <Sparkles className={cn("h-4 w-4", isDarkTheme ? "text-zinc-900" : "text-white")} />
             </div>
           </Link>
 
-          <span className="text-[10px] font-black text-zinc-900 dark:text-white tracking-[0.3em] uppercase hidden md:block transition-colors duration-500">
+          <span className={cn("text-[10px] font-black tracking-[0.3em] uppercase hidden md:block transition-colors duration-500", isDarkTheme ? "text-white" : "text-zinc-900")}>
             NeuroNex
           </span>
         </div>
@@ -161,20 +194,20 @@ export const Navbar = () => {
         </div>
 
         {/* Utilities */}
-        <div className="flex items-center gap-1 pl-4 border-l border-black/[0.055] dark:border-white/[0.08]">
+        <div className={cn("flex items-center gap-1 pl-4 border-l", isDarkTheme ? "border-white/[0.08]" : "border-black/[0.055]")}>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 id="global-search"
                 size="icon"
                 variant="ghost"
-                className="w-10 h-10 rounded-2xl hover:bg-black/[0.045] dark:hover:bg-white/[0.055] text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all duration-500"
+                className={utilityButtonClass}
                 onClick={() => setIsSearchOpen(true)}
               >
                 <Search className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="bg-white/95 dark:bg-[#0A0A0C]/95 border-zinc-200 dark:border-white/10 text-[9px] font-black uppercase px-4 py-2 rounded-xl text-zinc-500 tracking-[0.2em] backdrop-blur-xl">Buscar</TooltipContent>
+            <TooltipContent side="bottom" className={tooltipClass}>Buscar</TooltipContent>
           </Tooltip>
 
           <Popover onOpenChange={(open) => {
@@ -183,16 +216,25 @@ export const Navbar = () => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <PopoverTrigger asChild>
-                  <Button id="notifications-trigger" size="icon" variant="ghost" className="relative w-10 h-10 rounded-2xl hover:bg-black/[0.045] dark:hover:bg-white/[0.055] text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all duration-500">
+                  <Button id="notifications-trigger" size="icon" variant="ghost" className={cn("relative", utilityButtonClass)}>
                     <Bell className="h-4 w-4" />
                     {hasAlerts && <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />}
                   </Button>
                 </PopoverTrigger>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="bg-white/95 dark:bg-[#0A0A0C]/95 border-zinc-200 dark:border-white/10 text-[9px] font-black uppercase px-4 py-2 rounded-xl text-zinc-500 tracking-[0.2em] backdrop-blur-xl">Notificações</TooltipContent>
+              <TooltipContent side="bottom" className={tooltipClass}>Notificações</TooltipContent>
             </Tooltip>
-            <PopoverContent align="center" sideOffset={14} className="w-80 p-0 bg-white/95 dark:bg-[#080809]/95 border border-zinc-200 dark:border-white/10 backdrop-blur-[32px] shadow-[0_48px_96px_-24px_rgba(0,0,0,0.5)] rounded-[32px] overflow-hidden z-[70] ring-1 ring-black/5 dark:ring-white/5">
-              <div className="p-5 border-b border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-white/[0.02]">
+            <PopoverContent
+              align="center"
+              sideOffset={14}
+              className={cn(
+                "w-80 p-0 backdrop-blur-[32px] shadow-[0_48px_96px_-24px_rgba(0,0,0,0.5)] rounded-[32px] overflow-hidden z-[70]",
+                isDarkTheme
+                  ? "border border-white/10 bg-[#080809]/95 ring-1 ring-white/5"
+                  : "border border-zinc-200 bg-white/95 ring-1 ring-black/5"
+              )}
+            >
+              <div className={cn("p-5 border-b", isDarkTheme ? "border-white/5 bg-white/[0.02]" : "border-zinc-100 bg-zinc-50")}>
                 <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Notificações</h4>
               </div>
               <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
@@ -212,7 +254,16 @@ export const Navbar = () => {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 bg-white/95 dark:bg-[#080809]/95 backdrop-blur-[32px] border border-zinc-200 dark:border-white/10 rounded-[32px] p-3 z-[9999] shadow-[0_48px_96px_-24px_rgba(0,0,0,0.5)] ring-1 ring-black/5 dark:ring-white/5" sideOffset={14}>
+            <DropdownMenuContent
+              align="end"
+              className={cn(
+                "w-64 backdrop-blur-[32px] rounded-[32px] p-3 z-[9999] shadow-[0_48px_96px_-24px_rgba(0,0,0,0.5)]",
+                isDarkTheme
+                  ? "border border-white/10 bg-[#080809]/95 ring-1 ring-white/5"
+                  : "border border-zinc-200 bg-white/95 ring-1 ring-black/5"
+              )}
+              sideOffset={14}
+            >
               <div className="flex items-center gap-4 p-3 mb-2">
                 <Avatar className="h-12 w-12 border border-zinc-200 dark:border-white/10 rounded-2xl">
                   <AvatarImage src={profile?.avatar_url || ''} alt={fullName} className="object-cover" />

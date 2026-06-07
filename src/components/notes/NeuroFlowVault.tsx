@@ -221,31 +221,31 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
     );
 
     return (
-        <div className="w-full h-full bg-white dark:bg-[#050505] text-zinc-900 dark:text-white flex flex-col px-8 lg:px-12 py-12 overflow-hidden relative selection:bg-zinc-900 dark:selection:bg-white selection:text-white dark:selection:text-black transition-colors duration-500">
+        <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#050505] px-8 py-10 text-white selection:bg-white selection:text-black transition-colors duration-500 lg:px-12 [.light_&]:bg-white [.light_&]:text-zinc-900 [.light_&]:selection:bg-zinc-900 [.light_&]:selection:text-white">
             <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
 
             <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 z-10">
                 <div className="shrink-0 space-y-2">
-                    <h1 className="text-4xl lg:text-5xl font-black tracking-[-0.05em] uppercase leading-none bg-zinc-900 dark:bg-gradient-to-b dark:from-white dark:to-white/60 bg-clip-text text-transparent">NeuroFlow</h1>
+                    <h1 className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-4xl font-black uppercase leading-none tracking-[-0.05em] text-transparent lg:text-5xl [.light_&]:bg-zinc-900">NeuroFlow</h1>
                     <div className="flex items-center gap-3">
-                        <p className="text-zinc-500 dark:text-zinc-200 text-[10px] font-black uppercase tracking-[0.3em]">Conecte ideias. Expanda Synapses.</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-300 [.light_&]:text-zinc-500">Conecte ideias. Expanda Synapses.</p>
                     </div>
                 </div>
 
                 <div className="flex flex-col md:flex-row items-center gap-4 w-full max-w-4xl">
                     <div className="relative flex-1 w-full">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-700" />
+                        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45 [.light_&]:text-zinc-700" />
                         <Input
                             placeholder="Pesquisar em sua rede neural..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-11 h-14 w-full bg-zinc-100 dark:bg-white/[0.03] border-zinc-200 dark:border-white/5 focus-visible:ring-1 focus-visible:ring-primary/20 rounded-[22px] text-sm placeholder:text-zinc-400 dark:placeholder:text-zinc-800 transition-all backdrop-blur-md"
+                            className="h-14 w-full rounded-[22px] border-white/5 bg-white/[0.03] pl-11 text-sm text-white placeholder:text-white/28 backdrop-blur-md transition-all focus-visible:ring-1 focus-visible:ring-primary/20 [.light_&]:border-zinc-200 [.light_&]:bg-zinc-100 [.light_&]:text-zinc-900 [.light_&]:placeholder:text-zinc-400"
                         />
                     </div>
 
                     <Button
                         onClick={handleCreateFlow}
-                        className="h-14 w-full md:w-auto bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-[22px] px-10 font-black uppercase tracking-tight transition-all text-[11px] shadow-[0_10px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_30px_rgba(255,255,255,0.1)]"
+                        className="h-14 w-full rounded-[22px] bg-white px-10 text-[11px] font-black uppercase tracking-tight text-black shadow-[0_10px_30px_rgba(255,255,255,0.1)] transition-all hover:bg-zinc-200 md:w-auto [.light_&]:bg-zinc-900 [.light_&]:text-white [.light_&]:shadow-[0_10px_30px_rgba(0,0,0,0.1)] [.light_&]:hover:bg-zinc-800"
                     >
                         <Plus size={18} className="mr-2" strokeWidth={3} />
                         Novo Fluxo
@@ -257,7 +257,7 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
                 {isLoading ? (
                     <div className="grid gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {[1, 2, 3, 4].map((i) => (
-                            <Skeleton key={i} className="aspect-[4/5] rounded-[48px] bg-zinc-100 dark:bg-white/[0.01]" />
+                            <Skeleton key={i} className="aspect-[4/5] rounded-[48px] bg-white/[0.01] [.light_&]:bg-zinc-100" />
                         ))}
                     </div>
                 ) : (
@@ -266,9 +266,9 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
                             whileHover={{ scale: 1.02, borderColor: theme === 'dark' ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)" }}
                             whileTap={{ scale: 0.98 }}
                             onClick={handleCreateFlow}
-                            className="group relative aspect-[4/5] rounded-[48px] border-2 border-dashed border-zinc-200 dark:border-white/5 bg-transparent hover:bg-zinc-50 dark:hover:bg-white/[0.01] transition-all flex flex-col items-center justify-center gap-6 p-8 text-center"
+                            className="group relative flex aspect-[4/5] flex-col items-center justify-center gap-6 rounded-[48px] border-2 border-dashed border-white/5 bg-transparent p-8 text-center transition-all hover:bg-white/[0.01] [.light_&]:border-zinc-200 [.light_&]:hover:bg-zinc-50"
                         >
-                            <div className="h-20 w-20 rounded-full bg-zinc-100 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 flex items-center justify-center group-hover:bg-zinc-900 dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-black transition-all duration-700 shadow-2xl">
+                            <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/5 bg-white/[0.02] shadow-2xl transition-all duration-700 group-hover:bg-white group-hover:text-black [.light_&]:border-zinc-200 [.light_&]:bg-zinc-100 [.light_&]:group-hover:bg-zinc-900 [.light_&]:group-hover:text-white">
                                 <Brain size={32} strokeWidth={1.5} />
                             </div>
                             <div className="space-y-2">
@@ -361,11 +361,11 @@ const FlowCard = ({ flow, idx, onClick, onDelete, onRename, onDuplicate, patient
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ delay: idx * 0.05, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
             onClick={onClick}
-            className="group relative aspect-[4/5] rounded-[48px] bg-zinc-50 dark:bg-white/[0.02] border border-zinc-100 dark:border-white/5 hover:border-zinc-200 dark:hover:border-white/10 hover:bg-zinc-100 dark:hover:bg-white/[0.03] transition-all duration-700 cursor-pointer overflow-hidden flex flex-col p-10"
+            className="group relative flex aspect-[4/5] cursor-pointer flex-col overflow-hidden rounded-[48px] border border-white/5 bg-white/[0.02] p-10 transition-all duration-700 hover:border-white/10 hover:bg-white/[0.03] [.light_&]:border-zinc-100 [.light_&]:bg-zinc-50 [.light_&]:hover:border-zinc-200 [.light_&]:hover:bg-zinc-100"
         >
             {/* Top Action Layer */}
             <div className="flex justify-between items-start z-20 relative">
-                <div className="h-10 w-10 rounded-2xl bg-zinc-100 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/5 flex items-center justify-center text-zinc-400 dark:text-zinc-800 group-hover:text-zinc-900 dark:group-hover:text-white group-hover:scale-110 transition-all duration-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-white/[0.03] text-zinc-700 transition-all duration-700 group-hover:scale-110 group-hover:text-white [.light_&]:border-zinc-200 [.light_&]:bg-zinc-100 [.light_&]:text-zinc-400 [.light_&]:group-hover:text-zinc-900">
                     <ArrowUpRight size={18} strokeWidth={2.5} />
                 </div>
 

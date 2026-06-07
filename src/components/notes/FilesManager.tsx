@@ -385,23 +385,23 @@ export const FilesManager = () => {
     return (
         <div className="flex flex-col h-full w-full font-sans relative bg-transparent">
             {/* Header */}
-            <div className="px-10 pt-10 pb-4 shrink-0 space-y-8 relative z-10">
+            <div className="relative z-10 shrink-0 space-y-7 px-8 pb-4 pt-8 lg:px-10 lg:pt-10">
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                        <h2 className="text-4xl font-black tracking-tight text-zinc-900 dark:text-zinc-50 leading-none italic">Gestor de Arquivos</h2>
+                        <h2 className="text-4xl font-black italic leading-none tracking-tight text-zinc-50 [.light_&]:text-zinc-900">Gestor de Arquivos</h2>
                         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400 dark:text-zinc-500 mt-2">Sinfonia Documental</p>
                     </div>
 
                     <div className="flex items-center gap-3">
                         {/* View Toggle */}
-                        <div className="flex items-center bg-zinc-100/50 dark:bg-black/40 p-1 rounded-2xl border border-zinc-200/50 dark:border-white/[0.05] backdrop-blur-xl">
+                        <div className="flex items-center rounded-2xl border border-white/[0.05] bg-black/40 p-1 backdrop-blur-xl [.light_&]:border-zinc-200/50 [.light_&]:bg-zinc-100/50">
                             <button
                                 onClick={() => setViewLayout("list")}
                                 className={cn(
                                     "p-2 rounded-xl transition-all duration-300",
                                     viewLayout === "list"
-                                        ? "bg-white dark:bg-zinc-100 shadow-xl text-zinc-900 dark:text-black scale-105"
-                                        : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                                        ? "scale-105 bg-zinc-100 text-black shadow-xl [.light_&]:bg-white [.light_&]:text-zinc-900"
+                                        : "text-zinc-500 hover:text-white [.light_&]:text-zinc-400 [.light_&]:hover:text-zinc-900"
                                 )}
                             >
                                 <LayoutList className="h-4 w-4" />
@@ -411,8 +411,8 @@ export const FilesManager = () => {
                                 className={cn(
                                     "p-2 rounded-xl transition-all duration-300",
                                     viewLayout === "grid"
-                                        ? "bg-white dark:bg-zinc-100 shadow-xl text-zinc-900 dark:text-black scale-105"
-                                        : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                                        ? "scale-105 bg-zinc-100 text-black shadow-xl [.light_&]:bg-white [.light_&]:text-zinc-900"
+                                        : "text-zinc-500 hover:text-white [.light_&]:text-zinc-400 [.light_&]:hover:text-zinc-900"
                                 )}
                             >
                                 <LayoutGrid className="h-4 w-4" />
@@ -425,7 +425,7 @@ export const FilesManager = () => {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 rounded-lg gap-2 text-[11px] font-semibold bg-white dark:bg-white/5 border-black/5 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10"
+                                    className="h-8 gap-2 rounded-lg border-white/10 bg-white/5 text-[11px] font-semibold hover:bg-white/10 [.light_&]:border-black/5 [.light_&]:bg-white [.light_&]:hover:bg-black/5"
                                 >
                                     <Cloud className="h-3.5 w-3.5" />
                                     Integrações
@@ -492,7 +492,7 @@ export const FilesManager = () => {
 
                         <Button
                             size="sm"
-                            className="h-12 px-6 rounded-2xl gap-3 text-[11px] font-black uppercase tracking-[0.2em] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)] bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black hover:scale-[1.02] transition-all"
+                            className="h-12 gap-3 rounded-2xl bg-zinc-100 px-6 text-[11px] font-black uppercase tracking-[0.2em] text-black shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)] transition-all hover:scale-[1.02] [.light_&]:bg-zinc-900 [.light_&]:text-white [.light_&]:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)]"
                             onClick={() => {
                                 if (activeTab === "patients") {
                                     patientFileInputRef.current?.click();
@@ -512,7 +512,7 @@ export const FilesManager = () => {
 
                 {/* Tabs & Search Row */}
                 <div className="flex flex-col md:flex-row items-stretch md:items-center gap-6">
-                    <div className="flex items-center gap-2 bg-zinc-100/50 dark:bg-black/40 p-1.5 rounded-2xl border border-zinc-200/50 dark:border-white/[0.05] backdrop-blur-xl w-full max-w-md">
+                    <div className="flex w-full max-w-md items-center gap-2 rounded-2xl border border-white/[0.05] bg-black/40 p-1.5 backdrop-blur-xl [.light_&]:border-zinc-200/50 [.light_&]:bg-zinc-100/50">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
@@ -520,8 +520,8 @@ export const FilesManager = () => {
                                 className={cn(
                                     "flex-1 flex items-center justify-center gap-2.5 py-3 px-6 rounded-xl text-[11px] font-black uppercase tracking-[0.1em] transition-all duration-300",
                                     activeTab === tab.id
-                                        ? "bg-white dark:bg-zinc-100 shadow-xl text-zinc-900 dark:text-black scale-[1.02]"
-                                        : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                                        ? "scale-[1.02] bg-zinc-100 text-black shadow-xl [.light_&]:bg-white [.light_&]:text-zinc-900"
+                                        : "text-zinc-500 hover:text-white [.light_&]:text-zinc-400 [.light_&]:hover:text-zinc-900"
                                 )}
                             >
                                 <tab.icon className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -531,19 +531,19 @@ export const FilesManager = () => {
                     </div>
 
                     <div className="flex-1 relative group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 group-focus-within:text-zinc-900 dark:group-focus-within:text-zinc-100 transition-colors" />
+                        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-zinc-100 [.light_&]:group-focus-within:text-zinc-900" />
                         <Input
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder={activeTab === "personal" ? "Buscar nos seus arquivos..." : "Buscar por paciente..."}
-                            className="pl-11 h-14 bg-zinc-100/30 dark:bg-black/20 border-transparent hover:bg-zinc-100/50 dark:hover:bg-black/30 rounded-2xl text-[13px] font-medium focus-visible:ring-0 focus-visible:bg-white dark:focus-visible:bg-black/40 transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-inner"
+                            className="h-14 rounded-2xl border-transparent bg-black/20 pl-11 text-[13px] font-medium shadow-inner transition-all placeholder:text-zinc-600 hover:bg-black/30 focus-visible:bg-black/40 focus-visible:ring-0 [.light_&]:bg-zinc-100/30 [.light_&]:placeholder:text-zinc-400 [.light_&]:hover:bg-zinc-100/50 [.light_&]:focus-visible:bg-white"
                         />
                     </div>
                 </div>
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto px-10 pb-12 custom-scrollbar relative z-10">
+            <div className="custom-scrollbar relative z-10 flex-1 overflow-y-auto px-8 pb-12 lg:px-10">
                 <div className="absolute inset-0 premium-noise opacity-[0.01] pointer-events-none" />
                 <AnimatePresence mode="wait">
                     {activeTab === "personal" ? (

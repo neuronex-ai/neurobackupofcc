@@ -233,7 +233,7 @@ Relato:
 
     return (
         <div className={cn(
-            "h-full w-full flex flex-col relative overflow-hidden transition-all duration-700 ease-out-expo bg-white dark:bg-[#050505]",
+            "h-full w-full flex flex-col relative overflow-hidden transition-all duration-700 ease-out-expo bg-[#050505] [.light_&]:bg-white",
             isFullscreen ? "fixed inset-0 z-[100]" : ""
         )}>
             <NeuralBackground />
@@ -241,25 +241,25 @@ Relato:
             <div className="absolute top-8 left-8 right-8 z-50 flex items-center justify-between pointer-events-none">
                 <div className="flex items-center gap-6 pointer-events-auto">
                     <div className="relative group">
-                        <div className="absolute inset-0 bg-zinc-900/5 dark:bg-white/10 blur-[30px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                        <div className="w-14 h-14 rounded-2xl bg-white/40 dark:bg-black/40 border border-zinc-200 dark:border-white/10 flex items-center justify-center relative backdrop-blur-3xl shadow-2xl transition-all duration-500 group-hover:border-zinc-300 dark:group-hover:border-white/20">
-                            <Fingerprint className="h-7 w-7 text-zinc-900 dark:text-white/90" strokeWidth={1.2} />
+                        <div className="absolute inset-0 rounded-full bg-white/10 blur-[30px] opacity-0 transition-opacity duration-700 group-hover:opacity-100 [.light_&]:bg-zinc-900/5" />
+                        <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-black/40 shadow-2xl backdrop-blur-3xl transition-all duration-500 group-hover:border-white/20 [.light_&]:border-zinc-200 [.light_&]:bg-white/40 [.light_&]:group-hover:border-zinc-300">
+                            <Fingerprint className="h-7 w-7 text-white/90 [.light_&]:text-zinc-900" strokeWidth={1.2} />
                             <motion.div
                                 animate={{ opacity: [0.4, 1, 0.4] }}
                                 transition={{ duration: 2, repeat: Infinity }}
-                                className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-zinc-900 dark:bg-white shadow-[0_0_10px_rgba(0,0,0,0.2)] dark:shadow-[0_0_10px_rgba(255,255,255,0.8)]"
+                                className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] [.light_&]:bg-zinc-900 [.light_&]:shadow-[0_0_10px_rgba(0,0,0,0.2)]"
                             />
                         </div>
                     </div>
                     <div className="flex flex-col">
-                        <h2 className="text-3xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter leading-none">NeuroPulse</h2>
+                        <h2 className="text-3xl font-black uppercase leading-none tracking-tighter text-white [.light_&]:text-zinc-900">NeuroPulse</h2>
                         <div className="flex items-center gap-3 mt-1.5">
-                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-[0.4em]">Sincronização Profunda</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500">Sincronização Profunda</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 pointer-events-auto p-1.5 bg-white/40 dark:bg-black/40 backdrop-blur-3xl border border-zinc-200 dark:border-white/5 rounded-2xl shadow-xl dark:shadow-2xl">
+                <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/5 bg-black/40 p-1.5 shadow-2xl backdrop-blur-3xl [.light_&]:border-zinc-200 [.light_&]:bg-white/40 [.light_&]:shadow-xl">
                     <Select value={selectedLens} onValueChange={setSelectedLens}>
                         <SelectTrigger className="w-[200px] h-10 bg-transparent border-none text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors focus:ring-0">
                             <SelectValue placeholder="Ótica Analítica" />
@@ -273,7 +273,7 @@ Relato:
                         </SelectContent>
                     </Select>
 
-                    <div className="w-px h-6 bg-zinc-200 dark:bg-white/5 mx-1" />
+                    <div className="mx-1 h-6 w-px bg-white/5 [.light_&]:bg-zinc-200" />
 
                     <Button
                         onClick={handleGenerate}
@@ -281,8 +281,8 @@ Relato:
                         className={cn(
                             "h-10 px-6 rounded-xl border transition-all duration-500",
                             isGenerating
-                                ? "bg-zinc-100 dark:bg-white/5 text-zinc-400 dark:text-zinc-600 border-transparent cursor-not-allowed"
-                                : "bg-zinc-900 dark:bg-white text-white dark:text-black border-transparent hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:scale-[1.02] active:scale-95 shadow-lg dark:shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)]",
+                                ? "cursor-not-allowed border-transparent bg-white/5 text-zinc-600 [.light_&]:bg-zinc-100 [.light_&]:text-zinc-400"
+                                : "border-transparent bg-white text-black shadow-[0_20px_40px_-10px_rgba(255,255,255,0.2)] hover:scale-[1.02] hover:bg-zinc-200 active:scale-95 [.light_&]:bg-zinc-900 [.light_&]:text-white [.light_&]:shadow-lg [.light_&]:hover:bg-zinc-800",
                             "text-[10px] font-black uppercase tracking-[0.3em]"
                         )}
                     >
@@ -308,7 +308,7 @@ Relato:
                         className="w-[38%] flex flex-col space-y-6"
                     >
                         <div className={cn(
-                            "flex-1 bg-white/40 dark:bg-black/20 border transition-all duration-700 rounded-[32px] p-8 relative group backdrop-blur-xl ring-1 flex flex-col",
+                            "flex-1 bg-black/20 border transition-all duration-700 rounded-[32px] p-8 relative group backdrop-blur-xl ring-1 flex flex-col [.light_&]:bg-white/40",
                             isListening
                                 ? "border-zinc-900/20 dark:border-white/20 ring-zinc-900/10 dark:ring-white/10 shadow-[0_0_50px_rgba(0,0,0,0.05)] dark:shadow-[0_0_50px_rgba(255,255,255,0.05)]"
                                 : "border-zinc-200/50 dark:border-white/[0.03] ring-zinc-100/20 dark:ring-white/[0.02]"
