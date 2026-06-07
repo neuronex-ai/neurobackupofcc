@@ -66,8 +66,8 @@ export const drawNode = (
 
   if (x === undefined || y === undefined || !Number.isFinite(x) || !Number.isFinite(y)) return;
 
-  const isHovered = hoverNode === node;
-  const isNeighbor = hoverNode && hoverNode.neighbors?.includes(node);
+  const isHovered = hoverNode?.id === node.id;
+  const isNeighbor = hoverNode && hoverNode.neighbors?.some((neighbor) => neighbor.id === node.id);
   const isConnectedChain = isHovered || isNeighbor;
   const dimmed = hoverNode && !isConnectedChain;
 

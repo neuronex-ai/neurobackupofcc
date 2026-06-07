@@ -79,8 +79,34 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
       map[n.id] = node;
     };
 
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const matchedPatientIds = new Set<string>();
+
+    patients.forEach((patient) => {
+      if (!normalizedSearch || patient.name.toLowerCase().includes(normalizedSearch)) {
+        matchedPatientIds.add(patient.id);
+      }
+    });
+
+    const visibleNotes = notes.filter(n => {
+      if (!normalizedSearch) return true;
+
+      const patient = n.patient_id ? patients.find(p => p.id === n.patient_id) : null;
+      return n.title.toLowerCase().includes(normalizedSearch) ||
+        n.content.toLowerCase().includes(normalizedSearch) ||
+        n.tags?.some((tag: string) => tag.toLowerCase().includes(normalizedSearch)) ||
+        Boolean(patient?.name.toLowerCase().includes(normalizedSearch));
+    });
+
+    const visiblePatientIds = new Set<string>(matchedPatientIds);
+    visibleNotes.forEach((note) => {
+      if (note.patient_id) visiblePatientIds.add(note.patient_id);
+    });
+
     // Add Patients
     patients.forEach(p => {
+      if (normalizedSearch && !visiblePatientIds.has(p.id)) return;
+
       addNode({
         id: `pat-${p.id}`,
         label: p.name,
@@ -92,13 +118,8 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
     });
 
     // Add Notes & Tags
-    notes.forEach(n => {
+    visibleNotes.forEach(n => {
       const noteId = `note-${n.id}`;
-      const matchesSearch = searchQuery === "" ||
-        n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        n.content.toLowerCase().includes(searchQuery.toLowerCase());
-
-      if (!matchesSearch) return;
 
       addNode({
         id: noteId,

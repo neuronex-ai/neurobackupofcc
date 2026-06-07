@@ -261,25 +261,25 @@ export default function Notes() {
                 </div>
             )}
 
-            <div className="flex-1 flex items-stretch h-full w-full relative z-10 px-8 pb-8 pt-4 max-w-[2200px] mx-auto overflow-hidden">
+            <div className="flex-1 flex items-stretch h-full w-full relative z-10 px-5 pb-5 pt-3 max-w-[2200px] mx-auto overflow-hidden">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex-1 flex overflow-hidden shadow-[0_40px_100px_-20px_rgba(0,0,0,0.12)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.4)] bg-zinc-10 dark:bg-zinc-950 border border-white dark:border-white/[0.05] ring-1 ring-black/[0.02] dark:ring-0 backdrop-blur-3xl rounded-[40px] relative group/main-window"
+                    className="flex-1 flex overflow-hidden shadow-[0_36px_90px_-24px_rgba(0,0,0,0.12)] dark:shadow-[0_36px_90px_-24px_rgba(0,0,0,0.42)] bg-zinc-10 dark:bg-zinc-950 border border-white dark:border-white/[0.05] ring-1 ring-black/[0.02] dark:ring-0 backdrop-blur-3xl rounded-[34px] relative group/main-window"
                 >
                     <div className="absolute inset-0 premium-noise opacity-[0.02] dark:opacity-[0.04] pointer-events-none" />
                     <AnimatePresence>
                         {(!isSidebarCollapsed && !isFocusMode) && (
                             <motion.div
                                 initial={{ width: 0, opacity: 0 }}
-                                animate={{ width: 280, opacity: 1 }}
+                                animate={{ width: 244, opacity: 1 }}
                                 exit={{ width: 0, opacity: 0 }}
                                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                                 className="hidden lg:flex shrink-0 border-r border-black/[0.05] dark:border-white/[0.05] bg-zinc-50/30 dark:bg-black/10 overflow-hidden relative"
                             >
                                 <div className="absolute inset-0 premium-noise opacity-[0.02] pointer-events-none" />
-                                <div className="w-[280px] h-full relative z-10">
+                                <div className="w-[244px] h-full relative z-10">
                                     <NotesSidebar
                                         viewMode={viewMode}
                                         setViewMode={setViewMode}

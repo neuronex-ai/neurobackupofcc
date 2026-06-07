@@ -23,6 +23,16 @@ const DEFAULT_CONFIG: NeuroConfig = {
     showTags: true
 };
 
+const getEndpointId = (endpoint: GraphLink["source"] | GraphLink["target"]) => (
+    typeof endpoint === "string" ? endpoint : endpoint?.id
+);
+
+const getLinkKey = (link: GraphLink) => {
+    const sourceId = getEndpointId(link.source);
+    const targetId = getEndpointId(link.target);
+    return `${sourceId || "unknown"}->${targetId || "unknown"}`;
+};
+
 export const NeuroView = () => {
     // Universe mode
     const [isUniverseMode, setIsUniverseMode] = useState(false);
@@ -54,7 +64,8 @@ export const NeuroView = () => {
     const [config, setConfig] = useState<NeuroConfig>(DEFAULT_CONFIG);
     const [searchQuery, setSearchQuery] = useState("");
 
-    const { graphData, nodeMap, notes, patients, isLoading } = useGraphData({ config, searchQuery });
+    const { graphData: targetGraphData, notes, patients, isLoading } = useGraphData({ config, searchQuery });
+    const [graphData, setGraphData] = useState<{ nodes: GraphNode[]; links: GraphLink[] }>({ nodes: [], links: [] });
 
     // 3. UI State
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -62,6 +73,138 @@ export const NeuroView = () => {
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
     const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
     const [isPatientSidebarOpen, setIsPatientSidebarOpen] = useState(true);
+
+    useEffect(() => {
+        const targetNodeIds = new Set(targetGraphData.nodes.map((node) => node.id));
+        const targetLinkKeys = new Set(targetGraphData.links.map(getLinkKey));
+
+        setGraphData((previous) => {
+            const previousNodes = new Map(previous.nodes.map((node) => [node.id, node]));
+            const previousLinks = new Map(previous.links.map((link) => [getLinkKey(link), link]));
+
+            const mergedNodes = targetGraphData.nodes.map((node) => {
+                const previousNode = previousNodes.get(node.id);
+
+                if (!previousNode) {
+                    return {
+                        ...node,
+                        currentRadius: 0,
+                        currentGlow: 0,
+                        currentOpacity: 0,
+                        revealProgress: 0,
+                        revealTarget: 1,
+                        bloomIntensity: 0.75,
+                        dragPulse: 0,
+                    };
+                }
+
+                return {
+                    ...node,
+                    x: previousNode.x,
+                    y: previousNode.y,
+                    fx: previousNode.fx,
+                    fy: previousNode.fy,
+                    currentRadius: previousNode.currentRadius,
+                    currentGlow: previousNode.currentGlow,
+                    currentOpacity: previousNode.currentOpacity,
+                    revealProgress: previousNode.revealProgress ?? 1,
+                    revealTarget: 1,
+                    bloomIntensity: previousNode.bloomIntensity ?? 0,
+                    dragPulse: previousNode.dragPulse ?? 0,
+                    vx: (previousNode as any).vx,
+                    vy: (previousNode as any).vy,
+                } as GraphNode;
+            });
+
+            previous.nodes.forEach((node) => {
+                if (targetNodeIds.has(node.id)) return;
+                mergedNodes.push({
+                    ...node,
+                    revealTarget: 0,
+                    bloomIntensity: 0,
+                });
+            });
+
+            const nodeById = new Map(mergedNodes.map((node) => [node.id, node]));
+            const mergedLinks: GraphLink[] = [];
+
+            targetGraphData.links.forEach((link) => {
+                const sourceId = getEndpointId(link.source);
+                const targetId = getEndpointId(link.target);
+                if (!sourceId || !targetId) return;
+
+                const source = nodeById.get(sourceId);
+                const target = nodeById.get(targetId);
+                if (!source || !target) return;
+
+                const previousLink = previousLinks.get(getLinkKey(link));
+                mergedLinks.push({
+                    ...link,
+                    source,
+                    target,
+                    currentOpacity: previousLink?.currentOpacity ?? 0,
+                    currentWidth: previousLink?.currentWidth ?? 0,
+                    revealProgress: previousLink?.revealProgress ?? 0,
+                    revealTarget: 1,
+                    pulseSeed: link.pulseSeed ?? previousLink?.pulseSeed,
+                });
+            });
+
+            previous.links.forEach((link) => {
+                const key = getLinkKey(link);
+                if (targetLinkKeys.has(key)) return;
+
+                const sourceId = getEndpointId(link.source);
+                const targetId = getEndpointId(link.target);
+                const source = sourceId ? nodeById.get(sourceId) : null;
+                const target = targetId ? nodeById.get(targetId) : null;
+                if (!source || !target) return;
+
+                mergedLinks.push({
+                    ...link,
+                    source,
+                    target,
+                    revealTarget: 0,
+                });
+            });
+
+            mergedNodes.forEach((node) => {
+                node.neighbors = [];
+                node.links = [];
+            });
+
+            mergedLinks.forEach((link) => {
+                const source = link.source as GraphNode;
+                const target = link.target as GraphNode;
+                if (!source || !target || typeof source === "string" || typeof target === "string") return;
+
+                if ((link.revealTarget ?? 1) > 0) {
+                    source.neighbors?.push(target);
+                    target.neighbors?.push(source);
+                    source.links?.push(link);
+                    target.links?.push(link);
+                }
+            });
+
+            return { nodes: mergedNodes, links: mergedLinks };
+        });
+
+        const cleanup = window.setTimeout(() => {
+            setGraphData((current) => ({
+                nodes: current.nodes.filter((node) => targetNodeIds.has(node.id) || (node.revealProgress ?? 1) > 0.08),
+                links: current.links.filter((link) => targetLinkKeys.has(getLinkKey(link)) || (link.revealProgress ?? 1) > 0.08),
+            }));
+        }, 760);
+
+        return () => window.clearTimeout(cleanup);
+    }, [targetGraphData]);
+
+    const nodeMap = useMemo(() => {
+        return graphData.nodes.reduce<Record<string, GraphNode>>((acc, node) => {
+            acc[node.id] = node;
+            return acc;
+        }, {});
+    }, [graphData.nodes]);
 
     useEffect(() => {
         const element = containerRef.current;
@@ -138,7 +281,7 @@ export const NeuroView = () => {
         return () => {
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
-    }, [graphData.nodes, hoverNode]);
+    }, [graphData.nodes, graphData.links, hoverNode]);
 
     // 5. Interaction Handlers
     const handleNodeClick = useCallback((node: GraphNode) => {
