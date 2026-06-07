@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Clock, FileText, ListFilter, Plus, Search, Sparkles, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 interface NotesListPanelProps {
   searchQuery: string;
@@ -55,10 +55,23 @@ export const NotesListPanel = ({
   isCreatingNote = false,
 }: NotesListPanelProps) => {
   const [noteToDelete, setNoteToDelete] = useState<{ id: string; title: string } | null>(null);
-  const preparedItems = useMemo(
-    () => items.map((item) => ({ ...item, excerpt: toPlainText(item.content).slice(0, 120) })),
-    [items],
-  );
+  const excerptCacheRef = useRef(new Map<string, { content: string; excerpt: string }>());
+  const preparedItems = useMemo(() => {
+    const activeIds = new Set(items.map((item) => item.id));
+    excerptCacheRef.current.forEach((_, id) => {
+      if (!activeIds.has(id)) excerptCacheRef.current.delete(id);
+    });
+
+    return items.map((item) => {
+      const content = item.content || "";
+      const cached = excerptCacheRef.current.get(item.id);
+      if (cached?.content === content) return { ...item, excerpt: cached.excerpt };
+
+      const excerpt = toPlainText(content).slice(0, 120);
+      excerptCacheRef.current.set(item.id, { content, excerpt });
+      return { ...item, excerpt };
+    });
+  }, [items]);
 
   const handleDragStart = (event: React.DragEvent, noteId: string) => {
     event.dataTransfer.setData("noteId", noteId);
@@ -134,7 +147,7 @@ export const NotesListPanel = ({
           </div>
         </div>
 
-        <div className="relative z-10 flex-1 space-y-2.5 overflow-y-auto px-3 pb-8 pt-3 custom-scrollbar">
+        <div className="notes-scroll-surface relative z-10 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-3 pb-8 pt-3 custom-scrollbar [scrollbar-gutter:stable]">
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4].map((item) => (
@@ -152,21 +165,17 @@ export const NotesListPanel = ({
               </div>
             </div>
           ) : (
-            <AnimatePresence initial={false}>
-              {preparedItems.map((item, index) => {
+            <>
+              {preparedItems.map((item) => {
                 const isActive = selectedId === item.id;
                 return (
-                  <motion.div
+                  <div
                     key={item.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
-                    transition={{ duration: 0.22, delay: Math.min(index * 0.015, 0.12) }}
                     draggable
                     onDragStart={(event) => handleDragStart(event as unknown as React.DragEvent, item.id)}
                     onClick={() => onSelect(item.id)}
                     className={cn(
-                      "group relative cursor-pointer overflow-hidden rounded-2xl border p-4 transition-colors duration-250",
+                      "group relative cursor-pointer overflow-hidden rounded-2xl border p-4 transition-colors duration-200 [content-visibility:auto] [contain-intrinsic-size:108px]",
                       isActive
                         ? "border-white/10 bg-white text-zinc-950 shadow-[0_18px_42px_-26px_rgba(255,255,255,0.5)] [.light_&]:border-zinc-950 [.light_&]:bg-zinc-950 [.light_&]:text-white [.light_&]:shadow-[0_18px_42px_-26px_rgba(0,0,0,0.45)]"
                         : "border-white/[0.045] bg-white/[0.018] text-zinc-300 hover:border-white/[0.09] hover:bg-white/[0.045] [.light_&]:border-zinc-200/60 [.light_&]:bg-white/55 [.light_&]:text-zinc-700 [.light_&]:hover:border-zinc-300 [.light_&]:hover:bg-white"
@@ -210,10 +219,10 @@ export const NotesListPanel = ({
                         {item.reference_date ? format(new Date(item.reference_date), "dd MMM", { locale: ptBR }) : "Agora"}
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
-            </AnimatePresence>
+            </>
           )}
         </div>
       </div>

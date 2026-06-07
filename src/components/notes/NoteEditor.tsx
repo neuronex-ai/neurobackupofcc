@@ -154,8 +154,15 @@ export const NoteEditor = ({
     const nextDraft = { ...latestDraftRef.current, ...updates };
     latestDraftRef.current = nextDraft;
     if (updates.title !== undefined) setTitle(updates.title);
-    if (updates.content !== undefined) setContent(updates.content);
-    setSaveStatus(draftsMatch(nextDraft, lastSavedDraftRef.current) ? 'saved' : 'pending');
+    const nextStatus = draftsMatch(nextDraft, lastSavedDraftRef.current) ? 'saved' : 'pending';
+    setSaveStatus(nextStatus);
+
+    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+    if (nextStatus === 'pending') {
+      autosaveTimeoutRef.current = setTimeout(() => {
+        void flushSaveRef.current();
+      }, 900);
+    }
   }, [draftsMatch]);
 
   const handleMetadataUpdate = useCallback(async (updates: any) => {
@@ -212,20 +219,6 @@ export const NoteEditor = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [flushSave]);
 
-  // Keep one serialized autosave queue per note.
-  useEffect(() => {
-    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
-    if (saveStatus !== 'pending') return;
-
-    autosaveTimeoutRef.current = setTimeout(() => {
-      void flushSave();
-    }, 900);
-
-    return () => {
-      if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
-    };
-  }, [content, flushSave, saveStatus, title]);
-
   useEffect(() => () => {
     if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
     void flushSaveRef.current();
@@ -251,8 +244,8 @@ export const NoteEditor = ({
   };
 
   const getPlainTextContent = useCallback(() => {
-    return content.replace(/<[^>]*>/g, '').trim();
-  }, [content]);
+    return latestDraftRef.current.content.replace(/<[^>]*>/g, '').trim();
+  }, []);
 
   const handleShareGoogleDocs = useCallback(async () => {
     const plainText = getPlainTextContent();
@@ -605,11 +598,11 @@ export const NoteEditor = ({
 
       {/* Editor Content Area */}
       <div className={cn(
-        "flex-1 overflow-y-auto custom-scrollbar bg-transparent relative z-10",
+        "notes-scroll-surface relative z-10 flex-1 overflow-y-auto overscroll-contain bg-transparent custom-scrollbar [scrollbar-gutter:stable]",
         isFocusMode ? "pt-40 pb-60" : ""
       )}>
         <div className={cn(
-          "max-w-[840px] mx-auto px-7 md:px-12 py-10 space-y-8 transition-all duration-1000",
+          "mx-auto max-w-[840px] space-y-8 px-7 py-10 md:px-12",
           isFocusMode ? "max-w-[1200px] py-40" : ""
         )}>
           {/* Header Metadata */}

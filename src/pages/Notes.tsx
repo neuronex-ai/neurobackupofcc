@@ -277,7 +277,7 @@ export default function Notes() {
     return (
         <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-background font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
             {/* Master Texture Overlay */}
-            <div className="fixed inset-0 z-[100] premium-noise opacity-[0.06] pointer-events-none mix-blend-overlay [.light_&]:opacity-[0.03]" />
+            <div className="fixed inset-0 z-[100] premium-noise opacity-[0.035] pointer-events-none mix-blend-overlay [.light_&]:opacity-[0.02]" />
 
             {/* Ambient Background Glows */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -296,7 +296,7 @@ export default function Notes() {
                     transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
                     className="group/main-window relative flex flex-1 overflow-hidden rounded-[30px] border border-white/[0.065] bg-white/[0.018] shadow-[0_24px_64px_-42px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.025)] backdrop-blur-2xl [.light_&]:border-zinc-200/75 [.light_&]:bg-white/62 [.light_&]:shadow-[0_24px_64px_-42px_rgba(24,24,27,0.22),inset_0_1px_0_rgba(255,255,255,0.9)]"
                 >
-                    <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.025] [.light_&]:opacity-[0.014]" />
+                    <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.016] [.light_&]:opacity-[0.01]" />
                     {!isFocusMode && (
                         <motion.div
                             initial={false}
@@ -337,6 +337,15 @@ export default function Notes() {
                     setViewMode('notes');
                 }}
             />
+            <style>{`
+                .notes-scroll-surface {
+                    scroll-behavior: auto !important;
+                    overscroll-behavior: contain;
+                    contain: layout paint;
+                    transform: translateZ(0);
+                    backface-visibility: hidden;
+                }
+            `}</style>
         </div>
     );
 }
