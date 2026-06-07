@@ -89,8 +89,8 @@ const AutoSaveField = memo(function AutoSaveField({
                 onChange={(e) => setValue(e.target.value)}
                 onBlur={handleBlur}
                 className={cn(
-                    "min-h-[132px] w-full resize-none overflow-hidden rounded-2xl border-border/70 bg-muted/45 p-5 text-[15px] leading-relaxed text-foreground transition-colors focus:ring-2 focus:ring-foreground/10",
-                    type === 'question' && "text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 min-h-[40px] py-2 px-3",
+                    "min-h-[128px] w-full resize-none overflow-hidden rounded-[22px] border border-zinc-200/70 bg-white/72 p-5 text-[15px] leading-relaxed text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_18px_42px_-34px_rgba(24,24,27,0.3)] outline-none transition-all duration-300 focus:border-zinc-300 focus:bg-white focus:ring-4 focus:ring-zinc-900/[0.035] dark:border-white/[0.075] dark:bg-[#0a0a0b]/72 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.035),0_20px_48px_-34px_rgba(0,0,0,0.95)] dark:focus:border-white/[0.14] dark:focus:bg-[#0d0d0f] dark:focus:ring-white/[0.045]",
+                    type === 'question' && "min-h-[42px] px-3 py-2 text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400",
                     className
                 )}
             />
@@ -101,14 +101,14 @@ const AutoSaveField = memo(function AutoSaveField({
         <div
             onClick={() => setIsEditing(true)}
             className={cn(
-                "group/field -mx-2 cursor-text rounded-xl px-2 transition-colors duration-200 hover:bg-muted/45",
+                "group/field -mx-2 cursor-text rounded-2xl px-2 transition-all duration-300 hover:bg-zinc-950/[0.035] dark:hover:bg-white/[0.035]",
                 type === 'question' ? "py-1" : "py-2 min-h-[2.5rem]"
             )}
         >
             <p className={cn(
                 type === 'question'
-                    ? "text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 group-hover/field:text-zinc-900 dark:group-hover/field:text-zinc-300 transition-colors"
-                    : "whitespace-pre-wrap break-words text-[15px] font-medium leading-relaxed text-foreground/88",
+                    ? "text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500/80 transition-colors group-hover/field:text-zinc-900 dark:text-zinc-500 dark:group-hover/field:text-zinc-200"
+                    : "whitespace-pre-wrap break-words text-[15px] font-medium leading-relaxed text-zinc-700 dark:text-zinc-300",
                 className
             )}>
                 {value || <span className="opacity-50 italic font-normal text-zinc-500">Clique para adicionar resposta...</span>}
@@ -129,12 +129,13 @@ const AnamnesisEntry = memo(function AnamnesisEntry({
     if (item.isSection) {
         return (
             <div
-                className="relative mb-2 pb-5 pt-8 first:pt-0"
+                className="relative mb-1 pb-4 pt-7 first:pt-0"
                 style={{ contentVisibility: "auto", containIntrinsicSize: "72px" }}
             >
-                <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                <div className="pointer-events-none absolute inset-x-6 top-1/2 h-px bg-gradient-to-r from-transparent via-zinc-950/10 to-transparent dark:via-white/[0.075]" />
                 <div className="relative z-10 flex justify-center">
-                    <div className="rounded-full border border-border/70 bg-card px-8 py-2 shadow-sm">
+                    <div className="relative overflow-hidden rounded-full border border-zinc-200/75 bg-white/84 px-8 py-2 shadow-[0_18px_44px_-36px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/[0.08] dark:bg-white/[0.035] dark:shadow-[0_20px_48px_-38px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.04)]">
+                        <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.016] dark:opacity-[0.024]" />
                         <AutoSaveField
                             type="question"
                             initialValue={item.question}
@@ -149,9 +150,12 @@ const AnamnesisEntry = memo(function AnamnesisEntry({
 
     return (
         <div
-            className="group/item relative rounded-[22px] border border-border/65 bg-card/48 p-6 shadow-[0_14px_38px_-34px_rgba(15,23,42,0.45)] transition-colors duration-200 hover:border-border hover:bg-card/72 dark:bg-white/[0.025] dark:hover:bg-white/[0.04] md:p-7"
+            className="group/item relative overflow-hidden rounded-[28px] border border-zinc-200/70 bg-white/64 p-6 shadow-[0_22px_54px_-44px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.76)] backdrop-blur-2xl transition-all duration-300 hover:border-zinc-300/80 hover:bg-white/86 hover:shadow-[0_28px_64px_-46px_rgba(24,24,27,0.5),inset_0_1px_0_rgba(255,255,255,0.88)] dark:border-white/[0.07] dark:bg-[#0a0a0b]/58 dark:shadow-[0_24px_58px_-42px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.032)] dark:hover:border-white/[0.115] dark:hover:bg-[#101012]/76 md:p-7"
             style={{ contentVisibility: "auto", containIntrinsicSize: "190px" }}
         >
+            <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.012] dark:opacity-[0.022]" />
+            <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-80 dark:via-white/[0.08]" />
+            <div className="pointer-events-none absolute -right-16 -top-16 h-36 w-36 rounded-full bg-zinc-950/[0.025] blur-3xl dark:bg-white/[0.035]" />
             <div className="relative z-10 mb-4">
                 <AutoSaveField
                     type="question"
@@ -473,20 +477,23 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
     };
 
     return (
-        <div className="flex h-[calc(100vh-220px)] w-full flex-col items-center overflow-hidden px-1 pb-8">
-            <div className="relative flex h-full w-full max-w-5xl flex-1 flex-col">
+        <div className="flex h-[calc(100vh-220px)] w-full flex-col items-center overflow-hidden px-1 pb-7">
+            <div className="relative flex h-full w-full max-w-5xl flex-1 flex-col px-0.5">
 
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                    className="group/doc-container relative flex h-full w-full flex-col overflow-hidden rounded-[26px] border border-border/70 bg-card/72 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.6)] backdrop-blur-xl dark:bg-[#0b0c0e]/86 dark:shadow-[0_24px_58px_-42px_rgba(0,0,0,0.95)]"
+                    className="group/doc-container relative flex h-full w-full flex-col overflow-hidden rounded-[30px] border border-zinc-200/75 bg-white/68 shadow-[0_26px_70px_-52px_rgba(24,24,27,0.45),inset_0_1px_0_rgba(255,255,255,0.88)] backdrop-blur-2xl dark:border-white/[0.075] dark:bg-[#08090b]/88 dark:shadow-[0_28px_72px_-50px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.035)]"
                 >
-                    <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.026]" />
+                    <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.026]" />
+                    <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-white/90 to-transparent opacity-75 dark:via-white/[0.08]" />
+                    <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-zinc-950/[0.035] blur-[96px] dark:bg-white/[0.035]" />
+                    <div className="pointer-events-none absolute -bottom-28 left-1/4 h-72 w-72 rounded-full bg-zinc-950/[0.02] blur-[110px] dark:bg-white/[0.018]" />
 
-                    <div className="relative z-20 flex flex-col items-center justify-between gap-4 border-b border-border/60 bg-background/28 p-6 backdrop-blur-md sm:flex-row">
+                    <div className="relative z-20 flex flex-col items-center justify-between gap-4 border-b border-zinc-200/65 bg-white/36 p-5 backdrop-blur-2xl dark:border-white/[0.06] dark:bg-white/[0.025] sm:flex-row sm:px-6">
                         <div className="flex items-center gap-4">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-foreground text-background shadow-sm">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200/70 bg-zinc-950 text-white shadow-[0_18px_38px_-24px_rgba(24,24,27,0.55)] dark:border-white/[0.08] dark:bg-white dark:text-zinc-950 dark:shadow-[0_18px_42px_-28px_rgba(255,255,255,0.3)]">
                                 <ClipboardList className="h-4.5 w-4.5" />
                             </div>
                             <div>
@@ -495,15 +502,15 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                             <AnimatePresence mode="wait">
                                 {saveStatus === 'saving' && (
-                                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-3 bg-zinc-50 dark:bg-white/5 px-5 py-2.5 rounded-full border border-zinc-100 dark:border-white/5 shadow-sm">
+                                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex items-center gap-3 rounded-full border border-zinc-200/70 bg-white/74 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 shadow-sm backdrop-blur-xl dark:border-white/[0.06] dark:bg-white/[0.045]">
                                         <Loader2 className="w-4 h-4 animate-spin" /> SALVANDO...
                                     </motion.div>
                                 )}
                                 {saveStatus === 'saved' && (
-                                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-900 dark:text-white flex items-center gap-3 bg-zinc-100 dark:bg-white/10 px-5 py-2.5 rounded-full border border-zinc-200 dark:border-white/5 shadow-lg">
+                                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex items-center gap-3 rounded-full border border-zinc-200/70 bg-zinc-950 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-[0_16px_38px_-28px_rgba(24,24,27,0.7)] dark:border-white/[0.08] dark:bg-white dark:text-zinc-950">
                                         <Check className="w-4 h-4" /> ATUALIZADO
                                     </motion.div>
                                 )}
@@ -511,11 +518,11 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border border-border/70 bg-muted/45 text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground">
+                                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl border border-zinc-200/70 bg-white/58 text-muted-foreground shadow-sm backdrop-blur-xl transition-all hover:bg-white hover:text-foreground active:scale-95 dark:border-white/[0.07] dark:bg-white/[0.04] dark:hover:bg-white/[0.08]">
                                         <MoreVertical className="h-5 w-5" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-72 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl border-zinc-200 dark:border-white/10 p-3 rounded-[32px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] ring-1 ring-black/5 dark:ring-white/5">
+                                <DropdownMenuContent align="end" className="w-72 rounded-[30px] border-zinc-200/75 bg-white/92 p-3 shadow-[0_32px_76px_-28px_rgba(24,24,27,0.35)] backdrop-blur-3xl ring-1 ring-black/[0.03] dark:border-white/[0.08] dark:bg-[#0a0a0b]/94 dark:shadow-[0_34px_88px_-28px_rgba(0,0,0,0.9)] dark:ring-white/[0.035]">
                                     <div className="px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-1">Ações do Documento</div>
                                     <DropdownMenuItem onClick={handleDownloadPDF} className="gap-4 rounded-2xl cursor-pointer text-zinc-700 dark:text-zinc-300 text-[11px] font-black uppercase tracking-widest py-4 px-5 hover:bg-zinc-50 dark:hover:bg-white/5 transition-all">
                                         <div className="p-2 rounded-xl bg-zinc-50 dark:bg-white/10"><FileDown className="h-4 w-4" /></div> Baixar PDF
@@ -552,18 +559,18 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
                         </div>
                     </div>
 
-                    <div className="anamnesis-scroll-surface custom-scrollbar relative z-10 flex-1 overflow-y-auto overscroll-contain p-6 [scrollbar-gutter:stable] sm:p-8">
-                        <div className="mx-auto max-w-4xl space-y-5">
+                    <div className="anamnesis-scroll-surface custom-scrollbar relative z-10 flex-1 overflow-y-auto overscroll-contain p-5 [scrollbar-gutter:stable] sm:p-7">
+                        <div className="mx-auto max-w-4xl space-y-4">
                             {visibleData.map((item, idx) => (
                                 <AnamnesisEntry key={`${item.isSection ? "section" : "field"}-${idx}`} item={item} index={idx} onUpdate={handleUpdate} />
                             ))}
                             {hiddenFieldsCount > 0 && (
-                                <div className="flex flex-col items-center gap-3 pt-2">
+                                <div className="flex flex-col items-center gap-3 pt-3">
                                     <Button
                                         type="button"
                                         variant="outline"
                                         onClick={handleLoadMoreFields}
-                                        className="h-12 rounded-2xl border-border/70 bg-background/70 px-6 text-[10px] font-black uppercase tracking-[0.18em] text-foreground shadow-sm transition-all hover:bg-muted active:scale-[0.98]"
+                                        className="h-12 rounded-2xl border-zinc-200/70 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.18em] text-foreground shadow-[0_18px_40px_-32px_rgba(24,24,27,0.45)] backdrop-blur-xl transition-all hover:bg-white active:scale-[0.98] dark:border-white/[0.075] dark:bg-white/[0.045] dark:hover:bg-white/[0.075]"
                                     >
                                         Carregar mais campos
                                     </Button>
@@ -580,30 +587,31 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
 
             <AnimatePresence>
                 {linkModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-xl p-4 overflow-y-auto">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/45 p-4 backdrop-blur-2xl">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
                             className="w-full max-w-md"
                         >
-                            <GlassCard className="p-8 relative shadow-[0_48px_96px_-24px_rgba(0,0,0,0.4)] border-white/10 bg-black/90 dark:bg-zinc-950/90 rounded-[40px] text-center">
+                            <GlassCard className="relative overflow-hidden rounded-[38px] border-zinc-200/75 bg-white/92 p-8 text-center text-zinc-950 shadow-[0_42px_110px_-34px_rgba(24,24,27,0.38)] backdrop-blur-3xl dark:border-white/[0.085] dark:bg-[#09090b]/94 dark:text-white dark:shadow-[0_48px_118px_-32px_rgba(0,0,0,0.92)]">
+                                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.03]" />
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => setLinkModalOpen(false)}
-                                    className="absolute top-6 right-6 text-zinc-500 hover:text-white rounded-xl h-10 w-10 bg-white/5 hover:bg-white/10 transition-all"
+                                    className="absolute right-6 top-6 h-10 w-10 rounded-2xl border border-zinc-200/70 bg-zinc-950/[0.035] text-zinc-500 transition-all hover:bg-zinc-950 hover:text-white active:scale-95 dark:border-white/[0.06] dark:bg-white/[0.05] dark:hover:bg-white dark:hover:text-zinc-950"
                                 >
                                     <X className="h-5 w-5" />
                                 </Button>
 
-                                <div className="flex flex-col items-center gap-6">
-                                    <div className="w-16 h-16 rounded-[24px] bg-white dark:bg-white text-zinc-900 flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.15)]">
+                                <div className="relative z-10 flex flex-col items-center gap-6">
+                                    <div className="flex h-16 w-16 items-center justify-center rounded-[24px] border border-zinc-200/70 bg-zinc-950 text-white shadow-[0_22px_52px_-34px_rgba(24,24,27,0.7)] dark:border-white/[0.08] dark:bg-white dark:text-zinc-950 dark:shadow-[0_0_34px_rgba(255,255,255,0.12)]">
                                         <ClipboardList className="h-8 w-8" />
                                     </div>
                                     <div className="space-y-2">
-                                        <h3 className="text-2xl font-black text-white tracking-tight leading-none">Portal Ativado</h3>
-                                        <p className="text-sm text-zinc-400 max-w-[280px] mx-auto leading-relaxed font-medium">
+                                        <h3 className="text-2xl font-black tracking-tight leading-none text-zinc-950 dark:text-white">Portal Ativado</h3>
+                                        <p className="mx-auto max-w-[280px] text-sm font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
                                             O link de preenchimento foi gerado com sucesso.
                                         </p>
                                     </div>
@@ -612,10 +620,10 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
                                         <div className="space-y-2 text-left">
                                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 block">Link de Acesso Único</label>
                                             <div className="flex gap-2">
-                                                <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] text-zinc-300 truncate font-mono tracking-wider">
+                                                <div className="flex-1 truncate rounded-2xl border border-zinc-200/70 bg-zinc-950/[0.035] px-4 py-3 font-mono text-[10px] tracking-wider text-zinc-600 shadow-inner dark:border-white/[0.075] dark:bg-white/[0.045] dark:text-zinc-300">
                                                     {`${window.location.origin}/anamnese-externa/${anamnesisId}`}
                                                 </div>
-                                                <Button size="icon" className="h-11 w-11 shrink-0 rounded-xl bg-white text-zinc-900 hover:scale-105 active:scale-95 transition-all shadow-xl" onClick={() => copyToClipboard(`${window.location.origin}/anamnese-externa/${anamnesisId}`)}>
+                                                <Button size="icon" className="h-11 w-11 shrink-0 rounded-2xl bg-zinc-950 text-white shadow-xl transition-all hover:scale-105 active:scale-95 dark:bg-white dark:text-zinc-950" onClick={() => copyToClipboard(`${window.location.origin}/anamnese-externa/${anamnesisId}`)}>
                                                     <Check className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -624,23 +632,23 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
                                         <div className="space-y-2 text-left">
                                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 block">Código de Segurança</label>
                                             <div className="flex gap-2">
-                                                <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-2xl font-black tracking-[0.4em] text-center text-white tabular-nums">
+                                                <div className="flex-1 rounded-2xl border border-zinc-200/70 bg-zinc-950/[0.035] px-4 py-3 text-center text-2xl font-black tracking-[0.4em] text-zinc-950 shadow-inner tabular-nums dark:border-white/[0.075] dark:bg-white/[0.045] dark:text-white">
                                                     {publicToken || <Loader2 className="h-6 w-6 animate-spin mx-auto text-white" />}
                                                 </div>
-                                                <Button size="icon" className="h-11 w-11 shrink-0 rounded-xl bg-white text-zinc-900 hover:scale-105 active:scale-95 transition-all shadow-xl" onClick={() => copyToClipboard(publicToken || "")}>
+                                                <Button size="icon" className="h-11 w-11 shrink-0 rounded-2xl bg-zinc-950 text-white shadow-xl transition-all hover:scale-105 active:scale-95 dark:bg-white dark:text-zinc-950" onClick={() => copyToClipboard(publicToken || "")}>
                                                     <Check className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-3 w-full pt-2">
-                                        <Button className="w-full h-14 bg-white text-zinc-900 hover:bg-zinc-100 rounded-[20px] font-black uppercase tracking-[0.15em] shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all text-[10px]" onClick={() => {
+                                        <Button className="h-14 w-full rounded-[20px] bg-zinc-950 text-[10px] font-black uppercase tracking-[0.15em] text-white shadow-2xl transition-all hover:scale-[1.02] hover:bg-zinc-800 active:scale-[0.98] dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100" onClick={() => {
                                             const text = `Olá! Segue o link para preenchimento da sua ficha de anamnese:\n\nLink: ${window.location.origin}/anamnese-externa/${anamnesisId}\nCódigo: ${publicToken}\n\nPor favor, preencha assim que possível.`;
                                             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                                         }}>
                                             <MessageCircle className="h-4 w-4 mr-3" /> WhatsApp
                                         </Button>
-                                        <Button variant="ghost" className="w-full h-11 text-zinc-400 hover:text-white rounded-[18px] font-bold uppercase tracking-widest text-[9px]" onClick={() => setLinkModalOpen(false)}>
+                                        <Button variant="ghost" className="h-11 w-full rounded-[18px] text-[9px] font-bold uppercase tracking-widest text-zinc-500 hover:bg-zinc-950/[0.045] hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white" onClick={() => setLinkModalOpen(false)}>
                                             Fechar Gerenciador
                                         </Button>
                                     </div>
@@ -653,33 +661,34 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
 
             <AnimatePresence>
                 {confirmDeleteOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-xl p-4 overflow-y-auto">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/45 p-4 backdrop-blur-2xl">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
                             className="w-full max-w-xs"
                         >
-                            <GlassCard className="p-8 relative flex flex-col items-center text-center gap-6 shadow-[0_48px_96px_-24px_rgba(0,0,0,0.4)] border-white/10 bg-black/90 dark:bg-zinc-950/90 rounded-[40px]">
-                                <div className="w-16 h-16 rounded-[24px] bg-white text-zinc-900 flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                            <GlassCard className="relative flex flex-col items-center gap-6 overflow-hidden rounded-[38px] border-zinc-200/75 bg-white/92 p-8 text-center text-zinc-950 shadow-[0_42px_110px_-34px_rgba(24,24,27,0.38)] backdrop-blur-3xl dark:border-white/[0.085] dark:bg-[#09090b]/94 dark:text-white dark:shadow-[0_48px_118px_-32px_rgba(0,0,0,0.92)]">
+                                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.03]" />
+                                <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-[24px] border border-rose-500/15 bg-rose-500/10 text-rose-500 shadow-[0_22px_52px_-34px_rgba(225,29,72,0.5)] dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-300">
                                     <Trash2 className="h-8 w-8" />
                                 </div>
-                                <div className="space-y-2">
-                                    <h3 className="text-2xl font-black text-white tracking-tighter leading-none">
+                                <div className="relative z-10 space-y-2">
+                                    <h3 className="text-2xl font-black tracking-tighter leading-none text-zinc-950 dark:text-white">
                                         Excluir Modelo?
                                     </h3>
-                                    <p className="text-sm text-zinc-400 leading-relaxed font-medium max-w-[240px]">
+                                    <p className="max-w-[240px] text-sm font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
                                         O modelo e todas as respostas preenchidas serão removidos permanentemente. Você poderá escolher um novo template ou importar um documento.
                                     </p>
                                 </div>
-                                <div className="flex flex-col gap-3 w-full">
+                                <div className="relative z-10 flex w-full flex-col gap-3">
                                     <Button
-                                        className="w-full h-14 bg-white text-zinc-900 hover:bg-zinc-100 rounded-[20px] font-black uppercase tracking-[0.15em] shadow-2xl transition-all text-[10px]"
+                                        className="h-14 w-full rounded-[20px] bg-zinc-950 text-[10px] font-black uppercase tracking-[0.15em] text-white shadow-2xl transition-all hover:bg-zinc-800 active:scale-[0.98] dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
                                         onClick={handleDelete}
                                     >
                                         Confirmar Exclusão
                                     </Button>
-                                    <Button variant="ghost" className="w-full h-11 text-zinc-400 hover:text-white rounded-[18px] font-bold uppercase tracking-widest text-[9px]" onClick={() => setConfirmDeleteOpen(false)}>
+                                    <Button variant="ghost" className="h-11 w-full rounded-[18px] text-[9px] font-bold uppercase tracking-widest text-zinc-500 hover:bg-zinc-950/[0.045] hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white" onClick={() => setConfirmDeleteOpen(false)}>
                                         Manter
                                     </Button>
                                 </div>

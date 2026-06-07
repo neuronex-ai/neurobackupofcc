@@ -21,11 +21,11 @@ interface PatientUnifiedTimelineProps {
 }
 
 const moodConfig: Record<number, { icon: any, color: string, label: string, bg: string, border: string }> = {
-    1: { icon: Angry, color: "text-zinc-600 dark:text-zinc-400", label: "Péssimo", bg: "bg-zinc-100 dark:bg-white/[0.02]", border: "border-zinc-200 dark:border-white/[0.06]" },
-    2: { icon: Frown, color: "text-zinc-600 dark:text-zinc-400", label: "Ruim", bg: "bg-zinc-100 dark:bg-white/[0.02]", border: "border-zinc-200 dark:border-white/[0.06]" },
-    3: { icon: Meh, color: "text-zinc-900 dark:text-zinc-100", label: "Neutro", bg: "bg-zinc-100 dark:bg-white/[0.02]", border: "border-zinc-200 dark:border-white/[0.06]" },
-    4: { icon: Smile, color: "text-zinc-900 dark:text-zinc-100", label: "Bem", bg: "bg-zinc-100 dark:bg-white/[0.02]", border: "border-zinc-200 dark:border-white/[0.06]" },
-    5: { icon: Laugh, color: "text-zinc-900 dark:text-zinc-100", label: "Ótimo", bg: "bg-zinc-100 dark:bg-white/[0.02]", border: "border-zinc-200 dark:border-white/[0.06]" },
+    1: { icon: Angry, color: "text-zinc-600 dark:text-zinc-400", label: "Péssimo", bg: "bg-white/64 dark:bg-[#0a0a0b]/58", border: "border-zinc-200/70 dark:border-white/[0.07]" },
+    2: { icon: Frown, color: "text-zinc-600 dark:text-zinc-400", label: "Ruim", bg: "bg-white/64 dark:bg-[#0a0a0b]/58", border: "border-zinc-200/70 dark:border-white/[0.07]" },
+    3: { icon: Meh, color: "text-zinc-900 dark:text-zinc-100", label: "Neutro", bg: "bg-white/64 dark:bg-[#0a0a0b]/58", border: "border-zinc-200/70 dark:border-white/[0.07]" },
+    4: { icon: Smile, color: "text-zinc-900 dark:text-zinc-100", label: "Bem", bg: "bg-white/64 dark:bg-[#0a0a0b]/58", border: "border-zinc-200/70 dark:border-white/[0.07]" },
+    5: { icon: Laugh, color: "text-zinc-900 dark:text-zinc-100", label: "Ótimo", bg: "bg-white/64 dark:bg-[#0a0a0b]/58", border: "border-zinc-200/70 dark:border-white/[0.07]" },
 };
 
 const ExpandableText = ({ text, className, limit = 150 }: { text: string, className?: string, limit?: number }) => {
@@ -94,16 +94,16 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
     if (!timeline || timeline.length === 0) {
         return (
-            <GlassCard className="!rounded-3xl !border-dashed !bg-card/45 !py-24 !text-center !shadow-none">
+            <GlassCard className="!rounded-[30px] !border-dashed !border-zinc-200/70 !bg-white/52 !py-24 !text-center !shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] !backdrop-blur-2xl dark:!border-white/[0.07] dark:!bg-[#0a0a0b]/52 dark:!shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted-foreground">Linha do tempo vazia</p>
             </GlassCard>
         );
     }
 
     return (
-        <div className="relative space-y-9 pb-24 pl-9 pt-3">
+        <div className="relative space-y-8 pb-24 pl-9 pr-1 pt-3">
             {/* Fine Filament Timeline Line */}
-            <div className="absolute bottom-8 left-[15px] top-0 z-0 w-px bg-gradient-to-b from-transparent via-border to-transparent" />
+            <div className="absolute bottom-8 left-[15px] top-0 z-0 w-px bg-gradient-to-b from-transparent via-zinc-950/12 to-transparent dark:via-white/[0.08]" />
 
             {timeline.map((item, index) => {
                 const isLatest = index === 0;
@@ -118,10 +118,10 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                     >
                         {/* Status/Type Connector Dot */}
                         <div className={cn(
-                            "absolute -left-[26px] top-5 z-10 h-3.5 w-3.5 rounded-full border-2 bg-background transition-colors duration-300",
+                            "absolute -left-[26px] top-5 z-10 h-3.5 w-3.5 rounded-full border-2 bg-background shadow-[0_0_0_4px_rgba(255,255,255,0.45)] transition-all duration-300 dark:shadow-[0_0_0_4px_rgba(255,255,255,0.025)]",
                             isLatest
-                                ? "scale-110 border-foreground shadow-[0_0_0_5px_hsl(var(--muted)/0.7)]"
-                                : "border-border"
+                                ? "scale-110 border-zinc-950 shadow-[0_0_0_5px_rgba(24,24,27,0.08)] dark:border-white dark:shadow-[0_0_0_5px_rgba(255,255,255,0.065)]"
+                                : "border-zinc-300 dark:border-white/[0.14]"
                         )} />
 
                         {/* Date Header Segment */}
@@ -138,9 +138,11 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                         <div className="group relative">
                             {item.type === 'note' && (
                                 <GlassCard
-                                    className="!rounded-3xl !border-border/70 !bg-card/72 !p-6 !shadow-[0_16px_44px_-36px_rgba(15,23,42,0.5)] !backdrop-blur-xl transition-colors duration-300 hover:!bg-card/90 dark:!bg-[#0d0e10]/78 dark:hover:!bg-[#111214]/88"
+                                    className="!rounded-[30px] !border-zinc-200/70 !bg-white/64 !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.45),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!border-white/[0.07] dark:!bg-[#0a0a0b]/58 dark:!shadow-[0_24px_62px_-44px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.032)] dark:hover:!border-white/[0.115] dark:hover:!bg-[#101012]/76"
                                     innerClassName="relative overflow-hidden"
                                 >
+                                    <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.012] dark:opacity-[0.022]" />
+                                    <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-80 dark:via-white/[0.08]" />
                                     <div className="relative z-10 mb-6 flex items-center justify-between">
                                         <div className="flex flex-col gap-2">
                                             <div className="flex items-center gap-3">
@@ -183,7 +185,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
                             {item.type === 'goal' && (
                                 <GlassCard
-                                    className="group !rounded-3xl !border-border/70 !bg-card/72 !p-6 !shadow-sm transition-colors duration-300 hover:!bg-card/90 dark:!bg-[#0d0e10]/78 dark:hover:!bg-[#111214]/88"
+                                    className="group !rounded-[30px] !border-zinc-200/70 !bg-white/64 !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!border-white/[0.07] dark:!bg-[#0a0a0b]/58 dark:!shadow-[0_24px_62px_-44px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.032)] dark:hover:!border-white/[0.115] dark:hover:!bg-[#101012]/76"
                                     innerClassName="flex items-center gap-5"
                                 >
                                     <div className={cn(
@@ -214,11 +216,12 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                                 const Icon = mood.icon;
                                 return (
                                     <GlassCard
-                                        className={cn("group relative overflow-hidden !rounded-3xl !p-6 !shadow-sm transition-colors duration-300", mood.bg, mood.border)}
+                                        className={cn("group relative overflow-hidden !rounded-[30px] !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!shadow-[0_24px_62px_-44px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.032)] dark:hover:!border-white/[0.115] dark:hover:!bg-[#101012]/76", mood.bg, mood.border)}
                                         innerClassName="flex items-center gap-5"
                                     >
-                                        <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/5 dark:bg-white/5 rounded-full blur-[100px] pointer-events-none" />
-                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-background/85 shadow-sm ring-1 ring-border/70">
+                                        <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.012] dark:opacity-[0.022]" />
+                                        <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-zinc-950/[0.025] blur-[90px] dark:bg-white/[0.035]" />
+                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-zinc-200/70 bg-white/74 shadow-sm ring-1 ring-white/60 dark:border-white/[0.07] dark:bg-white/[0.04] dark:ring-white/[0.035]">
                                             <Icon className={cn("h-6 w-6", mood.color)} />
                                         </div>
                                         <div className="flex flex-col gap-2">
@@ -236,7 +239,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
                             {item.type === 'document' && (
                                 <GlassCard
-                                    className="group !rounded-3xl !border-border/70 !bg-card/72 !p-6 !shadow-sm transition-colors duration-300 hover:!bg-card/90 dark:!bg-[#0d0e10]/78 dark:hover:!bg-[#111214]/88"
+                                    className="group !rounded-[30px] !border-zinc-200/70 !bg-white/64 !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!border-white/[0.07] dark:!bg-[#0a0a0b]/58 dark:!shadow-[0_24px_62px_-44px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.032)] dark:hover:!border-white/[0.115] dark:hover:!bg-[#101012]/76"
                                     innerClassName="flex items-center justify-between"
                                 >
                                     <div className="flex min-w-0 flex-1 items-center gap-5">
@@ -272,7 +275,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                         variant="outline"
                         disabled={isFetchingNextPage}
                         onClick={() => fetchNextPage()}
-                        className="h-12 rounded-2xl border-border/70 bg-background/75 px-6 text-[10px] font-black uppercase tracking-[0.18em] text-foreground shadow-sm transition-all hover:bg-muted active:scale-[0.98]"
+                        className="h-12 rounded-2xl border-zinc-200/70 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.18em] text-foreground shadow-[0_18px_40px_-32px_rgba(24,24,27,0.45)] backdrop-blur-xl transition-all hover:bg-white active:scale-[0.98] dark:border-white/[0.075] dark:bg-white/[0.045] dark:hover:bg-white/[0.075]"
                     >
                         {isFetchingNextPage ? (
                             <>
