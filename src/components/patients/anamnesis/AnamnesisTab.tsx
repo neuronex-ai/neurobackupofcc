@@ -8,6 +8,14 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
+const hasValidAnamnesisContent = (content: unknown) => {
+    if (Array.isArray(content)) return content.length > 0;
+    if (!content || typeof content !== "object") return false;
+
+    const fields = (content as { fields?: Record<string, unknown> }).fields;
+    return Boolean(fields && Object.keys(fields).length > 0);
+};
+
 export function AnamnesisTab() {
     const { id: patientId } = useParams<{ id: string }>();
     const [currentStep, setCurrentStep] = useState<'loading' | 'selection' | 'import' | 'template' | 'view'>('loading');
@@ -30,14 +38,12 @@ export function AnamnesisTab() {
             if (error) throw error;
 
             // Find the first record with valid content
-            const validRecord = records?.find(
-                r => r.content && Array.isArray(r.content) && r.content.length > 0
-            );
+            const validRecord = records?.find((record) => hasValidAnamnesisContent(record.content));
 
             if (validRecord) {
                 // Clean up any empty-content records
                 const emptyRecords = records?.filter(
-                    r => r.id !== validRecord.id && (!r.content || (Array.isArray(r.content) && r.content.length === 0))
+                    r => r.id !== validRecord.id && !hasValidAnamnesisContent(r.content)
                 );
                 if (emptyRecords && emptyRecords.length > 0) {
                     for (const r of emptyRecords) {
@@ -124,7 +130,8 @@ export function AnamnesisTab() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        transition={{ duration: 0.6 }}
+                        transition={{ duration: 0.3 }}
+                        className="h-full"
                     >
                         <ViewAnamnesis
                             onChangeTemplate={() => setCurrentStep('template')}

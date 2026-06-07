@@ -23,7 +23,7 @@ export const GlassCard = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: delay / 1000 }}
       className={cn(
-        "desktop-apple-surface overflow-hidden rounded-[28px]",
+        "bg-white/80 dark:bg-[#0A0A0B]/80 backdrop-blur-xl border border-zinc-200 dark:border-white/10 rounded-[32px] overflow-hidden shadow-xl",
         className
       )}
       {...props}

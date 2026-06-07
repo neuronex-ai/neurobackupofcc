@@ -64,7 +64,7 @@ export const NotesListPanel = ({
     return items.map((item) => {
       const content = item.content || "";
       const cached = excerptCacheRef.current.get(item.id);
-      if (cached?.content === content) return { ...item, excerpt: cached.excerpt };
+      if (cached && cached.content === content) return { ...item, excerpt: cached.excerpt };
 
       const excerpt = toPlainText(content).slice(0, 120);
       excerptCacheRef.current.set(item.id, { content, excerpt });

@@ -179,14 +179,14 @@ export default function DesktopAIChat() {
     };
 
     return (
-        <div className="desktop-page-canvas relative mx-5 flex h-[calc(100vh-theme(spacing.28))] overflow-hidden rounded-[30px] font-sans text-foreground selection:bg-primary/10 perspective-1000">
+        <div className="h-[calc(100vh-theme(spacing.28))] flex bg-background text-foreground font-sans overflow-hidden relative selection:bg-primary/10 rounded-t-[44px] shadow-2xl mx-4 ring-1 ring-border/10 perspective-1000">
 
             {/* Subtle Gradient Overlay for Depth */}
-            <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-foreground/[0.018] to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-b from-foreground/[0.02] to-transparent pointer-events-none z-10" />
 
             {/* Immersive Space Background */}
-            <div className="desktop-apple-shell pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[30px]">
-                <div className="absolute left-1/2 top-[-28%] h-[720px] w-[720px] -translate-x-1/2 rounded-full bg-zinc-400/[0.035] blur-[190px] dark:bg-white/[0.018]" />
+            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none bg-background">
+                <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-primary/[0.03] blur-[200px] rounded-full pointer-events-none" />
             </div>
 
             <DesktopVoiceOverlay
@@ -210,7 +210,7 @@ export default function DesktopAIChat() {
                             animate={{ x: 0 }}
                             exit={{ x: "-100%" }}
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            className="desktop-apple-shell absolute left-0 top-0 z-50 h-full w-full rounded-r-[28px] md:w-[350px]"
+                            className="absolute top-0 left-0 h-full w-full md:w-[350px] z-50 bg-card/95 backdrop-blur-3xl border-r border-border/10 shadow-2xl"
                         >
                             <ChatSidebar
                                 sessions={sessions}
@@ -230,13 +230,13 @@ export default function DesktopAIChat() {
 
                 {/* Header Section */}
                 {/* Header Section */}
-                <header className="absolute left-0 right-0 top-0 z-30 flex h-[76px] items-center justify-between border-b border-black/[0.055] bg-white/45 px-8 backdrop-blur-2xl dark:border-white/[0.055] dark:bg-[#090a0c]/58">
+                <header className="absolute top-0 left-0 right-0 h-[80px] px-8 flex items-center justify-between border-b border-border/5 bg-gradient-to-b from-background/80 to-background/40 backdrop-blur-md z-30">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setIsSidebarOpen(true)}
-                            className="desktop-tactile h-11 w-11 rounded-2xl text-muted-foreground ring-1 ring-transparent hover:bg-secondary/20 hover:text-foreground hover:ring-border/10"
+                            className="h-11 w-11 rounded-full hover:bg-secondary/20 text-muted-foreground hover:text-foreground transition-all ring-1 ring-transparent hover:ring-border/10"
                         >
                             <History className="h-5 w-5" />
                         </Button>
@@ -252,7 +252,7 @@ export default function DesktopAIChat() {
                             variant="outline"
                             size="sm"
                             onClick={() => setIsVoiceModeOpen(true)}
-                            className="desktop-tactile h-9 rounded-xl border-border/10 bg-secondary/10 px-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground shadow-sm hover:border-border/20 hover:bg-secondary/20 hover:text-foreground"
+                            className="h-8 px-4 rounded-full border-border/10 bg-secondary/10 hover:bg-secondary/20 hover:border-border/20 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all shadow-sm"
                         >
                             <Phone className="h-3 w-3 mr-2" /> Modo Voz
                         </Button>

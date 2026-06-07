@@ -15,7 +15,7 @@ const AnimatedWrapper = ({ children }: { children: React.ReactNode }) => (
     initial={{ opacity: 0, scale: 0.95, y: 10 }}
     animate={{ opacity: 1, scale: 1, y: 0 }}
     exit={{ opacity: 0, scale: 0.95, y: -10 }}
-    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+    transition={{ duration: 0.4, ease: [0.32, 0.72, 0, 1] }}
     className="h-full w-full"
   >
     {children}
@@ -24,16 +24,16 @@ const AnimatedWrapper = ({ children }: { children: React.ReactNode }) => (
 
 export const WorkspaceTabs = ({ patientId, patientName }: WorkspaceTabsProps) => {
   return (
-    <div className="desktop-apple-shell group relative flex flex-1 flex-col overflow-hidden rounded-[30px]">
+    <div className="flex-1 bg-white/40 dark:bg-[#050505]/40 backdrop-blur-[40px] border border-white/20 dark:border-white/5 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] rounded-[40px] flex flex-col overflow-hidden relative group">
       {/* Texture */}
       <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay pointer-events-none" />
 
       <Tabs defaultValue="workspace" className="flex flex-col h-full relative z-10">
-        <div className="px-6 pb-3 pt-6">
-          <TabsList className="grid w-full grid-cols-3 rounded-[18px] border border-black/[0.055] bg-black/[0.035] p-1 dark:border-white/[0.055] dark:bg-white/[0.035]">
+        <div className="px-8 pt-8 pb-4">
+          <TabsList className="grid w-full grid-cols-3 bg-black/5 dark:bg-white/5 p-1.5 rounded-full border border-black/5 dark:border-white/5">
             <TabsTrigger
               value="workspace"
-              className="desktop-tactile rounded-[14px] text-[10px] font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/[0.09] dark:data-[state=active]:text-white"
+              className="rounded-full text-[10px] uppercase font-bold tracking-wider data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-300 ease-apple"
             >
               <div className="flex items-center gap-2">
                 <NotebookPen className="h-3.5 w-3.5" />
@@ -42,7 +42,7 @@ export const WorkspaceTabs = ({ patientId, patientName }: WorkspaceTabsProps) =>
             </TabsTrigger>
             <TabsTrigger
               value="summary"
-              className="desktop-tactile rounded-[14px] text-[10px] font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/[0.09] dark:data-[state=active]:text-white"
+              className="rounded-full text-[10px] uppercase font-bold tracking-wider data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-300 ease-apple"
             >
               <div className="flex items-center gap-2">
                 <Sparkles className="h-3.5 w-3.5" />
@@ -51,7 +51,7 @@ export const WorkspaceTabs = ({ patientId, patientName }: WorkspaceTabsProps) =>
             </TabsTrigger>
             <TabsTrigger
               value="attachments"
-              className="desktop-tactile rounded-[14px] text-[10px] font-bold uppercase tracking-wider data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/[0.09] dark:data-[state=active]:text-white"
+              className="rounded-full text-[10px] uppercase font-bold tracking-wider data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm transition-all duration-300 ease-apple"
             >
               <div className="flex items-center gap-2">
                 <Paperclip className="h-3.5 w-3.5" />
@@ -61,7 +61,7 @@ export const WorkspaceTabs = ({ patientId, patientName }: WorkspaceTabsProps) =>
           </TabsList>
         </div>
 
-        <div className="relative mt-0 h-full flex-1 overflow-hidden p-6 pt-3">
+        <div className="flex-1 mt-0 p-8 pt-4 h-full overflow-hidden relative">
           <AnimatePresence mode="wait">
             <TabsContent value="workspace" className="h-full mt-0 m-0 p-0 outline-none">
               <AnimatedWrapper key="workspace">

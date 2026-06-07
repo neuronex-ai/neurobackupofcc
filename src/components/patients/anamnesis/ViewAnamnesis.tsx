@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Check, MoreVertical, FileDown, Mail, Trash2, RefreshCcw, ClipboardList, X } from "lucide-react";
@@ -24,7 +24,7 @@ interface ExtractedItem {
     isSection?: boolean;
 }
 
-const AutoSaveField = ({
+const AutoSaveField = memo(function AutoSaveField({
     initialValue,
     type,
     onSave,
@@ -34,7 +34,7 @@ const AutoSaveField = ({
     type: 'question' | 'answer';
     onSave: (val: string) => void;
     className?: string;
-}) => {
+}) {
     const [isEditing, setIsEditing] = useState(false);
     const [value, setValue] = useState(initialValue);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -67,7 +67,7 @@ const AutoSaveField = ({
                 onChange={(e) => setValue(e.target.value)}
                 onBlur={handleBlur}
                 className={cn(
-                    "w-full bg-zinc-100 dark:bg-black/40 border-zinc-300 dark:border-white/10 rounded-2xl focus:ring-4 focus:ring-zinc-900/5 dark:focus:ring-white/5 resize-none overflow-hidden transition-all duration-500 min-h-[160px] p-6 text-base md:text-lg text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-300 dark:placeholder:text-zinc-800",
+                    "min-h-[132px] w-full resize-none overflow-hidden rounded-2xl border-border/70 bg-muted/45 p-5 text-[15px] leading-relaxed text-foreground transition-colors focus:ring-2 focus:ring-foreground/10",
                     type === 'question' && "text-xs font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400 min-h-[40px] py-2 px-3",
                     className
                 )}
@@ -79,21 +79,76 @@ const AutoSaveField = ({
         <div
             onClick={() => setIsEditing(true)}
             className={cn(
-                "cursor-text transition-all duration-500 rounded-3xl hover:bg-zinc-100/50 dark:hover:bg-white/[0.03] px-2 -mx-2 group/field",
+                "group/field -mx-2 cursor-text rounded-xl px-2 transition-colors duration-200 hover:bg-muted/45",
                 type === 'question' ? "py-1" : "py-2 min-h-[2.5rem]"
             )}
         >
             <p className={cn(
                 type === 'question'
                     ? "text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 group-hover/field:text-zinc-900 dark:group-hover/field:text-zinc-300 transition-colors"
-                    : "text-base md:text-lg text-zinc-800 dark:text-zinc-200 font-medium leading-relaxed whitespace-pre-wrap break-words",
+                    : "whitespace-pre-wrap break-words text-[15px] font-medium leading-relaxed text-foreground/88",
                 className
             )}>
                 {value || <span className="opacity-50 italic font-normal text-zinc-500">Clique para adicionar resposta...</span>}
             </p>
         </div>
     );
-};
+});
+
+const AnamnesisEntry = memo(function AnamnesisEntry({
+    item,
+    index,
+    onUpdate,
+}: {
+    item: ExtractedItem;
+    index: number;
+    onUpdate: (index: number, field: 'question' | 'answer', value: string) => void;
+}) {
+    if (item.isSection) {
+        return (
+            <div
+                className="relative mb-2 pb-5 pt-8 first:pt-0"
+                style={{ contentVisibility: "auto", containIntrinsicSize: "72px" }}
+            >
+                <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                <div className="relative z-10 flex justify-center">
+                    <div className="rounded-full border border-border/70 bg-card px-8 py-2 shadow-sm">
+                        <AutoSaveField
+                            type="question"
+                            initialValue={item.question}
+                            onSave={(value) => onUpdate(index, 'question', value)}
+                            className="!text-center !text-[11px] !font-bold !uppercase !tracking-[0.24em] !text-foreground"
+                        />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div
+            className="group/item relative rounded-[22px] border border-border/65 bg-card/48 p-6 shadow-[0_14px_38px_-34px_rgba(15,23,42,0.45)] transition-colors duration-200 hover:border-border hover:bg-card/72 dark:bg-white/[0.025] dark:hover:bg-white/[0.04] md:p-7"
+            style={{ contentVisibility: "auto", containIntrinsicSize: "190px" }}
+        >
+            <div className="relative z-10 mb-4">
+                <AutoSaveField
+                    type="question"
+                    initialValue={item.question}
+                    onSave={(value) => onUpdate(index, 'question', value)}
+                    className="!text-[10px] !font-bold !uppercase !tracking-[0.2em] !text-muted-foreground"
+                />
+            </div>
+            <div className="relative z-10">
+                <AutoSaveField
+                    type="answer"
+                    initialValue={item.answer}
+                    onSave={(value) => onUpdate(index, 'answer', value)}
+                    className="!text-[15px] !font-medium !leading-relaxed !text-foreground/90"
+                />
+            </div>
+        </div>
+    );
+});
 
 interface ViewAnamnesisProps {
     onChangeTemplate?: () => void;
@@ -107,6 +162,7 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [anamnesisId, setAnamnesisId] = useState<string | null>(null);
     const [isSending, setIsSending] = useState(false);
+    const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const { isConnected: isGoogleConnected } = useGoogleAuth();
 
     const { data: profile } = useProfile();
@@ -120,18 +176,19 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
 
     const fetchAnamnesis = async () => {
         try {
-            // Small delay to ensure database consistency after save/import
-            await new Promise(r => setTimeout(r, 300));
-
             const { data: records, error } = await supabase
                 .from('patient_anamneses')
-                .select('*')
+                .select('id, content, updated_at')
                 .eq('patient_id', patientId)
-                .limit(1);
+                .order('updated_at', { ascending: false });
 
             if (error) throw error;
 
-            const record = records?.[0];
+            const record = records?.find((candidate) => {
+                const content = candidate.content as any;
+                return (Array.isArray(content) && content.length > 0)
+                    || Boolean(content && typeof content === 'object' && content.fields && Object.keys(content.fields).length > 0);
+            });
             if (record) {
                 setAnamnesisId(record.id);
                 let items: ExtractedItem[] = [];
@@ -199,14 +256,7 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
         };
     }, [anamnesisId]);
 
-    const handleUpdate = async (index: number, field: 'question' | 'answer', newValue: string) => {
-        const newData = [...data];
-        newData[index][field] = newValue;
-        setData(newData);
-        saveToDb(newData);
-    };
-
-    const saveToDb = async (newData: ExtractedItem[]) => {
+    const saveToDb = useCallback(async (newData: ExtractedItem[]) => {
         if (!anamnesisId) return;
 
         setSaveStatus('saving');
@@ -221,13 +271,28 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
 
             if (error) throw error;
             setSaveStatus('saved');
-            setTimeout(() => setSaveStatus('idle'), 2000);
+            if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+            saveStatusTimerRef.current = setTimeout(() => setSaveStatus('idle'), 1600);
         } catch (err) {
             console.error(err);
             toast.error("Erro ao salvar alteração");
             setSaveStatus('idle');
         }
-    };
+    }, [anamnesisId]);
+
+    const handleUpdate = useCallback((index: number, field: 'question' | 'answer', newValue: string) => {
+        setData((currentData) => {
+            const newData = currentData.map((item, itemIndex) => (
+                itemIndex === index ? { ...item, [field]: newValue } : item
+            ));
+            void saveToDb(newData);
+            return newData;
+        });
+    }, [saveToDb]);
+
+    useEffect(() => () => {
+        if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+    }, []);
 
     const getPDFData = (): DocumentPDFData => {
         const formattedContent = data.map(item =>
@@ -402,25 +467,25 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
     };
 
     return (
-        <div className="w-full flex flex-col items-center gap-8 animate-fade-in pb-12 px-1 h-[calc(100vh-220px)] overflow-hidden">
-            <div className="w-full max-w-5xl flex-1 flex flex-col gap-10 relative h-full">
+        <div className="flex h-[calc(100vh-220px)] w-full flex-col items-center overflow-hidden px-1 pb-8">
+            <div className="relative flex h-full w-full max-w-5xl flex-1 flex-col">
 
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                    className="w-full h-full bg-white dark:bg-zinc-950/40 backdrop-blur-3xl border border-zinc-200 dark:border-white/5 rounded-[48px] shadow-2xl relative overflow-hidden flex flex-col group/doc-container"
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    className="group/doc-container relative flex h-full w-full flex-col overflow-hidden rounded-[26px] border border-border/70 bg-card/72 shadow-[0_20px_54px_-42px_rgba(15,23,42,0.6)] backdrop-blur-xl dark:bg-[#0b0c0e]/86 dark:shadow-[0_24px_58px_-42px_rgba(0,0,0,0.95)]"
                 >
-                    <div className="absolute top-0 right-0 p-40 bg-zinc-100/50 dark:bg-white/5 rounded-full blur-[100px] pointer-events-none" />
+                    <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.026]" />
 
-                    <div className="flex flex-col sm:flex-row items-center justify-between p-10 border-b border-zinc-100 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-md z-20 relative gap-6">
-                        <div className="flex items-center gap-6">
-                            <div className="w-12 h-12 rounded-[20px] bg-zinc-900 dark:bg-white flex items-center justify-center text-white dark:text-zinc-900 shadow-xl ring-1 ring-zinc-200 dark:ring-white/10">
-                                <ClipboardList className="h-6 w-6" />
+                    <div className="relative z-20 flex flex-col items-center justify-between gap-4 border-b border-border/60 bg-background/28 p-6 backdrop-blur-md sm:flex-row">
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-foreground text-background shadow-sm">
+                                <ClipboardList className="h-4.5 w-4.5" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-100 tracking-tighter leading-none mb-1">Ficha de Anamnese</h3>
-                                <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em] leading-none">Documento Digital v4.0 • NeuroNex</p>
+                                <h3 className="mb-1 text-base font-bold leading-none tracking-tight text-foreground">Ficha de anamnese</h3>
+                                <p className="text-[9px] font-bold uppercase tracking-[0.2em] leading-none text-muted-foreground">Documento clínico • NeuroNex</p>
                             </div>
                         </div>
 
@@ -440,7 +505,7 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl bg-zinc-50 dark:bg-white/5 hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400 transition-all border border-zinc-100 dark:border-white/10 shadow-sm">
+                                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border border-border/70 bg-muted/45 text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground">
                                         <MoreVertical className="h-5 w-5" />
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -481,55 +546,12 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-10 sm:p-16 relative z-10 scroll-smooth">
-                        <div className="max-w-5xl mx-auto space-y-16">
+                    <div className="anamnesis-scroll-surface custom-scrollbar relative z-10 flex-1 overflow-y-auto overscroll-contain p-6 [scrollbar-gutter:stable] sm:p-8">
+                        <div className="mx-auto max-w-4xl space-y-5">
                             {data.map((item, idx) => (
-                                <motion.div
-                                    key={idx}
-                                    initial={{ opacity: 0, y: 30 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: true, margin: "-100px" }}
-                                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: idx * 0.05 }}
-                                    className="group/item"
-                                >
-                                    {item.isSection ? (
-                                        <div className="relative pt-12 pb-8 mb-4 first:pt-0">
-                                            <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-zinc-100 dark:via-white/10 to-transparent pointer-events-none" />
-                                            <div className="relative z-10 flex justify-center">
-                                                <div className="bg-white dark:bg-zinc-950 px-12 py-3 border border-zinc-200 dark:border-white/10 rounded-full shadow-xl ring-4 ring-zinc-50 dark:ring-black/20">
-                                                    <AutoSaveField
-                                                        type="question"
-                                                        initialValue={item.question}
-                                                        onSave={(val) => handleUpdate(idx, 'question', val)}
-                                                        className="!text-[12px] !text-zinc-900 dark:!text-white !uppercase !tracking-[0.4em] font-black text-center"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="relative p-10 md:p-12 rounded-[40px] bg-zinc-50/40 dark:bg-white/[0.01] border border-zinc-100 dark:border-white/[0.04] hover:border-zinc-300 dark:hover:border-white/10 hover:bg-white dark:hover:bg-white/[0.03] transition-all duration-700 group-hover/item:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.05)] group-hover/item:-translate-y-2">
-                                            <div className="absolute top-0 right-0 p-24 bg-zinc-900/5 dark:bg-white/5 rounded-full blur-[48px] opacity-0 group-hover/item:opacity-100 transition-opacity duration-700" />
-                                            <div className="mb-6 relative z-10">
-                                                <AutoSaveField
-                                                    type="question"
-                                                    initialValue={item.question}
-                                                    onSave={(val) => handleUpdate(idx, 'question', val)}
-                                                    className="!text-[10px] !font-black !text-zinc-400 dark:!text-zinc-500 !tracking-[0.3em] !uppercase transition-colors group-hover/item:text-zinc-900 dark:group-hover/item:text-white"
-                                                />
-                                            </div>
-                                            <div className="relative z-10">
-                                                <AutoSaveField
-                                                    type="answer"
-                                                    initialValue={item.answer}
-                                                    onSave={(val) => handleUpdate(idx, 'answer', val)}
-                                                    className="!text-lg md:text-xl !font-medium !text-zinc-900 dark:!text-zinc-200 !leading-relaxed"
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                </motion.div>
+                                <AnamnesisEntry key={`${item.isSection ? "section" : "field"}-${idx}`} item={item} index={idx} onUpdate={handleUpdate} />
                             ))}
-                            <div className="h-60" />
+                            <div className="h-20" />
                         </div>
                     </div>
                 </motion.div>

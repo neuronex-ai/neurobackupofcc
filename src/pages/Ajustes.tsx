@@ -133,12 +133,12 @@ const Ajustes = () => {
     if (callbackStatus) return <CallbackStatus status={callbackStatus} message={callbackMessage} onClose={() => setCallbackStatus(null)} />;
 
     return (
-        <div className="desktop-page-canvas flex min-h-screen w-full font-sans selection:bg-primary/20">
-            <div className="relative flex-1 space-y-8 pb-20">
-                <div className="relative z-10 mx-auto max-w-[1800px] space-y-8 px-6 pt-10 lg:px-8 xl:px-10">
+        <div className="w-full min-h-screen bg-background font-sans selection:bg-primary/20 flex">
+            <div className="flex-1 pb-24 relative space-y-10">
+                <div className="max-w-[1600px] mx-auto px-6 lg:px-8 xl:px-10 pt-16 relative z-10 space-y-12">
                     {/* Header - Floating Bar Style Polished */}
-                    <div className="relative z-40 w-full animate-in fade-in slide-in-from-top-4 duration-700">
-                        <div className="desktop-apple-shell group relative flex w-full items-center justify-between rounded-[26px] p-1.5 pl-3">
+                    <div className="mb-12 relative z-40 w-full animate-in fade-in slide-in-from-top-4 duration-700">
+                        <div className="w-full flex items-center justify-between p-1.5 pl-3 bg-white/80 dark:bg-zinc-950/60 backdrop-blur-3xl border border-zinc-200 dark:border-white/10 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.05)] ring-1 ring-black/5 dark:ring-white/5 relative overflow-hidden group">
 
                             {/* Subtle Inner Glow */}
                             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
@@ -177,18 +177,18 @@ const Ajustes = () => {
                     </div>
 
                     <div className="animate-fade-up">
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex w-full flex-col gap-7 md:flex-row">
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col md:flex-row gap-12">
 
                             {/* Sidebar Menu */}
-                            <div className="desktop-apple-surface w-full shrink-0 space-y-6 rounded-[26px] p-3 md:w-64">
-                                <TabsList className="flex h-auto w-full flex-col items-stretch gap-1 bg-transparent p-0">
+                            <div className="w-full md:w-64 shrink-0 space-y-8">
+                                <TabsList className="flex flex-col h-auto bg-transparent gap-1 w-full items-stretch p-0">
                                     {menuItems.map(item => (
                                         <TabsTrigger
                                             key={item.val}
                                             value={item.val}
                                             className={cn(
-                                                "desktop-tactile group relative justify-between px-3 py-3 rounded-[16px] text-xs font-semibold border border-transparent",
-                                                "data-[state=active]:bg-white dark:data-[state=active]:bg-white/[0.08] data-[state=active]:text-zinc-900 dark:data-[state=active]:text-foreground data-[state=active]:border-zinc-200 dark:data-[state=active]:border-white/10 data-[state=active]:shadow-sm",
+                                                "group relative justify-between px-4 py-3.5 rounded-2xl text-xs font-semibold transition-all duration-300 border border-transparent",
+                                                "data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-900 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-foreground data-[state=active]:border-zinc-200 dark:data-[state=active]:border-white/10 data-[state=active]:shadow-lg dark:data-[state=active]:shadow-[0_4px_12px_rgba(0,0,0,0.2)]",
                                                 "text-zinc-600 dark:text-muted-foreground hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900/40"
                                             )}
                                         >
@@ -211,13 +211,14 @@ const Ajustes = () => {
 
                             <div className="flex-1 min-w-0">
                                 <AnimatePresence mode="wait">
-                                    <div className="desktop-apple-shell min-h-[700px] w-full rounded-[30px] p-7 md:p-10">
+                                    <div className="min-h-[700px] w-full bg-white/60 dark:bg-zinc-950/15 backdrop-blur-[40px] backdrop-saturate-[1.8] border border-zinc-200 dark:border-white/15 rounded-[48px] p-8 md:p-12 relative overflow-hidden shadow-[0_12px_48px_-12px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_128px_-16px_rgba(0,0,0,0.7)] ring-1 ring-black/5 dark:ring-white/10">
 
                                         {/* Texture Overlay (4K Fidelity) */}
                                         <div className="absolute inset-0 pointer-events-none opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3column%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
 
                                         {/* Background Orbs - Monochromatic & High Fidelity */}
-                                        <div className="pointer-events-none absolute right-0 top-0 h-[420px] w-[420px] -translate-y-1/2 translate-x-1/2 rounded-full bg-zinc-400/[0.045] blur-[130px] dark:bg-white/[0.025]" />
+                                        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 dark:bg-primary/10 blur-[150px] rounded-full pointer-events-none -translate-y-1/2 translate-x-1/2 opacity-60" />
+                                        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-zinc-200/40 dark:bg-zinc-100/5 blur-[150px] rounded-full pointer-events-none translate-y-1/2 -translate-x-1/2 opacity-40" />
 
                                         <TabsContent value="profile" className="mt-0 animate-in fade-in zoom-in-95 duration-500 relative z-10">
                                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -372,7 +373,7 @@ const Ajustes = () => {
 
                                                 <div className="space-y-6">
                                                     {/* Google Workspace */}
-                                                    <div className="desktop-apple-surface group relative flex flex-col items-center justify-between gap-6 overflow-hidden rounded-[24px] p-6 md:flex-row">
+                                                    <div className="p-8 rounded-[40px] bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-white/10 flex flex-col md:flex-row items-center justify-between gap-8 group shadow-2xl hover:shadow-primary/5 transition-all relative overflow-hidden backdrop-blur-lg">
                                                         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-3xl pointer-events-none opacity-40" />
                                                         <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
                                                             <div className={cn(
@@ -398,10 +399,10 @@ const Ajustes = () => {
                                                             disabled={isLoadingGoogleAuth}
                                                             variant={isGoogleConnected ? "outline" : "default"}
                                                             className={cn(
-                                                                "desktop-tactile h-10 px-6 rounded-xl text-[10px] font-bold uppercase tracking-wider w-full md:w-auto",
+                                                                "h-10 px-6 rounded-xl text-[10px] font-bold uppercase tracking-wider w-full md:w-auto transition-all",
                                                                 isGoogleConnected
                                                                     ? "bg-transparent border-white/20 hover:bg-destructive/15 hover:text-destructive hover:border-destructive/40 shadow-xl"
-                                                                    : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-md"
+                                                                    : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl shadow-primary/30 hover:-translate-y-0.5"
                                                             )}
                                                         >
                                                             {isGoogleConnected ? "Desconectar" : "Conectar"}
@@ -409,7 +410,7 @@ const Ajustes = () => {
                                                     </div>
 
                                                     {/* Todoist */}
-                                                    <div className="desktop-apple-surface group relative flex flex-col items-center justify-between gap-6 overflow-hidden rounded-[24px] p-6 md:flex-row">
+                                                    <div className="p-8 rounded-[40px] bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-white/10 flex flex-col md:flex-row items-center justify-between gap-8 group shadow-2xl hover:shadow-red-500/5 transition-all relative overflow-hidden backdrop-blur-lg">
                                                         <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 blur-3xl pointer-events-none opacity-40" />
                                                         <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
                                                             <div className={cn(
@@ -435,10 +436,10 @@ const Ajustes = () => {
                                                             disabled={isLoadingTodoistAuth}
                                                             variant={isTodoistConnected ? "outline" : "default"}
                                                             className={cn(
-                                                                "desktop-tactile h-10 px-6 rounded-xl text-[10px] font-bold uppercase tracking-wider w-full md:w-auto",
+                                                                "h-10 px-6 rounded-xl text-[10px] font-bold uppercase tracking-wider w-full md:w-auto transition-all",
                                                                 isTodoistConnected
                                                                     ? "bg-transparent border-white/20 hover:bg-destructive/15 hover:text-destructive hover:border-destructive/40 shadow-xl"
-                                                                    : "bg-zinc-100 hover:bg-white text-zinc-950 shadow-md"
+                                                                    : "bg-zinc-100 hover:bg-white text-zinc-950 shadow-2xl hover:-translate-y-0.5"
                                                             )}
                                                         >
                                                             {isTodoistConnected ? "Desconectar" : "Conectar"}
@@ -446,7 +447,7 @@ const Ajustes = () => {
                                                     </div>
 
                                                     {/* Notion */}
-                                                    <div className="desktop-apple-surface group relative flex flex-col items-center justify-between gap-6 overflow-hidden rounded-[24px] p-6 md:flex-row">
+                                                    <div className="p-8 rounded-[40px] bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-white/10 flex flex-col md:flex-row items-center justify-between gap-8 group shadow-2xl hover:shadow-stone-500/5 transition-all relative overflow-hidden backdrop-blur-lg">
                                                         <div className="absolute top-0 right-0 w-32 h-32 bg-stone-500/10 blur-3xl pointer-events-none opacity-40" />
                                                         <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
                                                             <div className={cn(
@@ -472,10 +473,10 @@ const Ajustes = () => {
                                                             disabled={isLoadingNotionAuth}
                                                             variant={isNotionConnected ? "outline" : "default"}
                                                             className={cn(
-                                                                "desktop-tactile h-10 px-6 rounded-xl text-[10px] font-bold uppercase tracking-wider w-full md:w-auto",
+                                                                "h-10 px-6 rounded-xl text-[10px] font-bold uppercase tracking-wider w-full md:w-auto transition-all",
                                                                 isNotionConnected
                                                                     ? "bg-transparent border-white/20 hover:bg-destructive/15 hover:text-destructive hover:border-destructive/40 shadow-xl"
-                                                                    : "bg-stone-100 hover:bg-white text-stone-950 shadow-md"
+                                                                    : "bg-stone-100 hover:bg-white text-stone-950 shadow-2xl hover:-translate-y-0.5"
                                                             )}
                                                         >
                                                             {isNotionConnected ? "Desconectar" : "Conectar"}
@@ -484,7 +485,7 @@ const Ajustes = () => {
 
                                                 </div>
 
-                                                <div className="desktop-apple-surface relative overflow-hidden rounded-[26px] p-8">
+                                                <div className="relative overflow-hidden rounded-[40px] border border-zinc-200 dark:border-white/10 bg-white/70 dark:bg-zinc-950/60 p-8 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.35)] dark:shadow-[0_32px_120px_-36px_rgba(0,0,0,0.95)] backdrop-blur-2xl">
                                                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.65),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.5),transparent_45%)] dark:bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.12),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.05),transparent_45%)] pointer-events-none" />
                                                     <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] items-center">
                                                         <div className="space-y-5">

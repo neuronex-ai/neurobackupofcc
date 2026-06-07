@@ -70,7 +70,7 @@ const TeleconsultaCore = () => {
 
   if (activeAppointment) {
     return (
-      <div className="desktop-page-canvas relative min-h-screen overflow-hidden">
+      <div className="min-h-screen bg-background overflow-hidden relative">
         <ActiveSessionPanel
           activeAppointment={activeAppointment}
           patientName={activeAppointment.patient_name || 'Paciente'}
@@ -81,7 +81,7 @@ const TeleconsultaCore = () => {
   }
 
   return (
-    <div className="desktop-page-canvas relative min-h-screen overflow-hidden px-5 pb-10 pt-10 lg:px-8">
+    <div className="min-h-screen pb-12 page-spacing relative overflow-hidden">
       <UpcomingSessionsPanel
         upcomingSessions={upcomingSessions}
         activeAppointment={activeAppointment}

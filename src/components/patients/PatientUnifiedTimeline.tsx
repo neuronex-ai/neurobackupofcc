@@ -127,7 +127,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                         <div className="group relative">
                             {item.type === 'note' && (
                                 <GlassCard
-                                    className="!rounded-3xl !border-border/70 !bg-card/65 !p-6 !shadow-[0_16px_44px_-36px_rgba(15,23,42,0.5)] !backdrop-blur-xl transition-colors duration-300 hover:!bg-card/85 dark:!bg-white/[0.03]"
+                                    className="!rounded-3xl !border-border/70 !bg-card/72 !p-6 !shadow-[0_16px_44px_-36px_rgba(15,23,42,0.5)] !backdrop-blur-xl transition-colors duration-300 hover:!bg-card/90 dark:!bg-[#0d0e10]/78 dark:hover:!bg-[#111214]/88"
                                     innerClassName="relative overflow-hidden"
                                 >
                                     <div className="relative z-10 mb-6 flex items-center justify-between">
@@ -172,7 +172,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
                             {item.type === 'goal' && (
                                 <GlassCard
-                                    className="group !rounded-3xl !border-border/70 !bg-card/65 !p-6 !shadow-sm transition-colors duration-300 hover:!bg-card/85 dark:!bg-white/[0.03]"
+                                    className="group !rounded-3xl !border-border/70 !bg-card/72 !p-6 !shadow-sm transition-colors duration-300 hover:!bg-card/90 dark:!bg-[#0d0e10]/78 dark:hover:!bg-[#111214]/88"
                                     innerClassName="flex items-center gap-5"
                                 >
                                     <div className={cn(
@@ -225,7 +225,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
                             {item.type === 'document' && (
                                 <GlassCard
-                                    className="group !rounded-3xl !border-border/70 !bg-card/65 !p-6 !shadow-sm transition-colors duration-300 hover:!bg-card/85 dark:!bg-white/[0.03]"
+                                    className="group !rounded-3xl !border-border/70 !bg-card/72 !p-6 !shadow-sm transition-colors duration-300 hover:!bg-card/90 dark:!bg-[#0d0e10]/78 dark:hover:!bg-[#111214]/88"
                                     innerClassName="flex items-center justify-between"
                                 >
                                     <div className="flex min-w-0 flex-1 items-center gap-5">
