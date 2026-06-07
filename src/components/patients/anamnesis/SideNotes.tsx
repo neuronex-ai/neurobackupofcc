@@ -39,15 +39,15 @@ const NoteItem = ({ note, onDelete }: { note: any, onDelete: (id: string) => voi
             <div
                 onClick={() => setIsExpanded(!isExpanded)}
                 className={cn(
-                    "relative rounded-[28px] border transition-all duration-700 cursor-pointer overflow-hidden",
+                    "relative cursor-pointer overflow-hidden rounded-2xl border transition-colors duration-300",
                     isExpanded
-                        ? "bg-white dark:bg-white/[0.06] border-zinc-200 dark:border-white/15 shadow-2xl"
+                        ? "border-border bg-background/80 shadow-sm dark:bg-white/[0.055]"
                         : "bg-transparent border-transparent hover:bg-zinc-100 dark:hover:bg-white/[0.04] hover:border-zinc-200/50 dark:hover:border-white/10 h-14 flex items-center group/card"
                 )}
             >
                 <div className={cn("flex items-center justify-between w-full px-6", isExpanded ? "pt-8 pb-3 items-start" : "")}>
                     <div className="flex items-center gap-5 min-w-0 flex-1">
-                        <div className={cn("w-2 h-2 rounded-full transition-all duration-700", isExpanded ? "bg-zinc-900 dark:bg-white scale-150 shadow-[0_0_12px_rgba(255,255,255,0.3)]" : "bg-zinc-300 dark:bg-zinc-700")} />
+                        <div className={cn("h-2 w-2 rounded-full transition-transform duration-300", isExpanded ? "scale-125 bg-foreground" : "bg-muted-foreground/35")} />
                         <h3 className={cn("font-black transition-colors truncate text-xs tracking-tight",
                             isExpanded
                                 ? "text-zinc-900 dark:text-white uppercase tracking-widest"
@@ -139,24 +139,24 @@ export function SideNotes() {
     };
 
     return (
-        <div className="h-full flex flex-col w-full relative overflow-hidden bg-white dark:bg-[#080809] backdrop-blur-3xl border border-zinc-200 dark:border-white/[0.08] shadow-2xl rounded-[40px]">
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card/68 shadow-[0_18px_48px_-38px_rgba(15,23,42,0.55)] backdrop-blur-xl dark:bg-white/[0.025]">
             {/* Header */}
-            <div className="flex-none p-10 border-b border-zinc-100 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-md relative z-20">
+            <div className="relative z-20 flex-none border-b border-border/60 bg-background/35 p-6 backdrop-blur-md">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-6">
-                        <div className="w-12 h-12 rounded-[22px] bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border border-zinc-900/10 dark:border-white/10 flex items-center justify-center shadow-2xl transition-transform hover:scale-105 duration-700">
-                            <StickyNote className="w-5.5 h-5.5" />
+                    <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/70 bg-foreground text-background shadow-sm">
+                            <StickyNote className="h-4.5 w-4.5" />
                         </div>
                         <div>
-                            <h2 className="text-base font-black text-zinc-900 dark:text-white tracking-tighter leading-none mb-2">Notas Rápidas</h2>
-                            <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.35em] leading-none">Arquivo Pessoal</p>
+                            <h2 className="mb-1.5 text-sm font-bold leading-none tracking-tight text-foreground">Notas rápidas</h2>
+                            <p className="text-[9px] font-bold uppercase tracking-[0.22em] leading-none text-muted-foreground">Arquivo pessoal</p>
                         </div>
                     </div>
                     <Button
                         size="icon"
                         onClick={() => setIsAdding(!isAdding)}
                         className={cn(
-                            "w-12 h-12 rounded-[22px] transition-all duration-700 shadow-2xl active:scale-90",
+                            "h-10 w-10 rounded-xl transition-all duration-300 shadow-sm active:scale-95",
                             isAdding
                                 ? "bg-rose-500 hover:bg-rose-600 text-white rotate-45"
                                 : "bg-zinc-100 dark:bg-white/[0.06] text-zinc-600 dark:text-zinc-400 hover:bg-zinc-900 dark:hover:bg-white hover:text-white dark:hover:text-zinc-900 border border-zinc-200 dark:border-white/10"
@@ -168,7 +168,7 @@ export function SideNotes() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 sm:p-10 relative z-10">
+            <div className="custom-scrollbar relative z-10 flex-1 overflow-y-auto overscroll-contain p-5 [scrollbar-gutter:stable]">
                 <AnimatePresence mode="popLayout">
                     {isAdding && (
                         <motion.div
@@ -176,10 +176,10 @@ export function SideNotes() {
                             initial={{ opacity: 0, y: -20, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                            className="mb-10 relative z-20"
+                            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                            className="relative z-20 mb-6"
                         >
-                            <div className="p-10 rounded-[40px] bg-zinc-50 dark:bg-[#0C0C0E] border border-zinc-300 dark:border-white/10 shadow-[0_48px_96px_-24px_rgba(0,0,0,0.2)] flex flex-col gap-8 focus-within:ring-4 focus-within:ring-zinc-900/5 dark:focus-within:ring-white/5 transition-all duration-700 ring-1 ring-black/5">
+                            <div className="flex flex-col gap-5 rounded-2xl border border-border/70 bg-muted/35 p-5 shadow-sm ring-1 ring-black/[0.02] transition-shadow duration-300 focus-within:shadow-md dark:ring-white/[0.03]">
                                 <Input
                                     placeholder="Título do registro..."
                                     value={newNote.title}
@@ -197,7 +197,7 @@ export function SideNotes() {
                                         size="sm"
                                         onClick={handleAddNote}
                                         disabled={isSaving}
-                                        className="h-14 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:scale-105 active:scale-95 rounded-[22px] px-12 text-[11px] font-black uppercase tracking-[0.3em] transition-all shadow-2xl"
+                                    className="h-11 rounded-xl bg-foreground px-7 text-[10px] font-bold uppercase tracking-[0.2em] text-background shadow-sm transition-transform active:scale-95"
                                     >
                                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-3" /> : <SaveIcon className="w-4 h-4 mr-3" />}
                                         {isSaving ? "GRAVANDO..." : "SALVAR NOTA"}

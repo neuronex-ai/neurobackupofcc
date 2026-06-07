@@ -74,7 +74,7 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
 
   if (!latestNote?.ai_summary) {
     return (
-      <div className="p-8 rounded-[32px] bg-card/40 border border-dashed border-border/10 text-center text-xs text-muted-foreground italic tracking-tight">
+      <div className="rounded-3xl border border-dashed border-border/70 bg-card/45 px-6 py-10 text-center text-sm text-muted-foreground">
         Nenhum registro de análise clínica disponível para a sessão mais recente.
       </div>
     );
@@ -120,7 +120,7 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
   };
 
   const handleDownloadPDF = async () => {
-    const data = getPDFData(summary.summary, "RESUMO CLÍNICO DA ÚLTIMA SESSáO");
+    const data = getPDFData(summary.summary, "RESUMO CLÍNICO DA ÚLTIMA SESSÃO");
     await downloadDocumentPDF(data, `resumo_${patient.name}.pdf`);
   };
 
@@ -209,19 +209,19 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative p-6 sm:p-10 rounded-[40px] bg-white dark:bg-zinc-900/40 backdrop-blur-3xl border border-zinc-200 dark:border-white/5 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.05)] dark:shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden group/card"
+        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        className="group/card relative overflow-hidden rounded-[26px] border border-border/70 bg-card/72 p-6 shadow-[0_18px_48px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:p-7 dark:bg-white/[0.035] dark:shadow-[0_18px_48px_-36px_rgba(0,0,0,0.9)]"
       >
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 blur-[120px] rounded-full pointer-events-none opacity-50 group-hover/card:opacity-70 transition-opacity duration-700" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 blur-[100px] rounded-full pointer-events-none opacity-30" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.025] dark:opacity-[0.045] [background-image:url('/noise.png')]" />
 
-        <div className="flex items-start justify-between mb-6 relative z-10">
+        <div className="relative z-10 mb-6 flex items-start justify-between gap-4">
           <div className="flex flex-col gap-2">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400 dark:text-zinc-500 block mb-1">Synapse AI</span>
-              <span className="text-xl font-bold text-zinc-900 dark:text-white block tracking-tight">Resumo da Sessão</span>
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Synapse AI</span>
+              <span className="block text-lg font-bold tracking-tight text-foreground">Resumo da sessão</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 text-[10px] font-bold uppercase tracking-widest w-fit backdrop-blur-md mb-1">
-              <SentimentIcon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
+            <div className="mb-1 flex w-fit items-center gap-2 rounded-full border border-border/70 bg-muted/55 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <SentimentIcon className="h-3.5 w-3.5" />
               <span>{summary.sentiment}</span>
             </div>
           </div>
@@ -229,19 +229,19 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full border border-white/5 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border border-border/70 bg-muted/45 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                   <MoreVertical className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 glass-panel border-white/10 bg-zinc-950/90 backdrop-blur-2xl p-2 shadow-2xl">
-                <DropdownMenuItem onClick={handleDownloadPDF} className="gap-3 rounded-xl py-3 cursor-pointer text-zinc-300 focus:bg-white/10 focus:text-white">
+              <DropdownMenuContent align="end" className="w-64 border-border/70 bg-popover/95 p-2 text-popover-foreground shadow-xl backdrop-blur-xl">
+                <DropdownMenuItem onClick={handleDownloadPDF} className="cursor-pointer gap-3 rounded-lg py-2.5">
                   <FileDown className="h-4 w-4 text-blue-400" /> Baixar PDF
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleSendEmail} disabled={isSending} className="gap-3 rounded-xl py-3 cursor-pointer text-zinc-300 focus:bg-white/10 focus:text-white">
+                <DropdownMenuItem onClick={handleSendEmail} disabled={isSending} className="cursor-pointer gap-3 rounded-lg py-2.5">
                   {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4 text-emerald-400" />}
                   Enviar por E-mail
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleWhatsApp} className="gap-3 rounded-xl py-3 cursor-pointer text-zinc-300 focus:bg-white/10 focus:text-white">
+                <DropdownMenuItem onClick={handleWhatsApp} className="cursor-pointer gap-3 rounded-lg py-2.5">
                   <MessageSquare className="h-4 w-4 text-green-400" /> WhatsApp
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-white/10 my-1" />
@@ -307,11 +307,11 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
         )}
 
         {summary.next_steps && summary.next_steps.length > 0 && (
-          <div className="relative z-10 pt-8 border-t border-white/5 group/steps">
-            <div className="flex justify-between items-center mb-6">
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-400 flex items-center gap-3">
+          <div className="group/steps relative z-10 border-t border-border/65 pt-6">
+            <div className="mb-5 flex items-center justify-between">
+              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                Intervencoes Sugeridas
+                Intervenções sugeridas
               </div>
               <Button
                 variant="ghost"

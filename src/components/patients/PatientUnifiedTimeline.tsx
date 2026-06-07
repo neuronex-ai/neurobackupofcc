@@ -70,11 +70,11 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
     if (isLoading) {
         return (
-            <div className="space-y-12 pl-12 py-10">
+            <div className="space-y-8 py-8 pl-9">
                 {[1, 2].map((i) => (
                     <div key={i} className="relative">
                         <Skeleton className="h-4 w-32 bg-zinc-100 dark:bg-zinc-800 rounded mb-4" />
-                        <Skeleton className="h-40 w-full bg-zinc-100 dark:bg-zinc-800 rounded-[32px]" />
+                        <Skeleton className="h-36 w-full rounded-3xl bg-muted" />
                     </div>
                 ))}
             </div>
@@ -83,43 +83,43 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
     if (!timeline || timeline.length === 0) {
         return (
-            <GlassCard className="flex flex-col items-center justify-center py-32 text-center border-dashed">
-                <p className="text-sm font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-[0.3em]">Linha do Tempo Vazia</p>
+            <GlassCard className="!rounded-3xl !border-dashed !bg-card/45 !py-24 !text-center !shadow-none">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted-foreground">Linha do tempo vazia</p>
             </GlassCard>
         );
     }
 
     return (
-        <div className="relative pl-12 space-y-16 pt-4 pb-40">
+        <div className="relative space-y-9 pb-24 pl-9 pt-3">
             {/* Fine Filament Timeline Line */}
-            <div className="absolute left-[24px] top-0 bottom-10 w-[1px] bg-gradient-to-b from-transparent via-zinc-200 dark:via-white/20 to-transparent z-0" />
+            <div className="absolute bottom-8 left-[15px] top-0 z-0 w-px bg-gradient-to-b from-transparent via-border to-transparent" />
 
             {timeline.map((item, index) => {
                 const isLatest = index === 0;
                 return (
                     <motion.div
                         key={`${item.type}-${item.id}`}
-                        initial={{ opacity: 0, x: -20 }}
+                        initial={{ opacity: 0, x: -10 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true, margin: "-100px" }}
-                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: index * 0.05 }}
+                        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                         className="relative"
                     >
                         {/* Status/Type Connector Dot */}
                         <div className={cn(
-                            "absolute -left-[33px] top-6 w-4.5 h-4.5 rounded-full z-10 transition-all duration-700 border-2 bg-white dark:bg-[#080809]",
+                            "absolute -left-[26px] top-5 z-10 h-3.5 w-3.5 rounded-full border-2 bg-background transition-colors duration-300",
                             isLatest
-                                ? "border-zinc-900 dark:border-white shadow-[0_0_20px_rgba(255,255,255,0.2)] scale-110"
-                                : "border-zinc-200 dark:border-zinc-800"
+                                ? "scale-110 border-foreground shadow-[0_0_0_5px_hsl(var(--muted)/0.7)]"
+                                : "border-border"
                         )} />
 
                         {/* Date Header Segment */}
-                        <div className="mb-8 pl-2 flex items-center gap-6">
-                            <span className="text-[11px] font-black text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.4em]">
+                        <div className="mb-4 flex items-center gap-4 pl-1">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
                                 {format(item.date, "dd 'de' MMMM", { locale: ptBR })}
                             </span>
                             {isLatest && (
-                                <div className="h-px w-16 bg-gradient-to-r from-zinc-200 dark:from-white/20 to-transparent" />
+                                <div className="h-px w-12 bg-gradient-to-r from-border to-transparent" />
                             )}
                         </div>
 
@@ -127,28 +127,26 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                         <div className="group relative">
                             {item.type === 'note' && (
                                 <GlassCard
-                                    className="p-10 hover:-translate-y-1.5 transition-all duration-700 shadow-sm hover:shadow-2xl"
+                                    className="!rounded-3xl !border-border/70 !bg-card/65 !p-6 !shadow-[0_16px_44px_-36px_rgba(15,23,42,0.5)] !backdrop-blur-xl transition-colors duration-300 hover:!bg-card/85 dark:!bg-white/[0.03]"
                                     innerClassName="relative overflow-hidden"
                                 >
-                                    <div className="absolute top-0 right-0 p-32 bg-zinc-500/5 dark:bg-white/[0.03] rounded-full blur-[80px] pointer-events-none group-hover:bg-zinc-500/10 dark:group-hover:bg-white/10 transition-all duration-700 opacity-0 group-hover:opacity-100" />
-
-                                    <div className="flex items-center justify-between mb-10 relative z-10">
+                                    <div className="relative z-10 mb-6 flex items-center justify-between">
                                         <div className="flex flex-col gap-2">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-2 h-2 rounded-full bg-zinc-900 dark:bg-white animate-pulse shadow-[0_0_10px_rgba(255,255,255,0.3)]" />
-                                                <h4 className="text-base font-black text-zinc-900 dark:text-white tracking-tighter uppercase">
-                                                    Registro de Sessão
+                                                <h4 className="text-sm font-bold tracking-tight text-foreground">
+                                                    Registro de sessão
                                                 </h4>
                                             </div>
-                                            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-[0.3em] flex items-center gap-3">
+                                            <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                                                 {format(item.date, "HH:mm")} <span className="w-1.5 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800" /> {item.data.ai_summary?.sentiment || "Estável"}
                                             </p>
                                         </div>
-                                        <BrainCircuit className="h-6 w-6 text-zinc-200 dark:text-zinc-800 opacity-40" />
+                                        <BrainCircuit className="h-5 w-5 text-muted-foreground/45" />
                                     </div>
 
                                     {item.data.ai_summary ? (
-                                        <div className="space-y-8 relative z-10">
+                                        <div className="relative z-10 space-y-5">
                                             <ExpandableText
                                                 text={item.data.ai_summary.summary}
                                                 className="text-sm md:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed font-medium"
@@ -174,22 +172,22 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
                             {item.type === 'goal' && (
                                 <GlassCard
-                                    className="p-8 md:p-10 hover:shadow-2xl transition-all duration-700 group"
-                                    innerClassName="flex items-center gap-8"
+                                    className="group !rounded-3xl !border-border/70 !bg-card/65 !p-6 !shadow-sm transition-colors duration-300 hover:!bg-card/85 dark:!bg-white/[0.03]"
+                                    innerClassName="flex items-center gap-5"
                                 >
                                     <div className={cn(
-                                        "w-16 h-16 rounded-[24px] shrink-0 transition-all duration-700 group-hover:scale-110 flex items-center justify-center border-2",
+                                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-colors duration-300",
                                         item.data.is_completed
                                             ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-black border-zinc-900 dark:border-white shadow-xl"
                                             : "bg-zinc-100 dark:bg-white/[0.03] text-zinc-400 dark:text-zinc-600 border-zinc-200/50 dark:border-white/[0.06]"
                                     )}>
-                                        {item.data.is_completed ? <CheckCircle2 className="h-7 w-7" /> : <Target className="h-7 w-7" />}
+                                        {item.data.is_completed ? <CheckCircle2 className="h-5 w-5" /> : <Target className="h-5 w-5" />}
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <span className="text-[11px] text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.35em] font-black">
                                             {item.data.is_completed ? "Meta Alcançada" : "Evolução de Objetivo"}
                                         </span>
-                                        <p className={cn("text-lg font-black tracking-tighter",
+                                        <p className={cn("text-base font-bold tracking-tight",
                                             item.data.is_completed
                                                 ? "text-zinc-400 dark:text-zinc-600 line-through decoration-zinc-300 dark:decoration-zinc-700"
                                                 : "text-zinc-900 dark:text-white"
@@ -205,16 +203,16 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                                 const Icon = mood.icon;
                                 return (
                                     <GlassCard
-                                        className={cn("p-8 md:p-10 group hover:shadow-2xl transition-all duration-700 overflow-hidden relative", mood.bg, mood.border)}
-                                        innerClassName="flex items-center gap-8"
+                                        className={cn("group relative overflow-hidden !rounded-3xl !p-6 !shadow-sm transition-colors duration-300", mood.bg, mood.border)}
+                                        innerClassName="flex items-center gap-5"
                                     >
                                         <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/5 dark:bg-white/5 rounded-full blur-[100px] pointer-events-none" />
-                                        <div className="w-16 h-16 rounded-[24px] bg-white dark:bg-[#080809] shadow-xl ring-1 ring-zinc-900/5 dark:ring-white/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-700">
-                                            <Icon className={cn("h-8 w-8", mood.color)} />
+                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-background/85 shadow-sm ring-1 ring-border/70">
+                                            <Icon className={cn("h-6 w-6", mood.color)} />
                                         </div>
                                         <div className="flex flex-col gap-2">
                                             <span className="text-[11px] uppercase tracking-[0.4em] font-black text-zinc-400 dark:text-zinc-600">Bem-estar Diário</span>
-                                            <p className="text-lg font-black text-zinc-900 dark:text-white tracking-tighter uppercase">{mood.label}</p>
+                                            <p className="text-base font-bold tracking-tight text-foreground">{mood.label}</p>
                                             {item.data.notes && (
                                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 italic mt-3 line-clamp-2 font-medium bg-white/50 dark:bg-black/20 px-4 py-2 rounded-xl border border-zinc-200/50 dark:border-white/[0.06] shadow-inner">
                                                     "{item.data.notes}"
@@ -227,16 +225,16 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
                             {item.type === 'document' && (
                                 <GlassCard
-                                    className="p-8 md:p-10 group hover:shadow-2xl transition-all duration-700"
+                                    className="group !rounded-3xl !border-border/70 !bg-card/65 !p-6 !shadow-sm transition-colors duration-300 hover:!bg-card/85 dark:!bg-white/[0.03]"
                                     innerClassName="flex items-center justify-between"
                                 >
-                                    <div className="flex items-center gap-8 flex-1 min-w-0">
-                                        <div className="w-16 h-16 rounded-[24px] bg-zinc-100 dark:bg-white/[0.04] text-zinc-900 dark:text-white border border-zinc-200 dark:border-white/[0.1] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-700 shadow-sm">
-                                            <Paperclip className="h-7 w-7" />
+                                    <div className="flex min-w-0 flex-1 items-center gap-5">
+                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/55 text-foreground shadow-sm">
+                                            <Paperclip className="h-5 w-5" />
                                         </div>
                                         <div className="flex flex-col gap-2 min-w-0">
                                             <span className="text-[11px] text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.4em] font-black">Anexo Clínico</span>
-                                            <p className="text-lg font-black text-zinc-900 dark:text-white truncate pr-6 tracking-tighter group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors uppercase">
+                                            <p className="truncate pr-6 text-base font-bold tracking-tight text-foreground">
                                                 {item.data.name}
                                             </p>
                                         </div>
@@ -244,10 +242,10 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-14 w-14 rounded-[24px] bg-zinc-100 dark:bg-white/[0.04] hover:bg-zinc-900 dark:hover:bg-white text-zinc-500 dark:text-zinc-500 hover:text-white dark:hover:text-black transition-all border border-zinc-200 dark:border-white/[0.08] active:scale-90 shadow-sm"
+                                        className="h-10 w-10 rounded-xl border border-border/70 bg-muted/55 text-muted-foreground transition-colors hover:bg-foreground hover:text-background"
                                         onClick={() => handleDownload(item.data.path)}
                                     >
-                                        <Download className="h-6 w-6" />
+                                        <Download className="h-4 w-4" />
                                     </Button>
                                 </GlassCard>
                             )}
