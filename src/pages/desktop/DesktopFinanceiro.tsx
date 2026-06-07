@@ -341,8 +341,7 @@ const DesktopFinanceiro = () => {
 
 
     return (
-        <div className="min-h-screen w-full flex flex-col font-sans relative bg-background text-foreground selection:bg-primary/20 pt-10">
-            <div className="absolute inset-0 premium-noise opacity-[0.03] dark:opacity-[0.06] pointer-events-none fixed z-[100] mix-blend-overlay" />
+        <div className="desktop-page-canvas relative flex min-h-screen w-full flex-col pt-10 font-sans text-foreground selection:bg-primary/20">
 
             <div className="flex-1 w-full max-w-[2200px] mx-auto px-6 md:px-8 lg:px-12 xl:px-16 relative z-10 flex gap-6 pb-12">
                 <motion.nav
@@ -481,7 +480,7 @@ const DesktopFinanceiro = () => {
                     </div>
                 </motion.nav>
 
-                <div className="flex-1 rounded-[40px] bg-white/30 dark:bg-zinc-900/10 backdrop-blur-sm border border-zinc-200/30 dark:border-white/[0.02] shadow-sm relative">
+                <div className="desktop-apple-shell relative flex-1 rounded-[30px]">
                     <AnimatePresence mode="wait">
                         <FinanceiroMainContent
                             selectedTransaction={selectedTransaction}

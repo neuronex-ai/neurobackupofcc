@@ -60,13 +60,13 @@ export const SessionControls = ({
                 <button
                     onClick={onClick}
                     className={cn(
-                        "group flex items-center justify-center w-12 h-12 rounded-full transition-all duration-500 ease-apple relative overflow-hidden",
+                        "desktop-tactile group relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl",
                         danger
                             ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20"
                             : secondary
                                 ? "bg-white/5 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white/10 border border-white/10"
                                 : active
-                                    ? "bg-zinc-900 dark:bg-white text-white dark:text-black shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.2)] scale-110"
+                                    ? "bg-zinc-900 dark:bg-white text-white dark:text-black shadow-sm"
                                     : "bg-white/10 dark:bg-black/20 text-zinc-600 dark:text-zinc-400 hover:bg-white/20 dark:hover:bg-white/10 border border-white/10 hover:border-white/20",
                         className
                     )}
@@ -114,7 +114,7 @@ export const SessionControls = ({
             </div>
 
             {/* Center Group - Main Controls */}
-            <div className="flex items-center gap-4 px-8 py-4 rounded-[40px] bg-white/60 dark:bg-[#050505]/60 backdrop-blur-[40px] border border-white/20 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] pointer-events-auto transition-all duration-500 hover:border-white/30 dark:hover:border-white/20">
+            <div className="desktop-apple-shell pointer-events-auto flex items-center gap-3 rounded-[24px] px-5 py-3 transition-colors hover:border-zinc-300 dark:hover:border-white/15">
                 {isOnline && (
                     <>
                         <ControlButton
@@ -152,7 +152,7 @@ export const SessionControls = ({
                     danger
                     onClick={onEndSession}
                     label="Encerrar"
-                    className={cn("w-14 h-14 ml-2", isProcessing && "opacity-50 cursor-not-allowed")}
+                    className={cn("ml-2 h-12 w-12", isProcessing && "cursor-not-allowed opacity-50")}
                 />
             </div>
 
