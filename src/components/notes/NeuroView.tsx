@@ -568,18 +568,30 @@ export const NeuroView = () => {
                 patients={patients}
             />
 
-            {/* Universe Mode Toggle */}
-            <button
-                onClick={() => setIsUniverseMode(!isUniverseMode)}
-                className="absolute top-6 right-6 z-40 px-5 py-2.5 rounded-xl bg-zinc-900/80 dark:bg-white/10 backdrop-blur-xl border border-white/10 text-[10px] font-bold text-white/80 hover:text-white uppercase tracking-[0.15em] transition-all hover:bg-zinc-800 dark:hover:bg-white/20 shadow-lg"
-            >
-                {isUniverseMode ? '← Grafo 2D' : '🌌 Modo Universo'}
-            </button>
+            {!isUniverseMode && (
+                <button
+                    onClick={() => setIsUniverseMode(true)}
+                    className="absolute top-5 right-5 z-40 rounded-[18px] border border-black/[0.08] bg-white/72 px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-700 shadow-[0_22px_64px_-38px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-3xl transition-all duration-500 hover:-translate-y-0.5 hover:bg-white hover:text-zinc-950 dark:border-white/[0.1] dark:bg-white/[0.075] dark:text-white/72 dark:shadow-[0_24px_70px_-40px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)] dark:hover:bg-white/[0.12] dark:hover:text-white"
+                >
+                    Modo 3D
+                </button>
+            )}
 
             {/* Universe 3D Overlay */}
             {isUniverseMode && (
-                <div className="absolute inset-0 z-30">
-                    <NeuroViewUniverse onBack={() => setIsUniverseMode(false)} />
+                <div className="absolute inset-0 z-[80]">
+                    <NeuroViewUniverse
+                        onBack={() => setIsUniverseMode(false)}
+                        searchQuery={searchQuery}
+                        onSelectNote={(note) => {
+                            setSelectedNote(note);
+                            setSelectedPatient(null);
+                        }}
+                        onSelectPatient={(patient) => {
+                            setSelectedPatient(patient);
+                            setSelectedNote(null);
+                        }}
+                    />
                 </div>
             )}
         </div>

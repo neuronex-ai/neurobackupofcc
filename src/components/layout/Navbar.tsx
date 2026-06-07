@@ -83,10 +83,10 @@ export const Navbar = () => {
             <Link to={item.href} id={`nav-${item.href.replace('/', '')}`}>
               <div
                 className={cn(
-                  "relative flex items-center justify-center w-10 h-10 rounded-[14px] transition-all duration-500 cursor-pointer group",
+                  "relative flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-500 cursor-pointer group",
                   isFinanceActive
-                    ? "bg-zinc-900 text-white dark:bg-white dark:text-black shadow-xl"
-                    : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/[0.04]"
+                    ? "bg-zinc-950 text-white shadow-[0_18px_44px_-26px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.12)] dark:bg-white dark:text-black dark:shadow-[0_18px_48px_-28px_rgba(255,255,255,0.48),inset_0_1px_0_rgba(255,255,255,0.65)]"
+                    : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-black/[0.045] dark:hover:bg-white/[0.055]"
                 )}
               >
                 <Icon className={cn("h-4 w-4 transition-transform duration-500", isFinanceActive ? "scale-100" : "group-hover:scale-110")} />
@@ -109,10 +109,10 @@ export const Navbar = () => {
           <Link to={item.href} id={`nav-${item.href.replace('/', '')}`}>
             <div
               className={cn(
-                "relative flex items-center justify-center w-10 h-10 rounded-[14px] transition-all duration-500 cursor-pointer group",
+                "relative flex items-center justify-center w-10 h-10 rounded-2xl transition-all duration-500 cursor-pointer group",
                 isActive
-                  ? "bg-zinc-900 text-white dark:bg-white dark:text-black shadow-xl"
-                  : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/[0.04]"
+                  ? "bg-zinc-950 text-white shadow-[0_18px_44px_-26px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.12)] dark:bg-white dark:text-black dark:shadow-[0_18px_48px_-28px_rgba(255,255,255,0.48),inset_0_1px_0_rgba(255,255,255,0.65)]"
+                  : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-black/[0.045] dark:hover:bg-white/[0.055]"
               )}
             >
               <Icon className={cn("h-4 w-4 transition-transform duration-500", isActive ? "scale-100" : "group-hover:scale-110")} />
@@ -133,16 +133,16 @@ export const Navbar = () => {
   if (isMobile) return null;
 
   return (
-    <nav id="navbar-container" className="fixed top-8 left-0 right-0 z-[60] flex justify-center pointer-events-none px-4">
-      <div className="pointer-events-auto bg-white/70 dark:bg-[#050505]/70 backdrop-blur-[48px] border border-white/20 dark:border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] px-6 py-2.5 rounded-full flex items-center gap-6 transition-all duration-700 ease-apple hover:border-white/40 dark:hover:border-white/20 hover:shadow-[0_48px_96px_-24px_rgba(0,0,0,0.4)] ring-1 ring-black/5 dark:ring-white/5 active:scale-[0.99]" >
+    <nav id="navbar-container" className="fixed top-7 left-0 right-0 z-[60] flex justify-center pointer-events-none px-4">
+      <div className="pointer-events-auto flex items-center gap-3 rounded-[30px] border border-black/[0.075] bg-white/[0.72] px-2.5 py-2.5 shadow-[0_30px_90px_-46px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.7)] ring-1 ring-white/40 backdrop-blur-3xl transition-all duration-700 ease-apple hover:-translate-y-0.5 hover:bg-white/[0.78] hover:shadow-[0_42px_112px_-56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.8)] active:scale-[0.99] dark:border-white/[0.09] dark:bg-[#070708]/72 dark:shadow-[0_32px_96px_-52px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.08)] dark:ring-white/[0.035] dark:hover:bg-[#09090a]/80 dark:hover:shadow-[0_44px_120px_-62px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.1)]" >
 
         {/* Logo Area */}
-        <div className="flex items-center pr-6 border-r border-black/[0.04] dark:border-white/[0.08]">
+        <div className="flex items-center pr-4 border-r border-black/[0.055] dark:border-white/[0.08]">
           <Link
             to="/synapse-ai"
-            className="relative flex items-center justify-center w-9 h-9 rounded-2xl transition-all duration-500 group mr-4"
+            className="relative flex items-center justify-center w-10 h-10 rounded-[18px] transition-all duration-500 group mr-3"
           >
-            <div className="absolute inset-0 rounded-2xl bg-zinc-900 dark:bg-white shadow-xl transition-transform group-hover:scale-105" />
+            <div className="absolute inset-0 rounded-[18px] bg-zinc-950 shadow-[0_18px_48px_-28px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.12)] transition-transform group-hover:scale-105 dark:bg-white dark:shadow-[0_18px_48px_-28px_rgba(255,255,255,0.5)]" />
             <div className="absolute inset-0 flex items-center justify-center">
               <Sparkles className="h-4 w-4 text-white dark:text-zinc-900" />
             </div>
@@ -154,21 +154,21 @@ export const Navbar = () => {
         </div>
 
         {/* Navigation Items */}
-        <div id="main-navigation" className="flex items-center gap-1.5">
+        <div id="main-navigation" className="flex items-center gap-1">
           {navigation.map((item) => (
             <NavItem key={item.name} item={item} />
           ))}
         </div>
 
         {/* Utilities */}
-        <div className="flex items-center gap-1 pl-6 border-l border-black/[0.04] dark:border-white/[0.08]">
+        <div className="flex items-center gap-1 pl-4 border-l border-black/[0.055] dark:border-white/[0.08]">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 id="global-search"
                 size="icon"
                 variant="ghost"
-                className="w-10 h-10 rounded-[14px] hover:bg-zinc-100 dark:hover:bg-white/[0.04] text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all duration-500"
+                className="w-10 h-10 rounded-2xl hover:bg-black/[0.045] dark:hover:bg-white/[0.055] text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all duration-500"
                 onClick={() => setIsSearchOpen(true)}
               >
                 <Search className="h-4 w-4" />
@@ -183,7 +183,7 @@ export const Navbar = () => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <PopoverTrigger asChild>
-                  <Button id="notifications-trigger" size="icon" variant="ghost" className="relative w-10 h-10 rounded-[14px] hover:bg-zinc-100 dark:hover:bg-white/[0.04] text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all duration-500">
+                  <Button id="notifications-trigger" size="icon" variant="ghost" className="relative w-10 h-10 rounded-2xl hover:bg-black/[0.045] dark:hover:bg-white/[0.055] text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all duration-500">
                     <Bell className="h-4 w-4" />
                     {hasAlerts && <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />}
                   </Button>
@@ -203,8 +203,8 @@ export const Navbar = () => {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-[14px] ring-offset-background transition-all hover:scale-105 focus:outline-none p-0 overflow-hidden ml-1">
-                <Avatar className="h-10 w-10 border border-zinc-200 dark:border-white/10 rounded-[14px]">
+              <Button variant="ghost" className="relative h-10 w-10 rounded-2xl ring-offset-background transition-all hover:scale-105 focus:outline-none p-0 overflow-hidden ml-1">
+                <Avatar className="h-10 w-10 border border-zinc-200 dark:border-white/10 rounded-2xl">
                   <AvatarImage src={profile?.avatar_url || ''} alt={fullName} className="object-cover" />
                   <AvatarFallback className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[10px] font-black">
                     {fullName.substring(0, 2).toUpperCase()}

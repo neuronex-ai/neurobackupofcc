@@ -1,19 +1,20 @@
 "use client";
 
-import { useMemo, useRef, useState, useCallback, useEffect } from "react";
+import { useMemo, useRef, useState, useCallback, useEffect, type MouseEvent, type WheelEvent } from "react";
+import { motion } from "framer-motion";
+import { ArrowLeft } from "lucide-react";
 import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import { usePatients } from "@/hooks/use-patients";
-import { motion } from "framer-motion";
-import { Orbit, Maximize2, Minimize2, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PersonalNote, Patient } from "@/types";
 
-// Types matching NeuroView data
 interface UniverseNode {
   id: string;
   label: string;
-  type: 'patient' | 'note' | 'tag';
+  type: "patient" | "note" | "tag";
   color: string;
   size: number;
+  data?: PersonalNote | Patient;
 }
 
 interface UniverseLink {
@@ -23,87 +24,158 @@ interface UniverseLink {
 
 interface NeuroViewUniverseProps {
   onBack: () => void;
+  onSelectNote?: (note: PersonalNote) => void;
+  onSelectPatient?: (patient: Patient) => void;
+  searchQuery?: string;
 }
 
 const NODE_COLORS = {
-  patient: { h: 220, s: 80, l: 60 },
-  note: { h: 270, s: 60, l: 65 },
-  tag: { h: 45, s: 80, l: 60 },
+  patient: "#d9d9df",
+  note: "#a9a9b2",
+  tag: "#73737f",
 };
 
-export const NeuroViewUniverse = ({ onBack }: NeuroViewUniverseProps) => {
+const normalize = (value?: string | null) =>
+  (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const hashString = (value: string) => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash);
+};
+
+const hexToRgb = (hex: string) => {
+  const raw = hex.replace("#", "");
+  const full = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;
+  const value = Number.parseInt(full, 16);
+  return {
+    r: (value >> 16) & 255,
+    g: (value >> 8) & 255,
+    b: value & 255,
+  };
+};
+
+const rgba = (hex: string, alpha: number) => {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+export const NeuroViewUniverse = ({
+  onBack,
+  onSelectNote,
+  onSelectPatient,
+  searchQuery = "",
+}: NeuroViewUniverseProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [zoom, setZoom] = useState(1);
-  const [rotation, setRotation] = useState({ x: 0.3, y: 0 });
-  const [autoRotate, setAutoRotate] = useState(true);
-
+  const projectedNodesRef = useRef<Array<{ id: string; x: number; y: number; radius: number; node: UniverseNode }>>([]);
+  const nodeAlphaRef = useRef<Record<string, number>>({});
   const isDragging = useRef(false);
+  const didDrag = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
+  const zoomRef = useRef(1);
+  const rotationRef = useRef({ x: 0.32, y: 0.04 });
+  const [autoRotate, setAutoRotate] = useState(true);
+  const [hoverNodeId, setHoverNodeId] = useState<string | null>(null);
 
   const { notes } = usePersonalNotes();
   const { data: patients } = usePatients();
+  const normalizedSearch = normalize(searchQuery);
 
-  // Build 3D graph data
   const { nodes, links } = useMemo(() => {
+    const patientList = patients || [];
+    const noteList = notes || [];
     const nodeMap = new Map<string, UniverseNode>();
     const linkList: UniverseLink[] = [];
+    const matchedPatientIds = new Set(
+      patientList
+        .filter((patient) => normalizedSearch && normalize(patient.name).includes(normalizedSearch))
+        .map((patient) => patient.id)
+    );
 
-    // Add patients
-    patients?.forEach(p => {
-      nodeMap.set(p.id, {
-        id: p.id,
-        label: p.name,
-        type: 'patient',
-        color: `hsl(${NODE_COLORS.patient.h}, ${NODE_COLORS.patient.s}%, ${NODE_COLORS.patient.l}%)`,
+    const visibleNotes = normalizedSearch
+      ? noteList.filter((note) => {
+          const patient = patientList.find((item) => item.id === note.patient_id);
+          const text = [
+            note.title,
+            note.content,
+            note.patient_name,
+            patient?.name,
+            ...(note.tags || []),
+          ].map(normalize).join(" ");
+
+          return text.includes(normalizedSearch) || (note.patient_id ? matchedPatientIds.has(note.patient_id) : false);
+        })
+      : noteList;
+
+    const visiblePatientIds = new Set<string>();
+    visibleNotes.forEach((note) => {
+      if (note.patient_id) visiblePatientIds.add(note.patient_id);
+    });
+    matchedPatientIds.forEach((id) => visiblePatientIds.add(id));
+
+    patientList.forEach((patient) => {
+      if (normalizedSearch && !visiblePatientIds.has(patient.id)) return;
+
+      nodeMap.set(`pat-${patient.id}`, {
+        id: `pat-${patient.id}`,
+        label: patient.name,
+        type: "patient",
+        color: NODE_COLORS.patient,
         size: 12,
+        data: patient,
       });
     });
 
-    // Add notes
-    notes?.forEach(n => {
-      nodeMap.set(n.id, {
-        id: n.id,
-        label: n.title || 'Sem título',
-        type: 'note',
-        color: `hsl(${NODE_COLORS.note.h}, ${NODE_COLORS.note.s}%, ${NODE_COLORS.note.l}%)`,
+    visibleNotes.forEach((note) => {
+      const noteId = `note-${note.id}`;
+      nodeMap.set(noteId, {
+        id: noteId,
+        label: note.title || "Sem título",
+        type: "note",
+        color: NODE_COLORS.note,
         size: 8,
+        data: note,
       });
 
-      // Link note to patient
-      if (n.patient_id && nodeMap.has(n.patient_id)) {
-        linkList.push({ source: n.id, target: n.patient_id });
+      if (note.patient_id && nodeMap.has(`pat-${note.patient_id}`)) {
+        linkList.push({ source: noteId, target: `pat-${note.patient_id}` });
       }
 
-      // Add tags as nodes
-      n.tags?.forEach((tag: string) => {
+      note.tags?.forEach((tag) => {
         const tagId = `tag-${tag}`;
         if (!nodeMap.has(tagId)) {
           nodeMap.set(tagId, {
             id: tagId,
             label: `#${tag}`,
-            type: 'tag',
-            color: `hsl(${NODE_COLORS.tag.h}, ${NODE_COLORS.tag.s}%, ${NODE_COLORS.tag.l}%)`,
-            size: 6,
+            type: "tag",
+            color: NODE_COLORS.tag,
+            size: 5.5,
           });
         }
-        linkList.push({ source: n.id, target: tagId });
+        linkList.push({ source: noteId, target: tagId });
       });
     });
 
     return { nodes: Array.from(nodeMap.values()), links: linkList };
-  }, [notes, patients]);
+  }, [notes, patients, normalizedSearch]);
 
-  // Assign 3D positions using spherical distribution
   const nodePositions = useMemo(() => {
     const positions = new Map<string, { x: number; y: number; z: number }>();
     const goldenRatio = (1 + Math.sqrt(5)) / 2;
+    const safeLength = Math.max(nodes.length, 1);
 
-    nodes.forEach((node, i) => {
-      const theta = 2 * Math.PI * i / goldenRatio;
-      const phi = Math.acos(1 - 2 * (i + 0.5) / nodes.length);
-      const radius = 250 + Math.random() * 100;
+    nodes.forEach((node, index) => {
+      const seed = hashString(node.id);
+      const theta = (2 * Math.PI * index) / goldenRatio + (seed % 1000) / 1000;
+      const phi = Math.acos(1 - 2 * (index + 0.5) / safeLength);
+      const radius = 225 + (seed % 95);
 
       positions.set(node.id, {
         x: radius * Math.sin(phi) * Math.cos(theta),
@@ -115,31 +187,46 @@ export const NeuroViewUniverse = ({ onBack }: NeuroViewUniverseProps) => {
     return positions;
   }, [nodes]);
 
-  // Star field
   const stars = useMemo(() => {
-    return Array.from({ length: 300 }, () => ({
-      x: Math.random() * 2 - 1,
-      y: Math.random() * 2 - 1,
-      z: Math.random() * 2 - 1,
-      brightness: 0.3 + Math.random() * 0.7,
-      size: 0.5 + Math.random() * 1.5,
-    }));
+    return Array.from({ length: 220 }, (_, index) => {
+      const seed = hashString(`star-${index}`);
+      const x = ((seed % 2000) / 1000) - 1;
+      const y = (((seed / 11) % 2000) / 1000) - 1;
+      const z = (((seed / 29) % 2000) / 1000) - 1;
+
+      return {
+        x,
+        y,
+        z,
+        brightness: 0.15 + ((seed % 100) / 100) * 0.48,
+        size: 0.45 + ((seed % 80) / 100),
+      };
+    });
   }, []);
 
-  // Project 3D -> 2D
+  const connectedNodeIds = useMemo(() => {
+    if (!hoverNodeId) return new Set<string>();
+    const connected = new Set<string>([hoverNodeId]);
+    links.forEach((link) => {
+      if (link.source === hoverNodeId) connected.add(link.target);
+      if (link.target === hoverNodeId) connected.add(link.source);
+    });
+    return connected;
+  }, [hoverNodeId, links]);
+
   const project = useCallback((pos: { x: number; y: number; z: number }, w: number, h: number) => {
+    const rotation = rotationRef.current;
+    const zoom = zoomRef.current;
     const cosX = Math.cos(rotation.x), sinX = Math.sin(rotation.x);
     const cosY = Math.cos(rotation.y), sinY = Math.sin(rotation.y);
 
-    // Rotate Y
     let x = pos.x * cosY + pos.z * sinY;
     let z = -pos.x * sinY + pos.z * cosY;
-    // Rotate X
     let y = pos.y * cosX - z * sinX;
     z = pos.y * sinX + z * cosX;
 
-    const perspective = 800;
-    const scale = perspective / (perspective + z) * zoom;
+    const perspective = 820;
+    const scale = (perspective / (perspective + z)) * zoom;
 
     return {
       x: w / 2 + x * scale,
@@ -147,103 +234,130 @@ export const NeuroViewUniverse = ({ onBack }: NeuroViewUniverseProps) => {
       scale,
       z,
     };
-  }, [rotation, zoom]);
+  }, []);
 
-  // Render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const render = () => {
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      const dpr = window.devicePixelRatio || 1;
       const sw = canvas.offsetWidth;
       const sh = canvas.offsetHeight;
+      canvas.width = Math.max(1, Math.floor(sw * dpr));
+      canvas.height = Math.max(1, Math.floor(sh * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      projectedNodesRef.current = [];
 
-      // Clear
-      ctx.fillStyle = '#030305';
+      const background = ctx.createRadialGradient(sw * 0.5, sh * 0.45, 0, sw * 0.5, sh * 0.45, Math.max(sw, sh) * 0.75);
+      background.addColorStop(0, "#151518");
+      background.addColorStop(0.42, "#08080a");
+      background.addColorStop(1, "#010102");
+      ctx.fillStyle = background;
       ctx.fillRect(0, 0, sw, sh);
 
-      // Draw stars
-      stars.forEach(star => {
-        const proj = project({ x: star.x * 600, y: star.y * 600, z: star.z * 600 }, sw, sh);
-        if (proj.z > -700) {
-          ctx.beginPath();
-          ctx.arc(proj.x, proj.y, star.size * proj.scale * 0.3, 0, Math.PI * 2);
-          const t = performance.now() / 3000;
-          const twinkle = 0.5 + 0.5 * Math.sin(t + star.x * 10);
-          ctx.fillStyle = `rgba(200, 210, 255, ${star.brightness * twinkle * 0.4})`;
-          ctx.fill();
-        }
+      stars.forEach((star) => {
+        const proj = project({ x: star.x * 640, y: star.y * 640, z: star.z * 640 }, sw, sh);
+        if (proj.z <= -760) return;
+
+        const time = performance.now() / 3400;
+        const twinkle = 0.45 + 0.55 * Math.sin(time + star.x * 6 + star.y * 3);
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, Math.max(0.16, star.size * proj.scale * 0.28), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(225, 225, 232, ${star.brightness * twinkle * 0.28})`;
+        ctx.fill();
       });
 
-      // Draw links
-      links.forEach(link => {
+      links.forEach((link) => {
         const srcPos = nodePositions.get(link.source);
         const tgtPos = nodePositions.get(link.target);
         if (!srcPos || !tgtPos) return;
 
         const src = project(srcPos, sw, sh);
         const tgt = project(tgtPos, sw, sh);
+        const sourceAlpha = nodeAlphaRef.current[link.source] ?? 0;
+        const targetAlpha = nodeAlphaRef.current[link.target] ?? 0;
+        const isConnected = connectedNodeIds.size === 0 || (connectedNodeIds.has(link.source) && connectedNodeIds.has(link.target));
+        const alpha = Math.min(sourceAlpha, targetAlpha) * (isConnected ? 0.18 : 0.035) * Math.min(src.scale, tgt.scale);
+
+        const midX = (src.x + tgt.x) / 2;
+        const midY = (src.y + tgt.y) / 2;
+        const curveSeed = hashString(`${link.source}-${link.target}`);
+        const curve = (((curveSeed % 200) / 100) - 1) * 18;
+        const dx = tgt.x - src.x;
+        const dy = tgt.y - src.y;
+        const length = Math.max(1, Math.hypot(dx, dy));
+        const controlX = midX + (-dy / length) * curve;
+        const controlY = midY + (dx / length) * curve;
 
         ctx.beginPath();
         ctx.moveTo(src.x, src.y);
-        ctx.lineTo(tgt.x, tgt.y);
-        ctx.strokeStyle = `rgba(100, 120, 200, ${0.08 * Math.min(src.scale, tgt.scale)})`;
-        ctx.lineWidth = 0.5;
+        ctx.quadraticCurveTo(controlX, controlY, tgt.x, tgt.y);
+        ctx.strokeStyle = `rgba(232, 232, 236, ${alpha})`;
+        ctx.lineWidth = isConnected ? 0.72 : 0.42;
         ctx.stroke();
       });
 
-      // Sort nodes by z for painter's algorithm
-      const sortedNodes = nodes.map(node => ({
-        node,
-        pos: nodePositions.get(node.id)!,
-      })).sort((a, b) => {
-        const pA = project(a.pos, sw, sh);
-        const pB = project(b.pos, sw, sh);
-        return pA.z - pB.z;
-      });
+      const sortedNodes = nodes
+        .map((node) => ({ node, pos: nodePositions.get(node.id) }))
+        .filter((item): item is { node: UniverseNode; pos: { x: number; y: number; z: number } } => Boolean(item.pos))
+        .sort((a, b) => project(a.pos, sw, sh).z - project(b.pos, sw, sh).z);
 
-      // Draw nodes
       sortedNodes.forEach(({ node, pos }) => {
+        const previousAlpha = nodeAlphaRef.current[node.id] ?? 0;
+        const targetAlpha = 1;
+        const alpha = previousAlpha + (targetAlpha - previousAlpha) * 0.075;
+        nodeAlphaRef.current[node.id] = alpha;
+
         const proj = project(pos, sw, sh);
-        if (proj.z > -700) {
-          const radius = node.size * proj.scale * 0.5;
+        if (proj.z <= -760) return;
 
-          // Glow
-          const gradient = ctx.createRadialGradient(proj.x, proj.y, 0, proj.x, proj.y, radius * 3);
-          gradient.addColorStop(0, node.color.replace(')', ', 0.3)').replace('hsl', 'hsla'));
-          gradient.addColorStop(1, 'transparent');
-          ctx.beginPath();
-          ctx.arc(proj.x, proj.y, radius * 3, 0, Math.PI * 2);
-          ctx.fillStyle = gradient;
-          ctx.fill();
+        const isHovered = hoverNodeId === node.id;
+        const isConnected = connectedNodeIds.size === 0 || connectedNodeIds.has(node.id);
+        const focusAlpha = isConnected ? 1 : 0.24;
+        const radius = node.size * proj.scale * (isHovered ? 0.68 : 0.52);
+        const visibleAlpha = alpha * focusAlpha * Math.min(1, Math.max(0.22, proj.scale));
+        const pulse = 0.82 + Math.sin(performance.now() / 920 + hashString(node.id) * 0.01) * 0.12;
 
-          // Core
-          ctx.beginPath();
-          ctx.arc(proj.x, proj.y, radius, 0, Math.PI * 2);
-          ctx.fillStyle = node.color;
-          ctx.fill();
+        const glow = ctx.createRadialGradient(proj.x, proj.y, 0, proj.x, proj.y, radius * 5.3);
+        glow.addColorStop(0, rgba(node.color, 0.18 * visibleAlpha * pulse));
+        glow.addColorStop(0.36, rgba(node.color, 0.065 * visibleAlpha));
+        glow.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, radius * 5.3, 0, Math.PI * 2);
+        ctx.fillStyle = glow;
+        ctx.fill();
 
-          // Label for larger nodes
-          if (radius > 3) {
-            ctx.font = `${Math.max(8, radius * 0.9)}px Inter, system-ui, sans-serif`;
-            ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, proj.scale * 0.8)})`;
-            ctx.textAlign = 'center';
-            ctx.fillText(node.label, proj.x, proj.y + radius + 14);
-          }
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, Math.max(1.4, radius), 0, Math.PI * 2);
+        ctx.fillStyle = rgba(node.color, 0.46 * visibleAlpha);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(proj.x - radius * 0.22, proj.y - radius * 0.26, Math.max(0.55, radius * 0.32), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.22 * visibleAlpha})`;
+        ctx.fill();
+
+        if (isHovered || node.type === "patient" || radius > 3.2) {
+          ctx.font = `${isHovered ? 12 : 10}px Inter, system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillStyle = `rgba(244, 244, 246, ${Math.min(0.86, visibleAlpha * (isHovered ? 1 : 0.5))})`;
+          ctx.fillText(node.label, proj.x, proj.y + radius + 14);
         }
+
+        projectedNodesRef.current.push({
+          id: node.id,
+          x: proj.x,
+          y: proj.y,
+          radius: Math.max(16, radius + 9),
+          node,
+        });
       });
 
-      // Auto-rotate
       if (autoRotate && !isDragging.current) {
-        setRotation(prev => ({
-          ...prev,
-          y: prev.y + 0.002,
-        }));
+        rotationRef.current = { ...rotationRef.current, y: rotationRef.current.y + 0.00145 };
       }
 
       animationRef.current = requestAnimationFrame(render);
@@ -251,140 +365,133 @@ export const NeuroViewUniverse = ({ onBack }: NeuroViewUniverseProps) => {
 
     animationRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animationRef.current);
-  }, [nodes, links, nodePositions, stars, rotation, zoom, autoRotate, project]);
+  }, [nodes, links, nodePositions, stars, autoRotate, project, hoverNodeId, connectedNodeIds]);
 
-  // Mouse handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
+  useEffect(() => {
+    const activeIds = new Set(nodes.map((node) => node.id));
+    Object.keys(nodeAlphaRef.current).forEach((id) => {
+      if (!activeIds.has(id)) delete nodeAlphaRef.current[id];
+    });
+  }, [nodes]);
+
+  const updateHoveredNode = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    const hovered = projectedNodesRef.current
+      .slice()
+      .reverse()
+      .find((item) => Math.hypot(item.x - x, item.y - y) <= item.radius);
+
+    setHoverNodeId(hovered?.id || null);
+  };
+
+  const handleMouseDown = (e: MouseEvent) => {
     isDragging.current = true;
+    didDrag.current = false;
     lastMouse.current = { x: e.clientX, y: e.clientY };
     setAutoRotate(false);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current) return;
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging.current) {
+      updateHoveredNode(e.clientX, e.clientY);
+      return;
+    }
+
     const dx = e.clientX - lastMouse.current.x;
     const dy = e.clientY - lastMouse.current.y;
-    setRotation(prev => ({
-      x: prev.x + dy * 0.005,
-      y: prev.y + dx * 0.005,
-    }));
+    if (Math.hypot(dx, dy) > 3) didDrag.current = true;
+
+    rotationRef.current = {
+      x: Math.max(-1.05, Math.min(1.05, rotationRef.current.x + dy * 0.0034)),
+      y: rotationRef.current.y + dx * 0.0034,
+    };
     lastMouse.current = { x: e.clientX, y: e.clientY };
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: MouseEvent) => {
     isDragging.current = false;
-    // Restart auto-rotate after 3s
-    setTimeout(() => setAutoRotate(true), 3000);
+    if (!didDrag.current) updateHoveredNode(e.clientX, e.clientY);
+    window.setTimeout(() => setAutoRotate(true), 3200);
   };
 
-  const handleWheel = (e: React.WheelEvent) => {
+  const handleMouseLeave = () => {
+    isDragging.current = false;
+    setHoverNodeId(null);
+    window.setTimeout(() => setAutoRotate(true), 3200);
+  };
+
+  const handleClick = () => {
+    if (didDrag.current || !hoverNodeId) return;
+    const node = projectedNodesRef.current.find((item) => item.id === hoverNodeId)?.node;
+    if (!node) return;
+
+    if (node.type === "note" && node.data) {
+      onSelectNote?.(node.data as PersonalNote);
+    }
+
+    if (node.type === "patient" && node.data) {
+      onSelectPatient?.(node.data as Patient);
+    }
+  };
+
+  const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
-    setZoom(prev => Math.max(0.3, Math.min(3, prev - e.deltaY * 0.001)));
+    zoomRef.current = Math.max(0.45, Math.min(2.4, zoomRef.current - e.deltaY * 0.00085));
   };
 
   return (
-    <div className={cn(
-      "relative w-full h-full bg-[#030305] overflow-hidden rounded-none",
-      isFullscreen && "fixed inset-0 z-[200]"
-    )}>
-      {/* Canvas */}
+    <div className="relative h-full w-full overflow-hidden bg-[#020204]">
       <canvas
         ref={canvasRef}
-        className="w-full h-full cursor-grab active:cursor-grabbing"
+        className={cn("h-full w-full", hoverNodeId ? "cursor-pointer" : "cursor-grab active:cursor-grabbing")}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
         onWheel={handleWheel}
       />
 
-      {/* UI Controls Overlay */}
-      <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-6 z-50">
-        {/* Top Row */}
-        <div className="flex items-start justify-between w-full">
-          {/* Back button */}
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            onClick={onBack}
-            className="pointer-events-auto px-5 py-2.5 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/10 uppercase tracking-[0.2em] transition-all shadow-lg"
-          >
-            ← Voltar ao Grafo 2D
-          </motion.button>
+      <div className="pointer-events-none absolute inset-0 z-50 flex items-start justify-between p-5">
+        <motion.button
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          onClick={onBack}
+          className="pointer-events-auto flex items-center gap-2.5 rounded-[18px] border border-white/[0.09] bg-white/[0.075] px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] text-white/70 shadow-[0_24px_70px_-40px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-3xl transition-all duration-500 hover:-translate-y-0.5 hover:bg-white/[0.12] hover:text-white"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Voltar ao 2D
+        </motion.button>
 
-          {/* Legend */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="pointer-events-auto flex flex-col gap-2 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-lg"
-          >
-            <p className="text-[8px] font-black text-white/40 uppercase tracking-[0.3em] mb-1">Legenda</p>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
+          className="pointer-events-auto rounded-[22px] border border-white/[0.09] bg-white/[0.065] p-4 shadow-[0_24px_70px_-44px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-3xl"
+        >
+          <p className="mb-3 text-[8px] font-black uppercase tracking-[0.34em] text-white/38">Legenda</p>
+          <div className="space-y-2">
             {[
-              { label: 'Pacientes', color: `hsl(${NODE_COLORS.patient.h}, ${NODE_COLORS.patient.s}%, ${NODE_COLORS.patient.l}%)` },
-              { label: 'Notas', color: `hsl(${NODE_COLORS.note.h}, ${NODE_COLORS.note.s}%, ${NODE_COLORS.note.l}%)` },
-              { label: 'Tags', color: `hsl(${NODE_COLORS.tag.h}, ${NODE_COLORS.tag.s}%, ${NODE_COLORS.tag.l}%)` },
-            ].map(item => (
+              { label: "Pacientes", color: NODE_COLORS.patient },
+              { label: "Notas", color: NODE_COLORS.note },
+              { label: "Tags", color: NODE_COLORS.tag },
+            ].map((item) => (
               <div key={item.label} className="flex items-center gap-2.5">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                <span className="text-[9px] font-bold text-white/50 tracking-wider">{item.label}</span>
+                <span className="h-2.5 w-2.5 rounded-full shadow-[0_0_18px_rgba(255,255,255,0.16)]" style={{ backgroundColor: item.color }} />
+                <span className="text-[9px] font-bold tracking-[0.12em] text-white/54">{item.label}</span>
               </div>
             ))}
-            <p className="text-[8px] text-white/30 mt-2 leading-relaxed">
-              {nodes.length} nós · {links.length} conexões
-            </p>
-          </motion.div>
-        </div>
-
-        {/* Bottom Row */}
-        <div className="flex justify-center w-full mb-2">
-          {/* Controls Dock */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="pointer-events-auto flex items-center gap-2 p-2 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
-          >
-            <button
-              onClick={() => setAutoRotate(!autoRotate)}
-              className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:bg-white/10",
-                autoRotate ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"
-              )}
-              title="Auto-rotação"
-            >
-              <Orbit className="h-4 w-4" />
-            </button>
-            <div className="w-px h-6 bg-white/10" />
-            <button
-              onClick={() => setZoom(prev => Math.min(3, prev + 0.3))}
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setZoom(prev => Math.max(0.3, prev - 0.3))}
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </button>
-            <div className="w-px h-6 bg-white/10" />
-            <button
-              onClick={() => { setRotation({ x: 0.3, y: 0 }); setZoom(1); setAutoRotate(true); }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
-              title="Resetar câmera"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 hover:text-white/70 hover:bg-white/10 transition-all"
-            >
-              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </button>
-          </motion.div>
-        </div>
+          </div>
+          <p className="mt-3 text-[8px] font-semibold uppercase tracking-[0.18em] text-white/25">
+            {nodes.length} nós · {links.length} conexões
+          </p>
+        </motion.div>
       </div>
     </div>
   );

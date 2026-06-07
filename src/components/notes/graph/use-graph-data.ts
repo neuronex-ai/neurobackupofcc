@@ -9,6 +9,12 @@ interface UseGraphDataProps {
   searchQuery: string;
 }
 
+const normalizeSearchText = (value?: string | null) =>
+  (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
 export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
   const { notes, isLoading: loadingNotes } = usePersonalNotes();
   const { data: patients, isLoading: loadingPatients } = usePatients();
@@ -79,11 +85,11 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
       map[n.id] = node;
     };
 
-    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const normalizedSearch = normalizeSearchText(searchQuery.trim());
     const matchedPatientIds = new Set<string>();
 
     patients.forEach((patient) => {
-      if (!normalizedSearch || patient.name.toLowerCase().includes(normalizedSearch)) {
+      if (!normalizedSearch || normalizeSearchText(patient.name).includes(normalizedSearch)) {
         matchedPatientIds.add(patient.id);
       }
     });
@@ -92,10 +98,10 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
       if (!normalizedSearch) return true;
 
       const patient = n.patient_id ? patients.find(p => p.id === n.patient_id) : null;
-      return n.title.toLowerCase().includes(normalizedSearch) ||
-        n.content.toLowerCase().includes(normalizedSearch) ||
-        n.tags?.some((tag: string) => tag.toLowerCase().includes(normalizedSearch)) ||
-        Boolean(patient?.name.toLowerCase().includes(normalizedSearch));
+      return normalizeSearchText(n.title).includes(normalizedSearch) ||
+        normalizeSearchText(n.content).includes(normalizedSearch) ||
+        n.tags?.some((tag: string) => normalizeSearchText(tag).includes(normalizedSearch)) ||
+        Boolean(normalizeSearchText(patient?.name).includes(normalizedSearch));
     });
 
     const visiblePatientIds = new Set<string>(matchedPatientIds);
