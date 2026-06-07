@@ -139,7 +139,7 @@ export function SideNotes() {
     };
 
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card/68 shadow-[0_18px_48px_-38px_rgba(15,23,42,0.55)] backdrop-blur-xl dark:bg-white/[0.025]">
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card/76 shadow-[0_18px_48px_-38px_rgba(15,23,42,0.55)] backdrop-blur-xl dark:bg-[#0d0e10]/82">
             {/* Header */}
             <div className="relative z-20 flex-none border-b border-border/60 bg-background/35 p-6 backdrop-blur-md">
                 <div className="flex items-center justify-between">

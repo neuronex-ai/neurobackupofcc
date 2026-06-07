@@ -34,11 +34,6 @@ const AutoSaveField = memo(function AutoSaveField({
     type: 'question' | 'answer';
     onSave: (val: string) => void;
     className?: string;
-}: {
-    initialValue: string;
-    type: 'question' | 'answer';
-    onSave: (val: string) => void;
-    className?: string;
 }) {
     const [isEditing, setIsEditing] = useState(false);
     const [value, setValue] = useState(initialValue);

@@ -210,7 +210,7 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="group/card relative overflow-hidden rounded-[26px] border border-border/70 bg-card/72 p-6 shadow-[0_18px_48px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:p-7 dark:bg-white/[0.035] dark:shadow-[0_18px_48px_-36px_rgba(0,0,0,0.9)]"
+        className="group/card relative overflow-hidden rounded-[26px] border border-border/70 bg-card/78 p-6 shadow-[0_18px_48px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:p-7 dark:bg-[#0d0e10]/82 dark:shadow-[0_18px_48px_-36px_rgba(0,0,0,0.9)]"
       >
         <div className="pointer-events-none absolute inset-0 opacity-[0.025] dark:opacity-[0.045] [background-image:url('/noise.png')]" />
 
