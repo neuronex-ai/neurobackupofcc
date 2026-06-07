@@ -221,12 +221,12 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
     );
 
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#050505] px-8 py-10 text-white selection:bg-white selection:text-black transition-colors duration-500 lg:px-12 [.light_&]:bg-white [.light_&]:text-zinc-900 [.light_&]:selection:bg-zinc-900 [.light_&]:selection:text-white">
+        <div className="relative flex h-full w-full flex-col overflow-hidden bg-transparent px-7 py-8 text-white selection:bg-white selection:text-black transition-colors duration-500 lg:px-10 [.light_&]:text-zinc-900 [.light_&]:selection:bg-zinc-900 [.light_&]:selection:text-white">
             <div className="absolute top-[-5%] left-[-5%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
 
             <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 z-10">
                 <div className="shrink-0 space-y-2">
-                    <h1 className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-4xl font-black uppercase leading-none tracking-[-0.05em] text-transparent lg:text-5xl [.light_&]:bg-zinc-900">NeuroFlow</h1>
+                    <h1 className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-3xl font-black uppercase leading-none tracking-tight text-transparent lg:text-4xl [.light_&]:bg-zinc-900">NeuroFlow</h1>
                     <div className="flex items-center gap-3">
                         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-300 [.light_&]:text-zinc-500">Conecte ideias. Expanda Synapses.</p>
                     </div>
@@ -261,12 +261,12 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
                         ))}
                     </div>
                 ) : (
-                    <div className="grid gap-10 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pb-24">
+                    <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pb-20">
                         <motion.button
                             whileHover={{ scale: 1.02, borderColor: theme === 'dark' ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)" }}
                             whileTap={{ scale: 0.98 }}
                             onClick={handleCreateFlow}
-                            className="group relative flex aspect-[4/5] flex-col items-center justify-center gap-6 rounded-[48px] border-2 border-dashed border-white/5 bg-transparent p-8 text-center transition-all hover:bg-white/[0.01] [.light_&]:border-zinc-200 [.light_&]:hover:bg-zinc-50"
+                            className="group relative flex aspect-[4/5] flex-col items-center justify-center gap-5 rounded-[28px] border border-dashed border-white/[0.07] bg-transparent p-7 text-center transition-all hover:bg-white/[0.02] [.light_&]:border-zinc-200 [.light_&]:hover:bg-zinc-50"
                         >
                             <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/5 bg-white/[0.02] shadow-2xl transition-all duration-700 group-hover:bg-white group-hover:text-black [.light_&]:border-zinc-200 [.light_&]:bg-zinc-100 [.light_&]:group-hover:bg-zinc-900 [.light_&]:group-hover:text-white">
                                 <Brain size={32} strokeWidth={1.5} />
@@ -361,7 +361,7 @@ const FlowCard = ({ flow, idx, onClick, onDelete, onRename, onDuplicate, patient
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ delay: idx * 0.05, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
             onClick={onClick}
-            className="group relative flex aspect-[4/5] cursor-pointer flex-col overflow-hidden rounded-[48px] border border-white/5 bg-white/[0.02] p-10 transition-all duration-700 hover:border-white/10 hover:bg-white/[0.03] [.light_&]:border-zinc-100 [.light_&]:bg-zinc-50 [.light_&]:hover:border-zinc-200 [.light_&]:hover:bg-zinc-100"
+            className="group relative flex aspect-[4/5] cursor-pointer flex-col overflow-hidden rounded-[28px] border border-white/[0.06] bg-white/[0.018] p-7 transition-all duration-500 hover:border-white/10 hover:bg-white/[0.035] [.light_&]:border-zinc-200/70 [.light_&]:bg-white/65 [.light_&]:hover:border-zinc-300 [.light_&]:hover:bg-white"
         >
             {/* Top Action Layer */}
             <div className="flex justify-between items-start z-20 relative">

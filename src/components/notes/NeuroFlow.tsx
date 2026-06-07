@@ -261,7 +261,7 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
 
   if (isLoading) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-white dark:bg-[#050505] transition-colors duration-500">
+      <div className="h-full w-full flex flex-col items-center justify-center bg-transparent transition-colors duration-500">
         <Loader2 className="h-10 w-10 animate-spin text-zinc-900 dark:text-white mb-6" />
         <p className="text-[10px] text-zinc-400 dark:text-zinc-700 font-black uppercase tracking-[0.6em]">Processando</p>
       </div>
@@ -269,7 +269,7 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
   }
 
   return (
-    <div className="h-full w-full bg-white dark:bg-[#050505] relative overflow-hidden transition-colors duration-500" ref={reactFlowWrapper as any}>
+    <div className="h-full w-full bg-transparent relative overflow-hidden transition-colors duration-500" ref={reactFlowWrapper as any}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

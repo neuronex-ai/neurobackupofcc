@@ -39,7 +39,7 @@ import { RichTextEditor } from "./RichTextEditor";
 
 interface NoteEditorProps {
   note: any;
-  onUpdate: (id: string, updates: any) => Promise<unknown>;
+  onUpdate: (id: string, updates: any) => Promise<unknown> | void;
   onDelete: (id: string) => void;
   isFocusMode: boolean;
   onToggleFocus: () => void;
@@ -115,7 +115,7 @@ export const NoteEditor = ({
     }
 
     setSaveStatus('saving');
-    const request = onUpdate(note.id, draftToSave)
+    const request = Promise.resolve(onUpdate(note.id, draftToSave))
       .then(() => {
         lastSavedDraftRef.current = draftToSave;
         setSaveStatus(draftsMatch(latestDraftRef.current, draftToSave) ? 'saved' : 'pending');
@@ -150,7 +150,7 @@ export const NoteEditor = ({
   const handleMetadataUpdate = useCallback(async (updates: any) => {
     setSaveStatus('saving');
     try {
-      await onUpdate(note.id, updates);
+      await Promise.resolve(onUpdate(note.id, updates));
       setSaveStatus(draftsMatch(latestDraftRef.current, lastSavedDraftRef.current) ? 'saved' : 'pending');
     } catch {
       setSaveStatus('error');
@@ -331,7 +331,7 @@ export const NoteEditor = ({
             exit={isFocusMode ? { opacity: 0, y: -20, x: "-50%" } : { opacity: 1 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className={cn(
-              "h-16 px-6 md:px-10 flex items-center justify-between z-50 transition-all duration-700",
+              "h-14 px-5 md:px-7 flex items-center justify-between z-50 transition-all duration-700",
               isFocusMode
                 ? "fixed top-8 left-1/2 w-[90%] max-w-4xl h-14 rounded-2xl bg-white/60 dark:bg-zinc-900/60 backdrop-blur-3xl border border-zinc-200 dark:border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.05)] ring-1 ring-zinc-100 dark:ring-white/5"
                 : "border-b border-zinc-100 dark:border-white/5 bg-white/60 dark:bg-black/60 backdrop-blur-xl sticky top-0"
@@ -598,13 +598,13 @@ export const NoteEditor = ({
         isFocusMode ? "pt-40 pb-60" : ""
       )}>
         <div className={cn(
-          "max-w-[900px] mx-auto px-8 md:px-16 py-12 space-y-10 transition-all duration-1000",
+          "max-w-[840px] mx-auto px-7 md:px-12 py-10 space-y-8 transition-all duration-1000",
           isFocusMode ? "max-w-[1200px] py-40" : ""
         )}>
           {/* Header Metadata */}
           <div className={cn(
-            "space-y-6 animate-in fade-in slide-in-from-top-4 duration-1000",
-            isFocusMode ? "mb-32" : "mb-10"
+            "space-y-5 animate-in fade-in slide-in-from-top-4 duration-700",
+            isFocusMode ? "mb-32" : "mb-7"
           )}>
             {/* Title Input */}
             <motion.input
@@ -614,10 +614,10 @@ export const NoteEditor = ({
               value={title}
               onChange={(e) => updateDraft({ title: e.target.value })}
               onBlur={() => void flushSave()}
-              placeholder="Sinfonia Sem Título"
+              placeholder="Nota sem título"
               className={cn(
                 "w-full bg-transparent border-none focus:ring-0 font-black tracking-tighter text-zinc-900 placeholder:text-zinc-300 focus:outline-none py-2 selection:bg-zinc-900/10 leading-[1.1] transition-all dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:selection:bg-white/10",
-                isFocusMode ? "text-6xl md:text-9xl text-center" : "text-4xl md:text-6xl text-zinc-900 dark:text-zinc-100",
+                isFocusMode ? "text-6xl md:text-8xl text-center" : "text-3xl md:text-4xl text-zinc-900 dark:text-zinc-100",
                 !title && "animate-shimmer"
               )}
             />
@@ -655,7 +655,7 @@ export const NoteEditor = ({
           <div className="w-full h-px bg-gradient-to-r from-transparent via-zinc-100 to-transparent dark:via-zinc-800" />
 
           {/* Rich Text Editor */}
-          <div className="min-h-[500px] pb-32 animate-in fade-in duration-700 delay-100">
+          <div className="min-h-[480px] pb-28 animate-in fade-in duration-500 delay-100">
             <RichTextEditor
               content={content}
               onChange={(html) => updateDraft({ content: html })}

@@ -51,7 +51,7 @@ const MenuButton = ({ onClick, isActive, icon: Icon, title, className }: any) =>
   <button
     onClick={onClick}
     className={cn(
-      "p-2 rounded-xl transition-all duration-300 flex items-center justify-center relative overflow-hidden group",
+      "p-1.5 rounded-lg transition-all duration-200 flex items-center justify-center relative overflow-hidden group",
       isActive
         ? "bg-zinc-900 text-white dark:bg-white dark:text-black shadow-[0_10px_20px_rgba(0,0,0,0.2)] scale-110"
         : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/5",
@@ -194,17 +194,17 @@ export const RichTextEditor = ({
     editorProps: {
       attributes: {
         class: cn(
-          "prose max-w-none focus:outline-none text-zinc-900 dark:text-zinc-100 font-sans min-h-[60vh] pb-60 selection:bg-zinc-900/10 dark:selection:bg-white/10",
+          "prose max-w-none focus:outline-none text-zinc-900 dark:text-zinc-100 font-sans min-h-[54vh] pb-48 selection:bg-zinc-900/10 dark:selection:bg-white/10",
           isFocusMode
-            ? "prose-p:leading-[2] prose-p:my-10 prose-p:text-2xl prose-p:text-zinc-900/90 dark:prose-p:text-zinc-100/90 prose-p:tracking-tight font-light"
-            : "prose-p:leading-[1.8] prose-p:my-6 prose-p:font-medium prose-p:text-xl prose-p:text-zinc-900/80 dark:prose-p:text-zinc-100/80",
+            ? "prose-p:leading-[1.9] prose-p:my-8 prose-p:text-xl prose-p:text-zinc-900/90 dark:prose-p:text-zinc-100/90 prose-p:tracking-tight font-light"
+            : "prose-p:leading-[1.75] prose-p:my-4 prose-p:font-normal prose-p:text-[17px] prose-p:text-zinc-900/80 dark:prose-p:text-zinc-100/80",
           "prose-headings:font-black prose-headings:tracking-tighter prose-headings:text-zinc-900 dark:prose-headings:text-white",
-          "prose-h1:text-6xl prose-h1:mt-24 prose-h1:mb-12 prose-h1:leading-none",
-          "prose-h2:text-5xl prose-h2:mt-20 prose-h2:mb-8 prose-h2:leading-tight",
-          "prose-h3:text-3xl prose-h3:mt-16 prose-h3:mb-6",
-          "prose-blockquote:border-l-[6px] prose-blockquote:border-zinc-900 dark:prose-blockquote:border-zinc-100 prose-blockquote:bg-zinc-50 dark:prose-blockquote:bg-zinc-900/50 prose-blockquote:py-10 prose-blockquote:px-12 prose-blockquote:rounded-[40px] prose-blockquote:not-italic prose-blockquote:my-20 prose-blockquote:text-3xl prose-blockquote:font-bold prose-blockquote:shadow-sm dark:prose-blockquote:text-zinc-100",
-          "prose-li:marker:text-zinc-900 dark:prose-li:marker:text-zinc-100 prose-li:my-4 prose-li:text-xl dark:text-zinc-200",
-          "prose-hr:border-zinc-100 dark:prose-hr:border-zinc-800 prose-hr:my-24",
+          "prose-h1:text-4xl prose-h1:mt-16 prose-h1:mb-7 prose-h1:leading-none",
+          "prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-5 prose-h2:leading-tight",
+          "prose-h3:text-2xl prose-h3:mt-10 prose-h3:mb-4",
+          "prose-blockquote:border-l-4 prose-blockquote:border-zinc-900 dark:prose-blockquote:border-zinc-100 prose-blockquote:bg-zinc-50 dark:prose-blockquote:bg-zinc-900/50 prose-blockquote:py-6 prose-blockquote:px-7 prose-blockquote:rounded-2xl prose-blockquote:not-italic prose-blockquote:my-10 prose-blockquote:text-xl prose-blockquote:font-semibold prose-blockquote:shadow-sm dark:prose-blockquote:text-zinc-100",
+          "prose-li:marker:text-zinc-900 dark:prose-li:marker:text-zinc-100 prose-li:my-2 prose-li:text-[17px] dark:text-zinc-200",
+          "prose-hr:border-zinc-100 dark:prose-hr:border-zinc-800 prose-hr:my-14",
           "prose-table:border-collapse prose-table:w-full prose-table:my-12 prose-table:rounded-3xl prose-table:overflow-hidden dark:prose-table:border-zinc-800",
           className
         ),

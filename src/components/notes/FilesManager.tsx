@@ -385,10 +385,10 @@ export const FilesManager = () => {
     return (
         <div className="flex flex-col h-full w-full font-sans relative bg-transparent">
             {/* Header */}
-            <div className="relative z-10 shrink-0 space-y-7 px-8 pb-4 pt-8 lg:px-10 lg:pt-10">
+            <div className="relative z-10 shrink-0 space-y-5 px-7 pb-4 pt-7 lg:px-8 lg:pt-8">
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                        <h2 className="text-4xl font-black italic leading-none tracking-tight text-zinc-50 [.light_&]:text-zinc-900">Gestor de Arquivos</h2>
+                        <h2 className="text-3xl font-black leading-none tracking-tight text-zinc-50 [.light_&]:text-zinc-900">Arquivos</h2>
                         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400 dark:text-zinc-500 mt-2">Sinfonia Documental</p>
                     </div>
 
@@ -543,7 +543,7 @@ export const FilesManager = () => {
             </div>
 
             {/* Content Area */}
-            <div className="custom-scrollbar relative z-10 flex-1 overflow-y-auto px-8 pb-12 lg:px-10">
+            <div className="custom-scrollbar relative z-10 flex-1 overflow-y-auto px-7 pb-10 lg:px-8">
                 <div className="absolute inset-0 premium-noise opacity-[0.01] pointer-events-none" />
                 <AnimatePresence mode="wait">
                     {activeTab === "personal" ? (

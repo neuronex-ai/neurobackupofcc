@@ -1,11 +1,15 @@
 "use client";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { NoteEditor } from "@/components/notes/NoteEditor";
 import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { lazy, Suspense } from "react";
+
+const NoteEditor = lazy(() =>
+    import("@/components/notes/NoteEditor").then((module) => ({ default: module.NoteEditor }))
+);
 
 interface NeuroFlowEditModalProps {
     noteId: string | null;
@@ -47,13 +51,19 @@ export const NeuroFlowEditModal = ({ noteId, isOpen, onClose }: NeuroFlowEditMod
 
                             <div className="flex-1 overflow-hidden relative">
                                 {activeNote ? (
-                                    <NoteEditor 
-                                        note={activeNote}
-                                        onUpdate={(id, updates) => updateNote({ id, updates })}
-                                        onDelete={(id) => { deleteNote(id); onClose(); }}
-                                        isFocusMode={false}
-                                        onToggleFocus={() => {}}
-                                    />
+                                    <Suspense fallback={
+                                        <div className="flex h-full w-full items-center justify-center">
+                                            <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+                                        </div>
+                                    }>
+                                        <NoteEditor 
+                                            note={activeNote}
+                                            onUpdate={(id, updates) => updateNote({ id, updates })}
+                                            onDelete={(id) => { deleteNote(id); onClose(); }}
+                                            isFocusMode={false}
+                                            onToggleFocus={() => {}}
+                                        />
+                                    </Suspense>
                                 ) : (
                                     <div className="h-full w-full flex flex-col items-center justify-center">
                                         <Loader2 className="h-8 w-8 animate-spin text-primary/20 mb-4" />

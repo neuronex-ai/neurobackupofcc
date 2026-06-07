@@ -233,7 +233,7 @@ Relato:
 
     return (
         <div className={cn(
-            "h-full w-full flex flex-col relative overflow-hidden transition-all duration-700 ease-out-expo bg-[#050505] [.light_&]:bg-white",
+            "h-full w-full flex flex-col relative overflow-hidden transition-all duration-700 ease-out-expo bg-transparent",
             isFullscreen ? "fixed inset-0 z-[100]" : ""
         )}>
             <NeuralBackground />

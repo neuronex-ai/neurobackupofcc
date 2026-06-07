@@ -198,6 +198,7 @@ export default function Notes() {
                         onUpdateCategory={(id, category) => updateReminderCategory({ id, category })}
                         onUpdate={(id, updates) => updateReminder({ id, updates })}
                         isListCollapsed={isListCollapsed}
+                        onToggleListCollapsed={() => setIsListCollapsed((current) => !current)}
                     />
                 </motion.div>
             );
@@ -274,13 +275,13 @@ export default function Notes() {
     };
 
     return (
-        <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-[#030303] font-sans text-zinc-50 selection:bg-white/10 [.light_&]:bg-[#fdfdfd] [.light_&]:text-zinc-900 [.light_&]:selection:bg-zinc-900/10">
+        <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-background font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
             {/* Master Texture Overlay */}
             <div className="fixed inset-0 z-[100] premium-noise opacity-[0.06] pointer-events-none mix-blend-overlay [.light_&]:opacity-[0.03]" />
 
             {/* Ambient Background Glows */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute right-0 top-0 h-[600px] w-[800px] -translate-y-1/2 translate-x-1/2 rounded-full bg-zinc-400/[0.03] blur-[150px] [.light_&]:bg-zinc-200/20" />
+                <div className="absolute right-0 top-0 h-[520px] w-[720px] -translate-y-1/2 translate-x-1/2 rounded-full bg-zinc-300/[0.018] blur-[150px] [.light_&]:bg-zinc-200/18" />
             </div>
 
             <div className="relative z-40 w-full shrink-0">
@@ -288,68 +289,36 @@ export default function Notes() {
                 <CommandMenu />
             </div>
 
-            {/* Layout Controls Dock - Aligned with Navbar Content */}
-            {!isFocusMode && (
-                <div className="group/dock fixed left-8 top-[22px] z-[100] flex items-center gap-1.5 rounded-2xl border border-white/[0.05] bg-black/20 p-1 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.25)] backdrop-blur-3xl transition-all duration-500 hover:border-white/10 [.light_&]:border-zinc-200/50 [.light_&]:bg-white/40 [.light_&]:shadow-[0_8px_32px_-12px_rgba(0,0,0,0.05)] [.light_&]:hover:border-zinc-300">
-                    <button
-                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                        className={cn(
-                            "h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-300",
-                            isSidebarCollapsed
-                                ? "text-zinc-500 hover:bg-white/5 hover:text-white [.light_&]:text-zinc-400 [.light_&]:hover:bg-zinc-100 [.light_&]:hover:text-zinc-900"
-                                : "scale-[1.05] bg-zinc-100 text-black shadow-lg [.light_&]:bg-zinc-900 [.light_&]:text-white"
-                        )}
-                        title={isSidebarCollapsed ? "Expandir Menu" : "Recolher Menu"}
-                    >
-                        <LayoutPanelLeft className="h-4 w-4" strokeWidth={isSidebarCollapsed ? 1.5 : 2.5} />
-                    </button>
-                    <div className="mx-0.5 h-4 w-px bg-white/5 [.light_&]:bg-zinc-200/50" />
-                    <button
-                        onClick={() => setIsListCollapsed(!isListCollapsed)}
-                        className={cn(
-                            "h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-300",
-                            isListCollapsed
-                                ? "text-zinc-500 hover:bg-white/5 hover:text-white [.light_&]:text-zinc-400 [.light_&]:hover:bg-zinc-100 [.light_&]:hover:text-zinc-900"
-                                : "scale-[1.05] bg-zinc-100 text-black shadow-lg [.light_&]:bg-zinc-900 [.light_&]:text-white"
-                        )}
-                        title={isListCollapsed ? "Expandir Lista" : "Recolher Lista"}
-                    >
-                        <ListFilter className="h-4 w-4" strokeWidth={isListCollapsed ? 1.5 : 2.5} />
-                    </button>
-                </div>
-            )}
-
-            <div className="flex-1 flex items-stretch h-full w-full relative z-10 px-5 pb-5 pt-3 max-w-[2200px] mx-auto overflow-hidden">
+            <div className="relative z-10 mx-auto flex h-full w-full max-w-[2200px] flex-1 items-stretch overflow-hidden px-5 pb-5 pt-3">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                    className="group/main-window relative flex flex-1 overflow-hidden rounded-[34px] border border-white/[0.05] bg-zinc-950 shadow-[0_36px_90px_-24px_rgba(0,0,0,0.42)] backdrop-blur-3xl [.light_&]:border-white [.light_&]:bg-zinc-50 [.light_&]:shadow-[0_36px_90px_-24px_rgba(0,0,0,0.12)] [.light_&]:ring-1 [.light_&]:ring-black/[0.02]"
+                    className="group/main-window relative flex flex-1 overflow-hidden rounded-[30px] border border-white/[0.065] bg-white/[0.018] shadow-[0_24px_64px_-42px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.025)] backdrop-blur-2xl [.light_&]:border-zinc-200/75 [.light_&]:bg-white/62 [.light_&]:shadow-[0_24px_64px_-42px_rgba(24,24,27,0.22),inset_0_1px_0_rgba(255,255,255,0.9)]"
                 >
-                    <div className="absolute inset-0 premium-noise opacity-[0.04] pointer-events-none [.light_&]:opacity-[0.02]" />
-                    <AnimatePresence>
-                        {(!isSidebarCollapsed && !isFocusMode) && (
-                            <motion.div
-                                initial={{ width: 0, opacity: 0 }}
-                                animate={{ width: 244, opacity: 1 }}
-                                exit={{ width: 0, opacity: 0 }}
-                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                className="relative hidden shrink-0 overflow-hidden border-r border-white/[0.05] bg-black/10 lg:flex [.light_&]:border-black/[0.05] [.light_&]:bg-zinc-50/30"
-                            >
-                                <div className="absolute inset-0 premium-noise opacity-[0.02] pointer-events-none" />
-                                <div className="w-[244px] h-full relative z-10">
-                                    <NotesSidebar
-                                        viewMode={viewMode}
-                                        setViewMode={setViewMode}
-                                        selectedModuleId={selectedModuleId}
-                                        onSelectModule={setSelectedModuleId}
-                                        onMoveNoteToModule={(id, modId) => updateNote({ id, updates: { module_id: modId } })}
-                                        onCreateNote={handleCreateNote}
-                                    />
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.025] [.light_&]:opacity-[0.014]" />
+                    {!isFocusMode && (
+                        <motion.div
+                            initial={false}
+                            animate={{ width: isSidebarCollapsed ? 66 : 226 }}
+                            transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
+                            className="relative hidden shrink-0 overflow-hidden border-r border-white/[0.055] bg-white/[0.008] lg:flex [.light_&]:border-zinc-200/65 [.light_&]:bg-white/32"
+                        >
+                            <div className={cn("h-full relative z-10", isSidebarCollapsed ? "w-[66px]" : "w-[226px]")}>
+                                <NotesSidebar
+                                    viewMode={viewMode}
+                                    setViewMode={setViewMode}
+                                    selectedModuleId={selectedModuleId}
+                                    onSelectModule={setSelectedModuleId}
+                                    onMoveNoteToModule={(id, modId) => updateNote({ id, updates: { module_id: modId } })}
+                                    onCreateNote={handleCreateNote}
+                                    isCollapsed={isSidebarCollapsed}
+                                    onToggleCollapsed={() => setIsSidebarCollapsed((current) => !current)}
+                                    isCreatingNote={isCreatingNote}
+                                />
+                            </div>
+                        </motion.div>
+                    )}
 
                     <div className="flex-1 flex overflow-hidden relative bg-transparent">
                         <AnimatePresence mode="wait">

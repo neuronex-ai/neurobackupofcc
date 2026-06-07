@@ -64,6 +64,7 @@ interface TaskBoardProps {
     onUpdateCategory?: (id: string, category: Reminder['category']) => void;
     onUpdate?: (id: string, updates: Partial<Reminder>) => void;
     isListCollapsed?: boolean;
+    onToggleListCollapsed: () => void;
 }
 
 type ViewType = 'list' | 'grid' | 'kanban';
@@ -77,7 +78,8 @@ export const TaskBoard = ({
     onCreate,
     onUpdateCategory,
     onUpdate,
-    isListCollapsed = false
+    isListCollapsed = false,
+    onToggleListCollapsed,
 }: TaskBoardProps) => {
     const [view, setView] = useState<ViewType>('kanban');
     const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
@@ -333,30 +335,32 @@ export const TaskBoard = ({
 
     return (
         <div
-            className="relative bg-[#020202] font-sans selection:bg-white selection:text-black [.light_&]:bg-zinc-50 [.light_&]:selection:bg-zinc-900 [.light_&]:selection:text-white"
+            className="relative bg-transparent font-sans selection:bg-white selection:text-black [.light_&]:selection:bg-zinc-900 [.light_&]:selection:text-white"
             style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden', minHeight: 0, minWidth: 0 }}
         >
             <div className="absolute inset-0 bg-[radial-gradient(#444_1px,transparent_1px)] [background-size:64px_64px] opacity-[0.03] dark:opacity-[0.05] pointer-events-none" />
 
-            <AnimatePresence>
-                {!isListCollapsed && (
-                    <motion.div
-                        initial={{ width: 0, opacity: 0 }}
-                        animate={{ width: "auto", opacity: 1 }}
-                        exit={{ width: 0, opacity: 0 }}
-                        transition={{ type: "spring", stiffness: 350, damping: 35 }}
-                        style={{ flexShrink: 0, overflow: 'hidden' }}
-                    >
-                        <TaskSidebar view={view} setView={setView} filter={filter} setFilter={setFilter} isListCollapsed={isListCollapsed} />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <motion.div
+                initial={false}
+                animate={{ width: isListCollapsed ? 52 : 248 }}
+                transition={{ type: "spring", stiffness: 340, damping: 36 }}
+                style={{ flexShrink: 0, overflow: 'hidden' }}
+            >
+                <TaskSidebar
+                    view={view}
+                    setView={setView}
+                    filter={filter}
+                    setFilter={setFilter}
+                    isListCollapsed={isListCollapsed}
+                    onToggleCollapsed={onToggleListCollapsed}
+                />
+            </motion.div>
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden', position: 'relative', zIndex: 10 }}>
-                <header className="px-8 pt-8 pb-6 flex items-center justify-between gap-8 shrink-0">
+                <header className="px-7 pt-7 pb-5 flex items-center justify-between gap-7 shrink-0">
                     <div className="flex items-center gap-8 flex-1">
                         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                            <h2 className="text-4xl font-black tracking-tighter text-white [.light_&]:text-zinc-900">Ações</h2>
+                            <h2 className="text-3xl font-black tracking-tighter text-white [.light_&]:text-zinc-900">Ações</h2>
                             <div className="flex items-center gap-3 mt-1.5">
                                 <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.3em]">{filteredTasks.length} registros</span>
                             </div>
