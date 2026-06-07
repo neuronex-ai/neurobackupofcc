@@ -70,10 +70,9 @@ export default function DesktopAgenda() {
     }, [appointments, searchQuery, selectedTag]);
 
     return (
-        <div className="min-h-screen pt-10 pb-12 page-spacing overflow-hidden select-none bg-zinc-10 dark:bg-zinc-950">
-            <div className="premium-noise opacity-[0.01] dark:opacity-[0.03] mix-blend-overlay fixed inset-0 bg-gradient-to-br from-transparent via-zinc-100/20 to-transparent dark:via-zinc-900/10 pointer-events-none" />
+        <div className="desktop-page-canvas min-h-screen overflow-hidden px-5 pb-10 pt-10 select-none lg:px-8">
 
-            <div className="max-w-[1800px] mx-auto relative flex h-[calc(100vh-140px)] gap-6">
+            <div className="relative mx-auto flex h-[calc(100vh-132px)] max-w-[2100px] gap-5">
 
                 <AnimatePresence mode="wait">
                     {sidebarOpen && (
@@ -101,7 +100,7 @@ export default function DesktopAgenda() {
                 </AnimatePresence>
 
                 <main className="flex-1 relative flex flex-col min-w-0 h-full">
-                    <div className="flex-1 bg-white dark:bg-[#0A0A0C] border border-zinc-200 dark:border-white/[0.06] rounded-[32px] overflow-hidden relative shadow-lg dark:shadow-2xl">
+                    <div className="desktop-apple-shell flex-1 overflow-hidden rounded-[30px]">
                         <CalendarView
                             date={selectedDate}
                             onDateChange={setSelectedDate}

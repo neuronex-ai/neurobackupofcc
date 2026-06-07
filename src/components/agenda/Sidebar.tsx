@@ -43,7 +43,7 @@ const CustomCaption = () => {
       <button
         onClick={() => previousMonth && goToMonth(previousMonth)}
         disabled={!previousMonth}
-        className="h-8 w-8 bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/[0.05] text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-xl transition-all flex items-center justify-center disabled:opacity-20 active:scale-95"
+        className="desktop-tactile flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-white/70 text-zinc-400 hover:border-zinc-300 hover:text-zinc-900 disabled:opacity-20 dark:border-white/[0.06] dark:bg-white/[0.035] dark:hover:border-white/15 dark:hover:text-white"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
@@ -54,7 +54,7 @@ const CustomCaption = () => {
             {format(displayMonth, "MMMM yyyy", { locale: ptBR })}
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-[300px] p-0 bg-white dark:bg-[#080809] border border-zinc-200 dark:border-white/10 shadow-2xl rounded-[32px] overflow-hidden" align="center" sideOffset={12}>
+        <PopoverContent className="desktop-apple-shell w-[300px] overflow-hidden rounded-[26px] p-0" align="center" sideOffset={12}>
           <div className="flex flex-row h-[280px]">
             <ScrollArea className="w-[100px] border-r border-zinc-100 dark:border-white/[0.05] bg-zinc-50/50 dark:bg-white/[0.01]">
               <div className="flex flex-col p-3 gap-1.5">
@@ -97,7 +97,7 @@ const CustomCaption = () => {
       <button
         onClick={() => nextMonth && goToMonth(nextMonth)}
         disabled={!nextMonth}
-        className="h-8 w-8 bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/[0.05] text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-xl transition-all flex items-center justify-center disabled:opacity-20 active:scale-95"
+        className="desktop-tactile flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-white/70 text-zinc-400 hover:border-zinc-300 hover:text-zinc-900 disabled:opacity-20 dark:border-white/[0.06] dark:bg-white/[0.035] dark:hover:border-white/15 dark:hover:text-white"
       >
         <ChevronRight className="h-4 w-4" />
       </button>
@@ -122,10 +122,10 @@ export const Sidebar = ({
   const unscored = todayAppointments.filter(a => normalizeAppointmentStatus(a.status, a.notes) === 'unscored').length;
 
   return (
-    <div className="h-full flex flex-col overflow-y-auto custom-scrollbar pr-4 pb-8 space-y-6">
+    <div className="desktop-content-scroll custom-scrollbar flex h-full flex-col space-y-5 overflow-y-auto pb-8 pr-3">
       
       {/* 1. Calendar Section - High Fidelity Monochrome */}
-      <div className="relative bg-white dark:bg-[#080809] border border-zinc-200 dark:border-white/[0.06] rounded-[32px] overflow-hidden p-6 shrink-0 transition-all duration-500 shadow-sm hover:border-zinc-300 dark:hover:border-white/10">
+      <div className="desktop-apple-shell relative shrink-0 overflow-hidden rounded-[28px] p-5 transition-colors duration-300 hover:border-zinc-300 dark:hover:border-white/10">
         
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -139,7 +139,7 @@ export const Sidebar = ({
           </div>
           <button
             onClick={() => onDateChange(new Date())}
-            className="text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all bg-zinc-50 dark:bg-white/[0.02] px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-white/5"
+            className="desktop-tactile rounded-lg border border-zinc-200 bg-white/60 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 dark:border-white/[0.06] dark:bg-white/[0.025] dark:hover:text-white"
           >
             Hoje
           </button>
@@ -179,7 +179,7 @@ export const Sidebar = ({
       </div>
 
       {/* 3. Search & Filters - Minimalist Area */}
-      <div className="flex-1 bg-zinc-50 dark:bg-white/[0.01] border border-zinc-200 dark:border-white/[0.04] rounded-[32px] p-6 flex flex-col gap-8">
+      <div className="desktop-apple-surface flex flex-1 flex-col gap-7 rounded-[28px] p-5">
         
         {/* Search Block */}
         <div className="space-y-3">
@@ -209,7 +209,7 @@ export const Sidebar = ({
                 key={tag}
                 onClick={() => onTagChange(selectedTag === tag ? null : tag)}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all border",
+                  "desktop-tactile px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-wider border",
                   selectedTag === tag
                     ? "bg-zinc-900 dark:bg-white border-transparent text-white dark:text-black shadow-md scale-105"
                     : "bg-white dark:bg-white/[0.02] border-zinc-200 dark:border-white/[0.06] text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
@@ -232,7 +232,7 @@ export const Sidebar = ({
 };
 
 const MetricCard = ({ label, value }: { label: string, value: number }) => (
-  <div className="bg-white dark:bg-[#080809] border border-zinc-200 dark:border-white/[0.06] p-5 rounded-[24px] group hover:border-zinc-300 dark:hover:border-white/10 transition-all shadow-sm">
+  <div className="desktop-apple-surface group rounded-[22px] p-5 transition-colors hover:border-zinc-300 dark:hover:border-white/10">
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <span className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">{label}</span>
