@@ -11,6 +11,7 @@ import { lerp, drawNode, drawLink } from "./graph/canvas-renderers";
 import { GraphDetailsPanel } from "./graph/GraphDetailsPanel";
 import { PersonalNote, Patient } from "@/types";
 import { NeuroViewUniverse } from "./NeuroViewUniverse";
+import { useTheme } from "@/hooks/use-theme";
 
 // --- DEFAULT CONFIG ---
 const DEFAULT_CONFIG: NeuroConfig = {
@@ -21,6 +22,35 @@ const DEFAULT_CONFIG: NeuroConfig = {
     showPatients: true,
     showNotes: true,
     showTags: true
+};
+
+const NEUROVIEW_CONFIG_STORAGE_KEY = "neuronex:desktop:neuroview:physics:v1";
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const readStoredNeuroConfig = (): NeuroConfig => {
+    if (typeof window === "undefined") return DEFAULT_CONFIG;
+
+    try {
+        const raw = window.localStorage.getItem(NEUROVIEW_CONFIG_STORAGE_KEY);
+        if (!raw) return DEFAULT_CONFIG;
+
+        const parsed = JSON.parse(raw) as Partial<NeuroConfig>;
+
+        return {
+            ...DEFAULT_CONFIG,
+            ...parsed,
+            repulsion: typeof parsed.repulsion === "number" ? clamp(parsed.repulsion, -1300, -120) : DEFAULT_CONFIG.repulsion,
+            linkDistance: typeof parsed.linkDistance === "number" ? clamp(parsed.linkDistance, 45, 210) : DEFAULT_CONFIG.linkDistance,
+            centerForce: typeof parsed.centerForce === "number" ? clamp(parsed.centerForce, 0, 0.26) : DEFAULT_CONFIG.centerForce,
+            performanceMode: typeof parsed.performanceMode === "boolean" ? parsed.performanceMode : DEFAULT_CONFIG.performanceMode,
+            showPatients: typeof parsed.showPatients === "boolean" ? parsed.showPatients : DEFAULT_CONFIG.showPatients,
+            showNotes: typeof parsed.showNotes === "boolean" ? parsed.showNotes : DEFAULT_CONFIG.showNotes,
+            showTags: typeof parsed.showTags === "boolean" ? parsed.showTags : DEFAULT_CONFIG.showTags,
+        };
+    } catch {
+        return DEFAULT_CONFIG;
+    }
 };
 
 const getEndpointId = (endpoint: GraphLink["source"] | GraphLink["target"]) => (
@@ -34,6 +64,8 @@ const getLinkKey = (link: GraphLink) => {
 };
 
 export const NeuroView = () => {
+    const { theme } = useTheme();
+    const isDarkMode = theme === "dark";
     // Universe mode
     const [isUniverseMode, setIsUniverseMode] = useState(false);
 
@@ -45,23 +77,9 @@ export const NeuroView = () => {
     const timeRef = useRef<number>(0);
     const [graphSize, setGraphSize] = useState({ width: 0, height: 0 });
 
-    // Check theme manually since `next-themes` might not be fully available in this context or standard
-    // Ideally use useTheme(), but fallback to class check on documentElement for simplicity if needed
-    const [isDarkMode, setIsDarkMode] = useState(true);
-
-    useEffect(() => {
-        const checkTheme = () => {
-            setIsDarkMode(document.documentElement.classList.contains('dark'));
-        };
-        checkTheme();
-        const observer = new MutationObserver(checkTheme);
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-        return () => observer.disconnect();
-    }, []);
-
     // 2. Data Hook
     const { updateNote, deleteNote } = usePersonalNotes();
-    const [config, setConfig] = useState<NeuroConfig>(DEFAULT_CONFIG);
+    const [config, setConfig] = useState<NeuroConfig>(() => readStoredNeuroConfig());
     const [searchQuery, setSearchQuery] = useState("");
 
     const { graphData: targetGraphData, notes, patients, isLoading } = useGraphData({ config, searchQuery });
@@ -236,6 +254,14 @@ export const NeuroView = () => {
             animationTimeoutsRef.current = [];
         };
     }, []);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(NEUROVIEW_CONFIG_STORAGE_KEY, JSON.stringify(config));
+        } catch {
+            // Storage can be unavailable in private/restricted browser contexts.
+        }
+    }, [config]);
 
     // 4. Animation Loop
     useEffect(() => {

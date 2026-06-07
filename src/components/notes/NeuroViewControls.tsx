@@ -42,7 +42,7 @@ interface NeuroViewControlsProps {
 }
 
 const controlButtonClass =
-  "h-10 w-10 shrink-0 rounded-2xl bg-white/62 dark:bg-white/[0.055] border border-black/[0.06] dark:border-white/[0.085] text-zinc-500 dark:text-white/62 hover:text-zinc-950 dark:hover:text-white hover:bg-white/86 dark:hover:bg-white/[0.105] transition-all duration-300 active:scale-95 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_18px_44px_-32px_rgba(0,0,0,0.55)]";
+  "h-10 w-10 shrink-0 rounded-2xl border border-white/[0.085] bg-white/[0.055] text-white/62 hover:bg-white/[0.105] hover:text-white transition-all duration-300 active:scale-95 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_44px_-32px_rgba(0,0,0,0.75)] [.light_&]:border-black/[0.06] [.light_&]:bg-white/62 [.light_&]:text-zinc-500 [.light_&]:hover:bg-white/86 [.light_&]:hover:text-zinc-950 [.light_&]:shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_18px_44px_-32px_rgba(0,0,0,0.55)]";
 
 export const NeuroViewControls = ({
   config,
@@ -74,43 +74,48 @@ export const NeuroViewControls = ({
               transition={{ type: "spring", damping: 28, stiffness: 360 }}
               className={cn(
                 "w-full max-w-[430px] p-4 space-y-4",
-                "rounded-[28px] bg-white/78 dark:bg-[#070708]/76 backdrop-blur-3xl",
-                "border border-black/[0.07] dark:border-white/[0.085]",
-                "shadow-[0_34px_110px_-48px_rgba(0,0,0,0.64),inset_0_1px_0_rgba(255,255,255,0.18)]",
+                "rounded-[28px] bg-[#070708]/76 backdrop-blur-3xl [.light_&]:bg-white/78",
+                "border border-white/[0.085] [.light_&]:border-black/[0.07]",
+                "shadow-[0_34px_110px_-48px_rgba(0,0,0,0.86),inset_0_1px_0_rgba(255,255,255,0.08)] [.light_&]:shadow-[0_34px_110px_-48px_rgba(0,0,0,0.64),inset_0_1px_0_rgba(255,255,255,0.18)]",
               )}
             >
-              <div className="flex items-center justify-between border-b border-black/[0.06] pb-3 dark:border-white/[0.08]">
-                <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-700 dark:text-white/72">
-                  <Settings2 className="h-3.5 w-3.5" /> Fisica do NeuroView
-                </span>
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3 [.light_&]:border-black/[0.06]">
+                <div>
+                  <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-white/72 [.light_&]:text-zinc-700">
+                    <Settings2 className="h-3.5 w-3.5" /> Fisica do NeuroView
+                  </span>
+                  <p className="mt-1 text-[8px] font-black uppercase tracking-[0.2em] text-white/30 [.light_&]:text-zinc-400">
+                    Salvo automaticamente
+                  </p>
+                </div>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={() => setIsExpanded(false)}
-                  className="h-7 w-7 rounded-xl text-zinc-400 hover:bg-black/5 hover:text-zinc-900 dark:text-white/45 dark:hover:bg-white/10 dark:hover:text-white"
+                  className="h-7 w-7 rounded-xl text-white/45 hover:bg-white/10 hover:text-white [.light_&]:text-zinc-400 [.light_&]:hover:bg-black/5 [.light_&]:hover:text-zinc-900"
                 >
                   <ChevronDown className="h-3.5 w-3.5" />
                 </Button>
               </div>
 
-              <div className="rounded-2xl border border-black/[0.055] bg-black/[0.025] p-3 dark:border-white/[0.07] dark:bg-white/[0.035]">
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-3 [.light_&]:border-black/[0.055] [.light_&]:bg-black/[0.025]">
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-zinc-700 dark:text-white/72">Otimizacao dinamica</Label>
-                    <p className="text-[10px] leading-relaxed text-zinc-500 dark:text-white/42">
+                    <Label className="text-xs font-semibold text-white/72 [.light_&]:text-zinc-700">Otimizacao dinamica</Label>
+                    <p className="text-[10px] leading-relaxed text-white/42 [.light_&]:text-zinc-500">
                       Reduz detalhes enquanto a rede esta em movimento intenso.
                     </p>
                   </div>
                   <Switch
                     checked={config.performanceMode}
                     onCheckedChange={(value) => update("performanceMode", value)}
-                    className="scale-75 data-[state=checked]:bg-zinc-950 dark:data-[state=checked]:bg-white/80"
+                    className="scale-75 data-[state=checked]:bg-white/80 [.light_&]:data-[state=checked]:bg-zinc-950"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-white/44">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-white/44 [.light_&]:text-zinc-500">
                   <span>Repulsao neural</span>
                   <span className="tabular-nums">{Math.abs(config.repulsion).toFixed(0)}</span>
                 </div>
@@ -120,12 +125,12 @@ export const NeuroViewControls = ({
                   max={1300}
                   step={20}
                   onValueChange={([value]) => update("repulsion", -value)}
-                  className="[&>span:first-child]:bg-zinc-200 dark:[&>span:first-child]:bg-white/10 [&_[role=slider]]:bg-zinc-950 dark:[&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+                  className="[&>span:first-child]:bg-white/10 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [.light_&]:[&>span:first-child]:bg-zinc-200 [.light_&]:[&_[role=slider]]:bg-zinc-950"
                 />
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-white/44">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-white/44 [.light_&]:text-zinc-500">
                   <span>Comprimento dos elos</span>
                   <span className="tabular-nums">{config.linkDistance.toFixed(0)}px</span>
                 </div>
@@ -135,12 +140,12 @@ export const NeuroViewControls = ({
                   max={210}
                   step={5}
                   onValueChange={([value]) => update("linkDistance", value)}
-                  className="[&>span:first-child]:bg-zinc-200 dark:[&>span:first-child]:bg-white/10 [&_[role=slider]]:bg-zinc-950 dark:[&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+                  className="[&>span:first-child]:bg-white/10 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [.light_&]:[&>span:first-child]:bg-zinc-200 [.light_&]:[&_[role=slider]]:bg-zinc-950"
                 />
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-white/44">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-white/44 [.light_&]:text-zinc-500">
                   <span>Gravidade central</span>
                   <span className="tabular-nums">{(config.centerForce * 100).toFixed(1)}%</span>
                 </div>
@@ -150,11 +155,11 @@ export const NeuroViewControls = ({
                   max={26}
                   step={1}
                   onValueChange={([value]) => update("centerForce", value / 100)}
-                  className="[&>span:first-child]:bg-zinc-200 dark:[&>span:first-child]:bg-white/10 [&_[role=slider]]:bg-zinc-950 dark:[&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:h-3 [&_[role=slider]]:w-3"
+                  className="[&>span:first-child]:bg-white/10 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [.light_&]:[&>span:first-child]:bg-zinc-200 [.light_&]:[&_[role=slider]]:bg-zinc-950"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 border-t border-black/[0.06] pt-3 dark:border-white/[0.08]">
+              <div className="grid grid-cols-3 gap-2 border-t border-white/[0.08] pt-3 [.light_&]:border-black/[0.06]">
                 {[
                   ["Pacientes", "showPatients"],
                   ["Notas", "showNotes"],
@@ -162,13 +167,13 @@ export const NeuroViewControls = ({
                 ].map(([label, key]) => (
                   <label
                     key={key}
-                    className="flex items-center justify-between gap-2 rounded-2xl border border-black/[0.055] bg-black/[0.025] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:border-white/[0.07] dark:bg-white/[0.035] dark:text-white/48"
+                    className="flex items-center justify-between gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-white/48 [.light_&]:border-black/[0.055] [.light_&]:bg-black/[0.025] [.light_&]:text-zinc-500"
                   >
                     {label}
                     <Switch
                       checked={Boolean(config[key as keyof NeuroConfig])}
                       onCheckedChange={(value) => update(key as keyof NeuroConfig, value)}
-                      className="scale-[0.68] data-[state=checked]:bg-zinc-950 dark:data-[state=checked]:bg-white/80"
+                      className="scale-[0.68] data-[state=checked]:bg-white/80 [.light_&]:data-[state=checked]:bg-zinc-950"
                     />
                   </label>
                 ))}
@@ -177,22 +182,22 @@ export const NeuroViewControls = ({
           )}
         </AnimatePresence>
 
-        <div className="flex w-full items-center gap-2 rounded-[28px] border border-black/[0.08] bg-white/72 px-2.5 py-2.5 shadow-[0_30px_90px_-42px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-3xl dark:border-white/[0.09] dark:bg-[#070708]/72 dark:shadow-[0_30px_90px_-42px_rgba(0,0,0,0.86),inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div className="flex w-full items-center gap-2 rounded-[28px] border border-white/[0.09] bg-[#070708]/72 px-2.5 py-2.5 shadow-[0_30px_90px_-42px_rgba(0,0,0,0.86),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-3xl [.light_&]:border-black/[0.08] [.light_&]:bg-white/72 [.light_&]:shadow-[0_30px_90px_-42px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.42)]">
           <div className="relative min-w-[180px] flex-1">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 dark:text-white/36" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/36 [.light_&]:text-zinc-400" />
             <Input
               value={searchQuery}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder="Buscar notas..."
               className={cn(
-                "h-10 rounded-2xl border-transparent bg-black/[0.035] pl-10 pr-3 text-sm text-zinc-900 shadow-none outline-none transition-all",
-                "placeholder:text-zinc-400 focus-visible:ring-0 focus-visible:border-black/[0.08]",
-                "dark:bg-white/[0.055] dark:text-white dark:placeholder:text-white/36 dark:focus-visible:border-white/[0.12]",
+                "h-10 rounded-2xl border-transparent bg-white/[0.055] pl-10 pr-3 text-sm text-white shadow-none outline-none transition-all",
+                "placeholder:text-white/36 focus-visible:ring-0 focus-visible:border-white/[0.12]",
+                "[.light_&]:bg-black/[0.035] [.light_&]:text-zinc-900 [.light_&]:placeholder:text-zinc-400 [.light_&]:focus-visible:border-black/[0.08]",
               )}
             />
           </div>
 
-          <div className="hidden h-8 w-px bg-black/[0.08] dark:bg-white/[0.09] sm:block" />
+          <div className="hidden h-8 w-px bg-white/[0.09] [.light_&]:bg-black/[0.08] sm:block" />
 
           <div className="flex shrink-0 items-center gap-1.5">
             <Button size="icon" variant="ghost" onClick={onAnimate} className={controlButtonClass} title="Brotar rede neural">
@@ -213,7 +218,7 @@ export const NeuroViewControls = ({
               onClick={() => update("performanceMode", !config.performanceMode)}
               className={cn(
                 controlButtonClass,
-                config.performanceMode && "bg-amber-500/16 text-amber-600 dark:text-amber-300 dark:bg-amber-500/18"
+                config.performanceMode && "bg-amber-500/18 text-amber-300 [.light_&]:bg-amber-500/16 [.light_&]:text-amber-600"
               )}
               title={config.performanceMode ? "Desativar modo performance" : "Ativar modo performance"}
             >
@@ -226,7 +231,7 @@ export const NeuroViewControls = ({
               size="icon"
               variant="ghost"
               onClick={() => setIsExpanded(!isExpanded)}
-              className={cn(controlButtonClass, isExpanded && "bg-zinc-950 text-white dark:bg-white dark:text-black")}
+              className={cn(controlButtonClass, isExpanded && "bg-white text-black [.light_&]:bg-zinc-950 [.light_&]:text-white")}
               title="Ajustar fisica"
             >
               <Settings2 className="h-4 w-4" />
