@@ -149,16 +149,14 @@ const DesktopDashboard = () => {
 
     return (
         <>
-        <div className="relative min-h-screen w-full bg-[#f4f4f5] pb-32 font-sans selection:bg-black/10 selection:text-black dark:bg-[#050506] dark:selection:bg-white/10 dark:selection:text-white">
-            <div className="liquid-mesh-bg !opacity-35 dark:!opacity-55" />
-            <div className="brand-neutral-gradient opacity-55" />
-            <div className="premium-noise fixed inset-0 z-0 opacity-[0.018] dark:opacity-[0.028]" />
+        <div className="w-full min-h-screen pb-40 relative font-sans bg-transparent selection:bg-black/10 dark:selection:bg-white/10 selection:text-black dark:selection:text-white">
+            <div className="liquid-mesh-bg" />
 
             {/* Spacer for top area */}
-            <div className="h-8" />
+            <div className="h-12" />
 
             {/* ─── Main Grid Layout ─── */}
-            <div className="relative z-10 mx-auto max-w-[2100px] space-y-9 px-5 md:px-8 lg:px-10 xl:px-14">
+            <div className="max-w-[1920px] mx-auto px-6 md:px-10 lg:px-14 xl:px-20 relative z-10 space-y-12">
 
                 {/* ROW 0: Synapse Global Pill Intro */}
                 <motion.div
@@ -166,20 +164,20 @@ const DesktopDashboard = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                 >
-                    <div className="group relative flex flex-col items-center justify-between gap-8 overflow-hidden rounded-[28px] border border-zinc-200/75 p-8 shadow-[0_20px_54px_-42px_rgba(24,24,27,0.3)] transition-shadow duration-300 hover:shadow-[0_26px_66px_-44px_rgba(24,24,27,0.4)] dark:border-white/[0.065] dark:hover:shadow-[0_26px_66px_-44px_rgba(0,0,0,0.9)] md:flex-row">
+                    <div className="group relative overflow-hidden rounded-[32px] border border-black/5 dark:border-white/5 p-10 flex flex-col md:flex-row items-center justify-between gap-10 shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_20px_rgba(255,255,255,0.01)] transition-all duration-500 hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.4)]">
 
                         <div className="absolute inset-0 pointer-events-none z-0">
-                            <div className="absolute inset-0 bg-white/82 backdrop-blur-xl dark:bg-[#090a0c]/92" />
+                            <div className="absolute inset-0 bg-white dark:bg-[#080809] transition-colors duration-500" />
                             {/* Subtle Depth Gradients */}
                             <div className="absolute top-0 right-0 w-[40%] h-full bg-gradient-to-l from-zinc-50/50 dark:from-white/[0.02] to-transparent" />
                         </div>
 
-                        <div className="relative z-10 flex flex-col items-center gap-6 text-center md:flex-row md:items-start md:text-left">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-900">
-                                <Sparkles className="h-5 w-5" strokeWidth={2} />
+                        <div className="flex flex-col md:flex-row items-center md:items-start text-center md:text-left gap-8 relative z-10">
+                            <div className="w-14 h-14 shrink-0 flex items-center justify-center rounded-2xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-900 shadow-xl">
+                                <Sparkles className="w-6 h-6" strokeWidth={2} />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="flex items-center justify-center gap-3 text-xl font-bold tracking-tight text-black dark:text-white md:justify-start">
+                                <h3 className="text-xl md:text-2xl font-bold text-black dark:text-white tracking-tight flex items-center justify-center md:justify-start gap-3">
                                     Converse com sua clínica
                                     <span className="px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400 text-[9px] uppercase tracking-widest font-bold">Inteligência</span>
                                 </h3>
@@ -216,7 +214,7 @@ const DesktopDashboard = () => {
                 <DashboardKpiCards />
 
                 {/* ROW 1: Briefing & Next Appointment */}
-                <div className="grid grid-cols-1 gap-7 lg:grid-cols-3">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2">
                         <GlassCard className="h-full min-h-[380px] shadow-sm border-zinc-100 dark:border-white/[0.04]" innerClassName="p-0" delay={80}>
                             <MorningBriefing
@@ -235,7 +233,7 @@ const DesktopDashboard = () => {
                 </div>
 
                 {/* ROW 3: Header Widgets & Mini Agenda */}
-                <div className="grid grid-cols-1 gap-7 lg:grid-cols-3">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2">
                         <DashboardHeaderWidget />
                     </div>
@@ -247,8 +245,8 @@ const DesktopDashboard = () => {
                 </div>
 
                 {/* ROW 4: Premium Timeline */}
-                <GlassCard className="min-h-[560px] w-full !rounded-[28px] border-zinc-200/70 bg-white/78 shadow-[0_20px_54px_-42px_rgba(24,24,27,0.3)] dark:border-white/[0.055] dark:bg-[#090a0c]/90" innerClassName="p-8 md:p-10 h-full flex flex-col" delay={240}>
-                    <div className="mb-8 flex items-center justify-between">
+                <GlassCard className="w-full min-h-[600px] border-zinc-100 dark:border-white/[0.04]" innerClassName="p-12 md:p-14 h-full flex flex-col" delay={240}>
+                    <div className="flex items-center justify-between mb-12">
                         <div className="space-y-1.5">
                             <h3 className="text-xl font-bold text-black dark:text-white uppercase tracking-tight">Agenda Cronológica</h3>
                             <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-[0.3em]">Fluxo de Atendimentos {allUpcomingAppointments && `(${allUpcomingAppointments.length})`}</p>

@@ -196,15 +196,14 @@ export default function PatientDetail() {
     }
 
     return (
-        <div className="neuronex-bg relative min-h-screen w-full bg-[#f4f4f5] pb-28 pt-5 font-sans text-foreground selection:bg-zinc-900/10 dark:bg-[#050506] dark:selection:bg-white/10">
+        <div className="relative min-h-screen w-full bg-background pb-28 pt-5 font-sans text-foreground selection:bg-zinc-900/10 dark:selection:bg-white/10">
             <div className="pointer-events-none fixed inset-0 z-0 premium-noise opacity-[0.025] dark:opacity-[0.035]" />
             <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-                <div className="liquid-mesh-bg !opacity-35 dark:!opacity-55" />
-                <div className="brand-neutral-gradient opacity-65" />
+                <div className="absolute right-[-12%] top-[-22%] h-[620px] w-[780px] rounded-full bg-zinc-400/[0.035] blur-[170px] dark:bg-white/[0.018]" />
             </div>
 
             <div className="relative z-10 mx-auto w-full max-w-[2200px] px-5">
-                <section className="relative isolate overflow-visible rounded-[30px] border border-zinc-200/80 bg-white/76 shadow-[0_24px_64px_-42px_rgba(24,24,27,0.2),inset_0_1px_0_rgba(255,255,255,0.94)] backdrop-blur-2xl dark:border-white/[0.07] dark:bg-[#090a0c]/92 dark:shadow-[0_24px_64px_-42px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.035)]">
+                <section className="relative isolate overflow-visible rounded-[30px] border border-zinc-200/75 bg-white/62 shadow-[0_24px_64px_-42px_rgba(24,24,27,0.22),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/[0.065] dark:bg-white/[0.018] dark:shadow-[0_24px_64px_-42px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.025)]">
                     <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[30px] premium-noise opacity-[0.012] dark:opacity-[0.018]" />
 
             {/* ─── Header Top Bar ─── */}
@@ -212,7 +211,7 @@ export default function PatientDetail() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: "circOut" }}
-                className="sticky top-3 z-40 w-full rounded-t-[30px] border-b border-zinc-200/70 bg-white/86 px-4 py-3 backdrop-blur-2xl dark:border-white/[0.06] dark:bg-[#0b0c0e]/92"
+                className="sticky top-3 z-40 w-full rounded-t-[30px] border-b border-zinc-200/65 bg-white/78 px-4 py-3 backdrop-blur-3xl dark:border-white/[0.055] dark:bg-[#080809]/76"
             >
                 <div className="w-full">
                     <div className="flex w-full items-center justify-between gap-4">
@@ -279,7 +278,7 @@ export default function PatientDetail() {
                     {/* LEFT COLUMN: Patient Info */}
                     <aside className="z-20 w-full space-y-5 border-b border-zinc-200/65 p-5 dark:border-white/[0.055] xl:sticky xl:top-[86px] xl:border-b-0 xl:border-r">
                         <GlassCard
-                            className="w-full !rounded-[24px] !border-zinc-200/75 !bg-white/72 !shadow-none !backdrop-blur-none dark:!border-white/[0.065] dark:!bg-[#0d0e10]/78"
+                            className="w-full !rounded-[24px] !border-zinc-200/70 !bg-white/55 !shadow-none !backdrop-blur-none dark:!border-white/[0.06] dark:!bg-white/[0.014]"
                             innerClassName="p-0"
                         >
                             <div className="group relative overflow-hidden p-5">
@@ -383,7 +382,7 @@ export default function PatientDetail() {
                                         onMouseUp={handleMouseLeaveOrUp}
                                         onMouseMove={handleMouseMove}
                                         className={cn(
-                                            "flex w-full select-none items-center overflow-x-auto rounded-2xl border border-zinc-200/75 bg-white/88 p-1.5 shadow-[0_18px_50px_-36px_rgba(24,24,27,0.3)] backdrop-blur-2xl transition-colors dark:border-white/[0.07] dark:bg-[#0b0c0e]/92 dark:shadow-[0_18px_50px_-36px_rgba(0,0,0,0.86)]",
+                                            "flex w-full select-none items-center overflow-x-auto rounded-2xl border border-zinc-200/70 bg-white/82 p-1.5 shadow-[0_18px_50px_-36px_rgba(24,24,27,0.35)] backdrop-blur-3xl transition-colors dark:border-white/[0.07] dark:bg-[#080809]/82 dark:shadow-[0_18px_50px_-36px_rgba(0,0,0,0.8)]",
                                             isDragging ? "cursor-grabbing" : "cursor-grab",
                                             "custom-premium-scrollbar"
                                         )}

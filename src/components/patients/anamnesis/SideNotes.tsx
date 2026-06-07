@@ -39,15 +39,15 @@ const NoteItem = ({ note, onDelete }: { note: any, onDelete: (id: string) => voi
             <div
                 onClick={() => setIsExpanded(!isExpanded)}
                 className={cn(
-                    "relative cursor-pointer overflow-hidden rounded-2xl border transition-colors duration-300",
+                    "relative rounded-[28px] border transition-all duration-700 cursor-pointer overflow-hidden",
                     isExpanded
-                        ? "border-border bg-background/80 shadow-sm dark:bg-white/[0.055]"
+                        ? "bg-white dark:bg-white/[0.06] border-zinc-200 dark:border-white/15 shadow-2xl"
                         : "bg-transparent border-transparent hover:bg-zinc-100 dark:hover:bg-white/[0.04] hover:border-zinc-200/50 dark:hover:border-white/10 h-14 flex items-center group/card"
                 )}
             >
                 <div className={cn("flex items-center justify-between w-full px-6", isExpanded ? "pt-8 pb-3 items-start" : "")}>
                     <div className="flex items-center gap-5 min-w-0 flex-1">
-                        <div className={cn("h-2 w-2 rounded-full transition-transform duration-300", isExpanded ? "scale-125 bg-foreground" : "bg-muted-foreground/35")} />
+                        <div className={cn("w-2 h-2 rounded-full transition-all duration-700", isExpanded ? "bg-zinc-900 dark:bg-white scale-150 shadow-[0_0_12px_rgba(255,255,255,0.3)]" : "bg-zinc-300 dark:bg-zinc-700")} />
                         <h3 className={cn("font-black transition-colors truncate text-xs tracking-tight",
                             isExpanded
                                 ? "text-zinc-900 dark:text-white uppercase tracking-widest"
@@ -139,7 +139,7 @@ export function SideNotes() {
     };
 
     return (
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card/76 shadow-[0_18px_48px_-38px_rgba(15,23,42,0.55)] backdrop-blur-xl dark:bg-[#0d0e10]/82">
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card/68 shadow-[0_18px_48px_-38px_rgba(15,23,42,0.55)] backdrop-blur-xl dark:bg-white/[0.025]">
             {/* Header */}
             <div className="relative z-20 flex-none border-b border-border/60 bg-background/35 p-6 backdrop-blur-md">
                 <div className="flex items-center justify-between">

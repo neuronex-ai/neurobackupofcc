@@ -323,14 +323,6 @@
     will-change: opacity;
   }
 
-  .anamnesis-scroll-surface {
-    scroll-behavior: auto !important;
-    overscroll-behavior: contain;
-    contain: layout paint;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-  }
-
   /* === STANDARDIZED SYSTEM BACKGROUND === */
   /* Use this class on all main page containers for consistent background */
   .neuronex-bg {

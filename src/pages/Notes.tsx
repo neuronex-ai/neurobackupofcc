@@ -213,7 +213,7 @@ export default function Notes() {
                                 initial={false}
                                 animate={{ width: isListCollapsed ? 52 : 330 }}
                                 transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
-                            className="relative flex shrink-0 flex-col overflow-hidden border-r border-white/[0.055] bg-[#0d0e10]/72 [.light_&]:border-zinc-200/65 [.light_&]:bg-white/48"
+                                className="relative flex shrink-0 flex-col overflow-hidden border-r border-white/[0.05] bg-white/[0.008] [.light_&]:border-zinc-200/60 [.light_&]:bg-white/25"
                             >
                                 <div className={cn("h-full relative z-10", isListCollapsed ? "w-[52px]" : "w-[330px]")}>
                                     <NotesListPanel
@@ -275,14 +275,13 @@ export default function Notes() {
     };
 
     return (
-        <div className="neuronex-bg relative flex h-screen w-screen flex-col overflow-hidden bg-[#f4f4f5] font-sans text-foreground selection:bg-white/10 dark:bg-[#050506] [.light_&]:selection:bg-zinc-900/10">
+        <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-background font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
             {/* Master Texture Overlay */}
             <div className="fixed inset-0 z-[100] premium-noise opacity-[0.035] pointer-events-none mix-blend-overlay [.light_&]:opacity-[0.02]" />
 
             {/* Ambient Background Glows */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="liquid-mesh-bg !opacity-35 dark:!opacity-55" />
-                <div className="brand-neutral-gradient opacity-65" />
+                <div className="absolute right-0 top-0 h-[520px] w-[720px] -translate-y-1/2 translate-x-1/2 rounded-full bg-zinc-300/[0.018] blur-[150px] [.light_&]:bg-zinc-200/18" />
             </div>
 
             <div className="relative z-40 w-full shrink-0">
@@ -295,7 +294,7 @@ export default function Notes() {
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                    className="group/main-window relative flex flex-1 overflow-hidden rounded-[30px] border border-white/[0.07] bg-[#090a0c]/92 shadow-[0_24px_64px_-42px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.035)] backdrop-blur-2xl [.light_&]:border-zinc-200/80 [.light_&]:bg-white/76 [.light_&]:shadow-[0_24px_64px_-42px_rgba(24,24,27,0.2),inset_0_1px_0_rgba(255,255,255,0.94)]"
+                    className="group/main-window relative flex flex-1 overflow-hidden rounded-[30px] border border-white/[0.065] bg-white/[0.018] shadow-[0_24px_64px_-42px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.025)] backdrop-blur-2xl [.light_&]:border-zinc-200/75 [.light_&]:bg-white/62 [.light_&]:shadow-[0_24px_64px_-42px_rgba(24,24,27,0.22),inset_0_1px_0_rgba(255,255,255,0.9)]"
                 >
                     <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.016] [.light_&]:opacity-[0.01]" />
                     {!isFocusMode && (
@@ -303,7 +302,7 @@ export default function Notes() {
                             initial={false}
                             animate={{ width: isSidebarCollapsed ? 66 : 226 }}
                             transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
-                            className="relative hidden shrink-0 overflow-hidden border-r border-white/[0.055] bg-[#0d0e10]/74 lg:flex [.light_&]:border-zinc-200/65 [.light_&]:bg-white/52"
+                            className="relative hidden shrink-0 overflow-hidden border-r border-white/[0.055] bg-white/[0.008] lg:flex [.light_&]:border-zinc-200/65 [.light_&]:bg-white/32"
                         >
                             <div className={cn("h-full relative z-10", isSidebarCollapsed ? "w-[66px]" : "w-[226px]")}>
                                 <NotesSidebar
