@@ -11,9 +11,9 @@ import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import {
     Angry, BrainCircuit, CheckCircle2, ChevronDown,
-    ChevronUp, Download, Frown, Laugh, Meh, Paperclip, Smile, Target
+    ChevronUp, Download, Frown, Laugh, Loader2, Meh, Paperclip, Smile, Target
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 interface PatientUnifiedTimelineProps {
@@ -60,13 +60,24 @@ const ExpandableText = ({ text, className, limit = 150 }: { text: string, classN
 };
 
 export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProps) => {
-    const { data: timeline, isLoading } = usePatientTimeline(patientId);
+    const {
+        data: timelinePages,
+        isLoading,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = usePatientTimeline(patientId);
 
-    const handleDownload = async (path: string) => {
+    const timeline = useMemo(() => {
+        const items = timelinePages?.pages.flatMap((page) => page.items) ?? [];
+        return items.sort((a, b) => b.date.getTime() - a.date.getTime());
+    }, [timelinePages]);
+
+    const handleDownload = useCallback(async (path: string) => {
         const { data } = await supabase.storage.from('files_psico').getPublicUrl(path);
         if (data?.publicUrl) window.open(data.publicUrl, '_blank');
         else toast.error("Erro ao abrir arquivo.");
-    };
+    }, []);
 
     if (isLoading) {
         return (
@@ -253,6 +264,30 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                     </motion.div>
                 );
             })}
+
+            {hasNextPage && (
+                <div className="relative z-30 flex justify-center pt-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isFetchingNextPage}
+                        onClick={() => fetchNextPage()}
+                        className="h-12 rounded-2xl border-border/70 bg-background/75 px-6 text-[10px] font-black uppercase tracking-[0.18em] text-foreground shadow-sm transition-all hover:bg-muted active:scale-[0.98]"
+                    >
+                        {isFetchingNextPage ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Carregando
+                            </>
+                        ) : (
+                            <>
+                                Mais registros
+                                <ChevronDown className="ml-2 h-4 w-4" />
+                            </>
+                        )}
+                    </Button>
+                </div>
+            )}
 
             {/* End of Line Artistic Fade */}
             <div className="absolute left-[20px] bottom-0 w-[10px] h-64 bg-gradient-to-t from-zinc-50 dark:from-[#080809] to-transparent z-20 pointer-events-none" />

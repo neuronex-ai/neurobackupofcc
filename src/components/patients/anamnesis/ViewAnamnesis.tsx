@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Check, MoreVertical, FileDown, Mail, Trash2, RefreshCcw, ClipboardList, X } from "lucide-react";
@@ -23,6 +23,28 @@ interface ExtractedItem {
     answer: string;
     isSection?: boolean;
 }
+
+const ANAMNESIS_RENDER_PAGE_SIZE = 12;
+
+const parseAnamnesisContent = (content: unknown): ExtractedItem[] => {
+    if (Array.isArray(content)) {
+        return content.filter(Boolean) as ExtractedItem[];
+    }
+
+    if (!content || typeof content !== "object") {
+        return [];
+    }
+
+    const fields = (content as { fields?: Record<string, unknown> }).fields;
+    if (!fields || typeof fields !== "object") {
+        return [];
+    }
+
+    return Object.entries(fields).map(([question, answer]) => ({
+        question,
+        answer: String(answer ?? ""),
+    }));
+};
 
 const AutoSaveField = memo(function AutoSaveField({
     initialValue,
@@ -158,6 +180,7 @@ interface ViewAnamnesisProps {
 export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnamnesisProps = {}) {
     const { id: patientId } = useParams<{ id: string }>();
     const [data, setData] = useState<ExtractedItem[]>([]);
+    const [visibleCount, setVisibleCount] = useState(ANAMNESIS_RENDER_PAGE_SIZE);
     const [isLoading, setIsLoading] = useState(true);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [anamnesisId, setAnamnesisId] = useState<string | null>(null);
@@ -184,34 +207,12 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
 
             if (error) throw error;
 
-            const record = records?.find((candidate) => {
-                const content = candidate.content as any;
-                return (Array.isArray(content) && content.length > 0)
-                    || Boolean(content && typeof content === 'object' && content.fields && Object.keys(content.fields).length > 0);
-            });
+            const record = records?.find((candidate) => parseAnamnesisContent(candidate.content).length > 0);
             if (record) {
                 setAnamnesisId(record.id);
-                let items: ExtractedItem[] = [];
-                if (Array.isArray(record.content)) {
-                    items = record.content as ExtractedItem[];
-                } else if (record.content && typeof record.content === 'object') {
-                    if ((record.content as any).fields) {
-                        const fields = (record.content as any).fields;
-                        items = Object.entries(fields).map(([k, v]) => ({
-                            question: k,
-                            answer: String(v)
-                        }));
-                    } else {
-                        // Try to use the content as-is
-                        items = record.content as any;
-                    }
-                }
-                // Final validation: ensure items is always a valid array
-                if (!Array.isArray(items)) {
-                    console.warn('[ViewAnamnesis] Content parsed to non-array, resetting to empty:', items);
-                    items = [];
-                }
+                const items = parseAnamnesisContent(record.content);
                 setData(items);
+                setVisibleCount(Math.min(ANAMNESIS_RENDER_PAGE_SIZE, Math.max(items.length, 1)));
             }
         } catch (err) {
             console.error('[ViewAnamnesis] Fetch error:', err);
@@ -231,22 +232,9 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
         const channel = supabase
             .channel(`anamnesis-${anamnesisId}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'patient_anamneses', filter: `id=eq.${anamnesisId}` }, (payload) => {
-                const newContent = payload.new.content;
-                let items: ExtractedItem[] = [];
-                if (Array.isArray(newContent)) {
-                    items = newContent as ExtractedItem[];
-                } else if (newContent && typeof newContent === 'object') {
-                    if ((newContent as any).fields) {
-                        const fields = (newContent as any).fields;
-                        items = Object.entries(fields).map(([k, v]) => ({
-                            question: k,
-                            answer: String(v)
-                        }));
-                    } else {
-                        items = newContent as any;
-                    }
-                }
+                const items = parseAnamnesisContent(payload.new.content);
                 setData(items);
+                setVisibleCount((current) => Math.min(Math.max(current, ANAMNESIS_RENDER_PAGE_SIZE), Math.max(items.length, 1)));
                 toast.info("Anamnese atualizada remotamente!");
             })
             .subscribe();
@@ -293,6 +281,24 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
     useEffect(() => () => {
         if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
     }, []);
+
+    useEffect(() => {
+        setVisibleCount((current) => {
+            if (data.length === 0) return ANAMNESIS_RENDER_PAGE_SIZE;
+            return Math.min(Math.max(current, ANAMNESIS_RENDER_PAGE_SIZE), data.length);
+        });
+    }, [data.length]);
+
+    const visibleData = useMemo(
+        () => data.slice(0, Math.min(visibleCount, data.length)),
+        [data, visibleCount]
+    );
+
+    const hiddenFieldsCount = Math.max(data.length - visibleData.length, 0);
+
+    const handleLoadMoreFields = useCallback(() => {
+        setVisibleCount((current) => Math.min(current + ANAMNESIS_RENDER_PAGE_SIZE, data.length));
+    }, [data.length]);
 
     const getPDFData = (): DocumentPDFData => {
         const formattedContent = data.map(item =>
@@ -548,9 +554,24 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
 
                     <div className="anamnesis-scroll-surface custom-scrollbar relative z-10 flex-1 overflow-y-auto overscroll-contain p-6 [scrollbar-gutter:stable] sm:p-8">
                         <div className="mx-auto max-w-4xl space-y-5">
-                            {data.map((item, idx) => (
+                            {visibleData.map((item, idx) => (
                                 <AnamnesisEntry key={`${item.isSection ? "section" : "field"}-${idx}`} item={item} index={idx} onUpdate={handleUpdate} />
                             ))}
+                            {hiddenFieldsCount > 0 && (
+                                <div className="flex flex-col items-center gap-3 pt-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleLoadMoreFields}
+                                        className="h-12 rounded-2xl border-border/70 bg-background/70 px-6 text-[10px] font-black uppercase tracking-[0.18em] text-foreground shadow-sm transition-all hover:bg-muted active:scale-[0.98]"
+                                    >
+                                        Carregar mais campos
+                                    </Button>
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                                        Mostrando {visibleData.length} de {data.length}
+                                    </p>
+                                </div>
+                            )}
                             <div className="h-20" />
                         </div>
                     </div>
