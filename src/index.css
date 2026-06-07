@@ -129,6 +129,22 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     letter-spacing: -0.011em;
     line-height: 1.5;
+    background:
+      radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.055), transparent 34rem),
+      radial-gradient(circle at 88% 2%, rgba(161, 161, 170, 0.035), transparent 30rem),
+      linear-gradient(145deg, #070708 0%, #040405 52%, #080809 100%);
+  }
+
+  .light body {
+    background:
+      radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.94), transparent 34rem),
+      radial-gradient(circle at 92% 8%, rgba(161, 161, 170, 0.11), transparent 31rem),
+      linear-gradient(145deg, #f7f7f8 0%, #f1f1f3 48%, #ececef 100%);
+  }
+
+  #root {
+    min-height: 100vh;
+    background: transparent;
   }
 
   /* --- Rubber Interaction --- */
@@ -356,16 +372,20 @@
     isolation: isolate;
     color: hsl(var(--foreground));
     background:
-      radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.94), transparent 34rem),
-      radial-gradient(circle at 92% 8%, rgba(161, 161, 170, 0.11), transparent 31rem),
+      radial-gradient(circle at 16% -12%, rgba(255, 255, 255, 0.96), transparent 34rem),
+      radial-gradient(circle at 86% 4%, rgba(212, 212, 216, 0.16), transparent 32rem),
+      radial-gradient(circle at 50% 110%, rgba(24, 24, 27, 0.045), transparent 38rem),
       linear-gradient(145deg, #f7f7f8 0%, #f1f1f3 48%, #ececef 100%);
+    background-attachment: fixed;
   }
 
   .dark .desktop-page-canvas {
     background:
-      radial-gradient(circle at 18% -12%, rgba(255, 255, 255, 0.055), transparent 34rem),
-      radial-gradient(circle at 88% 2%, rgba(161, 161, 170, 0.035), transparent 30rem),
+      radial-gradient(circle at 16% -12%, rgba(255, 255, 255, 0.07), transparent 34rem),
+      radial-gradient(circle at 88% 4%, rgba(212, 212, 216, 0.045), transparent 32rem),
+      radial-gradient(circle at 52% 112%, rgba(255, 255, 255, 0.028), transparent 38rem),
       linear-gradient(145deg, #070708 0%, #040405 52%, #080809 100%);
+    background-attachment: fixed;
   }
 
   .desktop-page-canvas::before {
@@ -374,7 +394,7 @@
     inset: 0;
     z-index: -2;
     pointer-events: none;
-    opacity: 0.24;
+    opacity: 0.22;
     background-image: url("https://grainy-gradients.vercel.app/noise.svg");
     background-size: 220px 220px;
     mix-blend-mode: soft-light;
@@ -386,11 +406,15 @@
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 24%, rgba(0, 0, 0, 0.025));
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 18%, rgba(0, 0, 0, 0.02)),
+      radial-gradient(ellipse at top, rgba(255, 255, 255, 0.34), transparent 22rem);
   }
 
   .dark .desktop-page-canvas::after {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 28%, rgba(0, 0, 0, 0.12));
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 20%, rgba(0, 0, 0, 0.14)),
+      radial-gradient(ellipse at top, rgba(255, 255, 255, 0.045), transparent 23rem);
   }
 
   .desktop-apple-shell {
@@ -399,8 +423,9 @@
     border: 1px solid rgba(24, 24, 27, 0.075);
     background: rgba(255, 255, 255, 0.74);
     box-shadow:
-      0 24px 70px -46px rgba(24, 24, 27, 0.34),
-      inset 0 1px 0 rgba(255, 255, 255, 0.88);
+      0 22px 64px -48px rgba(24, 24, 27, 0.36),
+      0 1px 0 rgba(255, 255, 255, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(32px) saturate(1.12);
   }
 
@@ -408,7 +433,8 @@
     border-color: rgba(255, 255, 255, 0.075);
     background: rgba(9, 10, 12, 0.91);
     box-shadow:
-      0 28px 90px -52px rgba(0, 0, 0, 0.96),
+      0 26px 88px -54px rgba(0, 0, 0, 0.98),
+      0 1px 0 rgba(255, 255, 255, 0.025),
       inset 0 1px 0 rgba(255, 255, 255, 0.045);
   }
 

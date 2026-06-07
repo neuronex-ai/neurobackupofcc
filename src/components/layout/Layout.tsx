@@ -18,16 +18,13 @@ export const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div className={cn(
-      "min-h-screen flex flex-col relative",
-      "bg-zinc-10 dark:bg-zinc-950"
+      "desktop-page-canvas relative flex min-h-screen flex-col",
+      isMobile && "bg-background"
     )}>
-      {/* Camada de gradiente base */}
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-zinc-100/20 to-transparent dark:via-zinc-900/10 pointer-events-none" />
-
       {!isMobile && <Navbar />}
       <main className={cn(
-        "flex-1 transition-all duration-300 relative z-10",
-        !isMobile && "pt-20 pb-12",
+        "relative z-10 flex-1 transition-all duration-300",
+        !isMobile && "pb-12 pt-20",
         isMobile && "pt-0",
       )}>
         {children}
