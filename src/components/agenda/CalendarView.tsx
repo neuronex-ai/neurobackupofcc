@@ -317,7 +317,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                 },
             }}
         >
-            <div id="agenda-main-calendar" className="px-6 pt-6 pb-6 h-full flex flex-col bg-zinc-50/50 dark:bg-transparent overflow-hidden">
+            <div id="agenda-main-calendar" className="flex h-full flex-col overflow-hidden bg-white/15 px-6 pb-6 pt-6 dark:bg-transparent">
                 <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 pb-6 border-b border-zinc-200 dark:border-white/[0.03] shrink-0 mb-6">
                     {/* Left side: Sidebar Toggle, Title/Date, Google Status */}
                     <div className="flex flex-wrap items-center gap-4">
