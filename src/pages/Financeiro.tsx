@@ -1,4 +1,4 @@
-import { Children, Suspense, isValidElement, lazy, useState, type ReactElement, type ReactNode } from "react";
+import { Suspense, lazy, useState, type ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
@@ -432,109 +432,15 @@ const paymentMethods = ["Pix", "Boleto", "Cartao", "Dinheiro", "Transferencia ex
 const moneyFormatter = (value: number) =>
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-const SelectShell = ({
-    children,
-    className,
-    defaultValue,
-    compact = false,
-}: {
-    children: ReactNode;
-    className?: string;
-    defaultValue?: string;
-    compact?: boolean;
-}) => {
-    const options = Children.toArray(children)
-        .filter(isValidElement)
-        .map((child) => {
-            const option = child as ReactElement<{ value?: string; children?: ReactNode; disabled?: boolean }>;
-            const label = String(option.props.children ?? option.props.value ?? "");
-            return {
-                label,
-                value: String(option.props.value ?? label),
-                disabled: Boolean(option.props.disabled),
-            };
-        });
-    const initialOption = options.find((option) => option.value === defaultValue || option.label === defaultValue) ?? options[0];
-    const [selected, setSelected] = useState(initialOption);
-    const [open, setOpen] = useState(false);
-
-    return (
-        <div className={cn("relative", className)}>
-            <button
-                type="button"
-                onClick={() => setOpen((value) => !value)}
-                className={cn(
-                    "group flex h-11 w-full items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white/75 px-4 text-left text-sm font-bold text-zinc-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_12px_40px_-34px_rgba(0,0,0,0.8)] outline-none transition-all hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-200 dark:hover:border-white/20",
-                    open && "border-zinc-400 bg-white ring-4 ring-zinc-950/[0.035] dark:border-white/25 dark:ring-white/[0.055]",
-                    compact && "h-8 border-0 bg-transparent px-0 shadow-none ring-0 hover:bg-transparent dark:bg-transparent"
-                )}
-            >
-                <span className={cn("truncate", selected?.disabled && "text-zinc-400")}>{selected?.label}</span>
-                <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200", open && "rotate-90 text-zinc-950 dark:text-white")} />
-            </button>
-            <AnimatePresence>
-                {open ? (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-                        className="absolute left-0 top-12 z-[240] max-h-64 w-full min-w-[180px] overflow-y-auto rounded-2xl border border-zinc-200/80 bg-white/96 p-1.5 shadow-[0_26px_90px_-38px_rgba(0,0,0,0.9)] backdrop-blur-2xl dark:border-white/10 dark:bg-zinc-950/96"
-                    >
-                        <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.045]" />
-                        {options.map((option) => {
-                            const isSelected = selected?.value === option.value;
-
-                            return (
-                                <button
-                                    key={`${option.value}-${option.label}`}
-                                    type="button"
-                                    disabled={option.disabled}
-                                    onClick={() => {
-                                        if (option.disabled) return;
-                                        setSelected(option);
-                                        setOpen(false);
-                                    }}
-                                    className={cn(
-                                        "relative z-10 flex min-h-10 w-full items-center justify-between rounded-xl px-3 text-left text-xs font-black uppercase tracking-[0.08em] transition-colors",
-                                        option.disabled
-                                            ? "cursor-not-allowed text-zinc-300 dark:text-zinc-700"
-                                            : isSelected
-                                                ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
-                                                : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                                    )}
-                                >
-                                    <span className="truncate">{option.label}</span>
-                                    {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
-                                </button>
-                            );
-                        })}
-                    </motion.div>
-                ) : null}
-            </AnimatePresence>
-        </div>
-    );
-};
-
-const LabeledSelect = ({
-    label,
-    defaultValue,
-    options,
-    className,
-}: {
-    label: string;
-    defaultValue: string;
-    options: { value: string; label: string }[];
-    className?: string;
-}) => (
-    <div className={cn("flex h-11 w-fit items-center gap-3 rounded-2xl border border-zinc-200 bg-white/72 px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_12px_40px_-36px_rgba(0,0,0,0.85)] dark:border-white/10 dark:bg-white/[0.04]", className)}>
-        <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">{label}</span>
-        <SelectShell compact className="min-w-[92px]" defaultValue={defaultValue}>
-            {options.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-        </SelectShell>
-    </div>
+const SelectShell = ({ children, className }: { children: ReactNode; className?: string }) => (
+    <select
+        className={cn(
+            "h-11 rounded-2xl border border-zinc-200 bg-white/70 px-4 text-sm font-bold text-zinc-600 outline-none transition-colors focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-200",
+            className
+        )}
+    >
+        {children}
+    </select>
 );
 
 const InputShell = ({ placeholder, className, type = "text" }: { placeholder?: string; className?: string; type?: string }) => (
