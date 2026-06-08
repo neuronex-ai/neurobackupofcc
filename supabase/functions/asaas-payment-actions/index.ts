@@ -8,6 +8,7 @@ import {
     jsonResponse,
     supabaseAdmin,
 } from "../_shared/asaas-client.ts";
+import { syncFinancialEntryForPayment } from "../_shared/financial-management.ts";
 
 function cents(value: unknown) {
     return Math.round(Number(value || 0) * 100);
@@ -102,6 +103,10 @@ Deno.serve(async (req: Request) => {
         if (action === "sync") {
             const providerPayment = await asaasRequest(`/payments/${encodeURIComponent(localPayment.provider_payment_id)}`, "GET", undefined, apiKey);
             const updated = await updatePaymentFromProvider(localPayment, providerPayment);
+            await syncFinancialEntryForPayment(updated, {
+                matchedBy: "automatic",
+                notes: "Sincronizacao manual da cobranca",
+            });
             return jsonResponse({ success: true, payment: updated });
         }
 
@@ -115,6 +120,10 @@ Deno.serve(async (req: Request) => {
             const updated = await updatePaymentFromProvider(localPayment, {
                 ...providerPayment,
                 status: providerPayment?.status || "DELETED",
+            });
+            await syncFinancialEntryForPayment(updated, {
+                matchedBy: "automatic",
+                notes: "Cancelamento manual da cobranca",
             });
             return jsonResponse({ success: true, payment: updated });
         }

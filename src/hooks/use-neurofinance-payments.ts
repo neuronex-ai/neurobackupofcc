@@ -45,6 +45,7 @@ export interface CreatePaymentParams {
     customer_email?: string;
     customer_name?: string;
     expires_in_minutes?: number;
+    financial_entry_id?: string | null;
 }
 
 export interface CreatePaymentResult {

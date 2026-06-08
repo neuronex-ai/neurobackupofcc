@@ -11,6 +11,7 @@ interface GenerateInvoiceData {
   dueDate: Date;
   billingType?: string;
   paymentMethodType?: string[];
+  financialEntryId?: string | null;
 }
 
 interface GenerateInvoiceResponse {
@@ -72,6 +73,7 @@ export const useGenerateInvoice = () => {
           payment_method: primaryMethod, // singular for Edge Function
           payment_methods: methods,       // array as backup
           due_date: data.dueDate.toISOString().split('T')[0],
+          financial_entry_id: data.financialEntryId || null,
         }),
       });
 
