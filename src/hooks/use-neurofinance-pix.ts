@@ -224,7 +224,7 @@ export function usePixKeys() {
             });
             if (response.error) throw new Error(response.error.message);
             if (response.data?.error) throw new Error(response.data.error);
-            return response.data?.data || [];
+            return response.data?.keys || response.data?.data || [];
         },
         staleTime: 30_000,
     });

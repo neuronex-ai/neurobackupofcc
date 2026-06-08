@@ -1,136 +1,234 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Mail, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "@/components/auth/SessionContextProvider";
 import { cn } from "@/lib/utils";
-
-const SET_PIN_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/set-financial-pin";
+import { supabase } from "@/integrations/supabase/client";
+import { useFinancialSettings } from "@/hooks/use-financial-settings";
+import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface SetPinFormProps {
     onSuccess: () => void;
 }
 
+type Step = "current" | "create" | "confirm" | "reset-code";
+
+const PinSlots = ({
+    value,
+    onChange,
+    disabled,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    disabled?: boolean;
+}) => (
+    <InputOTP
+        maxLength={6}
+        value={value}
+        onChange={onChange}
+        autoFocus
+        disabled={disabled}
+        containerClassName="justify-center"
+    >
+        <InputOTPGroup className="gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+                <InputOTPSlot
+                    key={i}
+                    index={i}
+                    className="h-12 w-10 rounded-xl border-white/10 bg-[#151518] text-lg shadow-inner transition-all focus:border-white/35 focus:bg-[#1A1A1D]"
+                />
+            ))}
+        </InputOTPGroup>
+    </InputOTP>
+);
+
 export const SetPinForm = ({ onSuccess }: SetPinFormProps) => {
-  const [pin, setPin] = useState("");
-  const [confirmPin, setConfirmPin] = useState("");
-  const [step, setStep] = useState<'create' | 'confirm'>('create');
-  const [isLoading, setIsLoading] = useState(false);
-  const { session } = useAuth();
+    const { settings } = useFinancialSettings();
+    const hasExistingPin = Boolean(settings?.pin_hash);
+    const [step, setStep] = useState<Step>(hasExistingPin ? "current" : "create");
+    const [currentPin, setCurrentPin] = useState("");
+    const [pin, setPin] = useState("");
+    const [confirmPin, setConfirmPin] = useState("");
+    const [resetCode, setResetCode] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [resetRequested, setResetRequested] = useState(false);
 
-  const handlePinComplete = (val: string) => {
-      if (val.length === 6) {
-          setTimeout(() => {
-              setStep('confirm');
-          }, 400);
-      }
-  };
+    const title = useMemo(() => {
+        if (step === "current") return "Confirme seu PIN atual";
+        if (step === "reset-code") return "Código enviado por e-mail";
+        if (step === "confirm") return "Confirme seu novo PIN";
+        return hasExistingPin ? "Escolha um novo PIN" : "Configurar PIN do Cofre";
+    }, [hasExistingPin, step]);
 
-  const handleConfirmComplete = (val: string) => {
-      if (val.length === 6) {
-          handleSetPin(val);
-      }
-  };
+    const description = useMemo(() => {
+        if (step === "current") return "Digite o PIN atual para alterar sua assinatura digital.";
+        if (step === "reset-code") return "Use o código recebido no e-mail da sua conta.";
+        if (step === "confirm") return "Digite novamente para evitar erro de digitação.";
+        return "Este PIN de 6 dígitos protege saques, Pix e ações financeiras.";
+    }, [step]);
 
-  const handleSetPin = async (finalPin: string) => {
-    if (pin !== finalPin) {
-      toast.error("Os PINs não coincidem.");
-      setConfirmPin("");
-      setPin("");
-      setStep('create');
-      return;
-    }
+    const resetForm = () => {
+        setCurrentPin("");
+        setPin("");
+        setConfirmPin("");
+        setResetCode("");
+        setStep(hasExistingPin ? "current" : "create");
+    };
 
-    setIsLoading(true);
-    try {
-      const res = await fetch(SET_PIN_URL, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: finalPin })
-      });
-      
-      const data = await res.json();
-      
-      if (!res.ok) throw new Error(data.error || "Falha ao definir PIN.");
-      
-      toast.success("Segurança configurada!");
-      onSuccess();
-    } catch (e: any) {
-      toast.error(e.message);
-      setConfirmPin("");
-      setPin("");
-      setStep('create');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const requestResetCode = async () => {
+        setIsLoading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke("financial-pin", {
+                body: { action: "request_reset" },
+            });
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
 
-  return (
-    <div className="w-full flex flex-col items-center space-y-8 relative z-10">
-      <div className="text-center space-y-2 animate-fade-in">
-          <h3 className="text-xl font-bold text-white tracking-tight">
-              {step === 'create' ? "Configurar PIN do Cofre" : "Confirme seu PIN"}
-          </h3>
-          <p className="text-xs text-zinc-500 max-w-[200px] mx-auto leading-relaxed">
-              {step === 'create' 
-                ? "Este PIN de 6 dígitos será sua chave mestra para acessar dados financeiros." 
-                : "Digite novamente para confirmar a segurança."}
-          </p>
-      </div>
+            setResetRequested(true);
+            setStep("reset-code");
+            toast.success("Enviamos um código para seu e-mail.");
+        } catch (error) {
+            toast.error(getUserFacingErrorMessage(error, "save"));
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-      <div className="relative">
-          {step === 'create' ? (
-             <InputOTP 
-                maxLength={6} 
-                value={pin} 
-                onChange={(val) => { setPin(val); handlePinComplete(val); }} 
-                autoFocus
-                containerClassName="justify-center"
-             >
-                <InputOTPGroup className="gap-2">
-                    {[...Array(6)].map((_, i) => (
-                        <InputOTPSlot 
-                            key={i} 
-                            index={i} 
-                            className="h-12 w-10 text-lg rounded-xl bg-[#151518] border-white/10 shadow-inner focus:border-white/30 focus:bg-[#1A1A1D] transition-all" 
+    const savePin = async (finalPin: string) => {
+        if (pin !== finalPin) {
+            toast.error("Os PINs não coincidem.");
+            setPin("");
+            setConfirmPin("");
+            setStep("create");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const { data, error } = await supabase.functions.invoke("financial-pin", {
+                body: {
+                    action: "set",
+                    pin: finalPin,
+                    current_pin: currentPin || undefined,
+                    reset_code: resetCode || undefined,
+                },
+            });
+
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+
+            toast.success("PIN financeiro atualizado.");
+            onSuccess();
+        } catch (error) {
+            toast.error(getUserFacingErrorMessage(error, "save"));
+            resetForm();
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="relative z-10 flex w-full flex-col items-center space-y-8">
+            <div className="animate-fade-in space-y-2 text-center">
+                <h3 className="text-xl font-bold tracking-tight text-white">{title}</h3>
+                <p className="mx-auto max-w-[230px] text-xs leading-relaxed text-zinc-500">{description}</p>
+            </div>
+
+            <div className="relative min-h-[56px]">
+                {step === "current" && (
+                    <PinSlots
+                        value={currentPin}
+                        disabled={isLoading}
+                        onChange={(value) => {
+                            setCurrentPin(value);
+                            if (value.length === 6) setTimeout(() => setStep("create"), 220);
+                        }}
+                    />
+                )}
+
+                {step === "reset-code" && (
+                    <PinSlots
+                        value={resetCode}
+                        disabled={isLoading}
+                        onChange={(value) => {
+                            setResetCode(value);
+                            if (value.length === 6) setTimeout(() => setStep("create"), 220);
+                        }}
+                    />
+                )}
+
+                {step === "create" && (
+                    <PinSlots
+                        value={pin}
+                        disabled={isLoading}
+                        onChange={(value) => {
+                            setPin(value);
+                            if (value.length === 6) setTimeout(() => setStep("confirm"), 220);
+                        }}
+                    />
+                )}
+
+                {step === "confirm" && (
+                    <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+                        <PinSlots
+                            value={confirmPin}
+                            disabled={isLoading}
+                            onChange={(value) => {
+                                setConfirmPin(value);
+                                if (value.length === 6) savePin(value);
+                            }}
+                        />
+                    </div>
+                )}
+
+                {isLoading && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-[#0A0A0B]/80 backdrop-blur-sm">
+                        <Loader2 className="h-6 w-6 animate-spin text-white" />
+                    </div>
+                )}
+            </div>
+
+            <div className="flex gap-3">
+                {["current", "reset-code", "create", "confirm"]
+                    .filter((item) => item !== "current" || hasExistingPin)
+                    .filter((item) => item !== "reset-code" || resetRequested)
+                    .map((item) => (
+                        <div
+                            key={item}
+                            className={cn(
+                                "h-2 w-2 rounded-full transition-all duration-300",
+                                step === item ? "scale-125 bg-white" : "bg-white/20"
+                            )}
                         />
                     ))}
-                </InputOTPGroup>
-             </InputOTP>
-          ) : (
-             <div className="animate-in fade-in slide-in-from-right-8 duration-300">
-                 <InputOTP 
-                    maxLength={6} 
-                    value={confirmPin} 
-                    onChange={(val) => { setConfirmPin(val); handleConfirmComplete(val); }} 
-                    autoFocus 
-                    disabled={isLoading}
-                    containerClassName="justify-center"
-                 >
-                    <InputOTPGroup className="gap-2">
-                        {[...Array(6)].map((_, i) => (
-                            <InputOTPSlot 
-                                key={i} 
-                                index={i} 
-                                className="h-12 w-10 text-lg rounded-xl bg-[#151518] border-white/10 shadow-inner focus:border-white/30 focus:bg-[#1A1A1D] transition-all" 
-                            />
-                        ))}
-                    </InputOTPGroup>
-                 </InputOTP>
-             </div>
-          )}
-          
-          {isLoading && (
-              <div className="absolute inset-0 bg-[#0A0A0B]/80 backdrop-blur-sm flex items-center justify-center rounded-xl z-20">
-                  <Loader2 className="h-6 w-6 animate-spin text-white" />
-              </div>
-          )}
-      </div>
+            </div>
 
-      <div className="flex gap-3">
-          <div className={cn("w-2 h-2 rounded-full transition-all duration-300", step === 'create' ? "bg-white scale-125" : "bg-white/20")} />
-          <div className={cn("w-2 h-2 rounded-full transition-all duration-300", step === 'confirm' ? "bg-white scale-125" : "bg-white/20")} />
-      </div>
-    </div>
-  );
+            {hasExistingPin && step !== "reset-code" && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={requestResetCode}
+                    disabled={isLoading}
+                    className="h-9 rounded-full px-4 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400 hover:bg-white/5 hover:text-white"
+                >
+                    <Mail className="mr-2 h-3.5 w-3.5" />
+                    Esqueci meu PIN
+                </Button>
+            )}
+
+            {(step === "create" || step === "confirm") && (currentPin || resetCode) && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={resetForm}
+                    disabled={isLoading}
+                    className="h-9 rounded-full px-4 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500 hover:bg-white/5 hover:text-white"
+                >
+                    <RotateCcw className="mr-2 h-3.5 w-3.5" />
+                    Reiniciar
+                </Button>
+            )}
+        </div>
+    );
 };

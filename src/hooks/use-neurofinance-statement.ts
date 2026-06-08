@@ -25,31 +25,40 @@ export const useNeuroFinanceStatement = (startDate?: Date, endDate?: Date) => {
 
             if (error) throw error;
 
-            return ((data || []) as AccountMovement[]).map((item) => ({
-                id: item.id,
-                user_id: user.id,
-                description: item.patient_name
-                    ? `${item.patient_name} · ${item.description}`
-                    : item.description,
-                amount: Number(item.amount || 0) / 100,
-                type: item.overview_group === "outflow" ? "expense" : "income",
-                category: item.item_type,
-                date: item.occurred_at,
-                appointment_id: null,
-                created_at: item.occurred_at,
-                payment_method: (
-                    item.payment_method === "card"
-                        ? "credit_card"
-                        : item.payment_method === "debit"
-                            ? "debit_card"
-                            : item.payment_method
-                ) as PaymentMethod | undefined,
-                status: item.status === "paid" || item.status === "posted"
-                    ? "completed"
-                    : "pending",
-                external_reference: item.reference_id || undefined,
-                origin: "gateway_auto",
-            }));
+            return ((data || []) as AccountMovement[]).map((item) => {
+                const metadata = (item.metadata || {}) as Record<string, any>;
+                const receiptUrl = metadata.receipt_url || metadata.transaction_receipt_url || metadata.asaas_transaction_receipt_url;
+                const invoiceUrl = metadata.invoice_url || metadata.checkout_url || metadata.asaas_invoice_url;
+                const bankSlipUrl = metadata.bank_slip_url || metadata.asaas_bank_slip_url;
+
+                return {
+                    id: item.id,
+                    user_id: user.id,
+                    description: item.patient_name ? `${item.patient_name} · ${item.description}` : item.description,
+                    amount: Number(item.amount || 0) / 100,
+                    type: item.overview_group === "outflow" ? "expense" : "income",
+                    category: item.item_type,
+                    date: item.occurred_at,
+                    appointment_id: null,
+                    created_at: item.occurred_at,
+                    payment_method: (
+                        item.payment_method === "card"
+                            ? "credit_card"
+                            : item.payment_method === "debit"
+                                ? "debit_card"
+                                : item.payment_method
+                    ) as PaymentMethod | undefined,
+                    status: item.status === "paid" || item.status === "posted" ? "completed" : "pending",
+                    external_reference: item.reference_id || undefined,
+                    attachment_url: receiptUrl || invoiceUrl || bankSlipUrl || undefined,
+                    origin: "gateway_auto",
+                    patient_name: item.patient_name || undefined,
+                    metadata,
+                    receipt_url: receiptUrl || undefined,
+                    invoice_url: invoiceUrl || undefined,
+                    bank_slip_url: bankSlipUrl || undefined,
+                } as Transaction;
+            });
         },
         enabled: Boolean(user?.id),
         staleTime: 1000 * 60 * 5,

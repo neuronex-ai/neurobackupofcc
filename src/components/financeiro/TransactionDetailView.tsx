@@ -4,16 +4,16 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-    ChevronLeft,
-    FileText,
-    Receipt,
-    Calendar,
-    User,
-    CreditCard,
-    Landmark,
-    ShieldCheck,
+    ArrowDownLeft,
     ArrowUpRight,
-    ArrowDownLeft
+    Calendar,
+    ChevronLeft,
+    CreditCard,
+    FileText,
+    Landmark,
+    Receipt,
+    ShieldCheck,
+    User,
 } from "lucide-react";
 import { Transaction } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -25,43 +25,40 @@ interface TransactionDetailViewProps {
     onBack: () => void;
 }
 
+const getDocumentUrl = (transaction: Transaction, kind: "receipt" | "invoice") => {
+    const metadata = ((transaction as any).metadata || {}) as Record<string, any>;
+    if (kind === "receipt") {
+        return (transaction as any).receipt_url || metadata.receipt_url || metadata.transaction_receipt_url || metadata.asaas_transaction_receipt_url || transaction.attachment_url || "";
+    }
+
+    return (transaction as any).invoice_url || (transaction as any).bank_slip_url || metadata.invoice_url || metadata.checkout_url || metadata.bank_slip_url || metadata.asaas_invoice_url || metadata.asaas_bank_slip_url || "";
+};
+
+const openDocument = (url: string, unavailableMessage: string) => {
+    if (!url) {
+        toast.info(unavailableMessage);
+        return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+};
+
 const TransactionDetailView = ({ transaction, onBack }: TransactionDetailViewProps) => {
-    const isIncome = transaction.type === 'income';
-    const isNeuro = !!(transaction.external_reference || (transaction as any).asaas_payment_id);
+    const isIncome = transaction.type === "income";
+    const isNeuro = Boolean(transaction.external_reference || transaction.origin === "gateway_auto");
     const patientName = (transaction as any).patient_name || (transaction as any).patients?.name;
-
-    const handleDownloadReceipt = () => {
-        toast.promise(new Promise(resolve => setTimeout(resolve, 1500)), {
-            loading: 'Gerando recibo oficial...',
-            success: 'Recibo baixado com sucesso!',
-            error: 'Erro ao gerar recibo.',
-        });
-        // Aqui simularíamos o download do PDF
-        console.log("[transaction-detail] Downloading receipt for", transaction.id);
-    };
-
-    const handleDownloadInvoice = () => {
-        if (!isNeuro) {
-            toast.error("Fatura disponível apenas para transações via NeuroFinance");
-            return;
-        }
-        toast.promise(new Promise(resolve => setTimeout(resolve, 1500)), {
-            loading: 'Recuperando fatura...',
-            success: 'Fatura baixada com sucesso!',
-            error: 'Erro ao baixar fatura.',
-        });
-        console.log("[transaction-detail] Downloading invoice for", transaction.id);
-    };
+    const receiptUrl = getDocumentUrl(transaction, "receipt");
+    const invoiceUrl = getDocumentUrl(transaction, "invoice");
 
     const InfoRow = ({ icon: Icon, label, value, subValue }: any) => (
-        <div className="flex items-start gap-4 p-5 rounded-[24px] bg-white dark:bg-white/[0.02] border border-zinc-100 dark:border-white/5">
-            <div className="w-10 h-10 rounded-xl bg-zinc-50 dark:bg-white/5 flex items-center justify-center text-zinc-400">
-                <Icon className="w-4 h-4" />
+        <div className="flex items-start gap-4 rounded-[24px] border border-zinc-100 bg-white p-5 dark:border-white/5 dark:bg-white/[0.02]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 dark:bg-white/5">
+                <Icon className="h-4 w-4" />
             </div>
-            <div className="flex flex-col">
-                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">{label}</span>
-                <span className="text-[11px] font-black text-zinc-900 dark:text-white uppercase tracking-tight">{value}</span>
-                {subValue && <span className="text-[9px] font-medium text-zinc-400 uppercase tracking-widest mt-0.5">{subValue}</span>}
+            <div className="flex min-w-0 flex-col">
+                <span className="mb-1 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">{label}</span>
+                <span className="truncate text-[11px] font-black uppercase tracking-tight text-zinc-900 dark:text-white">{value}</span>
+                {subValue && <span className="mt-0.5 text-[9px] font-medium uppercase tracking-widest text-zinc-400">{subValue}</span>}
             </div>
         </div>
     );
@@ -70,92 +67,86 @@ const TransactionDetailView = ({ transaction, onBack }: TransactionDetailViewPro
         <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex flex-col gap-8 max-w-2xl mx-auto"
+            className="mx-auto flex max-w-2xl flex-col gap-8"
         >
             <div className="flex items-center justify-between">
-                <Button variant="ghost" size="sm" onClick={onBack} className="h-10 px-4 rounded-full bg-zinc-100 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest">
-                    <ChevronLeft className="w-4 h-4 mr-2" /> Voltar
+                <Button variant="ghost" size="sm" onClick={onBack} className="h-10 rounded-full bg-zinc-100 px-4 text-[10px] font-black uppercase tracking-widest dark:bg-white/5">
+                    <ChevronLeft className="mr-2 h-4 w-4" /> Voltar
                 </Button>
                 <div className="flex items-center gap-2">
-                    <Button onClick={handleDownloadReceipt} variant="outline" size="sm" className="h-10 px-6 rounded-full border-zinc-200 dark:border-white/10 text-[10px] font-black uppercase tracking-widest">
-                        <Receipt className="w-3.5 h-3.5 mr-2" /> Recibo
+                    <Button onClick={() => openDocument(receiptUrl, "Recibo ainda não disponível para esta movimentação.")} variant="outline" size="sm" className="h-10 rounded-full border-zinc-200 px-6 text-[10px] font-black uppercase tracking-widest dark:border-white/10">
+                        <Receipt className="mr-2 h-3.5 w-3.5" /> Recibo
                     </Button>
                     {isNeuro && (
-                        <Button onClick={handleDownloadInvoice} variant="outline" size="sm" className="h-10 px-6 rounded-full border-zinc-200 dark:border-white/10 text-[10px] font-black uppercase tracking-widest">
-                            <FileText className="w-3.5 h-3.5 mr-2" /> Fatura
+                        <Button onClick={() => openDocument(invoiceUrl, "Fatura ainda não disponível para esta movimentação.")} variant="outline" size="sm" className="h-10 rounded-full border-zinc-200 px-6 text-[10px] font-black uppercase tracking-widest dark:border-white/10">
+                            <FileText className="mr-2 h-3.5 w-3.5" /> Fatura
                         </Button>
                     )}
                 </div>
             </div>
 
-            <div className="text-center space-y-4 py-6">
+            <div className="space-y-4 py-6 text-center">
                 <div className={cn(
-                    "w-20 h-20 rounded-[32px] mx-auto flex items-center justify-center border shadow-2xl transition-transform hover:scale-105 duration-500",
-                    isIncome ? "bg-zinc-900 dark:bg-white text-white dark:text-black border-zinc-900 dark:border-white" : "bg-zinc-100 dark:bg-white/10 text-zinc-400 border-zinc-200 dark:border-white/5"
+                    "mx-auto flex h-20 w-20 items-center justify-center rounded-[32px] border shadow-2xl transition-transform duration-500 hover:scale-105",
+                    isIncome ? "border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black" : "border-zinc-200 bg-zinc-100 text-zinc-400 dark:border-white/5 dark:bg-white/10"
                 )}>
-                    {isIncome ? <ArrowUpRight className="w-8 h-8" /> : <ArrowDownLeft className="w-8 h-8" />}
+                    {isIncome ? <ArrowUpRight className="h-8 w-8" /> : <ArrowDownLeft className="h-8 w-8" />}
                 </div>
                 <div>
-                    <h3 className="text-3xl md:text-4xl font-black text-zinc-900 dark:text-white tracking-tighter">
-                        {isIncome ? '+' : '-'} R$ {Math.abs(transaction.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    <h3 className="text-3xl font-black tracking-tighter text-zinc-900 dark:text-white md:text-4xl">
+                        {isIncome ? "+" : "-"} R$ {Math.abs(transaction.amount || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </h3>
-                    <p className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.4em] mt-2">{transaction.description}</p>
+                    <p className="mt-2 text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">{transaction.description}</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <InfoRow
                     icon={Calendar}
-                    label="Data e Hora"
+                    label="Data e hora"
                     value={transaction.date && !isNaN(new Date(transaction.date).getTime())
                         ? format(new Date(transaction.date), "dd 'de' MMMM, yyyy", { locale: ptBR })
-                        : "DATA INDISPONÍVEL"}
+                        : "Data indisponível"}
                     subValue={transaction.date && !isNaN(new Date(transaction.date).getTime())
                         ? format(new Date(transaction.date), "HH:mm'h'")
-                        : "HORÁRIO INDISPONÍVEL"}
+                        : "Horário indisponível"}
                 />
                 <InfoRow
                     icon={ShieldCheck}
-                    label="Status da Operação"
-                    value={transaction.status === 'completed' ? "EFETIVADO" : "PENDENTE"}
-                    subValue={isNeuro ? "CONCILIADO VIA NEUROFINANCE" : "REGISTRO MANUAL"}
+                    label="Status da operação"
+                    value={transaction.status === "completed" ? "Efetivado" : "Pendente"}
+                    subValue={isNeuro ? "Conciliado no NeuroFinance" : "Registro manual"}
                 />
-                {patientName && (
-                    <InfoRow
-                        icon={User}
-                        label="Paciente Vinculado"
-                        value={patientName}
-                    />
-                )}
+                {patientName && <InfoRow icon={User} label="Paciente vinculado" value={patientName} />}
                 <InfoRow
                     icon={Landmark}
-                    label="Origem"
-                    value={isNeuro ? "NEUROFINANCE API (ASAAS)" : "LANÇAMENTO MANUAL"}
-                    subValue={transaction.category?.toUpperCase() || "GERAL"}
+                    label={isIncome ? "Origem" : "Destino"}
+                    value={isNeuro ? "Conta NeuroFinance" : "Lançamento manual"}
+                    subValue={transaction.category?.toUpperCase() || "Geral"}
                 />
                 <InfoRow
                     icon={CreditCard}
-                    label="Forma de Pagamento"
-                    value={transaction.payment_method?.toUpperCase() || (transaction as any).method?.toUpperCase() || "NÃO ESPECIFICADO"}
-                    subValue={(transaction as any).installments ? `${(transaction as any).installments} PARCELAS` : "À VISTA"}
+                    label="Forma de pagamento"
+                    value={transaction.payment_method?.toUpperCase() || (transaction as any).method?.toUpperCase() || "Não especificado"}
+                    subValue={(transaction as any).installments ? `${(transaction as any).installments} parcelas` : "À vista"}
                 />
                 <InfoRow
                     icon={FileText}
-                    label="ID da Transação"
+                    label="ID da transação"
                     value={transaction.id ? transaction.id.slice(0, 18).toUpperCase() : "N/A"}
-                    subValue={transaction.external_reference || "N/A"}
+                    subValue={transaction.external_reference || "Registro interno"}
                 />
             </div>
 
             {isNeuro && (
-                <div className="p-8 rounded-[32px] bg-zinc-900 dark:bg-white text-white dark:text-black mt-4 relative overflow-hidden group shadow-2xl">
-                    <div className="absolute inset-0 premium-noise opacity-10 pointer-events-none" />
+                <div className="group relative mt-4 overflow-hidden rounded-[32px] bg-zinc-900 p-8 text-white shadow-2xl dark:bg-white dark:text-black">
+                    <div className="premium-noise pointer-events-none absolute inset-0 opacity-10" />
                     <div className="relative z-10 flex items-center justify-between">
                         <div>
-                            <h4 className="text-[11px] font-black uppercase tracking-[0.2em] mb-1 opacity-70">Transação Segura</h4>
-                            <p className="text-[13px] font-black uppercase tracking-tight">Processado via Synapse Intelligent Pay</p>
+                            <h4 className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] opacity-70">Movimentação segura</h4>
+                            <p className="text-[13px] font-black uppercase tracking-tight">Processada e conciliada no NeuroFinance</p>
                         </div>
-                        <ShieldCheck className="w-8 h-8 opacity-40 group-hover:scale-110 transition-transform duration-500" />
+                        <ShieldCheck className="h-8 w-8 opacity-40 transition-transform duration-500 group-hover:scale-110" />
                     </div>
                 </div>
             )}

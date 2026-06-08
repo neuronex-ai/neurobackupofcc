@@ -114,6 +114,16 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/asaas-financial-sync/index.ts"
 
+[functions.asaas-payment-actions]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-payment-actions/index.ts"
+
+[functions.financial-pin]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/financial-pin/index.ts"
+
 
 [functions.n8n-agent-gateway]
 enabled = true

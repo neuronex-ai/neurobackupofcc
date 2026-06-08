@@ -23,7 +23,7 @@ export function PixChaves() {
                     </div>
                     <div>
                         <h3 className="text-sm font-black uppercase tracking-tight text-zinc-950 dark:text-white">Minhas chaves Pix</h3>
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Dados em tempo real da subconta Asaas</p>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Chaves para receber pela sua conta NeuroFinance</p>
                     </div>
                 </div>
                 <Button
@@ -38,7 +38,7 @@ export function PixChaves() {
             <div className="flex items-start gap-3 rounded-2xl border border-black/[0.06] bg-black/[0.025] p-4 dark:border-white/[0.07] dark:bg-white/[0.025]">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
                 <p className="text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                    Ao criar uma chave, você autoriza o cadastro de uma chave aleatória na sua conta. A Asaas exige conta aprovada e prova de vida concluída.
+                    Ao criar uma chave, você autoriza o cadastro de uma chave aleatória na sua conta. A conta precisa estar aprovada e com validação de segurança concluída.
                 </p>
             </div>
 
@@ -72,7 +72,7 @@ export function PixChaves() {
                                     <p className="mt-1 truncate font-mono text-xs font-bold text-zinc-950 dark:text-white">{value}</p>
                                 </div>
                                 <button onClick={() => copy(value)} className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/[0.04] transition-transform active:scale-90 dark:bg-white/[0.05]" title="Copiar chave"><Copy className="h-4 w-4" /></button>
-                                <button onClick={() => deleteKey.mutate(item.id)} disabled={deleteKey.isPending} className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/[0.06] text-rose-500 transition-transform active:scale-90 disabled:opacity-40" title="Excluir chave"><Trash2 className="h-4 w-4" /></button>
+                                <button onClick={() => deleteKey.mutate(item.provider_id || item.id || value)} disabled={deleteKey.isPending} className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/[0.06] text-rose-500 transition-transform active:scale-90 disabled:opacity-40" title="Excluir chave"><Trash2 className="h-4 w-4" /></button>
                             </motion.div>
                         );
                     })}
