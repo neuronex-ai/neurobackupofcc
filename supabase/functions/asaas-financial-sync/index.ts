@@ -16,6 +16,7 @@ import {
     upsertAccountMovement,
     upsertPaymentFromProvider,
 } from "../_shared/neurofinance-financial.ts";
+import { syncFinancialEntryForPayment } from "../_shared/financial-management.ts";
 
 const PAGE_SIZE = 100;
 const MAX_INCREMENTAL_PAGES = 20;
@@ -197,8 +198,11 @@ async function syncAccount(financialAccount: any, mode: "incremental" | "full") 
         ),
     ]);
 
+    const syncedPayments: any[] = [];
+
     for (const payment of payments) {
-        await upsertPaymentFromProvider(financialAccount, payment, "RECONCILIATION");
+        const nbPayment = await upsertPaymentFromProvider(financialAccount, payment, "RECONCILIATION");
+        if (nbPayment) syncedPayments.push(nbPayment);
     }
 
     const missingPayments = mode === "full" && payments.length < MAX_FULL_PAGES * PAGE_SIZE
@@ -285,6 +289,13 @@ async function syncAccount(financialAccount: any, mode: "incremental" | "full") 
                 provider_type: transaction.type || null,
                 source: "provider_statement",
             },
+        });
+    }
+
+    for (const nbPayment of syncedPayments) {
+        await syncFinancialEntryForPayment(nbPayment, {
+            matchedBy: "automatic",
+            notes: "Conciliacao Asaas",
         });
     }
 

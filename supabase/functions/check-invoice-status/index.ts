@@ -22,6 +22,7 @@ import {
     asaasRequest,
     getFinancialAccountAsaasApiKey,
 } from '../_shared/asaas-client.ts';
+import { syncFinancialEntryForPayment } from '../_shared/financial-management.ts';
 
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return corsResponse();
@@ -102,14 +103,23 @@ Deno.serve(async (req: Request) => {
                     .from('invoices')
                     .update({ status: 'paid' })
                     .eq('id', invoiceId);
+                await syncFinancialEntryForPayment(payment, {
+                    matchedBy: 'automatic',
+                    notes: 'Verificacao manual de status da fatura',
+                });
                 return jsonResponse({ status: 'paid', updated: true });
             }
+            await syncFinancialEntryForPayment(payment, {
+                matchedBy: 'automatic',
+                notes: 'Verificacao manual de status da fatura',
+            });
             return jsonResponse({ status: 'paid', updated: false });
         }
 
         // 4. Check Asaas for the latest status
         let providerStatus = 'pending';
         let updated = false;
+        let paymentForSync = payment;
 
         // Find Asaas payment id (provider-neutral)
         const asaasPaymentId =
@@ -162,6 +172,11 @@ Deno.serve(async (req: Request) => {
             if (providerStatus === 'paid') {
                 paymentUpdate.paid_at = new Date().toISOString();
             }
+            paymentForSync = {
+                ...payment,
+                ...paymentUpdate,
+                normalized_status: providerStatus === 'paid' ? 'paid' : providerStatus,
+            };
             await supabaseAdmin
                 .from('nb_payments')
                 .update(paymentUpdate)
@@ -174,6 +189,13 @@ Deno.serve(async (req: Request) => {
                 .eq('id', invoiceId);
 
             console.log(`[check-invoice-status] Updated invoice ${invoiceId} and payment ${payment.id} to ${providerStatus}`);
+        }
+
+        if (['paid', 'expired', 'failed', 'refunded'].includes(providerStatus)) {
+            await syncFinancialEntryForPayment(paymentForSync, {
+                matchedBy: 'automatic',
+                notes: 'Verificacao manual de status da fatura',
+            });
         }
 
         return jsonResponse({

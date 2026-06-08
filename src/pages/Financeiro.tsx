@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, type ReactNode } from "react";
+import { Suspense, lazy, useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
@@ -45,6 +45,7 @@ import {
 
 import { FeatureGate, LockedFeatureScreen } from "@/components/subscription";
 import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
+import { useCreateFinancialEntry, useFinancialEntries, type FinancialEntry, type FinancialEntryPaymentMethod } from "@/hooks/use-financial-entries";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
@@ -414,7 +415,25 @@ interface ExpenseRow {
     status: "Pago" | "Nao pago";
 }
 
-const incomeRows = [
+interface IncomeRow {
+    patient: string;
+    description: string;
+    due: string;
+    amount: string;
+    status: "Pago" | "Nao pago";
+    origin: string;
+}
+
+interface StatementRow {
+    date: string;
+    description: string;
+    reason: string;
+    property: string;
+    category: string;
+    amount: string;
+}
+
+const incomeRows: IncomeRow[] = [
     { patient: "Ana Martins", description: "Sessao individual", due: "08/06/2026", amount: "R$ 250,00", status: "Pago", origin: "Agenda" },
     { patient: "Bruno Lima", description: "Pacote mensal", due: "12/06/2026", amount: "R$ 900,00", status: "Nao pago", origin: "Manual" },
     { patient: "Convenio Vida", description: "Repasse convenio", due: "18/06/2026", amount: "R$ 1.420,00", status: "Nao pago", origin: "Convenio" },
@@ -428,7 +447,7 @@ const expenseRowsSeed: ExpenseRow[] = [
     { id: "expense-4", category: "Ajuste de caixa", description: "Ajuste operacional", property: "Clinica", due: "28/06/2026", amount: "R$ 120,00", status: "Pago" },
 ];
 
-const statementRows = [
+const statementRows: StatementRow[] = [
     { date: "03/06/2026", description: "Sessao individual - Ana Martins", reason: "Receita", property: "Clinica", category: "Consulta", amount: "R$ 250,00" },
     { date: "05/06/2026", description: "Sala de atendimento", reason: "Despesa", property: "Clinica", category: "Aluguel", amount: "-R$ 2.400,00" },
     { date: "12/06/2026", description: "Pacote mensal - Bruno Lima", reason: "Receita", property: "Particular", category: "Mensalidade", amount: "R$ 900,00" },
@@ -478,6 +497,49 @@ const moneyFormatter = (value: number) =>
 const formatDateLabel = (value: string) => {
     const [year, month, day] = value.split("-");
     return year && month && day ? `${day}/${month}/${year}` : value;
+};
+
+const entryDateLabel = (entry: FinancialEntry) =>
+    formatDateLabel(entry.paid_at?.slice(0, 10) || entry.due_date || entry.competence_date || entry.created_at.slice(0, 10));
+
+const entryCategoryLabel = (entry: FinancialEntry) => {
+    const category = entry.metadata?.category;
+    return typeof category === "string" && category ? category : entry.type === "income" ? "Receita" : "Despesa";
+};
+
+const entryStatusLabel = (entry: FinancialEntry): "Pago" | "Nao pago" =>
+    entry.status === "paid" ? "Pago" : "Nao pago";
+
+const entryOriginLabel = (entry: FinancialEntry) => {
+    if (entry.origin === "neurofinance") return "NeuroFinance";
+    if (entry.origin === "appointment") return "Agenda";
+    if (entry.origin === "convenio") return "Convenio";
+    if (entry.origin === "package") return "Pacote";
+    return "Manual";
+};
+
+const parseMoneyInput = (value: string) => {
+    const normalized = value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+    return Math.abs(Number(normalized || 0));
+};
+
+const normalizeDateInput = (value: string) => {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return "";
+    return `${match[3]}-${match[2]}-${match[1]}`;
+};
+
+const paymentMethodFromLabel = (value: string): FinancialEntryPaymentMethod => {
+    const normalized = value.toLowerCase();
+    if (normalized.includes("pix")) return "pix";
+    if (normalized.includes("boleto")) return "boleto";
+    if (normalized.includes("cartao")) return "card";
+    if (normalized.includes("dinheiro")) return "cash";
+    if (normalized.includes("transferencia")) return "external_transfer";
+    if (normalized.includes("convenio")) return "convenio";
+    return "manual";
 };
 
 const PremiumBarShape = (props: any) => {
@@ -547,16 +609,21 @@ const PremiumBarShape = (props: any) => {
 const SelectShell = ({
     options,
     defaultValue,
+    value,
+    onChange,
     placeholder = "Selecione",
     className,
 }: {
     options: string[];
     defaultValue?: string;
+    value?: string;
+    onChange?: (value: string) => void;
     placeholder?: string;
     className?: string;
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [selected, setSelected] = useState(defaultValue ?? options[0] ?? "");
+    const [internalSelected, setInternalSelected] = useState(defaultValue ?? options[0] ?? "");
+    const selected = value ?? internalSelected;
     const currentLabel = selected || placeholder;
 
     return (
@@ -590,7 +657,8 @@ const SelectShell = ({
                                         key={option}
                                         type="button"
                                         onClick={() => {
-                                            setSelected(option);
+                                            setInternalSelected(option);
+                                            onChange?.(option);
                                             setIsOpen(false);
                                         }}
                                         className={cn(
@@ -613,10 +681,24 @@ const SelectShell = ({
     );
 };
 
-const InputShell = ({ placeholder, className, type = "text" }: { placeholder?: string; className?: string; type?: string }) => (
+const InputShell = ({
+    placeholder,
+    className,
+    type = "text",
+    value,
+    onChange,
+}: {
+    placeholder?: string;
+    className?: string;
+    type?: string;
+    value?: string;
+    onChange?: (value: string) => void;
+}) => (
     <input
         type={type}
         placeholder={placeholder}
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
         className={cn(
             "h-11 rounded-2xl border border-zinc-200 bg-white/70 px-4 text-sm font-bold text-zinc-600 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-200",
             className
@@ -1233,12 +1315,14 @@ const InfoBlock = ({ children }: { children: ReactNode }) => (
 
 const IncomeView = ({
     motionProps,
+    rows,
     onAdd,
     onManualCharge,
     openMenu,
     setOpenMenu,
 }: {
     motionProps: any;
+    rows: IncomeRow[];
     onAdd: () => void;
     onManualCharge: () => void;
     openMenu: ManagementOptionsMenu;
@@ -1309,7 +1393,7 @@ const IncomeView = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
-                        {incomeRows.map((row) => (
+                        {rows.map((row) => (
                             <tr key={`${row.patient}-${row.due}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
                                 <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.patient}</td>
                                 <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
@@ -1432,10 +1516,12 @@ const ExpensesView = ({
 
 const StatementView = ({
     motionProps,
+    rows,
     openMenu,
     setOpenMenu,
 }: {
     motionProps: any;
+    rows: StatementRow[];
     openMenu: ManagementOptionsMenu;
     setOpenMenu: (menu: ManagementOptionsMenu) => void;
 }) => (
@@ -1495,7 +1581,7 @@ const StatementView = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
-                        {statementRows.map((row) => (
+                        {rows.map((row) => (
                             <tr key={`${row.date}-${row.description}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
                                 <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.date}</td>
                                 <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
@@ -1939,6 +2025,45 @@ const FinancialManagementHome = () => {
     const [expenseRows, setExpenseRows] = useState<ExpenseRow[]>(expenseRowsSeed);
     const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
     const [agreementPeriod, setAgreementPeriod] = useState({ start: "2026-06-01", end: "2026-06-30" });
+    const { data: financialEntries = [] } = useFinancialEntries({ limit: 1000 });
+
+    const incomeEntryRows = useMemo<IncomeRow[]>(() => financialEntries
+        .filter((entry) => entry.type === "income")
+        .map((entry) => ({
+            patient: entry.patients?.name || "Paciente nao vinculado",
+            description: entry.description || entry.title,
+            due: entryDateLabel(entry),
+            amount: moneyFormatter(Number(entry.amount || 0)),
+            status: entryStatusLabel(entry),
+            origin: entryOriginLabel(entry),
+        })), [financialEntries]);
+
+    const expenseEntryRows = useMemo<ExpenseRow[]>(() => financialEntries
+        .filter((entry) => entry.type === "expense")
+        .map((entry) => ({
+            id: entry.id,
+            category: entryCategoryLabel(entry),
+            description: entry.description || entry.title,
+            property: entry.clinic_id ? "Clinica" : "Particular",
+            due: entryDateLabel(entry),
+            amount: moneyFormatter(Number(entry.amount || 0)),
+            status: entryStatusLabel(entry),
+        })), [financialEntries]);
+
+    const statementEntryRows = useMemo<StatementRow[]>(() => financialEntries
+        .filter((entry) => entry.status === "paid")
+        .map((entry) => ({
+            date: entryDateLabel(entry),
+            description: entry.description || entry.title,
+            reason: entry.type === "income" ? "Receita" : "Despesa",
+            property: entry.clinic_id ? "Clinica" : "Particular",
+            category: entryCategoryLabel(entry),
+            amount: `${entry.type === "expense" ? "-" : ""}${moneyFormatter(Number(entry.amount || 0))}`,
+        })), [financialEntries]);
+
+    const visibleIncomeRows = incomeEntryRows.length > 0 ? incomeEntryRows : incomeRows;
+    const visibleExpenseRows = expenseEntryRows.length > 0 ? expenseEntryRows : expenseRows;
+    const visibleStatementRows = statementEntryRows.length > 0 ? statementEntryRows : statementRows;
 
     const motionProps = {
         initial: { opacity: 0, x: 20, filter: "blur(10px)" },
@@ -1992,6 +2117,7 @@ const FinancialManagementHome = () => {
             return (
                 <IncomeView
                     motionProps={motionProps}
+                    rows={visibleIncomeRows}
                     onAdd={() => setActiveModal("income")}
                     onManualCharge={() => setActiveModal("manual-charge")}
                     openMenu={openMenu}
@@ -2003,7 +2129,7 @@ const FinancialManagementHome = () => {
             return (
                 <ExpensesView
                     motionProps={motionProps}
-                    rows={expenseRows}
+                    rows={visibleExpenseRows}
                     selectedIds={selectedExpenseIds}
                     toggleSelected={toggleExpenseSelected}
                     onAdd={() => setActiveModal("expense")}
@@ -2014,7 +2140,7 @@ const FinancialManagementHome = () => {
             );
         }
         if (activeView === "statement") {
-            return <StatementView motionProps={motionProps} openMenu={openMenu} setOpenMenu={setOpenMenu} />;
+            return <StatementView motionProps={motionProps} rows={visibleStatementRows} openMenu={openMenu} setOpenMenu={setOpenMenu} />;
         }
         if (activeView === "cash-flow") {
             return <CashFlowView motionProps={motionProps} onShowIntro={() => setShowCashFlowIntro(true)} />;

@@ -24,6 +24,7 @@ import {
     normalizePaymentMethod,
     normalizePaymentState,
 } from '../_shared/neurofinance-financial.ts';
+import { ensureFinancialEntryForCharge } from '../_shared/financial-management.ts';
 
 const BILLING_TYPE_MAP: Record<string, AsaasBillingType> = {
     pix: 'PIX',
@@ -50,6 +51,7 @@ Deno.serve(async (req: Request) => {
             patient_name,
             patient_cpf,
             patient_email,
+            financial_entry_id,
         } = body;
 
         const resolvedMethod =
@@ -128,12 +130,24 @@ Deno.serve(async (req: Request) => {
             }
         }
 
+        const financialEntry = await ensureFinancialEntryForCharge({
+            userId: user.id,
+            financialEntryId: financial_entry_id || null,
+            patientId: patient_id || null,
+            appointmentId: appointment_id || null,
+            amount,
+            description: description || 'Cobranca NeuroFinance',
+            dueDate: due_date || today,
+            paymentMethod: normalizedMethod,
+        });
+
         const { data: paymentRecord, error: insertErr } = await supabaseAdmin
             .from('nb_payments')
             .insert({
                 user_id: user.id,
                 patient_id: patient_id || null,
                 appointment_id: appointment_id || null,
+                financial_entry_id: financialEntry?.id || null,
                 financial_account_id: financialAccount.id,
                 provider: 'asaas',
                 provider_payment_id: asaasPayment.id,
@@ -158,6 +172,7 @@ Deno.serve(async (req: Request) => {
                 checkout_url: asaasPayment.invoiceUrl,
                 expires_at: due_date || null,
                 metadata: {
+                    financial_entry_id: financialEntry?.id || null,
                     asaas_payment_id: asaasPayment.id,
                     asaas_customer_id: asaasCustomer.id,
                     asaas_invoice_url: asaasPayment.invoiceUrl,
@@ -171,9 +186,22 @@ Deno.serve(async (req: Request) => {
 
         if (insertErr) throw insertErr;
 
+        if (financialEntry?.id) {
+            const { error: entryLinkError } = await supabaseAdmin
+                .from('financial_entries')
+                .update({
+                    neurofinance_charge_id: paymentRecord.id,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', financialEntry.id);
+
+            if (entryLinkError) throw entryLinkError;
+        }
+
         return jsonResponse({
             success: true,
             payment_id: paymentRecord.id,
+            financial_entry_id: financialEntry?.id || null,
             asaas_payment_id: asaasPayment.id,
             status: 'pending',
             amount,

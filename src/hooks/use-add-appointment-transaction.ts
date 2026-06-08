@@ -4,6 +4,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
+import {
+  fromLegacyTransactionStatus,
+  mapFinancialEntryToTransaction,
+  toFinancialPaymentMethod,
+} from './use-financial-entries';
 
 interface NewAppointmentTransactionData {
   appointmentId: string;
@@ -20,7 +25,38 @@ interface NewAppointmentTransactionData {
 }
 
 const addAppointmentTransaction = async (data: NewAppointmentTransactionData, userId: string) => {
-  const { data: newTransaction, error } = await supabase
+  const financialStatus = fromLegacyTransactionStatus(data.status);
+  const { data: entry, error } = await supabase
+    .from('financial_entries')
+    .insert({
+      professional_id: userId,
+      appointment_id: data.appointmentId,
+      title: data.description,
+      description: data.description,
+      amount: Math.abs(Number(data.amount || 0)),
+      type: data.type,
+      due_date: format(data.date, 'yyyy-MM-dd'),
+      competence_date: format(data.date, 'yyyy-MM-dd'),
+      paid_at: financialStatus === 'paid' ? data.date.toISOString() : null,
+      payment_method: toFinancialPaymentMethod(data.payment_method || 'pix'),
+      patient_id: data.patient_id || null,
+      status: financialStatus,
+      origin: 'appointment',
+      metadata: {
+        category: data.category || 'Sessao',
+        installments: data.installments || 1,
+        package_id: data.package_id || null,
+      },
+    })
+    .select()
+    .single();
+
+  if (!error && entry) {
+    return mapFinancialEntryToTransaction(entry as any);
+  }
+
+  console.warn('Falha ao salvar consulta em financial_entries; usando transactions legado:', error?.message);
+  const { data: legacyTransaction, error: legacyError } = await supabase
     .from('transactions')
     .insert({
       user_id: userId,
@@ -28,7 +64,7 @@ const addAppointmentTransaction = async (data: NewAppointmentTransactionData, us
       description: data.description,
       amount: data.amount,
       type: data.type,
-      category: data.category || 'Sessão',
+      category: data.category || 'Sessao',
       date: format(data.date, 'yyyy-MM-dd'),
       payment_method: data.payment_method || 'pix',
       installments: data.installments || 1,
@@ -39,12 +75,12 @@ const addAppointmentTransaction = async (data: NewAppointmentTransactionData, us
     .select()
     .single();
 
-  if (error) {
-    console.error('Erro ao adicionar transação de consulta:', error);
-    throw new Error(error.message);
+  if (legacyError) {
+    console.error('Erro ao adicionar transacao de consulta:', legacyError);
+    throw new Error(legacyError.message);
   }
 
-  return newTransaction;
+  return legacyTransaction;
 };
 
 export const useAddAppointmentTransaction = () => {
@@ -54,20 +90,20 @@ export const useAddAppointmentTransaction = () => {
 
   return useMutation({
     mutationFn: (data: NewAppointmentTransactionData) => {
-      if (!userId) throw new Error("Usuário não autenticado.");
+      if (!userId) throw new Error('Usuario nao autenticado.');
       return addAppointmentTransaction(data, userId);
     },
-    onSuccess: (_, _variables) => {
-      toast.success("Transação de consulta registrada com sucesso!");
-      // Invalida queries de transações gerais e do paciente
+    onSuccess: () => {
+      toast.success('Transacao de consulta registrada com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financialEntries'] });
       queryClient.invalidateQueries({ queryKey: ['patientTransactions'] });
       queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
       queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
     },
     onError: (error) => {
-      console.error('[useAddAppointmentTransaction] Falha ao registrar movimentação', error);
+      console.error('[useAddAppointmentTransaction] Falha ao registrar movimentacao', error);
       toast.error(getUserFacingErrorMessage(error, 'save'));
-    }
+    },
   });
 };

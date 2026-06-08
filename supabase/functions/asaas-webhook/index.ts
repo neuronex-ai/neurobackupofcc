@@ -38,6 +38,7 @@ import {
     upsertAccountMovement,
     upsertPaymentFromProvider,
 } from '../_shared/neurofinance-financial.ts';
+import { syncFinancialEntryForPayment } from '../_shared/financial-management.ts';
 
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return corsResponse();
@@ -355,6 +356,10 @@ async function handlePaymentEvent(payment: any, event: string, webhookAccount?: 
 
     await refreshOverviewSnapshot(financialAccount.id);
     await touchFinancialAccountEvent(financialAccount.id, event);
+    await syncFinancialEntryForPayment(nbPayment, {
+        matchedBy: 'automatic',
+        notes: `Webhook Asaas: ${event}`,
+    });
 
     if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED') {
         await tryScheduleAutomaticInvoice(nbPayment, payment);

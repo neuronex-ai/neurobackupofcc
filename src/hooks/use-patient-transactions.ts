@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Transaction } from '@/types';
+import type { Transaction } from '@/types';
 import { useAuth } from '@/components/auth/SessionContextProvider';
+import { fetchFinancialEntries, mapFinancialEntryToTransaction } from './use-financial-entries';
 
-const fetchPatientTransactions = async (patientId: string, userId: string): Promise<Transaction[]> => {
-  // Busca transações que estão ligadas a um appointment que, por sua vez, está ligado ao patientId.
+const fetchLegacyPatientTransactions = async (patientId: string, userId: string): Promise<Transaction[]> => {
   const { data, error } = await supabase
     .from('transactions')
     .select(`
@@ -12,20 +12,26 @@ const fetchPatientTransactions = async (patientId: string, userId: string): Prom
       appointment:appointment_id!inner (patient_id)
     `)
     .eq('user_id', userId)
-    .eq('appointment.patient_id', patientId) // Filtra pelo patient_id na tabela de appointments
+    .eq('appointment.patient_id', patientId)
     .order('date', { ascending: false });
 
-  if (error) {
-    console.error('Erro ao buscar transações do paciente:', error);
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 
-  // Mapeia de volta para o tipo Transaction, removendo o objeto 'appointment' do join
-  return data.map(t => {
-    // @ts-ignore
-    delete t.appointment;
-    return t as Transaction;
-  }) || [];
+  return (data || []).map((transaction) => {
+    const normalized = { ...transaction };
+    delete (normalized as any).appointment;
+    return normalized as Transaction;
+  });
+};
+
+const fetchPatientTransactions = async (patientId: string, userId: string): Promise<Transaction[]> => {
+  try {
+    const entries = await fetchFinancialEntries(userId, { patientId, limit: 500 });
+    return entries.map(mapFinancialEntryToTransaction);
+  } catch (error) {
+    console.warn('Lancamentos do paciente indisponiveis, usando transactions legado:', error);
+    return fetchLegacyPatientTransactions(patientId, userId);
+  }
 };
 
 export const usePatientTransactions = (patientId: string) => {

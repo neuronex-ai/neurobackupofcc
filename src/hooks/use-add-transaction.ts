@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useAuth } from '@/components/auth/SessionContextProvider';
+import { mapFinancialEntryToTransaction, toFinancialPaymentMethod } from './use-financial-entries';
 
 export interface ExtendedTransactionData {
   description: string;
@@ -47,26 +48,58 @@ const addTransaction = async (data: ExtendedTransactionData, userId: string) => 
   }
 
   // 3. Inserir Transação
-  const { data: tx, error } = await supabase
-    .from('transactions')
+  const { data: entry, error } = await supabase
+    .from('financial_entries')
     .insert({
-      user_id: userId,
+      professional_id: userId,
       description: data.description,
-      amount: data.amount,
+      title: data.description,
+      amount: Math.abs(Number(data.amount || 0)),
       type: data.type,
-      category: data.category || null,
-      date: format(data.date, 'yyyy-MM-dd'),
-      payment_method: data.payment_method || 'pix',
-      installments: data.installments || 1,
-      external_reference: data.external_reference || null,
-      attachment_url: data.attachment_url || null,
+      due_date: format(data.date, 'yyyy-MM-dd'),
+      competence_date: format(data.date, 'yyyy-MM-dd'),
+      paid_at: data.date.toISOString(),
+      status: 'paid',
+      payment_method: toFinancialPaymentMethod(data.payment_method || 'pix'),
+      origin: finalPackageId ? 'package' : 'manual',
       patient_id: data.patient_id || null,
-      package_id: finalPackageId || null,
+      metadata: {
+        category: data.category || null,
+        installments: data.installments || 1,
+        external_reference: data.external_reference || null,
+        attachment_url: data.attachment_url || null,
+        package_id: finalPackageId || null,
+      },
     })
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  let tx: any = entry ? mapFinancialEntryToTransaction(entry as any) : null;
+
+  if (error) {
+    console.warn('Falha ao salvar em financial_entries; usando transactions legado:', error.message);
+    const { data: legacyTx, error: legacyError } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: userId,
+        description: data.description,
+        amount: data.amount,
+        type: data.type,
+        category: data.category || null,
+        date: format(data.date, 'yyyy-MM-dd'),
+        payment_method: data.payment_method || 'pix',
+        installments: data.installments || 1,
+        external_reference: data.external_reference || null,
+        attachment_url: data.attachment_url || null,
+        patient_id: data.patient_id || null,
+        package_id: finalPackageId || null,
+      })
+      .select()
+      .single();
+
+    if (legacyError) throw new Error(legacyError.message);
+    tx = legacyTx;
+  }
 
   // 4. Se houver pacote vinculado (existente ou novo), DEBITAR uma sessão se solicitado
   if (finalPackageId && data.debit_session !== false) {
@@ -99,6 +132,7 @@ export const useAddTransaction = () => {
     onSuccess: (_, variables) => {
       // Invalidações Globais
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financialEntries'] });
       queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
 
       // CRÍTICO: Invalida a projeção de caixa para recalcular os pacotes

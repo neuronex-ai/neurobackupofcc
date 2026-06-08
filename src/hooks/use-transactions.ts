@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Transaction } from '@/types';
 import { format } from 'date-fns';
 import { useAuth } from '@/components/auth/SessionContextProvider';
+import { fetchFinancialEntries, mapFinancialEntryToTransaction } from './use-financial-entries';
 
 interface FetchTransactionsParams {
   startDate?: Date;
@@ -12,6 +13,13 @@ interface FetchTransactionsParams {
 }
 
 const fetchTransactions = async ({ startDate, endDate, userId, limit = 100 }: FetchTransactionsParams): Promise<Transaction[]> => {
+  try {
+    const entries = await fetchFinancialEntries(userId, { startDate, endDate, limit });
+    return entries.map(mapFinancialEntryToTransaction);
+  } catch (entryError) {
+    console.warn('Lancamentos gerenciais indisponiveis, usando transactions legado:', entryError);
+  }
+
   let query = supabase
     .from('transactions')
     .select('*')
