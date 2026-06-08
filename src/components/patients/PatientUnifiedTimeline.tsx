@@ -110,14 +110,11 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                 return (
                     <motion.div
                         key={`${item.type}-${item.id}`}
-                        initial={{ opacity: 0, y: 18, scale: 0.985 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        transition={{
-                            duration: 0.46,
-                            delay: Math.min(index, 8) * 0.026,
-                            ease: [0.22, 1, 0.36, 1],
-                        }}
-                        className="relative transform-gpu will-change-transform"
+                        initial={{ opacity: 0, x: -10 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true, margin: "-100px" }}
+                        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                        className="relative"
                     >
                         {/* Status/Type Connector Dot */}
                         <div className={cn(
