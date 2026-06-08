@@ -1072,16 +1072,21 @@ Retorne APENAS o texto do documento, formatado em Markdown.
             }
 
             case 'list_transactions': {
-                const { data } = await supabaseUser.from('transactions').select('*').order('date', { ascending: false }).limit(args.limit || 5);
+                const { data } = await supabaseUser
+                    .from('financial_entries')
+                    .select('*')
+                    .order('due_date', { ascending: false })
+                    .order('created_at', { ascending: false })
+                    .limit(args.limit || 5);
                 result = { transactions: data };
                 structuredData = {
                     type: 'interactive_table',
                     data: {
-                        title: 'Ãšltimas TransaÃ§Ãµes',
+                        title: 'Ultimos Lancamentos',
                         headers: ['Data', 'Desc.', 'Valor'],
                         rows: data?.map((t: any) => [
-                            t.date.split('-').reverse().join('/'),
-                            t.description,
+                            (t.paid_at?.slice(0, 10) || t.due_date || t.competence_date || t.created_at?.slice(0, 10) || '').split('-').reverse().join('/'),
+                            t.description || t.title,
                             `R$ ${t.amount}`
                         ]) || []
                     }
@@ -1090,20 +1095,29 @@ Retorne APENAS o texto do documento, formatado em Markdown.
             }
 
             case 'create_transaction': {
-                const amount = args.type === 'expense' && args.amount > 0 ? -args.amount : args.amount;
+                const amount = Math.abs(Number(args.amount || 0));
+                const entryDate = args.date || new Date().toISOString().split('T')[0];
 
                 const { data: transaction, error: createError } = await ctx.supabaseAdmin
-                    .from('transactions')
+                    .from('financial_entries')
                     .insert({
-                        user_id: user.id,
+                        professional_id: user.id,
+                        title: args.description,
                         description: args.description,
                         amount: amount,
                         type: args.type,
-                        category: args.category || 'Outros',
                         patient_id: args.patientId || null,
-                        date: args.date || new Date().toISOString().split('T')[0],
-                        status: 'completed',
-                        created_at: new Date().toISOString()
+                        due_date: entryDate,
+                        competence_date: entryDate,
+                        paid_at: `${entryDate}T12:00:00.000Z`,
+                        status: 'paid',
+                        payment_method: 'manual',
+                        origin: 'manual',
+                        metadata: {
+                            category: args.category || 'Outros',
+                            source: 'synapse_global',
+                            legacy_tool: 'create_transaction',
+                        },
                     })
                     .select()
                     .single();
@@ -1129,19 +1143,19 @@ Retorne APENAS o texto do documento, formatado em Markdown.
                 const startDate = args.startDate;
                 const endDate = args.endDate || startDate;
                 let query = ctx.supabaseAdmin
-                    .from('transactions')
+                    .from('financial_entries')
                     .select('*')
-                    .eq('user_id', user.id)
-                    .gte('date', startDate)
-                    .lte('date', endDate)
-                    .order('date', { ascending: true });
+                    .eq('professional_id', user.id)
+                    .gte('due_date', startDate)
+                    .lte('due_date', endDate)
+                    .order('due_date', { ascending: true });
 
                 if (args.type && args.type !== 'all') {
                     query = query.eq('type', args.type);
                 }
 
                 if (args.category) {
-                    query = query.ilike('category', `%${args.category}%`);
+                    query = query.filter('metadata->>category', 'ilike', `%${args.category}%`);
                 }
 
                 const { data: transactions, error } = await query;
@@ -1185,7 +1199,7 @@ Retorne APENAS o texto do documento, formatado em Markdown.
                         expenses,
                         balance,
                         chartData: transactions.map((t: any) => ({
-                            date: t.date,
+                            date: t.due_date || t.competence_date || t.created_at?.slice(0, 10),
                             amount: Number(t.amount),
                             type: t.type
                         }))
@@ -1770,4 +1784,3 @@ Retorne APENAS o texto do documento, formatado em Markdown.
 
     return { result, structuredData };
 }
-

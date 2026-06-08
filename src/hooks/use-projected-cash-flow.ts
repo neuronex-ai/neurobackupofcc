@@ -11,7 +11,7 @@ export interface FlowDetail {
   type: 'income' | 'expense';
   description: string;
   amount: number;
-  source: 'transaction' | 'recurring' | 'package' | 'invoice';
+  source: 'financial_entry' | 'recurring' | 'package' | 'invoice';
   patient_name?: string;
   installment_info?: string;
 }
@@ -48,13 +48,13 @@ export const useProjectedCashFlow = (mode: ProjectionMode, rangeDays: number, vi
       }
 
       const [
-        { data: transactions },
+        { data: financialEntries },
         { data: recInvoices },
         { data: recExpenses },
         { data: packages },
         { data: pendingInvoices }
       ] = await Promise.all([
-        supabase.from('transactions').select('*').eq('user_id', user.id).gte('date', startDate.toISOString()),
+        supabase.from('financial_entries').select('*, patients(name)').eq('professional_id', user.id).limit(5000),
         supabase.from('recurring_invoices').select('*, patients(name)').eq('user_id', user.id).eq('active', true),
         supabase.from('recurring_expenses').select('*').eq('user_id', user.id).eq('active', true),
         supabase.from('patient_packages').select('*, patients(name)').eq('user_id', user.id).gt('total_sessions', 0),
@@ -69,13 +69,18 @@ export const useProjectedCashFlow = (mode: ProjectionMode, rangeDays: number, vi
 
         // REALIZADO (Histórico)
         if (isPast || format(currentDay, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd')) {
-          transactions?.forEach(t => {
-            if (format(new Date(t.date), 'yyyy-MM-dd') === format(currentDay, 'yyyy-MM-dd')) {
-              const val = Number(t.amount);
-              point.Realizado += t.type === 'income' ? val : -val;
+          financialEntries?.forEach((entry: any) => {
+            const entryDate = entry.paid_at?.slice(0, 10) || entry.competence_date || entry.due_date || entry.created_at?.slice(0, 10);
+            if (entry.status === 'paid' && entryDate === format(currentDay, 'yyyy-MM-dd')) {
+              const val = Number(entry.amount);
+              point.Realizado += entry.type === 'income' ? val : -val;
               point.details.push({
-                id: t.id, type: t.type as 'income' | 'expense',
-                description: t.description, amount: val, source: 'transaction'
+                id: entry.id,
+                type: entry.type as 'income' | 'expense',
+                description: entry.description || entry.title,
+                amount: val,
+                source: 'financial_entry',
+                patient_name: entry.patients?.name,
               });
             }
           });
@@ -83,6 +88,22 @@ export const useProjectedCashFlow = (mode: ProjectionMode, rangeDays: number, vi
 
         // PROJETADO (Futuro)
         if (!isPast) {
+          financialEntries?.forEach((entry: any) => {
+            const entryDate = entry.due_date || entry.competence_date || entry.created_at?.slice(0, 10);
+            if (entry.status !== 'paid' && entryDate === format(currentDay, 'yyyy-MM-dd')) {
+              const val = Number(entry.amount);
+              point.Projetado += entry.type === 'income' ? val : -val;
+              point.details.push({
+                id: entry.id,
+                type: entry.type as 'income' | 'expense',
+                description: entry.description || entry.title,
+                amount: val,
+                source: 'financial_entry',
+                patient_name: entry.patients?.name,
+              });
+            }
+          });
+
           // 1. Assinaturas Recorrentes
           recInvoices?.forEach(rec => {
             if (rec.day_of_month === dayOfMonth) {

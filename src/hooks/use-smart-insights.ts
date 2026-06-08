@@ -78,9 +78,9 @@ const fetchSmartInsights = async (userId: string): Promise<SmartInsight[]> => {
   if (attendedApts.length > 0) {
     const completedIds = attendedApts.map(a => a.id);
     const { data: billed } = await supabase
-      .from('transactions')
+      .from('financial_entries')
       .select('appointment_id')
-      .eq('user_id', userId)
+      .eq('professional_id', userId)
       .in('appointment_id', completedIds);
 
     const billedSet = new Set(billed?.map(t => t.appointment_id) || []);

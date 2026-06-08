@@ -35,19 +35,19 @@ const fetchRevenueLeakage = async (userId: string): Promise<UnpaidSession[]> => 
 
   if (appointmentIds.length === 0) return [];
 
-  const { data: transactions, error: transError } = await supabase
-    .from('transactions')
+  const { data: financialEntries, error: entriesError } = await supabase
+    .from('financial_entries')
     .select('appointment_id')
-    .eq('user_id', userId)
+    .eq('professional_id', userId)
     .in('appointment_id', appointmentIds);
 
-  if (transError) throw new Error(transError.message);
+  if (entriesError) throw new Error(entriesError.message);
 
-  const paidAppointmentIds = new Set(transactions.map(t => t.appointment_id));
+  const billedAppointmentIds = new Set((financialEntries || []).map(t => t.appointment_id));
 
   // 3. Filtrar apenas os que NÃO estão no set de pagos
   let unpaid: UnpaidSession[] = billableAppointments
-    .filter(apt => !paidAppointmentIds.has(apt.id))
+    .filter(apt => !billedAppointmentIds.has(apt.id))
     .map(apt => {
       const patient = Array.isArray(apt.patient) ? apt.patient[0] : apt.patient;
       return {
@@ -63,40 +63,37 @@ const fetchRevenueLeakage = async (userId: string): Promise<UnpaidSession[]> => 
 
   if (uniquePatientIds.length > 0) {
     const { data: historyData } = await supabase
-      .from('transactions')
-      .select(`
-            amount,
-            date,
-            appointment:appointment_id!inner(patient_id)
-        `)
-      .eq('user_id', userId)
-      .in('appointment.patient_id', uniquePatientIds)
-      .order('date', { ascending: false });
+      .from('financial_entries')
+      .select('amount, due_date, paid_at, competence_date, patient_id')
+      .eq('professional_id', userId)
+      .eq('type', 'income')
+      .in('patient_id', uniquePatientIds)
+      .order('due_date', { ascending: false });
 
     // Agrupar transações por paciente
-    const transactionsByPatient = new Map<string, any[]>();
+    const entriesByPatient = new Map<string, any[]>();
     historyData?.forEach((t: any) => {
-      const pId = t.appointment?.patient_id;
+      const pId = t.patient_id;
       if (pId) {
-        if (!transactionsByPatient.has(pId)) {
-          transactionsByPatient.set(pId, []);
+        if (!entriesByPatient.has(pId)) {
+          entriesByPatient.set(pId, []);
         }
-        transactionsByPatient.get(pId)?.push(t);
+        entriesByPatient.get(pId)?.push(t);
       }
     });
 
     unpaid = unpaid.map(u => {
-      const patientTransactions = transactionsByPatient.get(u.patient_id) || [];
+      const patientEntries = entriesByPatient.get(u.patient_id) || [];
 
       // Encontrar a transação mais recente que seja ANTERIOR ou IGUAL à data da sessão
       // Como historyData está desc (mais recente primeiro), procuramos o primeiro que satisfaz a condição
       const sessionDate = new Date(u.start_time);
 
-      const match = patientTransactions.find(t => new Date(t.date) <= sessionDate);
+      const match = patientEntries.find(t => new Date(t.paid_at || t.due_date || t.competence_date) <= sessionDate);
 
       // Se não encontrar anterior, usa a mais antiga disponível (ou a mais recente absoluta se preferir, mas lógica temporal sugere 'preço vigente')
       // Fallback: use the most recent transaction found (first in list) if no prior transaction exists
-      const suggested = match ? match.amount : (patientTransactions.length > 0 ? patientTransactions[0].amount : undefined);
+      const suggested = match ? match.amount : (patientEntries.length > 0 ? patientEntries[0].amount : undefined);
 
       return {
         ...u,

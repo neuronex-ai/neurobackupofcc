@@ -371,7 +371,7 @@ type ManagementModal = "income" | "expense" | "manual-charge" | "batch-reconcile
 type ManagementOptionsMenu = "income" | "expenses" | "statement" | "charges" | "agreements" | null;
 
 type MetricCard = { title: string; value: string; footer: string[]; icon: LucideIcon; tone?: string };
-type ChartPoint = Record<string, string | number>;
+type ChartPoint = { month: string } & Partial<Record<string, string | number>>;
 
 interface OverdueIncomeRow {
     patient: string;
@@ -458,10 +458,7 @@ const fullMonthNames = [
     "Dezembro",
 ];
 
-const shortMonthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
 const buildPeriodLabel = (year: number, month: number) => `${fullMonthNames[month]} ${year}`;
-const buildShortPeriodLabel = (year: number, month: number) => `${shortMonthNames[month]}/${String(year).slice(-2)}`;
 
 const formatDateLabel = (value: string) => {
     const [year, month, day] = value.split("-");
@@ -474,6 +471,12 @@ const entryDateLabel = (entry: FinancialEntry) =>
 const entryCategoryLabel = (entry: FinancialEntry) => {
     const category = entry.metadata?.category;
     return typeof category === "string" && category ? category : entry.type === "income" ? "Receita" : "Despesa";
+};
+
+const entryClientLabel = (entry: FinancialEntry) => {
+    const clientName = entry.metadata?.client;
+    if (entry.patients?.name) return entry.patients.name;
+    return typeof clientName === "string" && clientName ? clientName : "Paciente nao vinculado";
 };
 
 const entryStatusLabel = (entry: FinancialEntry): "Pago" | "Nao pago" =>
@@ -954,53 +957,103 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
     );
 };
 
-const ManualChargeModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => (
-    <PremiumModal
-        open={open}
-        title="Gerar Cobranca Manual"
-        onClose={onClose}
-        footer={
-            <>
-                <ModalButton variant="secondary" onClick={onClose}>Cancelar</ModalButton>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="h-11 rounded-2xl bg-zinc-300 px-8 text-[11px] font-black uppercase tracking-[0.18em] text-white dark:bg-white/20"
-                >
-                    Gerar Cobranca
-                </button>
-            </>
-        }
-    >
-        <div className="space-y-6">
-            <div>
-                <FormLabel>Cliente</FormLabel>
-                <SelectShell className="w-full" options={["-- Selecione --", "Ana Martins", "Bruno Lima", "Carla Nunes"]} />
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+const ManualChargeModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+    const [client, setClient] = useState("-- Selecione --");
+    const [dueDate, setDueDate] = useState("");
+    const [amount, setAmount] = useState("");
+    const [chargeType, setChargeType] = useState("-- Selecione --");
+    const [description, setDescription] = useState("");
+    const createFinancialEntry = useCreateFinancialEntry();
+
+    const handleCreate = () => {
+        const normalizedDueDate = normalizeDateInput(dueDate);
+        const parsedAmount = parseMoneyInput(amount);
+        if (!normalizedDueDate || parsedAmount <= 0 || !description.trim()) return;
+
+        createFinancialEntry.mutate({
+            type: "income",
+            title: description.trim(),
+            description: description.trim(),
+            amount: parsedAmount,
+            dueDate: new Date(`${normalizedDueDate}T12:00:00`),
+            competenceDate: new Date(`${normalizedDueDate}T12:00:00`),
+            status: "pending",
+            paymentMethod: paymentMethodFromLabel(chargeType),
+            origin: "manual",
+            metadata: {
+                manual_charge: true,
+                client: client === "-- Selecione --" ? null : client,
+                charge_type: chargeType === "-- Selecione --" ? null : chargeType,
+                source: "financial_management_manual_charge",
+            },
+        }, {
+            onSuccess: () => {
+                setClient("-- Selecione --");
+                setDueDate("");
+                setAmount("");
+                setChargeType("-- Selecione --");
+                setDescription("");
+                onClose();
+            },
+        });
+    };
+
+    const canCreate = Boolean(normalizeDateInput(dueDate)) && parseMoneyInput(amount) > 0 && Boolean(description.trim());
+
+    return (
+        <PremiumModal
+            open={open}
+            title="Gerar Cobranca Manual"
+            onClose={onClose}
+            footer={
+                <>
+                    <ModalButton variant="secondary" onClick={onClose}>Cancelar</ModalButton>
+                    <button
+                        type="button"
+                        onClick={handleCreate}
+                        disabled={!canCreate || createFinancialEntry.isPending}
+                        className={cn(
+                            "h-11 rounded-2xl px-8 text-[11px] font-black uppercase tracking-[0.18em] text-white transition-all active:scale-[0.98]",
+                            canCreate && !createFinancialEntry.isPending
+                                ? "bg-zinc-950 hover:opacity-90 dark:bg-white dark:text-zinc-950"
+                                : "cursor-not-allowed bg-zinc-300 dark:bg-white/20"
+                        )}
+                    >
+                        {createFinancialEntry.isPending ? "Gerando" : "Gerar Cobranca"}
+                    </button>
+                </>
+            }
+        >
+            <div className="space-y-6">
                 <div>
-                    <FormLabel required>Vencimento</FormLabel>
-                    <InputShell placeholder="08/06/2026" className="w-full" />
+                    <FormLabel>Cliente</FormLabel>
+                    <SelectShell className="w-full" options={["-- Selecione --", "Cliente avulso", "Paciente nao vinculado"]} value={client} onChange={setClient} />
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div>
+                        <FormLabel required>Vencimento</FormLabel>
+                        <InputShell type="date" placeholder="08/06/2026" className="w-full" value={dueDate} onChange={setDueDate} />
+                    </div>
+                    <div>
+                        <FormLabel required>Valor</FormLabel>
+                        <InputShell placeholder="R$ 0,00" className="w-full" value={amount} onChange={setAmount} />
+                    </div>
+                    <div>
+                        <FormLabel>Tipo de cobranca</FormLabel>
+                        <SelectShell className="w-full" options={["-- Selecione --", "Pix", "Boleto", "Cartao"]} value={chargeType} onChange={setChargeType} />
+                    </div>
                 </div>
                 <div>
-                    <FormLabel required>Valor</FormLabel>
-                    <InputShell placeholder="R$ 0,00" className="w-full" />
+                    <FormLabel required>Descricao</FormLabel>
+                    <InputShell placeholder="Digite aqui" className="w-full md:w-1/2" value={description} onChange={setDescription} />
                 </div>
-                <div>
-                    <FormLabel>Tipo de cobranca</FormLabel>
-                    <SelectShell className="w-full" options={["-- Selecione --", "Pix", "Boleto", "Cartao"]} />
+                <div className="rounded-[28px] border border-dashed border-zinc-200 bg-zinc-50/70 p-6 text-center text-sm font-bold leading-relaxed text-zinc-500 dark:border-white/10 dark:bg-white/[0.025] dark:text-zinc-400">
+                    Esta acao cria uma receita pendente na Gestao Financeira. Ela nao cria cobranca bancaria Asaas nem movimentacao NeuroFinance.
                 </div>
             </div>
-            <div>
-                <FormLabel required>Descricao</FormLabel>
-                <InputShell placeholder="Digite aqui" className="w-full md:w-1/2" />
-            </div>
-            <div className="flex min-h-[130px] items-center justify-center rounded-[28px] border border-dashed border-zinc-200 bg-zinc-50/70 text-center text-sm font-bold text-zinc-500 dark:border-white/10 dark:bg-white/[0.025] dark:text-zinc-400">
-                Escolha um cliente para visualizar os debitos.
-            </div>
-        </div>
-    </PremiumModal>
-);
+        </PremiumModal>
+    );
+};
 
 const OptionsDropdown = ({
     id,
@@ -1746,18 +1799,17 @@ const CashFlowIntroModal = ({ open, onClose }: { open: boolean; onClose: () => v
     </PremiumModal>
 );
 
-const CashFlowView = ({ motionProps, onShowIntro }: { motionProps: any; onShowIntro: () => void }) => {
-    const months = ["Jan/26", "Fev/26", "Mar/26", "Abr/26", "Mai/26", "Jun/26", "Jul/26", "Ago/26", "Set/26", "Out/26", "Nov/26", "Dez/26"];
-    const rows = [
-        { label: "Receitas recebidas", tone: "bg-zinc-100/80 text-zinc-800", values: months.map(() => "-") },
-        { label: "Receitas a receber", tone: "bg-zinc-50 text-zinc-600", values: months.map(() => "-") },
-        { label: "Total receitas", tone: "bg-white text-zinc-950 font-black", values: months.map(() => "-") },
-        { label: "Despesas pagas", tone: "bg-zinc-100/70 text-zinc-700", values: months.map(() => "-") },
-        { label: "Despesas a pagar", tone: "bg-zinc-50 text-zinc-600", values: months.map(() => "-") },
-        { label: "Total despesas", tone: "bg-white text-zinc-950 font-black", values: months.map(() => "-") },
-        { label: "Resultados", tone: "bg-white text-zinc-950 font-black", values: months.map(() => "R$ 0,00") },
-    ];
-
+const CashFlowView = ({
+    motionProps,
+    onShowIntro,
+    months,
+    rows,
+}: {
+    motionProps: any;
+    onShowIntro: () => void;
+    months: string[];
+    rows: CashFlowTableRow[];
+}) => {
     return (
         <motion.div {...motionProps} key="cash-flow-view" className="space-y-6 px-6 py-6">
             <ManagementSectionHeader icon={BarChart3} title="Fluxo de caixa" subtitle="Entradas, saidas e resultado mensal" />
@@ -1810,11 +1862,15 @@ const CashFlowView = ({ motionProps, onShowIntro }: { motionProps: any; onShowIn
 
 const ManualChargesView = ({
     motionProps,
+    rows,
+    cards,
     onManualCharge,
     openMenu,
     setOpenMenu,
 }: {
     motionProps: any;
+    rows: ManualChargeRow[];
+    cards: { label: string; value: string; icon: LucideIcon }[];
     onManualCharge: () => void;
     openMenu: ManagementOptionsMenu;
     setOpenMenu: (menu: ManagementOptionsMenu) => void;
@@ -1843,11 +1899,7 @@ const ManualChargesView = ({
             </div>
         </div>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-            {[
-                { label: "Geradas", value: "3", icon: Receipt },
-                { label: "Pendentes", value: "2", icon: AlertTriangle },
-                { label: "Recebidas", value: "1", icon: CheckCircle2 },
-            ].map((card) => (
+            {cards.map((card) => (
                 <div key={card.label} className="rounded-[30px] border border-zinc-200/50 bg-white/60 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.015]">
                     <card.icon className="mb-5 h-5 w-5 text-zinc-500" />
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">{card.label}</p>
@@ -1869,18 +1921,22 @@ const ManualChargesView = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
-                        {manualChargeRows.map((row) => (
-                            <tr key={`${row.client}-${row.due}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
-                                <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.client}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.type}</td>
-                                <td className="px-5 py-4">
-                                    <span className="rounded-full bg-zinc-950/5 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-zinc-600 dark:bg-white/10 dark:text-zinc-300">{row.status}</span>
-                                </td>
-                                <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
-                            </tr>
-                        ))}
+                        {rows.length > 0 ? (
+                            rows.map((row) => (
+                                <tr key={`${row.client}-${row.due}-${row.description}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                    <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.client}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.type}</td>
+                                    <td className="px-5 py-4">
+                                        <span className="rounded-full bg-zinc-950/5 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-zinc-600 dark:bg-white/10 dark:text-zinc-300">{row.status}</span>
+                                    </td>
+                                    <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <EmptyTableRow colSpan={6} title="Nenhuma cobranca gerencial encontrada" description="Cobrancas manuais ou vinculadas ao NeuroFinance aparecem aqui quando tiverem vinculo com um lancamento." />
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -1958,6 +2014,9 @@ const AgreementDateInput = ({
 
 const AgreementRepassesView = ({
     motionProps,
+    cards,
+    chartData,
+    rows,
     openMenu,
     setOpenMenu,
     onBatchReconcile,
@@ -1966,6 +2025,9 @@ const AgreementRepassesView = ({
     setPeriod,
 }: {
     motionProps: any;
+    cards: MetricCard[];
+    chartData: ChartPoint[];
+    rows: AgreementRepassRow[];
     openMenu: ManagementOptionsMenu;
     setOpenMenu: (menu: ManagementOptionsMenu) => void;
     onBatchReconcile: () => void;
@@ -2019,11 +2081,7 @@ const AgreementRepassesView = ({
             </section>
 
             <FinanceMetricCards
-                cards={[
-                    { title: "Total Previsto", value: displayedValue("R$ 4.820,00"), footer: [`Periodo: ${formatDateLabel(period.start)} a ${formatDateLabel(period.end)}`], icon: BarChart3 },
-                    { title: "Subtotal Conciliados", value: displayedValue("R$ 2.360,00"), footer: ["Sessoes com repasse conciliado"], icon: CheckCircle2 },
-                    { title: "Subtotal Nao Conciliados", value: displayedValue("R$ 2.460,00"), footer: ["Sessoes liberadas pendentes"], icon: AlertTriangle },
-                ]}
+                cards={cards.map((card) => ({ ...card, value: displayedValue(card.value) }))}
             />
 
             <InfoBlock>
@@ -2033,7 +2091,7 @@ const AgreementRepassesView = ({
             <FinancialBarsChart
                 title="Repasses de convenio"
                 subtitle="Total previsto, subtotal conciliado e subtotal nao conciliado por mes."
-                data={agreementChartData}
+                data={chartData}
                 bars={[
                     { key: "reconciledAgreement", name: "Subtotal Conciliados", fill: "#10b981", stackId: "agreements" },
                     { key: "unreconciledAgreement", name: "Subtotal Nao Conciliados", fill: "#f43f5e", stackId: "agreements" },
@@ -2068,19 +2126,23 @@ const AgreementRepassesView = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
-                            {agreementRepassesRows.map((row) => (
-                                <tr key={`${row.patient}-${row.releaseDate}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
-                                    <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.patient}</td>
-                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.session}</td>
-                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.agreement}</td>
-                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.releaseDate}</td>
-                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.transferDate}</td>
-                                    <td className="px-5 py-4">
-                                        <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Conciliado" ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300")}>{row.status}</span>
-                                    </td>
-                                    <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{displayedValue(row.amount)}</td>
-                                </tr>
-                            ))}
+                            {rows.length > 0 ? (
+                                rows.map((row) => (
+                                    <tr key={`${row.patient}-${row.releaseDate}-${row.session}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                        <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.patient}</td>
+                                        <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.session}</td>
+                                        <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.agreement}</td>
+                                        <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.releaseDate}</td>
+                                        <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.transferDate}</td>
+                                        <td className="px-5 py-4">
+                                            <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Conciliado" ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300")}>{row.status}</span>
+                                        </td>
+                                        <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{displayedValue(row.amount)}</td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <EmptyTableRow colSpan={7} title="Nenhum repasse de convenio encontrado" description="Sessoes e lancamentos com metodo ou origem convenio aparecem aqui quando existirem." />
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -2127,23 +2189,47 @@ const FinancialManagementHome = () => {
     const [activeModal, setActiveModal] = useState<ManagementModal>(null);
     const [openMenu, setOpenMenu] = useState<ManagementOptionsMenu>(null);
     const [showCashFlowIntro, setShowCashFlowIntro] = useState(false);
-    const [expenseRows, setExpenseRows] = useState<ExpenseRow[]>(expenseRowsSeed);
     const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
-    const [agreementPeriod, setAgreementPeriod] = useState({ start: "2026-06-01", end: "2026-06-30" });
-    const { data: financialEntries = [] } = useFinancialEntries({ limit: 1000 });
+    const [agreementPeriod, setAgreementPeriod] = useState(() => {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+        const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+        return { start, end };
+    });
+    const currentDate = useMemo(() => new Date(), []);
+    const currentMonth = currentDate.getMonth();
+    const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+    const yearOptions = useMemo(() => {
+        const currentYear = currentDate.getFullYear();
+        return [currentYear, currentYear - 1, currentYear - 2].map(String);
+    }, [currentDate]);
+    const selectedPeriodLabel = buildPeriodLabel(selectedYear, currentMonth);
+    const {
+        data: financialSummary,
+        entries: financialEntries = [],
+        chartData,
+        isLoading: isFinancialLoading,
+        error: financialError,
+    } = useFinancialSummary(selectedYear, currentMonth);
+    const deleteFinancialEntries = useDeleteFinancialEntries();
 
-    const incomeEntryRows = useMemo<IncomeRow[]>(() => financialEntries
+    const periodEntries = useMemo(() => financialEntries.filter((entry) => {
+        const date = entry.paid_at?.slice(0, 10) || entry.due_date || entry.competence_date || entry.created_at.slice(0, 10);
+        return date.startsWith(`${selectedYear}-${String(currentMonth + 1).padStart(2, "0")}`);
+    }), [financialEntries, selectedYear, currentMonth]);
+
+    const incomeEntryRows = useMemo<IncomeRow[]>(() => periodEntries
         .filter((entry) => entry.type === "income")
         .map((entry) => ({
-            patient: entry.patients?.name || "Paciente nao vinculado",
+            patient: entryClientLabel(entry),
             description: entry.description || entry.title,
             due: entryDateLabel(entry),
             amount: moneyFormatter(Number(entry.amount || 0)),
             status: entryStatusLabel(entry),
             origin: entryOriginLabel(entry),
-        })), [financialEntries]);
+        })), [periodEntries]);
 
-    const expenseEntryRows = useMemo<ExpenseRow[]>(() => financialEntries
+    const expenseEntryRows = useMemo<ExpenseRow[]>(() => periodEntries
         .filter((entry) => entry.type === "expense")
         .map((entry) => ({
             id: entry.id,
@@ -2153,9 +2239,9 @@ const FinancialManagementHome = () => {
             due: entryDateLabel(entry),
             amount: moneyFormatter(Number(entry.amount || 0)),
             status: entryStatusLabel(entry),
-        })), [financialEntries]);
+        })), [periodEntries]);
 
-    const statementEntryRows = useMemo<StatementRow[]>(() => financialEntries
+    const statementEntryRows = useMemo<StatementRow[]>(() => periodEntries
         .filter((entry) => entry.status === "paid")
         .map((entry) => ({
             date: entryDateLabel(entry),
@@ -2164,11 +2250,125 @@ const FinancialManagementHome = () => {
             property: entry.clinic_id ? "Clinica" : "Particular",
             category: entryCategoryLabel(entry),
             amount: `${entry.type === "expense" ? "-" : ""}${moneyFormatter(Number(entry.amount || 0))}`,
-        })), [financialEntries]);
+        })), [periodEntries]);
 
-    const visibleIncomeRows = incomeEntryRows.length > 0 ? incomeEntryRows : incomeRows;
-    const visibleExpenseRows = expenseEntryRows.length > 0 ? expenseEntryRows : expenseRows;
-    const visibleStatementRows = statementEntryRows.length > 0 ? statementEntryRows : statementRows;
+    const overdueIncomeRows = useMemo<OverdueIncomeRow[]>(() => financialEntries
+        .filter(isOverdueIncomeEntry)
+        .filter((entry) => (entry.due_date || "").startsWith(`${selectedYear}-${String(currentMonth + 1).padStart(2, "0")}`))
+        .map((entry) => ({
+            patient: entryClientLabel(entry),
+            description: entry.description || entry.title,
+            due: entry.due_date ? formatDateLabel(entry.due_date) : entryDateLabel(entry),
+            amount: moneyFormatter(Number(entry.amount || 0)),
+        })), [financialEntries, selectedYear, currentMonth]);
+
+    const manualChargeRows = useMemo<ManualChargeRow[]>(() => periodEntries
+        .filter((entry) => entry.type === "income" && (entry.neurofinance_charge_id || entry.origin === "neurofinance" || entry.metadata?.manual_charge === true))
+        .map((entry) => ({
+            client: entryClientLabel(entry),
+            description: entry.description || entry.title,
+            due: entry.due_date ? formatDateLabel(entry.due_date) : entryDateLabel(entry),
+            amount: moneyFormatter(Number(entry.amount || 0)),
+            type: paymentMethodLabel(entry.payment_method),
+            status: manualChargeStatusLabel(entry),
+        })), [periodEntries]);
+
+    const agreementEntries = useMemo(() => periodEntries.filter((entry) =>
+        entry.type === "income" && (entry.payment_method === "convenio" || entry.origin === "convenio")
+    ), [periodEntries]);
+
+    const agreementRows = useMemo<AgreementRepassRow[]>(() => agreementEntries.map((entry) => ({
+        patient: entryClientLabel(entry),
+        session: entry.description || entry.title,
+        agreement: typeof entry.metadata?.agreement === "string" ? entry.metadata.agreement : "Convenio nao informado",
+        releaseDate: entry.competence_date ? formatDateLabel(entry.competence_date) : entryDateLabel(entry),
+        transferDate: entry.due_date ? formatDateLabel(entry.due_date) : entryDateLabel(entry),
+        status: agreementStatusLabel(entry),
+        amount: moneyFormatter(Number(entry.amount || 0)),
+    })), [agreementEntries]);
+
+    const overviewCards = useMemo<MetricCard[]>(() => [
+        {
+            title: "Resultado previsto",
+            value: moneyFormatter(financialSummary.resultPlanned),
+            footer: [`Resultado atual: ${moneyFormatter(financialSummary.resultCurrent)}`],
+            icon: BarChart3,
+        },
+        {
+            title: "Receitas previstas",
+            value: moneyFormatter(financialSummary.incomePlanned),
+            footer: [`Pago: ${moneyFormatter(financialSummary.incomePaid)}`, `Nao pago: ${moneyFormatter(financialSummary.incomeUnpaid)}`],
+            icon: TrendingUp,
+        },
+        {
+            title: "Despesas previstas",
+            value: moneyFormatter(financialSummary.expensePlanned),
+            footer: [`Pago: ${moneyFormatter(financialSummary.expensePaid)}`, `A pagar: ${moneyFormatter(financialSummary.expenseUnpaid)}`],
+            icon: TrendingDown,
+        },
+    ], [financialSummary]);
+
+    const incomeCards = useMemo<MetricCard[]>(() => [
+        { title: "Total Previsto", value: moneyFormatter(financialSummary.incomePlanned), footer: [`Periodo: ${selectedPeriodLabel}`], icon: BarChart3 },
+        { title: "Receitas Pagas", value: moneyFormatter(financialSummary.incomePaid), footer: [`Pago: ${moneyFormatter(financialSummary.incomePaid)}`], icon: TrendingUp },
+        { title: "Receitas Nao Pagas", value: moneyFormatter(financialSummary.incomeUnpaid), footer: [`Nao pago: ${moneyFormatter(financialSummary.incomeUnpaid)}`], icon: AlertTriangle },
+    ], [financialSummary, selectedPeriodLabel]);
+
+    const expenseCards = useMemo<MetricCard[]>(() => [
+        { title: "Total de Despesas", value: moneyFormatter(financialSummary.expensePlanned), footer: [`Periodo: ${selectedPeriodLabel}`], icon: BarChart3 },
+        { title: "Despesas pagas", value: moneyFormatter(financialSummary.expensePaid), footer: [`Pago: ${moneyFormatter(financialSummary.expensePaid)}`], icon: TrendingDown },
+        { title: "Despesas nao pagas", value: moneyFormatter(financialSummary.expenseUnpaid), footer: [`A pagar: ${moneyFormatter(financialSummary.expenseUnpaid)}`], icon: AlertTriangle },
+    ], [financialSummary, selectedPeriodLabel]);
+
+    const statementCards = useMemo<MetricCard[]>(() => [
+        { title: "Saldo atual", value: moneyFormatter(financialSummary.resultCurrent), footer: [`Periodo: ${selectedPeriodLabel}`], icon: Wallet },
+        { title: "Receitas pagas", value: moneyFormatter(financialSummary.incomePaid), footer: ["Pagamentos no periodo"], icon: TrendingUp },
+        { title: "Despesas pagas", value: moneyFormatter(financialSummary.expensePaid), footer: ["Pagamentos no periodo"], icon: TrendingDown },
+    ], [financialSummary, selectedPeriodLabel]);
+
+    const manualChargeCards = useMemo(() => {
+        const received = manualChargeRows.filter((row) => row.status === "Recebida").length;
+        const generated = manualChargeRows.filter((row) => row.status === "Gerada").length;
+        const pending = manualChargeRows.filter((row) => row.status === "Pendente").length;
+        return [
+            { label: "Geradas", value: String(generated), icon: Receipt },
+            { label: "Pendentes", value: String(pending), icon: AlertTriangle },
+            { label: "Recebidas", value: String(received), icon: CheckCircle2 },
+        ];
+    }, [manualChargeRows]);
+
+    const agreementTotals = useMemo(() => agreementEntries.reduce((acc, entry) => {
+        const amount = Number(entry.amount || 0);
+        acc.total += amount;
+        if (entry.status === "paid") acc.conciliated += amount;
+        else acc.pending += amount;
+        return acc;
+    }, { total: 0, conciliated: 0, pending: 0 }), [agreementEntries]);
+
+    const agreementCards = useMemo<MetricCard[]>(() => [
+        { title: "Total Previsto", value: moneyFormatter(agreementTotals.total), footer: [`Periodo: ${formatDateLabel(agreementPeriod.start)} a ${formatDateLabel(agreementPeriod.end)}`], icon: BarChart3 },
+        { title: "Subtotal Conciliados", value: moneyFormatter(agreementTotals.conciliated), footer: ["Sessoes com repasse conciliado"], icon: CheckCircle2 },
+        { title: "Subtotal Nao Conciliados", value: moneyFormatter(agreementTotals.pending), footer: ["Sessoes liberadas pendentes"], icon: AlertTriangle },
+    ], [agreementTotals, agreementPeriod]);
+
+    const agreementChartData = useMemo<ChartPoint[]>(() => chartData.map((point) => ({
+        ...point,
+        reconciledAgreement: point.convenioPaid,
+        unreconciledAgreement: point.convenioPending,
+        totalAgreement: point.convenioTotal,
+    })), [chartData]);
+
+    const cashFlowMonths = useMemo(() => chartData.map((point, index) => `${point.month}/${String(selectedYear).slice(-2) || String(index + 1)}`), [chartData, selectedYear]);
+
+    const cashFlowRows = useMemo<CashFlowTableRow[]>(() => [
+        { label: "Receitas recebidas", tone: "bg-zinc-100/80 text-zinc-800 dark:bg-white/[0.06] dark:text-zinc-100", values: chartData.map((point) => moneyFormatter(point.paidIncome)) },
+        { label: "Receitas a receber", tone: "bg-zinc-50 text-zinc-600 dark:bg-white/[0.025] dark:text-zinc-300", values: chartData.map((point) => moneyFormatter(point.unpaidIncome)) },
+        { label: "Total receitas", tone: "bg-white text-zinc-950 font-black dark:bg-white/[0.04] dark:text-white", values: chartData.map((point) => moneyFormatter(point.totalIncome)) },
+        { label: "Despesas pagas", tone: "bg-zinc-100/70 text-zinc-700 dark:bg-white/[0.05] dark:text-zinc-200", values: chartData.map((point) => moneyFormatter(point.paidExpenses)) },
+        { label: "Despesas a pagar", tone: "bg-zinc-50 text-zinc-600 dark:bg-white/[0.025] dark:text-zinc-300", values: chartData.map((point) => moneyFormatter(point.unpaidExpenses)) },
+        { label: "Total despesas", tone: "bg-white text-zinc-950 font-black dark:bg-white/[0.04] dark:text-white", values: chartData.map((point) => moneyFormatter(point.totalExpenses)) },
+        { label: "Resultados", tone: "bg-white text-zinc-950 font-black dark:bg-white/[0.04] dark:text-white", values: chartData.map((point) => moneyFormatter(point.result)) },
+    ], [chartData]);
 
     const motionProps = {
         initial: { opacity: 0, x: 20, filter: "blur(10px)" },
@@ -2212,17 +2412,36 @@ const FinancialManagementHome = () => {
 
     const deleteSelectedExpenses = () => {
         if (selectedExpenseIds.length === 0) return;
-        setExpenseRows((current) => current.filter((row) => !selectedExpenseIds.includes(row.id)));
-        setSelectedExpenseIds([]);
+        deleteFinancialEntries.mutate(selectedExpenseIds, {
+            onSuccess: () => setSelectedExpenseIds([]),
+        });
     };
 
     const renderContent = () => {
-        if (activeView === "overview") return <ManagementOverview motionProps={motionProps} />;
+        if (activeView === "overview") {
+            return (
+                <ManagementOverview
+                    motionProps={motionProps}
+                    cards={overviewCards}
+                    chartData={chartData}
+                    overdueRows={overdueIncomeRows}
+                    selectedYear={selectedYear}
+                    yearOptions={yearOptions}
+                    onYearChange={(value) => setSelectedYear(Number(value))}
+                />
+            );
+        }
         if (activeView === "income") {
             return (
                 <IncomeView
                     motionProps={motionProps}
-                    rows={visibleIncomeRows}
+                    rows={incomeEntryRows}
+                    cards={incomeCards}
+                    chartData={chartData}
+                    periodLabel={selectedPeriodLabel}
+                    selectedYear={selectedYear}
+                    yearOptions={yearOptions}
+                    onYearChange={(value) => setSelectedYear(Number(value))}
                     onAdd={() => setActiveModal("income")}
                     onManualCharge={() => setActiveModal("manual-charge")}
                     openMenu={openMenu}
@@ -2234,7 +2453,12 @@ const FinancialManagementHome = () => {
             return (
                 <ExpensesView
                     motionProps={motionProps}
-                    rows={visibleExpenseRows}
+                    rows={expenseEntryRows}
+                    cards={expenseCards}
+                    chartData={chartData}
+                    selectedYear={selectedYear}
+                    yearOptions={yearOptions}
+                    onYearChange={(value) => setSelectedYear(Number(value))}
                     selectedIds={selectedExpenseIds}
                     toggleSelected={toggleExpenseSelected}
                     onAdd={() => setActiveModal("expense")}
@@ -2245,15 +2469,17 @@ const FinancialManagementHome = () => {
             );
         }
         if (activeView === "statement") {
-            return <StatementView motionProps={motionProps} rows={visibleStatementRows} openMenu={openMenu} setOpenMenu={setOpenMenu} />;
+            return <StatementView motionProps={motionProps} rows={statementEntryRows} cards={statementCards} periodLabel={selectedPeriodLabel} openMenu={openMenu} setOpenMenu={setOpenMenu} />;
         }
         if (activeView === "cash-flow") {
-            return <CashFlowView motionProps={motionProps} onShowIntro={() => setShowCashFlowIntro(true)} />;
+            return <CashFlowView motionProps={motionProps} onShowIntro={() => setShowCashFlowIntro(true)} months={cashFlowMonths} rows={cashFlowRows} />;
         }
         if (activeView === "charges-generated") {
             return (
                 <ManualChargesView
                     motionProps={motionProps}
+                    rows={manualChargeRows}
+                    cards={manualChargeCards}
                     onManualCharge={() => setActiveModal("manual-charge")}
                     openMenu={openMenu}
                     setOpenMenu={setOpenMenu}
@@ -2264,6 +2490,9 @@ const FinancialManagementHome = () => {
             return (
                 <AgreementRepassesView
                     motionProps={motionProps}
+                    cards={agreementCards}
+                    chartData={agreementChartData}
+                    rows={agreementRows}
                     openMenu={openMenu}
                     setOpenMenu={setOpenMenu}
                     onBatchReconcile={() => setActiveModal("batch-reconcile")}
@@ -2404,6 +2633,11 @@ const FinancialManagementHome = () => {
                 </div>
 
                 <div className="flex-1 rounded-[40px] bg-white/30 dark:bg-zinc-900/10 backdrop-blur-sm border border-zinc-200/30 dark:border-white/[0.02] shadow-sm relative mt-12 lg:mt-0">
+                    {isFinancialLoading || financialError ? (
+                        <div className="mx-6 mt-6 rounded-[22px] border border-zinc-200/70 bg-white/75 px-5 py-4 text-xs font-black uppercase tracking-[0.14em] text-zinc-500 shadow-sm dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300">
+                            {isFinancialLoading ? "Carregando lancamentos gerenciais..." : `Nao foi possivel carregar os lancamentos: ${financialError?.message || "erro desconhecido"}`}
+                        </div>
+                    ) : null}
                     <AnimatePresence mode="wait">
                         {renderContent()}
                     </AnimatePresence>

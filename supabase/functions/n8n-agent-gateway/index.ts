@@ -450,27 +450,61 @@ serve(async (req: Request) => {
       // ✅ GESTÃO FINANCEIRA ======================================================
       case 'get_financial_transactions': {
         const { start_date, end_date, type } = params || {};
-        let query = supabaseClient.from('transactions').select('*').eq('user_id', profissionalIdClean);
+        let query = supabaseClient
+          .from('financial_entries')
+          .select('*, patients(name, email)')
+          .eq('professional_id', profissionalIdClean);
 
-        if (start_date) query = query.gte('date', start_date);
-        if (end_date) query = query.lte('date', end_date);
+        if (start_date) query = query.gte('due_date', start_date);
+        if (end_date) query = query.lte('due_date', end_date);
         if (type) query = query.eq('type', type);
 
-        const { data, error } = await query.order('date', { ascending: false });
+        const { data, error } = await query.order('due_date', { ascending: false }).order('created_at', { ascending: false });
         if (error) throw error;
         result = data;
         break;
       }
 
       case 'add_transaction': {
-        const { description, amount, type, date, payment_method, category } = params || {};
+        const { description, amount, type, date, payment_method, category, patient_id, appointment_id } = params || {};
         if (!description || !amount || !type || !date) {
           throw new Error('Parâmetros obrigatórios para transação: `description`, `amount`, `type` (income/expense) e `date`.');
         }
 
-        const { data, error } = await supabaseClient.from('transactions').insert({
-          user_id: profissionalIdClean,
-          description, amount, type, date, payment_method, category, status: 'completed'
+        if (!['income', 'expense'].includes(type)) {
+          throw new Error('`type` deve ser `income` ou `expense`.');
+        }
+
+        const methodInput = String(payment_method || 'manual').toLowerCase();
+        const normalizedPaymentMethod =
+          methodInput.includes('pix') ? 'pix' :
+          methodInput.includes('boleto') ? 'boleto' :
+          methodInput.includes('cart') || methodInput.includes('card') ? 'card' :
+          methodInput.includes('dinheiro') || methodInput.includes('cash') ? 'cash' :
+          methodInput.includes('transfer') ? 'external_transfer' :
+          methodInput.includes('convenio') ? 'convenio' :
+          methodInput === 'manual' ? 'manual' : 'other';
+        const normalizedDate = String(date).slice(0, 10);
+
+        const { data, error } = await supabaseClient.from('financial_entries').insert({
+          professional_id: profissionalIdClean,
+          patient_id: patient_id || null,
+          appointment_id: appointment_id || null,
+          type,
+          title: description,
+          description,
+          amount: Math.abs(Number(amount)),
+          due_date: normalizedDate,
+          competence_date: normalizedDate,
+          paid_at: `${normalizedDate}T12:00:00.000Z`,
+          status: 'paid',
+          payment_method: normalizedPaymentMethod,
+          origin: 'manual',
+          metadata: {
+            category: category || null,
+            source: 'synapse_n8n_agent',
+            legacy_tool: 'add_transaction',
+          },
         }).select().single();
         if (error) throw error;
         result = data;

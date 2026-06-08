@@ -49,8 +49,8 @@ const useClinicMetrics = (organizationId?: string) => {
                 patientsResult,
                 appointmentsThisMonth,
                 appointmentsPrevMonth,
-                transactionsThisMonth,
-                transactionsPrevMonth,
+                financialEntriesThisMonth,
+                financialEntriesPrevMonth,
             ] = await Promise.all([
                 supabase.from('patients').select('id', { count: 'exact', head: true }).eq('user_id', userId),
                 supabase.from('appointments').select('patient_id').eq('user_id', userId)
@@ -59,18 +59,18 @@ const useClinicMetrics = (organizationId?: string) => {
                 supabase.from('appointments').select('patient_id').eq('user_id', userId)
                     .gte('start_time', startOfPrevMonth).lte('start_time', endOfPrevMonth)
                     .neq('type', 'block'),
-                supabase.from('transactions').select('amount').eq('user_id', userId).eq('type', 'income')
-                    .gte('date', startOfMonth.split('T')[0]).lte('date', endOfMonth.split('T')[0]),
-                supabase.from('transactions').select('amount').eq('user_id', userId).eq('type', 'income')
-                    .gte('date', startOfPrevMonth.split('T')[0]).lte('date', endOfPrevMonth.split('T')[0]),
+                supabase.from('financial_entries').select('amount').eq('professional_id', userId).eq('type', 'income').eq('status', 'paid')
+                    .gte('paid_at', startOfMonth).lte('paid_at', endOfMonth),
+                supabase.from('financial_entries').select('amount').eq('professional_id', userId).eq('type', 'income').eq('status', 'paid')
+                    .gte('paid_at', startOfPrevMonth).lte('paid_at', endOfPrevMonth),
             ]);
 
             const totalPatients = patientsResult.count || 0;
             const consultasThisMonth = appointmentsThisMonth.data?.length || 0;
             const consultasPrevMonth = appointmentsPrevMonth.data?.length || 0;
 
-            const revenueThisMonth = transactionsThisMonth.data?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
-            const revenuePrevMonth = transactionsPrevMonth.data?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+            const revenueThisMonth = financialEntriesThisMonth.data?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+            const revenuePrevMonth = financialEntriesPrevMonth.data?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
 
             // Return rate: patients with 2+ appointments this month
             const patientAppointmentCounts = new Map<string, number>();
@@ -186,4 +186,3 @@ export const ClinicMetricsCards = ({ organizationId }: ClinicMetricsCardsProps) 
         </div>
     );
 };
-
