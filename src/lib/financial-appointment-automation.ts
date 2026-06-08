@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { isAttendedAppointmentStatus, isCancelledAppointmentStatus } from '@/lib/appointment-status';
 import type { Appointment } from '@/types';
 import {
+  buildFinancialEntryIdempotencyKey,
   fetchFinancialAutomationSettings,
   type FinancialAutomationSettings,
   type FinancialEntry,
@@ -34,11 +35,12 @@ const hasExplicitFinancialIntent = (appointment: Partial<AppointmentLike>) => {
 };
 
 async function fetchLinkedFinancialEntry(userId: string, appointmentId: string) {
+  const idempotencyKey = buildFinancialEntryIdempotencyKey(['appointment', 'primary', appointmentId]);
   const { data, error } = await supabase
     .from('financial_entries')
     .select('*')
     .eq('professional_id', userId)
-    .eq('appointment_id', appointmentId)
+    .or(`appointment_id.eq.${appointmentId},idempotency_key.eq.${idempotencyKey}`)
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -73,6 +75,7 @@ export async function createAppointmentFinancialEntryIfEnabled(
   const dueDate = addDays(startDate, Math.max(0, Number(settings.appointment_due_days || 0)));
   const entryStatus = options.status || 'planned';
   const displayPatient = getPatientName(appointment, patientName);
+  const idempotencyKey = buildFinancialEntryIdempotencyKey(['appointment', 'primary', appointment.id]);
 
   const { data, error } = await supabase
     .from('financial_entries')
@@ -91,6 +94,7 @@ export async function createAppointmentFinancialEntryIfEnabled(
       status: entryStatus,
       payment_method: 'manual',
       origin: 'appointment',
+      idempotency_key: idempotencyKey,
       metadata: {
         source: 'appointment_auto_create',
         patient_name: displayPatient,
@@ -101,7 +105,14 @@ export async function createAppointmentFinancialEntryIfEnabled(
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    const message = String(error.message || '').toLowerCase();
+    if (message.includes('duplicate') || message.includes('idempotency')) {
+      const existingAfterRace = await fetchLinkedFinancialEntry(userId, appointment.id);
+      if (existingAfterRace) return existingAfterRace;
+    }
+    throw error;
+  }
   return data as FinancialEntry;
 }
 
