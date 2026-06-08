@@ -401,8 +401,8 @@ const overdueRows = [
     { patient: "Paciente exemplo", description: "Pacote de sessoes", due: "20/06/2026", amount: "R$ --" },
 ];
 
-type ManagementModal = "income" | "expense" | "manual-charge" | null;
-type ManagementOptionsMenu = "income" | "expenses" | "statement" | "charges" | null;
+type ManagementModal = "income" | "expense" | "manual-charge" | "batch-reconcile" | "batch-update-transfer" | null;
+type ManagementOptionsMenu = "income" | "expenses" | "statement" | "charges" | "agreements" | null;
 
 interface ExpenseRow {
     id: string;
@@ -440,11 +440,30 @@ const manualChargeRows = [
     { client: "Carla Nunes", description: "Sessao online", due: "24/06/2026", amount: "R$ 220,00", type: "Manual", status: "Recebida" },
 ];
 
+const agreementRepassesRows = [
+    { patient: "Ana Martins", session: "Sessao individual", agreement: "Convenio Vida", releaseDate: "04/06/2026", transferDate: "18/06/2026", status: "Conciliado", amount: "R$ 180,00" },
+    { patient: "Bruno Lima", session: "Sessao online", agreement: "Saude Plena", releaseDate: "09/06/2026", transferDate: "24/06/2026", status: "Nao conciliado", amount: "R$ 165,00" },
+    { patient: "Carla Nunes", session: "Pacote convenio", agreement: "Clinica Mais", releaseDate: "12/06/2026", transferDate: "28/06/2026", status: "Nao conciliado", amount: "R$ 420,00" },
+    { patient: "Diego Rocha", session: "Sessao presencial", agreement: "Convenio Vida", releaseDate: "17/06/2026", transferDate: "30/06/2026", status: "Conciliado", amount: "R$ 190,00" },
+];
+
 const financeChartData = overviewChartData.map((item) => ({
     ...item,
     totalIncome: item.paidIncome + item.unpaidIncome,
     totalExpenses: item.paidExpenses + item.unpaidExpenses,
 }));
+
+const agreementChartData = overviewChartData.map((item, index) => {
+    const reconciled = Math.round(item.paidIncome * 0.34);
+    const unreconciled = Math.round(item.unpaidIncome * (0.72 + index * 0.02));
+
+    return {
+        ...item,
+        reconciledAgreement: reconciled,
+        unreconciledAgreement: unreconciled,
+        totalAgreement: reconciled + unreconciled,
+    };
+});
 
 const financeFormCategories = {
     income: ["Cobranca Avulsa", "Comissao", "Deposito", "Mensalidade", "Receitas nao categorizadas", "Rendimentos"],
@@ -455,6 +474,11 @@ const paymentMethods = ["Pix", "Boleto", "Cartao", "Dinheiro", "Transferencia ex
 
 const moneyFormatter = (value: number) =>
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
+const formatDateLabel = (value: string) => {
+    const [year, month, day] = value.split("-");
+    return year && month && day ? `${day}/${month}/${year}` : value;
+};
 
 const PremiumBarShape = (props: any) => {
     const { x = 0, y = 0, width = 0, height = 0, fill = "#18181b" } = props;
@@ -1146,12 +1170,14 @@ const FinancialBarsChart = ({
     bars,
     lineKey,
     lineName,
+    data = financeChartData,
 }: {
     title: string;
     subtitle: string;
     bars: { key: string; name: string; fill: string; stackId?: string }[];
     lineKey: string;
     lineName: string;
+    data?: typeof financeChartData;
 }) => (
     <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
         <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.04]" />
@@ -1161,7 +1187,7 @@ const FinancialBarsChart = ({
         </div>
         <div className="relative z-10 h-[330px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={financeChartData} barCategoryGap="24%" barGap={5} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
+                <ComposedChart data={data} barCategoryGap="24%" barGap={5} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-white/10" />
                     <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: "currentColor" }} className="text-zinc-400" />
                     <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `R$${Number(value) / 1000}k`} tick={{ fontSize: 10, fontWeight: 800, fill: "currentColor" }} className="text-zinc-400" />
@@ -1671,6 +1697,207 @@ const ManualChargesView = ({
     </motion.div>
 );
 
+const BatchAgreementModal = ({
+    open,
+    onClose,
+    title,
+    actionLabel,
+    startDate,
+    endDate,
+}: {
+    open: boolean;
+    onClose: () => void;
+    title: string;
+    actionLabel: string;
+    startDate: string;
+    endDate: string;
+}) => (
+    <PremiumModal
+        open={open}
+        title={title}
+        onClose={onClose}
+        size="max-w-xl"
+        footer={
+            <>
+                <ModalButton variant="secondary" onClick={onClose}>Cancelar</ModalButton>
+                <ModalButton onClick={onClose}>{actionLabel}</ModalButton>
+            </>
+        }
+    >
+        <div className="space-y-5">
+            <div className="rounded-[26px] border border-zinc-200/75 bg-zinc-50/85 p-5 text-sm font-medium leading-relaxed text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300">
+                <p>
+                    Com esta opcao, voce consegue {title === "Conciliar varias sessoes em lote" ? "conciliar varias sessoes em lote" : "alterar o valor do repasse para varias sessoes"} que atendem aos seguintes criterios:
+                </p>
+                <ol className="mt-4 space-y-2 pl-5 font-black text-zinc-900 dark:text-white">
+                    <li>1. Nao foram Conciliadas</li>
+                    <li>2. O periodo aplicado e de {formatDateLabel(startDate)} a {formatDateLabel(endDate)}</li>
+                </ol>
+                <p className="mt-4">
+                    E importante notar que essa lista e a mesma encontrada na tela de relatorio de Repasses de Convenio com os filtros aplicados.
+                </p>
+            </div>
+            <div className="rounded-[24px] border border-dashed border-zinc-200 bg-white/65 p-5 text-xs font-bold leading-relaxed text-zinc-500 dark:border-white/10 dark:bg-white/[0.02] dark:text-zinc-400">
+                Nesta etapa, a acao ainda e apenas visual. A conciliacao real e a atualizacao em lote entram na rodada de backend/Supabase.
+            </div>
+        </div>
+    </PremiumModal>
+);
+
+const AgreementDateInput = ({
+    label,
+    value,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+}) => (
+    <label className="flex h-11 items-center gap-3 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 shadow-[0_12px_34px_-30px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/10 dark:bg-white/[0.045]">
+        <CalendarCheck className="h-4 w-4 text-zinc-400" />
+        <span className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">{label}</span>
+        <input
+            type="date"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            className="h-full bg-transparent text-xs font-black text-zinc-700 outline-none dark:text-zinc-200"
+        />
+    </label>
+);
+
+const AgreementRepassesView = ({
+    motionProps,
+    openMenu,
+    setOpenMenu,
+    onBatchReconcile,
+    onBatchUpdate,
+    period,
+    setPeriod,
+}: {
+    motionProps: any;
+    openMenu: ManagementOptionsMenu;
+    setOpenMenu: (menu: ManagementOptionsMenu) => void;
+    onBatchReconcile: () => void;
+    onBatchUpdate: () => void;
+    period: { start: string; end: string };
+    setPeriod: (period: { start: string; end: string }) => void;
+}) => {
+    const [showValues, setShowValues] = useState(true);
+    const displayedValue = (value: string) => showValues ? value : "R$ ---";
+
+    return (
+        <motion.div {...motionProps} key="agreement-repasses-view" className="space-y-6 px-6 py-6">
+            <ManagementSectionHeader icon={Users} title="Repasses/Convenio" subtitle="Conciliacao gerencial de sessoes com convenio" />
+
+            <section className="relative overflow-visible rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
+                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.04]" />
+                <div className="relative z-10 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="flex flex-wrap gap-3">
+                        <AgreementDateInput label="Inicio" value={period.start} onChange={(start) => setPeriod({ ...period, start })} />
+                        <AgreementDateInput label="Fim" value={period.end} onChange={(end) => setPeriod({ ...period, end })} />
+                        <button
+                            type="button"
+                            onClick={() => setShowValues((value) => !value)}
+                            className="flex h-11 items-center gap-3 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600 shadow-[0_12px_34px_-30px_rgba(0,0,0,0.9)] transition-colors hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-300 dark:hover:text-white"
+                        >
+                            <Eye className="h-4 w-4" />
+                            Valores
+                        </button>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                        <button
+                            type="button"
+                            onClick={onBatchReconcile}
+                            className="inline-flex h-11 items-center gap-3 rounded-2xl bg-zinc-950 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-xl transition-opacity hover:opacity-90 dark:bg-white dark:text-zinc-950"
+                        >
+                            <CheckCircle2 className="h-4 w-4" />
+                            Conciliar em lote
+                        </button>
+                        <OptionsDropdown
+                            id="agreements"
+                            openMenu={openMenu}
+                            setOpenMenu={setOpenMenu}
+                            items={[
+                                { label: "Gerar relatorio em PDF", icon: FileText, onClick: () => undefined },
+                                { label: "Gerar relatorio em Excel", icon: Download, onClick: () => undefined },
+                                { label: "Alterar valor de varios repasses", icon: CircleDollarSign, onClick: onBatchUpdate },
+                            ]}
+                        />
+                    </div>
+                </div>
+            </section>
+
+            <FinanceMetricCards
+                cards={[
+                    { title: "Total Previsto", value: displayedValue("R$ 4.820,00"), footer: [`Periodo: ${formatDateLabel(period.start)} a ${formatDateLabel(period.end)}`], icon: BarChart3 },
+                    { title: "Subtotal Conciliados", value: displayedValue("R$ 2.360,00"), footer: ["Sessoes com repasse conciliado"], icon: CheckCircle2 },
+                    { title: "Subtotal Nao Conciliados", value: displayedValue("R$ 2.460,00"), footer: ["Sessoes liberadas pendentes"], icon: AlertTriangle },
+                ]}
+            />
+
+            <InfoBlock>
+                Este relatorio apresenta apenas as sessoes realizadas com convenio cujo status esta Liberado, ou seja, sessoes em que o cliente usou o cartao do convenio ou pagou diretamente. Caso o convenio ou plano de saude tenha repassado os valores das sessoes para a clinica, e possivel alterar o status das sessoes para Conciliados.
+            </InfoBlock>
+
+            <FinancialBarsChart
+                title="Repasses de convenio"
+                subtitle="Total previsto, subtotal conciliado e subtotal nao conciliado por mes."
+                data={agreementChartData}
+                bars={[
+                    { key: "reconciledAgreement", name: "Subtotal Conciliados", fill: "#10b981", stackId: "agreements" },
+                    { key: "unreconciledAgreement", name: "Subtotal Nao Conciliados", fill: "#f43f5e", stackId: "agreements" },
+                ]}
+                lineKey="totalAgreement"
+                lineName="Total previsto"
+            />
+
+            <section className="relative overflow-visible rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
+                <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="flex flex-wrap gap-3">
+                        <SelectShell className="w-48" options={["Situacao: Todas", "Conciliados", "Nao conciliados"]} />
+                        <SelectShell className="w-52" options={["Convenio: Todos", "Convenio Vida", "Saude Plena", "Clinica Mais"]} />
+                        <SelectShell className="w-72" options={["Filtrar por data de: Liberacao", "Repasse de convenio", "Vencimento ou sessao"]} />
+                    </div>
+                    <button className="inline-flex h-11 items-center gap-3 rounded-2xl border border-zinc-950/80 bg-white/80 px-5 text-sm font-black text-zinc-800 transition-colors hover:bg-zinc-950 hover:text-white dark:border-white/20 dark:bg-white/[0.035] dark:text-zinc-200 dark:hover:bg-white dark:hover:text-zinc-950">
+                        <Filter className="h-4 w-4" />
+                        Mais Filtros
+                    </button>
+                </div>
+                <div className="overflow-hidden rounded-[24px] border border-zinc-200/70 dark:border-white/10">
+                    <table className="w-full min-w-[980px] border-collapse text-left">
+                        <thead className="bg-zinc-50/90 dark:bg-white/[0.035]">
+                            <tr className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                                <th className="px-5 py-4">Paciente</th>
+                                <th className="px-5 py-4">Sessao</th>
+                                <th className="px-5 py-4">Convenio</th>
+                                <th className="px-5 py-4">Liberacao</th>
+                                <th className="px-5 py-4">Repasse</th>
+                                <th className="px-5 py-4">Situacao</th>
+                                <th className="px-5 py-4 text-right">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
+                            {agreementRepassesRows.map((row) => (
+                                <tr key={`${row.patient}-${row.releaseDate}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                    <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.patient}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.session}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.agreement}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.releaseDate}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.transferDate}</td>
+                                    <td className="px-5 py-4">
+                                        <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Conciliado" ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300")}>{row.status}</span>
+                                    </td>
+                                    <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{displayedValue(row.amount)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </motion.div>
+    );
+};
+
 const ManagementPlaceholderView = ({ view, motionProps }: { view: ManagementView; motionProps: any }) => {
     const meta = MANAGEMENT_VIEW_META[view];
     const Icon = meta.icon;
@@ -1711,6 +1938,7 @@ const FinancialManagementHome = () => {
     const [showCashFlowIntro, setShowCashFlowIntro] = useState(false);
     const [expenseRows, setExpenseRows] = useState<ExpenseRow[]>(expenseRowsSeed);
     const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
+    const [agreementPeriod, setAgreementPeriod] = useState({ start: "2026-06-01", end: "2026-06-30" });
 
     const motionProps = {
         initial: { opacity: 0, x: 20, filter: "blur(10px)" },
@@ -1798,6 +2026,19 @@ const FinancialManagementHome = () => {
                     onManualCharge={() => setActiveModal("manual-charge")}
                     openMenu={openMenu}
                     setOpenMenu={setOpenMenu}
+                />
+            );
+        }
+        if (activeView === "repasses-convenio") {
+            return (
+                <AgreementRepassesView
+                    motionProps={motionProps}
+                    openMenu={openMenu}
+                    setOpenMenu={setOpenMenu}
+                    onBatchReconcile={() => setActiveModal("batch-reconcile")}
+                    onBatchUpdate={() => setActiveModal("batch-update-transfer")}
+                    period={agreementPeriod}
+                    setPeriod={setAgreementPeriod}
                 />
             );
         }
@@ -1941,6 +2182,22 @@ const FinancialManagementHome = () => {
             <FinancialEntryModal type="income" open={activeModal === "income"} onClose={() => setActiveModal(null)} />
             <FinancialEntryModal type="expense" open={activeModal === "expense"} onClose={() => setActiveModal(null)} />
             <ManualChargeModal open={activeModal === "manual-charge"} onClose={() => setActiveModal(null)} />
+            <BatchAgreementModal
+                open={activeModal === "batch-reconcile"}
+                onClose={() => setActiveModal(null)}
+                title="Conciliar varias sessoes em lote"
+                actionLabel="Conciliar em lote"
+                startDate={agreementPeriod.start}
+                endDate={agreementPeriod.end}
+            />
+            <BatchAgreementModal
+                open={activeModal === "batch-update-transfer"}
+                onClose={() => setActiveModal(null)}
+                title="Alterar valor de varios repasses"
+                actionLabel="Alterar repasses"
+                startDate={agreementPeriod.start}
+                endDate={agreementPeriod.end}
+            />
             <CashFlowIntroModal open={showCashFlowIntro} onClose={() => setShowCashFlowIntro(false)} />
         </div>
     );

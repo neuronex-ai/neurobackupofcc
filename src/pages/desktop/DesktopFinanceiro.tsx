@@ -19,11 +19,9 @@ import {
     Send,
     FileCheck,
     Barcode,
-    FolderOpen,
     CreditCard,
     ArrowDownLeft,
     ArrowUpRight,
-    PieChart,
     ChevronRight,
     ArrowRight,
     Sparkles,
@@ -59,115 +57,6 @@ interface NavItem {
     }[];
 }
 
-const LEGACY_FINANCE_NAV: NavItem[] = [
-    {
-        id: 'neurofinance',
-        label: "NeuroFinance",
-        icon: Landmark,
-        subItems: [
-            { id: 'conta-digital', label: 'Visão Geral', icon: CreditCard },
-            {
-                id: 'pix',
-                label: 'Área Pix',
-                icon: BadgeCent,
-                subItems: [
-                    { id: 'pix-pagar', label: 'Pagar Pix', icon: QrCode, tag: 'Grátis', description: 'Cole um Pix copia e cola e pague pela conta NeuroFinance' },
-                    { id: 'pix-transferir', label: 'Transferir por Pix', icon: Send, tag: 'Grátis', description: 'Envie dinheiro para uma chave Pix' },
-                    { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Grátis', description: 'Crie um QR Code para receber na hora' },
-                    { id: 'pix-receber', label: 'Pix recebidos', icon: ArrowDownLeft, tag: 'Grátis', description: 'Veja o que entrou por Pix' },
-                    { id: 'pix-chaves', label: 'Minhas chaves', icon: Key, description: 'Cadastre e gerencie suas chaves Pix' },
-                    { id: 'pix-salarios', label: 'Pagar salários', icon: Users, tag: 'Grátis', description: 'Envie Pix em lote para sua equipe' },
-                    { id: 'pix-limites', label: 'Limites do Pix', icon: ShieldCheck, tag: 'No App', description: 'Ajuste limites de segurança da conta' },
-                ]
-            },
-            { id: 'transferencias', label: 'Saque', icon: Send },
-            {
-                id: 'pagamentos',
-                label: 'Pagamentos',
-                icon: Receipt,
-                subItems: [
-                    { id: 'pagamentos-boletos', label: 'Pagar boletos', icon: Barcode, description: 'Digite, arraste imagem ou anexe PDF' },
-                    { id: 'pagamentos-pix', label: 'Pagar Pix', icon: QrCode, description: 'Pague com Pix copia e cola' },
-                    { id: 'pagamentos-grupos', label: 'Pagamentos em lote', icon: FolderOpen, description: 'Acompanhe grupos de pagamentos' },
-                ]
-            },
-            { id: 'contas-bancarias', label: 'Conta bancária', icon: Landmark },
-            { id: 'extrato', label: 'Extrato Detalhado', icon: FileText },
-        ],
-    },
-    {
-        id: 'cobrancas-root',
-        label: "Cobranças",
-        icon: WalletCards,
-        subItems: [
-            { id: 'cobrancas-historia', label: 'Todas as cobranças', icon: History },
-            { id: 'cobrancas-simulador', label: 'Simulador de vendas', icon: BadgeCent },
-            { id: 'cobrancas-chargebacks', label: 'Chargebacks', icon: Activity },
-            { id: 'cobrancas-config', label: 'Regras automáticas', icon: Settings },
-        ],
-    },
-    {
-        id: 'antecipacoes-root',
-        label: "Antecipações",
-        icon: TrendingUp,
-        subItems: [
-            { id: 'antecipacoes-lista', label: 'Minhas antecipações', icon: History },
-            { id: 'antecipacoes-solicitar', label: 'Antecipar recebimento', icon: TrendingUp },
-            { id: 'antecipacoes-automatica', label: 'Antecipação automática', icon: Repeat },
-        ],
-    },
-    {
-        id: 'receitas-root',
-        label: "Receitas",
-        icon: ArrowUpRight,
-        subItems: [
-            { id: 'receitas', label: 'Entradas Confirmadas', icon: ArrowUpRight },
-        ],
-    },
-    {
-        id: 'despesas-root',
-        label: "Despesas",
-        icon: ArrowDownLeft,
-        subItems: [
-            { id: 'despesas', label: 'Saídas Confirmadas', icon: ArrowDownLeft },
-        ]
-    },
-    {
-        id: 'fiscal-root',
-        label: "NFS-e",
-        icon: FileText,
-        subItems: [
-            { id: 'fiscal-painel', label: 'Painel Fiscal', icon: LayoutDashboard },
-            { id: 'fiscal-lista', label: 'Minhas Notas', icon: FileCheck },
-        ],
-    },
-    {
-        id: 'fluxo-caixa-root',
-        label: "Gestão & Análise",
-        icon: PieChart,
-        subItems: [
-            { id: 'fluxo-caixa', label: 'Fluxo de Caixa', icon: TrendingUp },
-            { id: 'repasses-profissional', label: 'Split & Repasses', icon: Users },
-        ]
-    },
-    {
-        id: 'tarifas-root',
-        label: "Tarifas",
-        icon: Receipt,
-        subItems: [
-            { id: 'tarifas', label: 'Custos e prazos', icon: Receipt },
-        ]
-    },
-    {
-        id: 'config-root',
-        label: "Avançado",
-        icon: Settings,
-        subItems: [
-            { id: 'configuracoes', label: 'Preferências', icon: Settings },
-        ]
-    }
-];
-
 const FINANCE_NAV: NavItem[] = [
     {
         id: 'account-balance-root',
@@ -182,6 +71,7 @@ const FINANCE_NAV: NavItem[] = [
         label: "Area Pix",
         icon: BadgeCent,
         subItems: [
+            { id: 'pix', label: 'Painel Pix', icon: BadgeCent, description: 'Resumo da area Pix' },
             { id: 'pix-pagar', label: 'Pagar Pix', icon: QrCode, tag: 'Gratis', description: 'Cole um Pix copia e cola e pague pela conta NeuroFinance' },
             { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Gratis', description: 'Crie um QR Code para receber na hora' },
             { id: 'pix-receber', label: 'Pix recebidos', icon: ArrowDownLeft, tag: 'Gratis', description: 'Veja o que entrou por Pix' },
