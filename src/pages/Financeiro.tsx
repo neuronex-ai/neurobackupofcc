@@ -804,9 +804,47 @@ const ModalButton = ({ children, variant = "primary", onClick }: { children: Rea
 );
 
 const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expense"; open: boolean; onClose: () => void }) => {
+    const [property, setProperty] = useState("Clinica");
+    const [category, setCategory] = useState("Selecione");
+    const [description, setDescription] = useState("");
+    const [amount, setAmount] = useState("");
+    const [dueDate, setDueDate] = useState("");
+    const [paidDate, setPaidDate] = useState("");
+    const [paymentMethod, setPaymentMethod] = useState("-- Selecione --");
+    const [notes, setNotes] = useState("");
     const [paid, setPaid] = useState(false);
     const [repeat, setRepeat] = useState(false);
+    const createFinancialEntry = useCreateFinancialEntry();
     const isIncome = type === "income";
+
+    const handleSave = () => {
+        const normalizedDueDate = normalizeDateInput(dueDate);
+        const normalizedPaidDate = normalizeDateInput(paidDate || dueDate);
+        const parsedAmount = parseMoneyInput(amount);
+
+        if (!normalizedDueDate || parsedAmount <= 0) return;
+
+        createFinancialEntry.mutate({
+            type,
+            title: description || (isIncome ? "Receita manual" : "Despesa manual"),
+            description: description || (isIncome ? "Receita manual" : "Despesa manual"),
+            amount: parsedAmount,
+            dueDate: new Date(`${normalizedDueDate}T12:00:00`),
+            competenceDate: new Date(`${normalizedDueDate}T12:00:00`),
+            paidAt: paid && normalizedPaidDate ? new Date(`${normalizedPaidDate}T12:00:00`) : null,
+            status: paid ? "paid" : "pending",
+            paymentMethod: paid ? paymentMethodFromLabel(paymentMethod) : "manual",
+            origin: repeat ? "recurring" : "manual",
+            metadata: {
+                property,
+                category: category === "Selecione" ? null : category,
+                notes: notes || null,
+                repeat,
+            },
+        }, {
+            onSuccess: () => onClose(),
+        });
+    };
 
     return (
         <PremiumModal
@@ -816,14 +854,14 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
             footer={
                 <>
                     <ModalButton variant="secondary" onClick={onClose}>Cancelar</ModalButton>
-                    <ModalButton onClick={onClose}>Salvar</ModalButton>
+                    <ModalButton onClick={handleSave}>{createFinancialEntry.isPending ? "Salvando" : "Salvar"}</ModalButton>
                 </>
             }
         >
             <div className="space-y-6">
                 <div>
                     <FormLabel>Propriedade <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-zinc-400" /></FormLabel>
-                    <SelectShell className="w-full" options={["Clinica", "Particular"]} />
+                    <SelectShell className="w-full" options={["Clinica", "Particular"]} value={property} onChange={setProperty} />
                 </div>
 
                 <div className="h-px bg-zinc-200 dark:bg-white/10" />
@@ -831,7 +869,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                 <div>
                     <FormLabel required>Categoria financeira <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-zinc-400" /></FormLabel>
                     <div className="flex gap-3">
-                        <SelectShell className="flex-1" options={["Selecione", ...financeFormCategories[type]]} />
+                        <SelectShell className="flex-1" options={["Selecione", ...financeFormCategories[type]]} value={category} onChange={setCategory} />
                         <button type="button" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:hover:text-white">
                             <Plus className="h-4 w-4" />
                         </button>
@@ -840,17 +878,17 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
 
                 <div>
                     <FormLabel>Descricao</FormLabel>
-                    <InputShell placeholder="Digite aqui" className="w-full" />
+                    <InputShell placeholder="Digite aqui" className="w-full" value={description} onChange={setDescription} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <FormLabel required>Valor</FormLabel>
-                        <InputShell placeholder="R$ 0,00" className="w-full" />
+                        <InputShell placeholder="R$ 0,00" className="w-full" value={amount} onChange={setAmount} />
                     </div>
                     <div>
                         <FormLabel required>Data de vencimento</FormLabel>
-                        <InputShell placeholder="__/__/____" className="w-full" />
+                        <InputShell type="date" placeholder="__/__/____" className="w-full" value={dueDate} onChange={setDueDate} />
                     </div>
                 </div>
 
@@ -865,11 +903,11 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                             <FormLabel required>Data de pagamento</FormLabel>
-                            <InputShell placeholder="__/__/____" className="w-full" />
+                            <InputShell type="date" placeholder="__/__/____" className="w-full" value={paidDate} onChange={setPaidDate} />
                         </div>
                         <div>
                             <FormLabel>Forma de pagamento</FormLabel>
-                            <SelectShell className="w-full" options={["-- Selecione --", ...paymentMethods]} />
+                            <SelectShell className="w-full" options={["-- Selecione --", ...paymentMethods]} value={paymentMethod} onChange={setPaymentMethod} />
                         </div>
                     </div>
                 ) : null}
@@ -898,7 +936,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                             <label className="flex items-center gap-3 text-sm font-bold text-zinc-600 dark:text-zinc-300">
                                 <input type="radio" className="h-4 w-4" />
                                 Terminar em:
-                                <InputShell placeholder="__/__/____" className="w-36" />
+                                <InputShell type="date" placeholder="__/__/____" className="w-36" />
                             </label>
                         </div>
                     </div>
@@ -908,9 +946,11 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                     <FormLabel>Observacoes</FormLabel>
                     <textarea
                         placeholder="Digite aqui"
+                        value={notes}
+                        onChange={(event) => setNotes(event.target.value.slice(0, 400))}
                         className="min-h-[112px] w-full rounded-2xl border border-zinc-200 bg-white/70 px-4 py-3 text-sm font-bold text-zinc-600 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-200"
                     />
-                    <p className="mt-2 text-xs font-bold text-zinc-400">0 de 400 caracteres</p>
+                    <p className="mt-2 text-xs font-bold text-zinc-400">{notes.length} de 400 caracteres</p>
                 </div>
             </div>
         </PremiumModal>
