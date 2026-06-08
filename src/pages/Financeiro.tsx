@@ -819,35 +819,81 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
     const [notes, setNotes] = useState("");
     const [paid, setPaid] = useState(false);
     const [repeat, setRepeat] = useState(false);
+    const [recurrenceFrequency, setRecurrenceFrequency] = useState("Semanalmente");
+    const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
+    const [showNewCategory, setShowNewCategory] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState("");
     const createFinancialEntry = useCreateFinancialEntry();
+    const createRecurringFinancialEntry = useCreateRecurringFinancialEntry();
+    const createFinancialCategory = useCreateFinancialCategory();
+    const { data: categories = [] } = useFinancialCategories(type);
     const isIncome = type === "income";
+    const categoryOptions = useMemo(() => ["Selecione", ...categories.map((item) => item.name)], [categories]);
+    const selectedCategory = categories.find((item) => item.name === category);
+    const isSaving = createFinancialEntry.isPending || createRecurringFinancialEntry.isPending;
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const normalizedDueDate = normalizeDateInput(dueDate);
         const normalizedPaidDate = normalizeDateInput(paidDate || dueDate);
+        const normalizedRecurrenceEndDate = normalizeDateInput(recurrenceEndDate);
         const parsedAmount = parseMoneyInput(amount);
 
         if (!normalizedDueDate || parsedAmount <= 0) return;
 
-        createFinancialEntry.mutate({
-            type,
-            title: description || (isIncome ? "Receita manual" : "Despesa manual"),
-            description: description || (isIncome ? "Receita manual" : "Despesa manual"),
-            amount: parsedAmount,
-            dueDate: new Date(`${normalizedDueDate}T12:00:00`),
-            competenceDate: new Date(`${normalizedDueDate}T12:00:00`),
-            paidAt: paid && normalizedPaidDate ? new Date(`${normalizedPaidDate}T12:00:00`) : null,
-            status: paid ? "paid" : "pending",
-            paymentMethod: paid ? paymentMethodFromLabel(paymentMethod) : "manual",
-            origin: repeat ? "recurring" : "manual",
-            metadata: {
-                property,
-                category: category === "Selecione" ? null : category,
-                notes: notes || null,
-                repeat,
+        try {
+            const title = description || (isIncome ? "Receita manual" : "Despesa manual");
+            await createFinancialEntry.mutateAsync({
+                type,
+                title,
+                description: title,
+                amount: parsedAmount,
+                dueDate: new Date(`${normalizedDueDate}T12:00:00`),
+                competenceDate: new Date(`${normalizedDueDate}T12:00:00`),
+                paidAt: paid && normalizedPaidDate ? new Date(`${normalizedPaidDate}T12:00:00`) : null,
+                status: paid ? "paid" : "pending",
+                paymentMethod: paid ? paymentMethodFromLabel(paymentMethod) : "manual",
+                origin: repeat ? "recurring" : "manual",
+                categoryId: selectedCategory?.id || null,
+                metadata: {
+                    property,
+                    category: selectedCategory?.name || null,
+                    notes: notes || null,
+                    repeat,
+                },
+            });
+
+            if (repeat) {
+                await createRecurringFinancialEntry.mutateAsync({
+                    type,
+                    title,
+                    amount: parsedAmount,
+                    categoryId: selectedCategory?.id || null,
+                    frequency: recurrenceFrequency.includes("Mensal") ? "monthly" : recurrenceFrequency.includes("Anual") ? "yearly" : "weekly",
+                    startDate: new Date(`${normalizedDueDate}T12:00:00`),
+                    endDate: normalizedRecurrenceEndDate ? new Date(`${normalizedRecurrenceEndDate}T12:00:00`) : null,
+                    metadata: {
+                        property,
+                        notes: notes || null,
+                        source: "financial_entry_modal",
+                    },
+                });
+            }
+
+            onClose();
+        } catch (error) {
+            console.error("[FinancialEntryModal] Falha ao salvar lancamento gerencial", error);
+        }
+    };
+
+    const handleCreateCategory = () => {
+        const name = newCategoryName.trim();
+        if (!name) return;
+        createFinancialCategory.mutate({ type, name }, {
+            onSuccess: (created) => {
+                setCategory(created.name);
+                setNewCategoryName("");
+                setShowNewCategory(false);
             },
-        }, {
-            onSuccess: () => onClose(),
         });
     };
 
@@ -859,7 +905,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
             footer={
                 <>
                     <ModalButton variant="secondary" onClick={onClose}>Cancelar</ModalButton>
-                    <ModalButton onClick={handleSave}>{createFinancialEntry.isPending ? "Salvando" : "Salvar"}</ModalButton>
+                    <ModalButton onClick={handleSave}>{isSaving ? "Salvando" : "Salvar"}</ModalButton>
                 </>
             }
         >
@@ -874,11 +920,34 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                 <div>
                     <FormLabel required>Categoria financeira <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-zinc-400" /></FormLabel>
                     <div className="flex gap-3">
-                        <SelectShell className="flex-1" options={["Selecione", ...financeFormCategories[type]]} value={category} onChange={setCategory} />
-                        <button type="button" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:hover:text-white">
+                        <SelectShell className="flex-1" options={categoryOptions.length > 1 ? categoryOptions : ["Selecione", ...financeFormCategories[type]]} value={category} onChange={setCategory} />
+                        <button type="button" onClick={() => setShowNewCategory((value) => !value)} className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:hover:text-white">
                             <Plus className="h-4 w-4" />
                         </button>
                     </div>
+                    <AnimatePresence>
+                        {showNewCategory ? (
+                            <motion.div
+                                initial={{ opacity: 0, y: -6, height: 0 }}
+                                animate={{ opacity: 1, y: 0, height: "auto" }}
+                                exit={{ opacity: 0, y: -6, height: 0 }}
+                                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                                className="mt-3 overflow-hidden"
+                            >
+                                <div className="flex flex-col gap-3 rounded-[22px] border border-zinc-200/75 bg-zinc-50/80 p-3 dark:border-white/10 dark:bg-white/[0.025] sm:flex-row">
+                                    <InputShell placeholder={`Nova categoria de ${isIncome ? "receita" : "despesa"}`} className="flex-1" value={newCategoryName} onChange={setNewCategoryName} />
+                                    <button
+                                        type="button"
+                                        onClick={handleCreateCategory}
+                                        disabled={createFinancialCategory.isPending}
+                                        className="h-11 rounded-2xl bg-zinc-950 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-zinc-950"
+                                    >
+                                        {createFinancialCategory.isPending ? "Criando" : "Criar"}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ) : null}
+                    </AnimatePresence>
                 </div>
 
                 <div>
@@ -927,7 +996,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                         <div>
                             <FormLabel>Escolha a recorrencia</FormLabel>
                             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                <SelectShell className="w-full" options={["Semanalmente", "Mensalmente", "Anualmente"]} />
+                                <SelectShell className="w-full" options={["Semanalmente", "Mensalmente", "Anualmente"]} value={recurrenceFrequency} onChange={setRecurrenceFrequency} />
                                 <InputShell placeholder="Toda Segunda-Feira" className="w-full opacity-70" />
                             </div>
                         </div>
@@ -941,7 +1010,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                             <label className="flex items-center gap-3 text-sm font-bold text-zinc-600 dark:text-zinc-300">
                                 <input type="radio" className="h-4 w-4" />
                                 Terminar em:
-                                <InputShell type="date" placeholder="__/__/____" className="w-36" />
+                                <InputShell type="date" placeholder="__/__/____" className="w-36" value={recurrenceEndDate} onChange={setRecurrenceEndDate} />
                             </label>
                         </div>
                     </div>
@@ -2156,6 +2225,151 @@ const AgreementRepassesView = ({
     );
 };
 
+const FinancialAutomationSettingsView = ({ motionProps }: { motionProps: any }) => {
+    const { data: settings, isLoading, error } = useFinancialAutomationSettings();
+    const { data: incomeCategories = [] } = useFinancialCategories("income");
+    const saveSettings = useSaveFinancialAutomationSettings();
+
+    const [autoCreate, setAutoCreate] = useState(false);
+    const [defaultAmount, setDefaultAmount] = useState("");
+    const [dueDays, setDueDays] = useState("0");
+    const [selectedCategoryName, setSelectedCategoryName] = useState("Selecione");
+    const [moveAttendedToPending, setMoveAttendedToPending] = useState(true);
+
+    const categoryOptions = useMemo(() => ["Selecione", ...incomeCategories.map((category) => category.name)], [incomeCategories]);
+    const selectedCategory = incomeCategories.find((category) => category.name === selectedCategoryName);
+
+    useEffect(() => {
+        setAutoCreate(Boolean(settings?.appointment_auto_create_enabled));
+        setDefaultAmount(settings?.appointment_default_amount ? String(settings.appointment_default_amount).replace(".", ",") : "");
+        setDueDays(String(settings?.appointment_due_days ?? 0));
+        setMoveAttendedToPending(settings?.attended_status_moves_to_pending ?? true);
+
+        const configuredCategory = incomeCategories.find((category) => category.id === settings?.appointment_default_category_id);
+        setSelectedCategoryName(configuredCategory?.name || "Selecione");
+    }, [settings, incomeCategories]);
+
+    const handleSave = () => {
+        saveSettings.mutate({
+            appointmentAutoCreateEnabled: autoCreate,
+            appointmentDefaultAmount: parseMoneyInput(defaultAmount) || null,
+            appointmentDefaultCategoryId: selectedCategory?.id || null,
+            appointmentDueDays: Number(dueDays || 0),
+            attendedStatusMovesToPending: moveAttendedToPending,
+            metadata: {
+                source: "financial_management_desktop",
+                saved_at: new Date().toISOString(),
+            },
+        });
+    };
+
+    const statusCards: MetricCard[] = [
+        {
+            title: "Automacao da Agenda",
+            value: autoCreate ? "Ativa" : "Inativa",
+            footer: [autoCreate ? "Novas sessoes podem gerar receitas planned" : "Sem criacao automatica de receitas"],
+            icon: CalendarCheck,
+        },
+        {
+            title: "Valor padrao",
+            value: moneyFormatter(parseMoneyInput(defaultAmount)),
+            footer: ["Usado apenas em sessoes sem lancamento explicito"],
+            icon: CircleDollarSign,
+        },
+        {
+            title: "Vencimento",
+            value: `${Number(dueDays || 0)} dia(s)`,
+            footer: ["A partir da data da sessao"],
+            icon: ClipboardList,
+        },
+    ];
+
+    return (
+        <motion.div {...motionProps} key="financial-automation-settings" className="space-y-6 px-6 py-6">
+            <ManagementSectionHeader icon={Settings} title="Configuracao por cliente" subtitle="Regras gerenciais para Agenda, pacientes e cobrancas" />
+
+            {isLoading || error ? (
+                <div className="rounded-[26px] border border-zinc-200/70 bg-white/70 p-5 text-xs font-black uppercase tracking-[0.14em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300">
+                    {isLoading ? "Carregando configuracoes financeiras..." : `Nao foi possivel carregar as configuracoes: ${error?.message || "erro desconhecido"}`}
+                </div>
+            ) : null}
+
+            <FinanceMetricCards cards={statusCards} />
+
+            <InfoBlock>
+                <p>
+                    Estas configuracoes conectam a Agenda a <span className="font-black">financial_entries</span>, sem criar cobranca bancaria, Pix, boleto ou transacao NeuroFinance.
+                    O saldo real e o dinheiro a liberar continuam exclusivos do dominio bancario.
+                </p>
+            </InfoBlock>
+
+            <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
+                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.04]" />
+                <div className="relative z-10 grid gap-6 xl:grid-cols-[1fr_0.85fr]">
+                    <div className="space-y-5">
+                        <div className="rounded-[28px] border border-zinc-200/70 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.025]">
+                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Gerar receita ao criar sessao</p>
+                                    <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+                                        Quando ativo, sessoes clinicas criadas sem lancamento financeiro explicito podem gerar uma receita prevista.
+                                    </p>
+                                </div>
+                                <TogglePill active={autoCreate} onClick={() => setAutoCreate((value) => !value)} />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <div>
+                                <FormLabel>Valor padrao da sessao</FormLabel>
+                                <InputShell placeholder="R$ 0,00" className="w-full" value={defaultAmount} onChange={setDefaultAmount} />
+                            </div>
+                            <div>
+                                <FormLabel>Dias ate vencimento</FormLabel>
+                                <InputShell type="number" placeholder="0" className="w-full" value={dueDays} onChange={setDueDays} />
+                            </div>
+                            <div>
+                                <FormLabel>Categoria padrao</FormLabel>
+                                <SelectShell className="w-full" options={categoryOptions} value={selectedCategoryName} onChange={setSelectedCategoryName} />
+                            </div>
+                        </div>
+
+                        <div className="rounded-[28px] border border-zinc-200/70 bg-white/70 p-5 dark:border-white/10 dark:bg-white/[0.025]">
+                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Sessao realizada vira a receber</p>
+                                    <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+                                        Ao marcar a sessao como realizada, o lancamento previsto muda para pendente, mantendo pagamento manual separado de transacao bancaria.
+                                    </p>
+                                </div>
+                                <TogglePill active={moveAttendedToPending} onClick={() => setMoveAttendedToPending((value) => !value)} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="rounded-[30px] border border-zinc-200/70 bg-zinc-50/80 p-6 dark:border-white/10 dark:bg-white/[0.025]">
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Fluxo aplicado</p>
+                        <div className="mt-5 space-y-4 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
+                            <p><span className="font-black text-zinc-950 dark:text-white">1.</span> Nova sessao sem cobranca explicita cria receita <span className="font-black">planned</span>.</p>
+                            <p><span className="font-black text-zinc-950 dark:text-white">2.</span> Sessao realizada muda para <span className="font-black">pending</span>, se a regra estiver ativa.</p>
+                            <p><span className="font-black text-zinc-950 dark:text-white">3.</span> Pagamento manual marca como <span className="font-black">paid</span> sem criar transacao NeuroFinance.</p>
+                            <p><span className="font-black text-zinc-950 dark:text-white">4.</span> Cobrancas NeuroFinance continuam em rota propria e so conciliam quando houver vinculo.</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saveSettings.isPending}
+                            className="mt-7 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-zinc-950 px-6 text-[10px] font-black uppercase tracking-[0.18em] text-white shadow-xl transition-opacity hover:opacity-90 disabled:opacity-55 dark:bg-white dark:text-zinc-950"
+                        >
+                            {saveSettings.isPending ? "Salvando" : "Salvar configuracoes"}
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </motion.div>
+    );
+};
+
 const ManagementPlaceholderView = ({ view, motionProps }: { view: ManagementView; motionProps: any }) => {
     const meta = MANAGEMENT_VIEW_META[view];
     const Icon = meta.icon;
@@ -2490,6 +2704,9 @@ const FinancialManagementHome = () => {
                     setOpenMenu={setOpenMenu}
                 />
             );
+        }
+        if (activeView === "client-config") {
+            return <FinancialAutomationSettingsView motionProps={motionProps} />;
         }
         if (activeView === "repasses-convenio") {
             return (
