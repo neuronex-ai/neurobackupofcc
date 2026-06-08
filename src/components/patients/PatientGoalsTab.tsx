@@ -43,12 +43,12 @@ export const PatientGoalsTab = ({ patientId }: PatientGoalsTabProps) => {
   return (
     <div className="space-y-8">
       {/* Header / Progress - Redesigned Layout */}
-      <div className="pt-14 pb-8 px-8 rounded-[32px] bg-card border border-border/5 relative overflow-visible shadow-lg mt-10">
-        <div className="absolute right-0 top-0 w-48 h-48 bg-primary/5 rounded-full blur-[60px] pointer-events-none" />
+      <div className="pt-14 pb-8 px-8 rounded-[32px] bg-card border border-border/5 relative overflow-visible shadow-lg mt-10 dark:border-white/[0.085] dark:bg-[#0b0b0d] dark:shadow-[0_24px_62px_-46px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.026)]">
+        <div className="absolute right-0 top-0 w-48 h-48 bg-primary/5 dark:bg-white/[0.015] rounded-full blur-[60px] pointer-events-none" />
 
         {/* Circular Progress - Absolute Positioned at Top Center */}
         <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-20">
-          <div className="relative w-20 h-20 flex items-center justify-center bg-card rounded-full p-1.5 shadow-2xl border border-border/10">
+          <div className="relative w-20 h-20 flex items-center justify-center bg-card rounded-full p-1.5 shadow-2xl border border-border/10 dark:border-white/[0.075] dark:bg-[#141415]">
             <svg className="w-full h-full -rotate-90 drop-shadow-lg" viewBox="0 0 36 36">
               <path className="text-secondary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
               <path
@@ -83,7 +83,7 @@ export const PatientGoalsTab = ({ patientId }: PatientGoalsTabProps) => {
 
       {/* Add New Goal Input */}
       <div className="flex gap-3">
-        <div className="flex-1 bg-card rounded-2xl border border-border/10 focus-within:border-primary/50 focus-within:bg-secondary/10 transition-all flex items-center px-5 h-14 shadow-sm">
+        <div className="flex-1 bg-card rounded-2xl border border-border/10 focus-within:border-primary/50 focus-within:bg-secondary/10 transition-all flex items-center px-5 h-14 shadow-sm dark:border-white/[0.075] dark:bg-[#0b0b0d] dark:focus-within:bg-[#111113]">
           <Input
             placeholder="Digite uma nova meta ou tarefa..."
             value={newDescription}
@@ -105,7 +105,7 @@ export const PatientGoalsTab = ({ patientId }: PatientGoalsTabProps) => {
                 <CalendarIcon className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-card border-border/10" align="end">
+            <PopoverContent className="w-auto p-0 bg-card border-border/10 dark:border-white/[0.085] dark:bg-[#0b0b0d]" align="end">
               <Calendar
                 mode="single"
                 selected={date}
@@ -124,7 +124,7 @@ export const PatientGoalsTab = ({ patientId }: PatientGoalsTabProps) => {
       {/* List */}
       <div className="space-y-3">
         {goals?.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 border border-dashed border-border/10 rounded-3xl bg-secondary/5">
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 border border-dashed border-border/10 rounded-3xl bg-secondary/5 dark:border-white/[0.085] dark:bg-[#0b0b0d]">
             <Target className="h-12 w-12 mb-3 opacity-20" />
             <p className="text-sm font-medium">Nenhuma meta definida.</p>
             <p className="text-xs mt-1 opacity-60">Comece adicionando objetivos para o paciente.</p>
@@ -137,7 +137,7 @@ export const PatientGoalsTab = ({ patientId }: PatientGoalsTabProps) => {
                 "group flex items-center justify-between p-5 rounded-2xl border transition-all duration-300",
                 goal.is_completed
                   ? "bg-emerald-500/[0.02] border-emerald-500/10"
-                  : "bg-card border-border/5 hover:bg-secondary/10 hover:border-border/10"
+                  : "bg-card border-border/5 hover:bg-secondary/10 hover:border-border/10 dark:border-white/[0.075] dark:bg-[#0b0b0d] dark:hover:bg-[#111113] dark:hover:border-white/[0.12]"
               )}
             >
               <div className="flex items-start gap-5 flex-1 min-w-0">
@@ -150,7 +150,7 @@ export const PatientGoalsTab = ({ patientId }: PatientGoalsTabProps) => {
                       <CheckCircle2 className="h-4 w-4" />
                     </div>
                   ) : (
-                    <div className="w-6 h-6 rounded-full border-2 border-border/20 hover:border-primary/50 hover:bg-primary/10 transition-all" />
+                    <div className="w-6 h-6 rounded-full border-2 border-border/20 hover:border-primary/50 hover:bg-primary/10 transition-all dark:border-white/[0.14] dark:hover:bg-[#18181a]" />
                   )}
                 </button>
 

@@ -181,11 +181,10 @@ export default function PatientDetail() {
                 transition={{ duration: 0.5, ease: "circOut" }}
                 className="sticky top-3 z-40 mx-4 mt-4 rounded-[28px] border border-zinc-200/72 bg-white/86 px-4 py-3 shadow-[0_18px_52px_-38px_rgba(24,24,27,0.34),inset_0_1px_0_rgba(255,255,255,0.88)] backdrop-blur-3xl dark:border-white/[0.095] dark:bg-[#0d0d0f]/96 dark:shadow-[0_18px_52px_-42px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.035)]"
             >
-                <div className="w-full">
-                    <div className="flex w-full items-center justify-between gap-4">
+                <div className="flex w-full items-center gap-4">
 
                         {/* Left Side: Back & Title */}
-                        <div className="flex min-w-0 items-center gap-4">
+                        <div className="flex min-w-[220px] max-w-[320px] flex-[0_1_300px] items-center gap-4">
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -201,27 +200,6 @@ export default function PatientDetail() {
                             </div>
                         </div>
 
-                        {/* Right Side: Actions */}
-                        <div className="flex shrink-0 items-center gap-2">
-                            <Select value={patient.status || ""} onValueChange={handleStatusChange}>
-                                <SelectTrigger className="h-10 w-auto gap-2 rounded-xl border border-zinc-200/70 bg-white px-4 text-[9px] font-black uppercase tracking-[0.17em] text-zinc-600 shadow-sm ring-0 transition-all hover:bg-zinc-100 focus:ring-0 dark:border-white/[0.095] dark:bg-[#141415] dark:text-zinc-300 dark:hover:bg-[#18181a]">
-                                    <div className="flex items-center gap-3">
-                                        <span className={cn("h-1.5 w-1.5 rounded-full shadow-lg",
-                                            patient.status === 'active' ? "bg-emerald-500 shadow-emerald-500/20" :
-                                                patient.status === 'archived' ? "bg-orange-500" : "bg-zinc-400")}
-                                        />
-                                        <SelectValue placeholder="Status" />
-                                    </div>
-                                </SelectTrigger>
-                                <SelectContent align="end" className="w-[200px] rounded-3xl border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-[#080809]/95 backdrop-blur-2xl shadow-2xl p-2">
-                                    <SelectItem value="active" className="rounded-2xl font-black text-[10px] uppercase tracking-widest py-3">Paciente Ativo</SelectItem>
-                                    <SelectItem value="inactive" className="rounded-2xl font-black text-[10px] uppercase tracking-widest py-3">Inativo</SelectItem>
-                                    <SelectItem value="archived" className="rounded-2xl font-black text-[10px] uppercase tracking-widest py-3 text-orange-500">Arquivado</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
                     <div
                         ref={scrollContainerRef}
                         onMouseDown={handleMouseDown}
@@ -229,7 +207,7 @@ export default function PatientDetail() {
                         onMouseUp={handleMouseLeaveOrUp}
                         onMouseMove={handleMouseMove}
                         className={cn(
-                            "mt-3 flex select-none items-center overflow-x-auto rounded-[22px] border border-zinc-200/65 bg-zinc-50/80 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/[0.085] dark:bg-[#080809] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]",
+                            "flex min-w-0 flex-1 select-none items-center overflow-x-auto rounded-[22px] border border-zinc-200/65 bg-zinc-50/80 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/[0.085] dark:bg-[#080809] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]",
                             isDragging ? "cursor-grabbing" : "cursor-grab",
                             "custom-premium-scrollbar"
                         )}
@@ -253,6 +231,26 @@ export default function PatientDetail() {
                             ))}
                         </div>
                     </div>
+
+                        {/* Right Side: Actions */}
+                        <div className="flex shrink-0 items-center gap-2">
+                            <Select value={patient.status || ""} onValueChange={handleStatusChange}>
+                                <SelectTrigger className="h-10 w-auto gap-2 rounded-xl border border-zinc-200/70 bg-white px-4 text-[9px] font-black uppercase tracking-[0.17em] text-zinc-600 shadow-sm ring-0 transition-all hover:bg-zinc-100 focus:ring-0 dark:border-white/[0.095] dark:bg-[#141415] dark:text-zinc-300 dark:hover:bg-[#18181a]">
+                                    <div className="flex items-center gap-3">
+                                        <span className={cn("h-1.5 w-1.5 rounded-full shadow-lg",
+                                            patient.status === 'active' ? "bg-emerald-500 shadow-emerald-500/20" :
+                                                patient.status === 'archived' ? "bg-orange-500" : "bg-zinc-400")}
+                                        />
+                                        <SelectValue placeholder="Status" />
+                                    </div>
+                                </SelectTrigger>
+                                <SelectContent align="end" className="w-[200px] rounded-3xl border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-[#080809]/95 backdrop-blur-2xl shadow-2xl p-2">
+                                    <SelectItem value="active" className="rounded-2xl font-black text-[10px] uppercase tracking-widest py-3">Paciente Ativo</SelectItem>
+                                    <SelectItem value="inactive" className="rounded-2xl font-black text-[10px] uppercase tracking-widest py-3">Inativo</SelectItem>
+                                    <SelectItem value="archived" className="rounded-2xl font-black text-[10px] uppercase tracking-widest py-3 text-orange-500">Arquivado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                 </div>
             </motion.div>
 
@@ -298,7 +296,7 @@ export default function PatientDetail() {
                                     </div>
                                 </div>
 
-                                <div className="mt-6 grid grid-cols-2 gap-2 border-t border-zinc-200/60 pt-5 dark:border-white/[0.06]">
+                                <div className="mt-6 grid grid-cols-2 gap-2 border-t border-zinc-200/60 pt-5 dark:border-white/[0.075]">
                                     <EditPatientModal patient={patient}>
                                         <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-[#141415] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
                                             <Edit className="h-4 w-4 mr-2" /> Editar
@@ -312,11 +310,11 @@ export default function PatientDetail() {
                                 </div>
 
                                 {/* Medications Block in Sidebar */}
-                                <div className="mt-6 border-t border-zinc-200/60 pt-5 dark:border-white/[0.06]">
+                                <div className="mt-6 border-t border-zinc-200/60 pt-5 dark:border-white/[0.075]">
                                     <div className="mb-4 flex items-center justify-between">
                                         <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-400 dark:text-zinc-500">Medicações</h4>
                                         <MedicationUpdateModal patient={patient}>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-xl transition-all hover:bg-zinc-100 dark:hover:bg-white/10">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-xl transition-all hover:bg-zinc-100 dark:hover:bg-[#18181a]">
                                                 <Edit2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </MedicationUpdateModal>
@@ -329,7 +327,7 @@ export default function PatientDetail() {
                                                     <div className="flex items-start justify-between gap-3">
                                                         <span className="text-sm font-bold text-zinc-700 dark:text-zinc-200">{med.name}</span>
                                                         {med.dosage && (
-                                                            <span className="text-[10px] font-black text-zinc-500 bg-white dark:bg-black/40 px-2 py-0.5 rounded-lg border border-zinc-200 dark:border-white/5 shadow-sm">
+                                                            <span className="text-[10px] font-black text-zinc-500 bg-white dark:bg-[#080809] px-2 py-0.5 rounded-lg border border-zinc-200 dark:border-white/[0.065] shadow-sm">
                                                                 {med.dosage}
                                                             </span>
                                                         )}
@@ -337,7 +335,7 @@ export default function PatientDetail() {
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="p-6 rounded-2xl border-2 border-dashed border-zinc-100 dark:border-white/[0.08] bg-zinc-50/50 dark:bg-white/[0.01] text-center">
+                                            <div className="p-6 rounded-2xl border-2 border-dashed border-zinc-100 dark:border-white/[0.075] bg-zinc-50/50 dark:bg-[#080809] text-center">
                                                 <Pill className="h-5 w-5 text-zinc-300 dark:text-zinc-800 mx-auto mb-3 opacity-30" />
                                                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest italic">Nenhuma medicação</span>
                                             </div>

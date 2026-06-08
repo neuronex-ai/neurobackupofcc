@@ -126,7 +126,7 @@ export const PatientPackagesTab = ({ patientId }: PatientPackagesTabProps) => {
 
             {isRunningLow && (
                 <GlassCard 
-                    className="border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50"
+                    className="border-zinc-200 dark:!border-white/[0.085] bg-zinc-50 dark:!bg-[#0b0b0d]"
                     innerClassName="p-5 md:p-6"
                 >
                     <div className="flex items-center justify-between gap-4">
@@ -140,7 +140,7 @@ export const PatientPackagesTab = ({ patientId }: PatientPackagesTabProps) => {
                             </div>
                         </div>
                         <NewPackageModal patientId={patientId}>
-                            <Button size="sm" variant="outline" className="h-9 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 bg-transparent text-xs font-black uppercase tracking-wider rounded-xl transition-all">
+                            <Button size="sm" variant="outline" className="h-9 border-zinc-200 dark:border-white/[0.075] text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-[#18181a] bg-transparent text-xs font-black uppercase tracking-wider rounded-xl transition-all">
                                 Renovar
                             </Button>
                         </NewPackageModal>
@@ -148,7 +148,7 @@ export const PatientPackagesTab = ({ patientId }: PatientPackagesTabProps) => {
                 </GlassCard>
             )}
 
-            <div className="flex flex-col sm:flex-row justify-between items-center p-2 bg-zinc-50/50 dark:bg-white/5 backdrop-blur-xl rounded-[24px] border border-zinc-200/50 dark:border-white/5 gap-3 sm:gap-0 shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-center p-2 bg-zinc-50/50 dark:bg-[#0b0b0d] backdrop-blur-xl rounded-[24px] border border-zinc-200/50 dark:border-white/[0.085] gap-3 sm:gap-0 shadow-sm">
                 <div className="px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 flex items-center gap-3 w-full sm:w-auto">
                     <Package className="h-4 w-4 opacity-50" />
                     Gerenciamento de Planos
@@ -159,18 +159,18 @@ export const PatientPackagesTab = ({ patientId }: PatientPackagesTabProps) => {
                             <Button
                                 size="sm"
                                 variant="ghost"
-                                className="gap-2 h-10 text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white transition-all rounded-xl flex-1 sm:flex-none"
+                                className="gap-2 h-10 text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-[#18181a] hover:text-zinc-900 dark:hover:text-white transition-all rounded-xl flex-1 sm:flex-none"
                             >
                                 <FileText className="h-3.5 w-3.5" /> Relatório Mensal
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-[900px] h-[90vh] bg-zinc-50 dark:bg-[#0A0A0C] border-zinc-200 dark:border-white/10 p-0 rounded-[32px] overflow-hidden flex flex-col shadow-2xl">
-                            <div className="flex-1 bg-zinc-100/50 dark:bg-black/20 p-8 overflow-y-auto flex justify-center custom-scrollbar">
+                        <DialogContent className="max-w-[900px] h-[90vh] bg-zinc-50 dark:bg-[#0b0b0d] border-zinc-200 dark:border-white/[0.085] p-0 rounded-[32px] overflow-hidden flex flex-col shadow-2xl">
+                            <div className="flex-1 bg-zinc-100/50 dark:bg-[#080809] p-8 overflow-y-auto flex justify-center custom-scrollbar">
                                 <div ref={printRef} className="w-full max-w-[600px] scale-95 origin-top shadow-xl">
                                     <MonthlyReportTemplate {...reportData} />
                                 </div>
                             </div>
-                            <div className="p-6 border-t border-zinc-200 dark:border-white/10 bg-white dark:bg-[#0A0A0C] flex justify-end gap-3 shrink-0">
+                            <div className="p-6 border-t border-zinc-200 dark:border-white/[0.085] bg-white dark:bg-[#0b0b0d] flex justify-end gap-3 shrink-0">
                                 <Button variant="outline" onClick={handlePrintReport} className="border-zinc-200 dark:border-white/10 hover:bg-zinc-50 dark:hover:bg-white/5 gap-2 h-11 rounded-xl text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
                                     <Printer className="h-4 w-4" /> Imprimir
                                 </Button>

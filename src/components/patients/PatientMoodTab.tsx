@@ -28,7 +28,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
     return (
       <div className="bg-white/90 dark:bg-[#0b0b0d] backdrop-blur-2xl border border-zinc-200 dark:border-white/[0.085] p-4 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/5">
-        <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-100 dark:border-white/5 pb-2">
+        <p className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-100 dark:border-white/[0.065] pb-2">
           {label}
         </p>
         <div className="flex items-center gap-3">
@@ -153,7 +153,7 @@ export const PatientMoodTab = ({ patientId }: PatientMoodTabProps) => {
           <div className="h-px flex-1 bg-gradient-to-l from-transparent to-zinc-200 dark:to-white/10" />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[...logs].reverse().map((log, idx) => {
             const config = moodConfig[log.mood_score] || moodConfig[3];
             const Icon = config.icon;

@@ -46,7 +46,7 @@ const TransactionItem = ({ transaction, isMobile }: { transaction: Transaction, 
       <EditTransactionModal transaction={transaction}>
         <div className="group relative p-[1px] rounded-[24px] transition-all duration-300 hover:scale-[1.01] cursor-pointer active:scale-[0.98] hover:z-10 bg-transparent">
           <div className={cn(
-            "relative flex items-center justify-between rounded-[23px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.04] hover:bg-white/80 dark:hover:bg-white/[0.05] hover:border-zinc-300 dark:hover:border-white/[0.1] transition-all shadow-sm group-hover:shadow-lg overflow-hidden backdrop-blur-md",
+            "relative flex items-center justify-between rounded-[23px] bg-white/60 dark:bg-[#0b0b0d] border border-zinc-200/50 dark:border-white/[0.085] hover:bg-white/80 dark:hover:bg-[#111113] hover:border-zinc-300 dark:hover:border-white/[0.12] transition-all shadow-sm group-hover:shadow-lg overflow-hidden backdrop-blur-md",
             isMobile ? "p-4" : "p-5"
           )}>
 
@@ -69,7 +69,7 @@ const TransactionItem = ({ transaction, isMobile }: { transaction: Transaction, 
                   {transaction.description}
                 </p>
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 text-[9px] text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-wider bg-zinc-100/50 dark:bg-white/[0.03] px-1.5 py-0.5 rounded-md border border-zinc-200/50 dark:border-white/[0.05]">
+                  <div className="flex items-center gap-1.5 text-[9px] text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-wider bg-zinc-100/50 dark:bg-[#141415] px-1.5 py-0.5 rounded-md border border-zinc-200/50 dark:border-white/[0.075]">
                     <Calendar className="h-2.5 w-2.5 opacity-70" />
                     <span>{new Date(transaction.date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
                   </div>
@@ -123,10 +123,9 @@ export const PatientFinanceTab = ({ patientId }: PatientFinanceTabProps) => {
     <div className={cn("animate-fade-in pb-10", isMobile ? "space-y-8" : "space-y-10")}>
       {/* Summary Card - Premium Style */}
       <GlassCard 
-        className="bg-gradient-to-br from-zinc-50 to-white dark:from-[#0A0A0C] dark:to-zinc-900 border-zinc-200/60 dark:border-white/5 relative overflow-hidden" 
-        innerClassName={isMobile ? "p-6" : "p-10"}
+        className="!bg-white dark:!border-white/[0.085] dark:!bg-[#0b0b0d] dark:!shadow-[0_24px_62px_-46px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.026)] relative overflow-hidden"`r`n        innerClassName={isMobile ? "p-6" : "p-10"}
       >
-        <div className="absolute top-0 right-0 p-32 bg-emerald-500/5 dark:bg-emerald-500/5 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute top-0 right-0 p-32 bg-emerald-500/5 dark:bg-white/[0.015] rounded-full blur-[80px] pointer-events-none" />
 
         <div className={cn(
           "relative z-10 flex items-center justify-between gap-6",
@@ -195,11 +194,11 @@ export const PatientFinanceTab = ({ patientId }: PatientFinanceTabProps) => {
 
         {/* Floating Vertical Block Background */}
         <div className={cn(
-          "relative min-h-[400px] border border-white/50 dark:border-white/5 bg-zinc-50/50 dark:bg-zinc-900/20 overflow-hidden shadow-inner ring-1 ring-zinc-900/5 dark:ring-white/5",
+          "relative min-h-[400px] border border-white/50 dark:border-white/[0.085] bg-zinc-50/50 dark:bg-[#080809] overflow-hidden shadow-inner ring-1 ring-zinc-900/5 dark:ring-white/[0.035]",
           isMobile ? "p-4 rounded-[32px]" : "p-6 rounded-[40px]"
         )}>
           {/* Cylindrical fade effect */}
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-zinc-50 dark:from-[#0A0A0C] to-transparent pointer-events-none z-20" />
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-zinc-50 dark:from-[#080809] to-transparent pointer-events-none z-20" />
 
           {/* Scrollable List */}
           <div className="max-h-[600px] overflow-y-auto custom-scrollbar pr-1 -mr-1 pb-32 relative z-10 pt-1">
@@ -216,7 +215,7 @@ export const PatientFinanceTab = ({ patientId }: PatientFinanceTabProps) => {
               </motion.div>
             ) : (
               <div className="flex flex-col items-center justify-center py-24 text-zinc-400 dark:text-zinc-600">
-                <div className="w-16 h-16 bg-zinc-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-4">
+                <div className="w-16 h-16 bg-zinc-100 dark:bg-[#141415] rounded-full flex items-center justify-center mb-4 border border-zinc-200/50 dark:border-white/[0.075]">
                   <Wallet className="h-7 w-7 opacity-30" />
                 </div>
                 <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Nenhuma transação</p>

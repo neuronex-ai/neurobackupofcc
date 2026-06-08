@@ -70,12 +70,12 @@ export const PatientDocumentsTab = ({ patientId }: PatientDocumentsTabProps) => 
 
       {/* Header Stat & Action */}
       <div className={cn(
-        "flex items-center justify-between bg-zinc-50/50 dark:bg-white/5 backdrop-blur-xl border border-zinc-200/50 dark:border-white/5 shadow-sm transition-all duration-500",
+        "flex items-center justify-between bg-zinc-50/50 dark:bg-[#0b0b0d] backdrop-blur-xl border border-zinc-200/50 dark:border-white/[0.085] shadow-sm transition-all duration-500",
         isMobile ? "p-3 pl-5 rounded-[22px]" : "p-2 pl-6 rounded-[28px]"
       )}>
         <div className="flex items-center gap-3">
           <div className={cn(
-            "rounded-xl bg-zinc-100 dark:bg-white/5 flex items-center justify-center text-zinc-400 dark:text-zinc-500",
+            "rounded-xl bg-zinc-100 dark:bg-[#141415] border border-zinc-200/50 dark:border-white/[0.075] flex items-center justify-center text-zinc-400 dark:text-zinc-500",
             isMobile ? "h-9 w-9" : "h-10 w-10"
           )}>
             <FolderOpen className={isMobile ? "h-4 w-4" : "h-4.5 w-4.5"} />
@@ -123,7 +123,7 @@ export const PatientDocumentsTab = ({ patientId }: PatientDocumentsTabProps) => 
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ delay: idx * 0.05 }}
                 className={cn(
-                  "group flex flex-col sm:flex-row items-center justify-between border border-zinc-200/60 dark:border-white/5 bg-white/60 dark:bg-zinc-900/40 hover:bg-white dark:hover:bg-zinc-900/60 hover:border-zinc-300 dark:hover:border-white/10 transition-all shadow-sm hover:shadow-xl backdrop-blur-sm gap-4 sm:gap-0",
+                  "group flex flex-col sm:flex-row items-center justify-between border border-zinc-200/60 dark:border-white/[0.085] bg-white/60 dark:bg-[#0b0b0d] hover:bg-white dark:hover:bg-[#111113] hover:border-zinc-300 dark:hover:border-white/[0.12] transition-all shadow-sm hover:shadow-xl backdrop-blur-sm gap-4 sm:gap-0",
                   isMobile ? "p-5 rounded-[28px]" : "p-6 rounded-[32px]"
                 )}
               >
@@ -142,7 +142,7 @@ export const PatientDocumentsTab = ({ patientId }: PatientDocumentsTabProps) => 
                       {doc.name}
                     </p>
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider bg-zinc-100 dark:bg-white/5 px-2 py-0.5 rounded-md">
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider bg-zinc-100 dark:bg-[#141415] border border-zinc-200/50 dark:border-white/[0.065] px-2 py-0.5 rounded-md">
                         {(doc.size / 1024).toFixed(0)} KB
                       </span>
                       <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold tracking-wider">
@@ -153,14 +153,14 @@ export const PatientDocumentsTab = ({ patientId }: PatientDocumentsTabProps) => 
                 </div>
 
                 <div className={cn(
-                  "flex gap-2 w-full sm:w-auto sm:pl-6 sm:ml-6 sm:border-l border-zinc-100 dark:border-white/5 justify-end",
-                  isMobile && "pt-2 border-t border-zinc-100 dark:border-white/5"
+                  "flex gap-2 w-full sm:w-auto sm:pl-6 sm:ml-6 sm:border-l border-zinc-100 dark:border-white/[0.065] justify-end",
+                  isMobile && "pt-2 border-t border-zinc-100 dark:border-white/[0.065]"
                 )}>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setPreviewDoc(doc)}
-                    className="h-11 w-11 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-[14px] text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-95 border border-transparent hover:border-zinc-200 dark:hover:border-white/5"
+                    className="h-11 w-11 hover:bg-zinc-100 dark:hover:bg-[#18181a] rounded-[14px] text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-95 border border-transparent hover:border-zinc-200 dark:hover:border-white/[0.075]"
                     title="Visualizar"
                   >
                     <Eye className="h-4.5 w-4.5" />
@@ -179,8 +179,8 @@ export const PatientDocumentsTab = ({ patientId }: PatientDocumentsTabProps) => 
               </motion.div>
             ))
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-400 dark:text-zinc-600 border border-dashed border-zinc-200 dark:border-white/5 rounded-[40px] bg-zinc-50/50 dark:bg-white/[0.02]">
-              <div className="w-16 h-16 bg-zinc-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-6 shadow-inner">
+            <div className="flex flex-col items-center justify-center py-20 text-zinc-400 dark:text-zinc-600 border border-dashed border-zinc-200 dark:border-white/[0.085] rounded-[40px] bg-zinc-50/50 dark:bg-[#0b0b0d]">
+              <div className="w-16 h-16 bg-zinc-100 dark:bg-[#141415] rounded-full flex items-center justify-center mb-6 shadow-inner border border-zinc-200/50 dark:border-white/[0.075]">
                 <DownloadCloud className="h-8 w-8 opacity-20" />
               </div>
               <p className="text-sm font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest">Nenhum Documento</p>
