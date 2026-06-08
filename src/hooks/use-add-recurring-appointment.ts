@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { addWeeks, addMonths, isBefore, setHours, setMinutes, addMinutes, isSameDay, startOfDay } from 'date-fns';
 import { buildSessionMetadata } from '@/lib/appointment-metadata';
+import { createAppointmentFinancialEntryIfEnabled } from '@/lib/financial-appointment-automation';
+import type { Appointment } from '@/types';
 
 interface RecurringAppointmentData {
   patient_id: string;
@@ -167,6 +169,21 @@ const addRecurringAppointments = async (values: NewRecurringAppointmentFormValue
   }
 
   toast.success(`${data.length} consultas agendadas com sucesso!`);
+
+  try {
+    await Promise.all(
+      (data || []).map((appointment) =>
+        createAppointmentFinancialEntryIfEnabled(
+          appointment as Appointment,
+          userId,
+          patientData.name
+        )
+      )
+    );
+  } catch (financialError) {
+    console.warn('[useAddRecurringAppointment] Agendamentos criados, mas a automacao financeira parcial falhou:', financialError);
+  }
+
   return data;
 };
 
@@ -184,6 +201,10 @@ export const useAddRecurringAppointment = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointmentsByDateRange'] });
+      queryClient.invalidateQueries({ queryKey: ['financialEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['patientTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
       queryClient.invalidateQueries({ queryKey: ['monthly-session-metrics'] });
     },
   });
