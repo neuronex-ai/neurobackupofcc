@@ -30,6 +30,7 @@ import { usePatients } from "@/hooks/use-patients";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { cn } from "@/lib/utils";
 import { toUserFacingError } from "@/lib/user-facing-error";
+import { AnimatePresence, motion } from "framer-motion";
 
 const NewInvoiceSchema = z.object({
   patientId: z.string().min(1, { message: "Selecione um paciente." }),
@@ -158,8 +159,8 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
 
       <div className="custom-scrollbar flex-1 space-y-8 overflow-y-auto bg-zinc-50/30 px-8 py-8 dark:bg-transparent">
         <div className="text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[24px] border border-emerald-500/20 bg-emerald-500/10 shadow-xl">
-            <Check className="h-10 w-10 text-emerald-500" strokeWidth={2.5} />
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[24px] border border-zinc-200 bg-white shadow-[0_22px_70px_-42px_rgba(0,0,0,0.55)] dark:border-white/10 dark:bg-white/[0.055]">
+            <Check className="h-10 w-10 text-zinc-950 dark:text-white" strokeWidth={2.5} />
           </div>
           <p className="text-4xl font-black tracking-tighter text-zinc-900 dark:text-white">
             {Number(form.getValues("amount") || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
@@ -174,7 +175,7 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
         {pixData?.qrCode && (
           <div className="flex flex-col items-center gap-6 rounded-[32px] border border-zinc-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
             <div className="flex items-center gap-2 self-start">
-              <QrCode className="h-4 w-4 text-emerald-500" />
+              <QrCode className="h-4 w-4 text-zinc-500 dark:text-zinc-300" />
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">QR Code Pix</span>
             </div>
             <div className="rounded-3xl border border-zinc-100 bg-white p-5 shadow-2xl">
@@ -204,7 +205,7 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
             {paymentUrl && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-blue-500" />
+                  <CreditCard className="h-4 w-4 text-zinc-500 dark:text-zinc-300" />
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Link de pagamento</span>
                 </div>
                 <div className="flex gap-3">
@@ -422,10 +423,21 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
       open={open}
       onOpenChange={handleOpenChange}
       trigger={children || <Button className="h-12 rounded-full bg-zinc-900 px-8 text-[10px] font-black uppercase tracking-widest text-white dark:bg-white dark:text-black">Gerar cobrança</Button>}
-      className="flex h-[90vh] flex-col overflow-hidden rounded-[40px] border border-zinc-200 bg-white p-0 shadow-2xl dark:border-white/10 dark:bg-zinc-950 sm:max-w-[650px]"
+      className="flex h-[90vh] flex-col overflow-hidden rounded-[40px] border border-zinc-200 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(246,246,247,0.94))] p-0 shadow-[0_42px_140px_-52px_rgba(0,0,0,0.58)] dark:border-white/10 dark:bg-[linear-gradient(145deg,rgba(10,10,11,0.98),rgba(18,18,20,0.94))] sm:max-w-[650px]"
     >
       <div className="flex h-full flex-col overflow-hidden">
-        {step === "success" ? renderSuccess() : renderForm()}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, y: 14, scale: 0.985, filter: "blur(8px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -10, scale: 0.985, filter: "blur(8px)" }}
+            transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+            className="h-full"
+          >
+            {step === "success" ? renderSuccess() : renderForm()}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </ResponsiveModal>
   );

@@ -16,9 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePatientById } from "@/hooks/use-patient-by-id";
 import { useSessionNotes } from "@/hooks/use-session-notes";
 import { cn } from "@/lib/utils";
-import { addWeeks, format } from "date-fns";
+import { format } from "date-fns";
 import {
-    ArrowLeft, Cake, ClipboardList, Edit, Edit2, FileOutput, FileText, Loader2, MapPin, Package, Phone, Pill, RotateCw, Shield,
+    ArrowLeft, Cake, ClipboardList, Edit, Edit2, FileOutput, FileText, MapPin, Package, Phone, Pill, Shield,
     Smile, Target,
     Wallet
 } from "lucide-react";
@@ -26,7 +26,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 
-import { SideNotes } from "@/components/patients/anamnesis/SideNotes";
 import { BiofeedbackWidget } from "@/components/patients/BiofeedbackWidget";
 import { ClinicalSummaryCard } from "@/components/patients/ClinicalSummaryCard";
 import { MedicationUpdateModal } from "@/components/patients/MedicationUpdateModal";
@@ -37,8 +36,6 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
-import { useAddAppointment } from "@/hooks/use-add-appointment";
-import { usePatientAppointments } from "@/hooks/use-patient-appointments";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -195,6 +192,16 @@ export default function PatientDetail() {
         );
     }
 
+    const patientTabs = [
+        { val: "history", label: "Histórico", icon: FileText },
+        { val: "anamnesis", label: "Anamneses", icon: ClipboardList },
+        { val: "mood", label: "Humor", icon: Smile },
+        { val: "goals", label: "Metas", icon: Target },
+        { val: "packages", label: "Planos", icon: Package },
+        { val: "finance", label: "Financeiro", icon: Wallet },
+        { val: "documents", label: "Arquivos", icon: FileOutput },
+    ];
+
     return (
         <div className="neuronex-bg relative min-h-screen w-full bg-transparent pb-28 pt-5 font-sans text-foreground selection:bg-zinc-900/10 dark:selection:bg-white/10">
             <div className="pointer-events-none fixed inset-0 z-0 premium-noise opacity-[0.018] dark:opacity-[0.04]" />
@@ -223,7 +230,7 @@ export default function PatientDetail() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => navigate('/pacientes')}
-                                className="h-10 w-10 shrink-0 rounded-xl border border-zinc-200/70 bg-white text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:border-white/[0.07] dark:bg-white/[0.035] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black"
+                                className="h-10 w-10 shrink-0 rounded-full border border-zinc-200/70 bg-white text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:border-white/[0.07] dark:bg-white/[0.035] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black"
                             >
                                 <ArrowLeft className="h-4 w-4" />
                             </Button>
@@ -237,6 +244,8 @@ export default function PatientDetail() {
                         {/* Right Side: Actions */}
                         <div className="flex shrink-0 items-center gap-2">
 
+                            {false && (
+                                <>
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -249,6 +258,8 @@ export default function PatientDetail() {
                             </Button>
 
                             <div className="mx-1 hidden h-5 w-px bg-zinc-200 dark:bg-white/[0.055] sm:block" />
+                                </>
+                            )}
 
                             <Select value={patient.status || ""} onValueChange={handleStatusChange}>
                                 <SelectTrigger className="h-10 w-auto gap-2 rounded-xl border border-zinc-200/70 bg-white px-4 text-[9px] font-black uppercase tracking-[0.17em] text-zinc-600 shadow-sm ring-0 transition-all hover:bg-zinc-100 focus:ring-0 dark:border-white/[0.07] dark:bg-white/[0.035] dark:text-zinc-300 dark:hover:bg-white/[0.07]">
@@ -266,6 +277,38 @@ export default function PatientDetail() {
                                     <SelectItem value="archived" className="rounded-2xl font-black text-[10px] uppercase tracking-widest py-3 text-orange-500">Arquivado</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                    </div>
+
+                    <div
+                        ref={scrollContainerRef}
+                        onMouseDown={handleMouseDown}
+                        onMouseLeave={handleMouseLeaveOrUp}
+                        onMouseUp={handleMouseLeaveOrUp}
+                        onMouseMove={handleMouseMove}
+                        className={cn(
+                            "mt-3 flex select-none items-center overflow-x-auto rounded-[22px] border border-zinc-200/65 bg-zinc-50/80 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/[0.07] dark:bg-white/[0.025]",
+                            isDragging ? "cursor-grabbing" : "cursor-grab",
+                            "custom-premium-scrollbar"
+                        )}
+                    >
+                        <div className="flex min-w-max flex-1 items-center justify-between gap-1">
+                            {patientTabs.map((tab) => (
+                                <button
+                                    key={tab.val}
+                                    type="button"
+                                    onClick={() => setActiveTab(tab.val)}
+                                    className={cn(
+                                        "relative flex h-10 items-center gap-2 whitespace-nowrap rounded-[16px] px-4 text-[9px] font-black uppercase tracking-[0.16em] transition-all duration-300 active:scale-95",
+                                        activeTab === tab.val
+                                            ? "bg-zinc-950 text-white shadow-[0_14px_34px_-22px_rgba(0,0,0,0.72)] dark:bg-white dark:text-black"
+                                            : "text-zinc-400 hover:bg-white hover:text-zinc-950 dark:text-zinc-500 dark:hover:bg-white/[0.055] dark:hover:text-white"
+                                    )}
+                                >
+                                    <tab.icon className="h-3.5 w-3.5" />
+                                    {tab.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -362,26 +405,18 @@ export default function PatientDetail() {
                             </div>
                         </GlassCard>
 
-                        <div className="h-[520px] overflow-hidden rounded-[24px]">
-                            <SideNotes />
-                        </div>
                     </aside>
 
                     {/* RIGHT COLUMN: Content Area */}
                     <main className="min-w-0 space-y-7 p-5 pb-16 md:p-7 lg:p-8">
 
-                        <ClinicalSummaryCard latestNote={latestNote} patient={patient} />
+                        {false && <ClinicalSummaryCard latestNote={latestNote} patient={patient} />}
 
                         <div className="relative flex min-h-[760px] w-full flex-col">
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
 
-                                <div className="sticky top-[84px] z-30 mb-5">
+                                <div className="hidden">
                                     <div
-                                        ref={scrollContainerRef}
-                                        onMouseDown={handleMouseDown}
-                                        onMouseLeave={handleMouseLeaveOrUp}
-                                        onMouseUp={handleMouseLeaveOrUp}
-                                        onMouseMove={handleMouseMove}
                                         className={cn(
                                             "flex w-full select-none items-center overflow-x-auto rounded-2xl border border-zinc-200/75 bg-white/88 p-1.5 shadow-[0_18px_50px_-36px_rgba(24,24,27,0.3)] backdrop-blur-2xl transition-colors dark:border-white/[0.07] dark:bg-[#0b0c0e]/92 dark:shadow-[0_18px_50px_-36px_rgba(0,0,0,0.86)]",
                                             isDragging ? "cursor-grabbing" : "cursor-grab",
@@ -441,8 +476,16 @@ export default function PatientDetail() {
                                 </div>
 
                                 <div className="h-full">
-                                    <TabsContent value="history" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
-                                        <PatientHistoryTab patientId={id!} />
+                                    <TabsContent value="history" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden">
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
+                                            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                                            transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                                            className="space-y-7"
+                                        >
+                                            <ClinicalSummaryCard latestNote={latestNote} patient={patient} />
+                                            <PatientHistoryTab patientId={id!} />
+                                        </motion.div>
                                     </TabsContent>
                                     <TabsContent value="anamnesis" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
                                         <AnamnesisTab />

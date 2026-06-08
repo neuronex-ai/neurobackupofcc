@@ -98,6 +98,7 @@ export const useGenerateInvoice = () => {
       // Invalidate both for safety during transition, but primary is nb_payments
       queryClient.invalidateQueries({ queryKey: ['nb_payments'] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices-page'] });
       queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
     },
     onError: (error) => {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Loader2, Mail, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -12,7 +13,7 @@ interface SetPinFormProps {
     onSuccess: () => void;
 }
 
-type Step = "current" | "create" | "confirm" | "reset-code";
+type Step = "current" | "create" | "confirm" | "reset-code" | "password-reset";
 
 const PinSlots = ({
     value,
@@ -51,10 +52,12 @@ export const SetPinForm = ({ onSuccess }: SetPinFormProps) => {
     const [pin, setPin] = useState("");
     const [confirmPin, setConfirmPin] = useState("");
     const [resetCode, setResetCode] = useState("");
+    const [accountPassword, setAccountPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [resetRequested, setResetRequested] = useState(false);
 
     const title = useMemo(() => {
+        if (step === "password-reset") return "Confirme sua senha";
         if (step === "current") return "Confirme seu PIN atual";
         if (step === "reset-code") return "Código enviado por e-mail";
         if (step === "confirm") return "Confirme seu novo PIN";
@@ -62,6 +65,7 @@ export const SetPinForm = ({ onSuccess }: SetPinFormProps) => {
     }, [hasExistingPin, step]);
 
     const description = useMemo(() => {
+        if (step === "password-reset") return "Usaremos sua senha de acesso apenas para autorizar a redefinição.";
         if (step === "current") return "Digite o PIN atual para alterar sua assinatura digital.";
         if (step === "reset-code") return "Use o código recebido no e-mail da sua conta.";
         if (step === "confirm") return "Digite novamente para evitar erro de digitação.";
@@ -73,6 +77,7 @@ export const SetPinForm = ({ onSuccess }: SetPinFormProps) => {
         setPin("");
         setConfirmPin("");
         setResetCode("");
+        setAccountPassword("");
         setStep(hasExistingPin ? "current" : "create");
     };
 
@@ -112,6 +117,7 @@ export const SetPinForm = ({ onSuccess }: SetPinFormProps) => {
                     pin: finalPin,
                     current_pin: currentPin || undefined,
                     reset_code: resetCode || undefined,
+                    account_password: accountPassword || undefined,
                 },
             });
 
@@ -156,6 +162,25 @@ export const SetPinForm = ({ onSuccess }: SetPinFormProps) => {
                             if (value.length === 6) setTimeout(() => setStep("create"), 220);
                         }}
                     />
+                )}
+
+                {step === "password-reset" && (
+                    <div className="w-[280px] animate-in fade-in slide-in-from-right-8 duration-300 space-y-3">
+                        <Input
+                            type="password"
+                            value={accountPassword}
+                            onChange={(event) => setAccountPassword(event.target.value)}
+                            placeholder="Senha da sua conta"
+                            className="h-12 rounded-xl border-white/10 bg-[#151518] text-center text-sm font-bold text-white shadow-inner placeholder:text-zinc-600 focus:border-white/35 focus:ring-0"
+                        />
+                        <Button
+                            type="button"
+                            onClick={() => accountPassword.length >= 6 ? setStep("create") : toast.error("Digite sua senha para continuar.")}
+                            className="h-10 w-full rounded-xl bg-white text-[10px] font-black uppercase tracking-[0.16em] text-black hover:bg-zinc-200"
+                        >
+                            Continuar
+                        </Button>
+                    </div>
                 )}
 
                 {step === "create" && (
@@ -205,19 +230,30 @@ export const SetPinForm = ({ onSuccess }: SetPinFormProps) => {
             </div>
 
             {hasExistingPin && step !== "reset-code" && (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={requestResetCode}
-                    disabled={isLoading}
-                    className="h-9 rounded-full px-4 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400 hover:bg-white/5 hover:text-white"
-                >
-                    <Mail className="mr-2 h-3.5 w-3.5" />
-                    Esqueci meu PIN
-                </Button>
+                <div className="flex flex-wrap justify-center gap-2">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={requestResetCode}
+                        disabled={isLoading}
+                        className="h-9 rounded-full px-4 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400 hover:bg-white/5 hover:text-white"
+                    >
+                        <Mail className="mr-2 h-3.5 w-3.5" />
+                        Receber código
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setStep("password-reset")}
+                        disabled={isLoading}
+                        className="h-9 rounded-full px-4 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400 hover:bg-white/5 hover:text-white"
+                    >
+                        Redefinir com senha
+                    </Button>
+                </div>
             )}
 
-            {(step === "create" || step === "confirm") && (currentPin || resetCode) && (
+            {(step === "create" || step === "confirm") && (currentPin || resetCode || accountPassword) && (
                 <Button
                     type="button"
                     variant="ghost"
