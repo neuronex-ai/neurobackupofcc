@@ -196,15 +196,15 @@ export default function PatientDetail() {
     }
 
     return (
-        <div className="neuronex-bg relative min-h-screen w-full bg-[#f4f4f5] pb-28 pt-5 font-sans text-foreground selection:bg-zinc-900/10 dark:bg-[#050506] dark:selection:bg-white/10">
-            <div className="pointer-events-none fixed inset-0 z-0 premium-noise opacity-[0.025] dark:opacity-[0.035]" />
+        <div className="neuronex-bg relative min-h-screen w-full bg-transparent pb-28 pt-5 font-sans text-foreground selection:bg-zinc-900/10 dark:selection:bg-white/10">
+            <div className="pointer-events-none fixed inset-0 z-0 premium-noise opacity-[0.018] dark:opacity-[0.04]" />
             <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-                <div className="liquid-mesh-bg !opacity-35 dark:!opacity-55" />
-                <div className="brand-neutral-gradient opacity-65" />
+                <div className="liquid-mesh-bg !opacity-40 dark:!opacity-58" />
+                <div className="brand-neutral-gradient opacity-70" />
             </div>
 
             <div className="relative z-10 mx-auto w-full max-w-[2200px] px-5">
-                <section className="relative isolate overflow-visible rounded-[30px] border border-zinc-200/80 bg-white/76 shadow-[0_24px_64px_-42px_rgba(24,24,27,0.2),inset_0_1px_0_rgba(255,255,255,0.94)] backdrop-blur-2xl dark:border-white/[0.07] dark:bg-[#090a0c]/92 dark:shadow-[0_24px_64px_-42px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.035)]">
+                <section className="relative isolate overflow-visible rounded-[34px] border border-zinc-200/72 bg-white/66 shadow-[0_24px_70px_-48px_rgba(24,24,27,0.24),inset_0_1px_0_rgba(255,255,255,0.92)] backdrop-blur-2xl dark:border-white/[0.07] dark:bg-[#090a0c]/88 dark:shadow-[0_24px_70px_-48px_rgba(0,0,0,0.84),inset_0_1px_0_rgba(255,255,255,0.035)]">
                     <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[30px] premium-noise opacity-[0.012] dark:opacity-[0.018]" />
 
             {/* ─── Header Top Bar ─── */}
@@ -212,7 +212,7 @@ export default function PatientDetail() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: "circOut" }}
-                className="sticky top-3 z-40 w-full rounded-t-[30px] border-b border-zinc-200/70 bg-white/86 px-4 py-3 backdrop-blur-2xl dark:border-white/[0.06] dark:bg-[#0b0c0e]/92"
+                className="sticky top-3 z-40 mx-4 mt-4 rounded-[28px] border border-zinc-200/72 bg-white/84 px-4 py-3 shadow-[0_18px_52px_-38px_rgba(24,24,27,0.34),inset_0_1px_0_rgba(255,255,255,0.88)] backdrop-blur-3xl dark:border-white/[0.08] dark:bg-[#0b0c0e]/88 dark:shadow-[0_18px_52px_-38px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.04)]"
             >
                 <div className="w-full">
                     <div className="flex w-full items-center justify-between gap-4">
