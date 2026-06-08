@@ -54,6 +54,30 @@ async function sendResetEmail(email: string, code: string) {
     return true;
 }
 
+async function verifyAccountPassword(email: string, password?: string) {
+    if (!password || password.length < 6) return false;
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim().replace(/\/+$/, "") || "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")?.trim() || Deno.env.get("SUPABASE_ANON_PUBLIC_KEY")?.trim() || "";
+
+    if (!supabaseUrl || !anonKey) {
+        console.warn("[financial-pin] Missing Supabase public key for password reauthentication.");
+        return false;
+    }
+
+    const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${anonKey}`,
+            "Content-Type": "application/json",
+            apikey: anonKey,
+        },
+        body: JSON.stringify({ email, password }),
+    });
+
+    return res.ok;
+}
+
 Deno.serve(async (req: Request) => {
     if (req.method === "OPTIONS") return corsResponse();
 
@@ -109,6 +133,10 @@ Deno.serve(async (req: Request) => {
                 if (!authorized && resetCode && settings?.reset_token_hash && settings?.reset_token_expires_at) {
                     const notExpired = new Date(settings.reset_token_expires_at).getTime() > Date.now();
                     authorized = notExpired && await bcrypt.compare(resetCode, settings.reset_token_hash);
+                }
+
+                if (!authorized && user.email && body.account_password) {
+                    authorized = await verifyAccountPassword(user.email, String(body.account_password));
                 }
 
                 if (!authorized) {

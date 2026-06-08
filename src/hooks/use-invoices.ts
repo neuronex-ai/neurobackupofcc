@@ -35,8 +35,17 @@ const mapNbPayment = (payment: any): Invoice => ({
     due_date: payment.expires_at,
     created_at: payment.created_at,
     description: payment.description,
-    payment_url: payment.checkout_url || payment.invoice_url || payment.metadata?.asaas_invoice_url,
-    pdf_url: payment.bank_slip_url || payment.metadata?.asaas_bank_slip_url,
+    payment_url:
+        payment.checkout_url ||
+        payment.invoice_url ||
+        payment.metadata?.checkout_url ||
+        payment.metadata?.invoice_url ||
+        payment.metadata?.asaas_invoice_url ||
+        payment.metadata?.payment_url,
+    pdf_url:
+        payment.bank_slip_url ||
+        payment.metadata?.bank_slip_url ||
+        payment.metadata?.asaas_bank_slip_url,
     gateway_payment_id: payment.provider_payment_id,
     ...(payment as any),
 });
@@ -64,14 +73,11 @@ const selectLegacy = `
     description
 `;
 
-const selectNb = `
+const selectNbBase = `
     id,
     user_id,
     patient_id,
     checkout_url,
-    receipt_url,
-    invoice_url,
-    bank_slip_url,
     gross_amount,
     net_amount,
     platform_fee_amount,
@@ -89,9 +95,21 @@ const selectNb = `
     created_at,
     description,
     provider_payment_id,
-    cancelable,
     metadata
 `;
+
+const selectNbExtended = `
+    ${selectNbBase},
+    receipt_url,
+    invoice_url,
+    bank_slip_url,
+    cancelable
+`;
+
+const isMissingColumnError = (error?: { message?: string; details?: string; hint?: string; code?: string } | null) => {
+    const text = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""} ${error?.code || ""}`.toLowerCase();
+    return text.includes("column") || text.includes("schema cache") || text.includes("does not exist") || text.includes("42703");
+};
 
 export const fetchInvoicesPage = async (userId: string, params: InvoiceListParams = {}): Promise<InvoiceListResult> => {
     const page = Math.max(1, params.page || 1);
@@ -111,18 +129,27 @@ export const fetchInvoicesPage = async (userId: string, params: InvoiceListParam
         legacyQuery = legacyQuery.or(`description.ilike.%${search}%,invoice_number.ilike.%${search}%`);
     }
 
-    let nbQuery = supabase
-        .from("nb_payments")
-        .select(selectNb, { count: "exact" })
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .range(from, to);
+    const buildNbQuery = (select: string) => {
+        let query = supabase
+            .from("nb_payments")
+            .select(select, { count: "exact" })
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .range(from, to);
 
-    if (search) {
-        nbQuery = nbQuery.ilike("description", `%${search}%`);
+        if (search) {
+            query = query.ilike("description", `%${search}%`);
+        }
+
+        return query;
+    };
+
+    const [legacyResult, nbResultInitial] = await Promise.all([legacyQuery, buildNbQuery(selectNbExtended)]);
+    let nbResult = nbResultInitial;
+
+    if (nbResultInitial.error && isMissingColumnError(nbResultInitial.error)) {
+        nbResult = await buildNbQuery(selectNbBase);
     }
-
-    const [legacyResult, nbResult] = await Promise.all([legacyQuery, nbQuery]);
 
     if (legacyResult.error) console.error("Erro ao buscar faturas legadas:", legacyResult.error);
     if (nbResult.error) console.error("Erro ao buscar cobranças NeuroFinance:", nbResult.error);

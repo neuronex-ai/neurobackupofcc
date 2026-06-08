@@ -30,6 +30,7 @@ export const BankTransferView = () => {
     const { account } = useFinancialAccount();
     const { mutateAsync: requestPayout } = useRequestPayout();
     const balance = balanceData?.balance || 0;
+    const balanceInCents = Math.max(0, Math.round(balance * 100));
 
     const [amount, setAmount] = useState("");
     const [mode, setMode] = useState<DestinationMode>("saved_bank");
@@ -65,13 +66,13 @@ export const BankTransferView = () => {
             summary: pixKey.trim(),
         };
 
-    const canContinue = amountInCents > 0 && amountInCents <= balance && Boolean(
+    const canContinue = amountInCents > 0 && amountInCents <= balanceInCents && Boolean(
         mode === "saved_bank" ? savedBankDestination : pixKey.trim().length >= 5
     );
 
     const handleContinue = () => {
         if (amountInCents <= 0) return toast.error("Digite um valor válido.");
-        if (amountInCents > balance) return toast.error("Saldo insuficiente para este saque.");
+        if (amountInCents > balanceInCents) return toast.error("Saldo insuficiente para este saque.");
         if (!selectedDestination) return toast.error("Escolha um destino para o saque.");
         setShowPin(true);
     };
