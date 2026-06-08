@@ -28,6 +28,7 @@ import {
     Trash2,
     TrendingDown,
     TrendingUp,
+    Users,
     Wallet,
     X,
 } from "lucide-react";
@@ -231,6 +232,7 @@ type ManagementView =
     | "cash-flow"
     | "charges-generated"
     | "client-config"
+    | "repasses-convenio"
     | "invoice-panel";
 
 interface ManagementSubItem {
@@ -263,7 +265,6 @@ const MANAGEMENT_NAV: ManagementNavGroup[] = [
             { id: "income", label: "Receitas", icon: TrendingUp, description: "Receitas previstas, pendentes e pagas." },
             { id: "expenses", label: "Despesas", icon: TrendingDown, description: "Despesas previstas, pendentes e pagas." },
             { id: "statement", label: "Extrato", icon: ClipboardList, description: "Extrato gerencial sem transacoes bancarias reais." },
-            { id: "cash-flow", label: "Fluxo de caixa", icon: BarChart3, description: "Competencia, vencimentos e resultado mensal." },
         ],
     },
     {
@@ -273,6 +274,22 @@ const MANAGEMENT_NAV: ManagementNavGroup[] = [
         subItems: [
             { id: "charges-generated", label: "Cobrancas geradas", icon: Receipt, description: "Cobrancas vinculadas a receitas gerenciais." },
             { id: "client-config", label: "Configuracao por cliente", icon: Settings, description: "Preferencias de cobranca por paciente ou convenio." },
+        ],
+    },
+    {
+        id: "analytics-root",
+        label: "Gestao & Analise",
+        icon: PieChart,
+        subItems: [
+            { id: "cash-flow", label: "Fluxo de caixa", icon: BarChart3, description: "Competencia, vencimentos e resultado mensal." },
+        ],
+    },
+    {
+        id: "repasses-root",
+        label: "Repasses/Convenio",
+        icon: Users,
+        subItems: [
+            { id: "repasses-convenio", label: "Repasses de convenio", icon: Users, description: "Conciliacao de sessoes realizadas com convenio." },
         ],
     },
     {
@@ -327,6 +344,12 @@ const MANAGEMENT_VIEW_META: Record<ManagementView, { title: string; subtitle: st
         subtitle: "Preferencias financeiras por paciente ou convenio",
         icon: Settings,
         items: ["Metodo padrao", "Prazos de vencimento", "Regras de cobranca por perfil"],
+    },
+    "repasses-convenio": {
+        title: "Repasses/Convenio",
+        subtitle: "Sessoes liberadas, conciliadas e nao conciliadas",
+        icon: Users,
+        items: ["Conciliacao em lote", "Filtro por convenio", "Alteracao de repasses em massa"],
     },
     "invoice-panel": {
         title: "Painel fiscal",

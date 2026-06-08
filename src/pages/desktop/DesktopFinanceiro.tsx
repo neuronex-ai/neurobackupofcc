@@ -59,7 +59,7 @@ interface NavItem {
     }[];
 }
 
-const FINANCE_NAV: NavItem[] = [
+const LEGACY_FINANCE_NAV: NavItem[] = [
     {
         id: 'neurofinance',
         label: "NeuroFinance",
@@ -168,6 +168,132 @@ const FINANCE_NAV: NavItem[] = [
     }
 ];
 
+const FINANCE_NAV: NavItem[] = [
+    {
+        id: 'account-balance-root',
+        label: "Conta e Saldo",
+        icon: CreditCard,
+        subItems: [
+            { id: 'conta-digital', label: 'Conta e Saldo', icon: CreditCard },
+        ],
+    },
+    {
+        id: 'pix-root',
+        label: "Area Pix",
+        icon: BadgeCent,
+        subItems: [
+            { id: 'pix-pagar', label: 'Pagar Pix', icon: QrCode, tag: 'Gratis', description: 'Cole um Pix copia e cola e pague pela conta NeuroFinance' },
+            { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Gratis', description: 'Crie um QR Code para receber na hora' },
+            { id: 'pix-receber', label: 'Pix recebidos', icon: ArrowDownLeft, tag: 'Gratis', description: 'Veja o que entrou por Pix' },
+            { id: 'pix-chaves', label: 'Minhas chaves', icon: Key, description: 'Cadastre e gerencie suas chaves Pix' },
+            { id: 'pix-salarios', label: 'Pagar salarios', icon: Users, tag: 'Gratis', description: 'Envie Pix em lote para sua equipe' },
+            { id: 'pix-limites', label: 'Limites do Pix', icon: ShieldCheck, tag: 'No App', description: 'Ajuste limites de seguranca da conta' },
+        ],
+    },
+    {
+        id: 'statement-root',
+        label: "Extrato Detalhado",
+        icon: FileText,
+        subItems: [
+            { id: 'extrato', label: 'Extrato Detalhado', icon: FileText },
+        ],
+    },
+    {
+        id: 'cobrancas-root',
+        label: "Cobrancas",
+        icon: WalletCards,
+        subItems: [
+            { id: 'cobrancas-historia', label: 'Todas as cobrancas', icon: History },
+            { id: 'cobrancas-simulador', label: 'Simulador de vendas', icon: BadgeCent },
+            { id: 'cobrancas-config', label: 'Regras automaticas', icon: Settings },
+        ],
+    },
+    {
+        id: 'receitas-root',
+        label: "Receitas",
+        icon: ArrowUpRight,
+        subItems: [
+            { id: 'receitas', label: 'Entradas Confirmadas', icon: ArrowUpRight },
+        ],
+    },
+    {
+        id: 'despesas-root',
+        label: "Despesas",
+        icon: ArrowDownLeft,
+        subItems: [
+            { id: 'despesas', label: 'Saidas Confirmadas', icon: ArrowDownLeft },
+        ],
+    },
+    {
+        id: 'pagamentos-root',
+        label: "Pagamentos",
+        icon: Receipt,
+        subItems: [
+            { id: 'pagamentos-boletos', label: 'Pagar boletos', icon: Barcode, description: 'Digite, arraste imagem ou anexe PDF' },
+            { id: 'pagamentos-pix', label: 'Pagar Pix', icon: QrCode, description: 'Pague com Pix copia e cola' },
+        ],
+    },
+    {
+        id: 'antecipacoes-root',
+        label: "Antecipacao",
+        icon: TrendingUp,
+        subItems: [
+            { id: 'antecipacoes-lista', label: 'Minhas antecipacoes', icon: History },
+            { id: 'antecipacoes-solicitar', label: 'Antecipar recebimento', icon: TrendingUp },
+            { id: 'antecipacoes-automatica', label: 'Antecipacao automatica', icon: Repeat },
+        ],
+    },
+    {
+        id: 'transfers-root',
+        label: "Transferencias",
+        icon: Send,
+        subItems: [
+            { id: 'pix-transferir', label: 'Transferir via Pix', icon: Send, tag: 'Gratis', description: 'Envie dinheiro para uma chave Pix' },
+        ],
+    },
+    {
+        id: 'withdrawals-root',
+        label: "Saques",
+        icon: ArrowDownLeft,
+        subItems: [
+            { id: 'transferencias', label: 'Saques', icon: Send },
+        ],
+    },
+    {
+        id: 'chargebacks-root',
+        label: "Chargebacks",
+        icon: Activity,
+        subItems: [
+            { id: 'cobrancas-chargebacks', label: 'Chargebacks', icon: Activity },
+        ],
+    },
+    {
+        id: 'bank-settings-root',
+        label: "Configuracoes bancarias",
+        icon: Landmark,
+        subItems: [
+            { id: 'contas-bancarias', label: 'Conta bancaria', icon: Landmark },
+        ],
+    },
+    {
+        id: 'fiscal-root',
+        label: "NFS-e",
+        icon: FileText,
+        subItems: [
+            { id: 'fiscal-painel', label: 'Painel Fiscal', icon: LayoutDashboard },
+            { id: 'fiscal-lista', label: 'Minhas Notas', icon: FileCheck },
+        ],
+    },
+    {
+        id: 'tarifas-root',
+        label: "Tarifas",
+        icon: Receipt,
+        subItems: [
+            { id: 'tarifas', label: 'Custos e prazos', icon: Receipt },
+        ],
+    },
+];
+
 const DesktopFinanceiro = () => {
     const {
         syncAccount,
@@ -185,7 +311,7 @@ const DesktopFinanceiro = () => {
     const [activeView, setActiveView] = useState<FinanceView>('conta-digital');
     const [extratoTab, setExtratoTab] = useState<'realizado' | 'futuro' | 'assinaturas'>('realizado');
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-    const [expandedGroups, setExpandedGroups] = useState<string[]>(['neurofinance']);
+    const [expandedGroups, setExpandedGroups] = useState<string[]>(['account-balance-root']);
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
     const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'wizard'>('welcome');
 
