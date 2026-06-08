@@ -65,8 +65,6 @@ export default function PatientDetail() {
 
     const { data: patient, isLoading: isLoadingPatient } = usePatientById(id || "");
     const { data: notes, isLoading: isLoadingNotes } = useSessionNotes(id || "");
-    const { data: appointments } = usePatientAppointments();
-    const { mutate: addAppointment, isPending: isScheduling } = useAddAppointment();
     const queryClient = useQueryClient();
 
     const handleStatusChange = async (newStatus: string) => {
@@ -123,38 +121,6 @@ export default function PatientDetail() {
     }
 
     const latestNote = notes?.[0];
-
-    const handleRepeatLastAppointment = () => {
-        if (!appointments || appointments.length === 0) {
-            toast.error("Nenhum agendamento anterior para repetir.");
-            return;
-        }
-
-        const lastAppt = appointments
-            .filter(a => a.patient_id === id)
-            .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())[0];
-
-        if (!lastAppt) {
-            toast.error("Nenhum agendamento encontrado.");
-            return;
-        }
-
-        const lastDate = new Date(lastAppt.start_time);
-        const nextDate = addWeeks(lastDate, 1);
-        const durationMs = new Date(lastAppt.end_time).getTime() - lastDate.getTime();
-        const nextEndTime = new Date(nextDate.getTime() + durationMs);
-
-        addAppointment({
-            patient_id: id!,
-            start_time: nextDate,
-            end_time: nextEndTime,
-            type: lastAppt.type,
-            notes: "Repetição rápida",
-            location: lastAppt.location
-        }, {
-            onSuccess: () => toast.success("Agendamento repetido para próxima semana!")
-        });
-    };
 
     if (isLoading) {
         return (
@@ -243,24 +209,6 @@ export default function PatientDetail() {
 
                         {/* Right Side: Actions */}
                         <div className="flex shrink-0 items-center gap-2">
-
-                            {false && (
-                                <>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleRepeatLastAppointment}
-                                disabled={isScheduling}
-                                className="hidden h-10 gap-2 rounded-xl px-4 text-[9px] font-black uppercase tracking-[0.18em] text-zinc-500 transition-all hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-500 dark:hover:bg-white/[0.055] dark:hover:text-white sm:flex"
-                            >
-                                {isScheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
-                                Repetir sessão
-                            </Button>
-
-                            <div className="mx-1 hidden h-5 w-px bg-zinc-200 dark:bg-white/[0.055] sm:block" />
-                                </>
-                            )}
-
                             <Select value={patient.status || ""} onValueChange={handleStatusChange}>
                                 <SelectTrigger className="h-10 w-auto gap-2 rounded-xl border border-zinc-200/70 bg-white px-4 text-[9px] font-black uppercase tracking-[0.17em] text-zinc-600 shadow-sm ring-0 transition-all hover:bg-zinc-100 focus:ring-0 dark:border-white/[0.07] dark:bg-white/[0.035] dark:text-zinc-300 dark:hover:bg-white/[0.07]">
                                     <div className="flex items-center gap-3">
