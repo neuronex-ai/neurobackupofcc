@@ -775,7 +775,7 @@ const OptionsDropdown = ({
                         initial={{ opacity: 0, y: 8, scale: 0.98 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                        className="absolute right-0 top-13 z-[120] w-72 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-2 shadow-2xl dark:border-white/10 dark:bg-zinc-950"
+                        className="absolute right-0 top-14 z-[120] w-72 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-2 shadow-2xl dark:border-white/10 dark:bg-zinc-950"
                     >
                         {items.map((item) => (
                             <button
@@ -968,6 +968,617 @@ const ManagementOverview = ({ motionProps }: { motionProps: any }) => (
     </motion.div>
 );
 
+const FinanceMetricCards = ({ cards }: { cards: { title: string; value: string; footer: string[]; icon: LucideIcon; tone?: string }[] }) => (
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+        {cards.map((card) => (
+            <div key={card.title} className="relative overflow-hidden rounded-[32px] border border-zinc-200/50 bg-white/60 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.015]">
+                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.02] dark:opacity-[0.04]" />
+                <div className="relative z-10 flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.26em] text-zinc-400 dark:text-zinc-500">{card.title}</p>
+                        <p className="mt-5 text-4xl font-black tracking-[-0.055em] text-zinc-950 dark:text-white">{card.value}</p>
+                    </div>
+                    <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-white/10 dark:bg-white/[0.04]", card.tone)}>
+                        <card.icon className="h-5 w-5" />
+                    </div>
+                </div>
+                <div className="relative z-10 mt-6 flex flex-wrap gap-2">
+                    {card.footer.map((item) => (
+                        <span key={item} className="rounded-full border border-zinc-200/70 bg-zinc-50/80 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400">
+                            {item}
+                        </span>
+                    ))}
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+const FinanceToolbar = ({
+    periodLabel = "Ano",
+    periodValue = "2026",
+    addLabel,
+    onAdd,
+    options,
+}: {
+    periodLabel?: string;
+    periodValue?: string;
+    addLabel?: string;
+    onAdd?: () => void;
+    options?: ReactNode;
+}) => (
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <label className="flex h-11 w-fit items-center gap-3 rounded-2xl border border-zinc-200 bg-white/70 px-4 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">{periodLabel}</span>
+            <select className="bg-transparent text-xs font-black text-zinc-700 outline-none dark:text-zinc-200" defaultValue={periodValue}>
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+                <option value="jun/2026">Jun/2026</option>
+            </select>
+        </label>
+        <div className="flex flex-wrap gap-3">
+            {addLabel && onAdd ? (
+                <button
+                    type="button"
+                    onClick={onAdd}
+                    className="inline-flex h-11 items-center gap-3 rounded-2xl bg-zinc-950 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-xl transition-opacity hover:opacity-90 dark:bg-white dark:text-zinc-950"
+                >
+                    <Plus className="h-4 w-4" />
+                    {addLabel}
+                </button>
+            ) : null}
+            {options}
+        </div>
+    </div>
+);
+
+const FinancialBarsChart = ({
+    title,
+    subtitle,
+    bars,
+    lineKey,
+    lineName,
+}: {
+    title: string;
+    subtitle: string;
+    bars: { key: string; name: string; fill: string; stackId?: string }[];
+    lineKey: string;
+    lineName: string;
+}) => (
+    <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
+        <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.04]" />
+        <div className="relative z-10 mb-6">
+            <h3 className="text-lg font-black uppercase tracking-tight text-zinc-950 dark:text-white">{title}</h3>
+            <p className="mt-2 max-w-xl text-xs font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">{subtitle}</p>
+        </div>
+        <div className="relative z-10 h-[330px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={financeChartData} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-white/10" />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: "currentColor" }} className="text-zinc-400" />
+                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `R$${Number(value) / 1000}k`} tick={{ fontSize: 10, fontWeight: 800, fill: "currentColor" }} className="text-zinc-400" />
+                    <Tooltip
+                        formatter={(value: number, name: string) => [moneyFormatter(Number(value)), name]}
+                        contentStyle={{
+                            borderRadius: 18,
+                            border: "1px solid rgba(148,163,184,.25)",
+                            background: "rgba(9,9,11,.92)",
+                            color: "white",
+                            boxShadow: "0 18px 60px -30px rgba(0,0,0,.8)",
+                        }}
+                        labelStyle={{ color: "rgba(255,255,255,.65)", fontWeight: 800 }}
+                    />
+                    {bars.map((bar) => (
+                        <Bar key={bar.key} name={bar.name} dataKey={bar.key} stackId={bar.stackId} fill={bar.fill} radius={[8, 8, 0, 0]} />
+                    ))}
+                    <Line name={lineName} type="monotone" dataKey={lineKey} stroke="#18181b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                </ComposedChart>
+            </ResponsiveContainer>
+        </div>
+        <div className="relative z-10 mt-6 flex flex-wrap gap-3">
+            {bars.map((bar) => (
+                <div key={bar.key} className="flex items-center gap-2 rounded-full border border-zinc-200/70 bg-zinc-50/80 px-3 py-1.5 dark:border-white/10 dark:bg-white/[0.035]">
+                    <span className="h-2 w-2 rounded-full" style={{ background: bar.fill }} />
+                    <span className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">{bar.name}</span>
+                </div>
+            ))}
+            <div className="flex items-center gap-2 rounded-full border border-zinc-200/70 bg-zinc-50/80 px-3 py-1.5 dark:border-white/10 dark:bg-white/[0.035]">
+                <span className="h-2 w-6 rounded-full bg-zinc-950 dark:bg-white" />
+                <span className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">{lineName}</span>
+            </div>
+        </div>
+    </section>
+);
+
+const InfoBlock = ({ children }: { children: ReactNode }) => (
+    <div className="rounded-[26px] border border-sky-200/70 bg-sky-50/80 p-5 text-sm font-medium leading-relaxed text-sky-700 dark:border-sky-400/10 dark:bg-sky-400/10 dark:text-sky-200">
+        {children}
+    </div>
+);
+
+const IncomeView = ({
+    motionProps,
+    onAdd,
+    onManualCharge,
+    openMenu,
+    setOpenMenu,
+}: {
+    motionProps: any;
+    onAdd: () => void;
+    onManualCharge: () => void;
+    openMenu: ManagementOptionsMenu;
+    setOpenMenu: (menu: ManagementOptionsMenu) => void;
+}) => (
+    <motion.div {...motionProps} key="income-view" className="space-y-6 px-6 py-6">
+        <ManagementSectionHeader icon={TrendingUp} title="Receitas" subtitle="Entradas previstas, pagas e nao pagas" />
+        <FinanceToolbar
+            addLabel="Adicionar receita"
+            onAdd={onAdd}
+            options={
+                <OptionsDropdown
+                    id="income"
+                    openMenu={openMenu}
+                    setOpenMenu={setOpenMenu}
+                    items={[
+                        { label: "Exportar relatorio em PDF", icon: FileText, onClick: () => undefined },
+                        { label: "Exportar relatorio em Excel", icon: Download, onClick: () => undefined },
+                        { label: "Nova cobranca", icon: CreditCard, onClick: onManualCharge },
+                    ]}
+                />
+            }
+        />
+        <FinanceMetricCards
+            cards={[
+                { title: "Total Previsto", value: "R$ --", footer: ["Periodo: Junho 2026"], icon: BarChart3 },
+                { title: "Receitas Pagas", value: "R$ --", footer: ["Pago: R$ --"], icon: TrendingUp, tone: "text-emerald-600" },
+                { title: "Receitas Nao Pagas", value: "R$ --", footer: ["Nao pago: R$ --"], icon: AlertTriangle, tone: "text-amber-600" },
+            ]}
+        />
+        <FinancialBarsChart
+            title="Receitas previstas"
+            subtitle="Visualizacao de receitas pagas, nao pagas e total previsto por mes."
+            bars={[
+                { key: "paidIncome", name: "Receitas Pagas", fill: "#10b981", stackId: "income" },
+                { key: "unpaidIncome", name: "Receitas Nao Pagas", fill: "#86efac", stackId: "income" },
+            ]}
+            lineKey="totalIncome"
+            lineName="Total previsto"
+        />
+        <InfoBlock>
+            <p>A listagem abaixo sao todas as entradas lancadas no sistema, compostas por sessoes ou outras receitas, que:</p>
+            <p className="mt-3 font-black">1- Foram Pagas no Periodo: Junho 2026.</p>
+            <p className="mt-1 font-black">2- Possuem status de Nao pago com a Data de Vencimento no Periodo: Junho 2026.</p>
+            <p className="mt-3">Nao encontrou o que precisa nessa lista? Clique aqui pois disponibilizamos um novo relatorio chamado: <span className="font-black">Pagamento por Sessao</span>. Se mesmo assim nao te ajudar, entre em contato com nossa equipe.</p>
+        </InfoBlock>
+        <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
+            <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                    <h3 className="text-lg font-black uppercase tracking-tight text-zinc-950 dark:text-white">Lista de receitas</h3>
+                    <p className="mt-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Entradas gerenciais do periodo selecionado.</p>
+                </div>
+                <div className="flex h-10 items-center gap-2 rounded-2xl border border-zinc-200 bg-white/70 px-4 dark:border-white/10 dark:bg-white/[0.035]">
+                    <Search className="h-4 w-4 text-zinc-400" />
+                    <span className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Buscar</span>
+                </div>
+            </div>
+            <div className="overflow-hidden rounded-[24px] border border-zinc-200/70 dark:border-white/10">
+                <table className="w-full min-w-[860px] border-collapse text-left">
+                    <thead className="bg-zinc-50/90 dark:bg-white/[0.035]">
+                        <tr className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                            <th className="px-5 py-4">Paciente</th>
+                            <th className="px-5 py-4">Descricao</th>
+                            <th className="px-5 py-4">Origem</th>
+                            <th className="px-5 py-4">Vencimento</th>
+                            <th className="px-5 py-4">Status</th>
+                            <th className="px-5 py-4 text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
+                        {incomeRows.map((row) => (
+                            <tr key={`${row.patient}-${row.due}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.patient}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.origin}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
+                                <td className="px-5 py-4">
+                                    <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Pago" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600")}>{row.status}</span>
+                                </td>
+                                <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </motion.div>
+);
+
+const ExpensesView = ({
+    motionProps,
+    rows,
+    selectedIds,
+    toggleSelected,
+    onAdd,
+    onDeleteSelected,
+    openMenu,
+    setOpenMenu,
+}: {
+    motionProps: any;
+    rows: ExpenseRow[];
+    selectedIds: string[];
+    toggleSelected: (id: string) => void;
+    onAdd: () => void;
+    onDeleteSelected: () => void;
+    openMenu: ManagementOptionsMenu;
+    setOpenMenu: (menu: ManagementOptionsMenu) => void;
+}) => (
+    <motion.div {...motionProps} key="expenses-view" className="space-y-6 px-6 py-6">
+        <ManagementSectionHeader icon={TrendingDown} title="Despesas" subtitle="Saidas previstas, pagas e nao pagas" />
+        <FinanceToolbar
+            periodLabel="Periodo"
+            periodValue="jun/2026"
+            addLabel="Adicionar despesa"
+            onAdd={onAdd}
+            options={
+                <OptionsDropdown
+                    id="expenses"
+                    openMenu={openMenu}
+                    setOpenMenu={setOpenMenu}
+                    items={[
+                        { label: "Exportar relatorio em PDF", icon: FileText, onClick: () => undefined },
+                        { label: "Exportar relatorio em Excel", icon: Download, onClick: () => undefined },
+                        { label: "Excluir despesa", icon: Trash2, onClick: onDeleteSelected, danger: true },
+                    ]}
+                />
+            }
+        />
+        <FinanceMetricCards
+            cards={[
+                { title: "Total de Despesas", value: "R$ --", footer: ["Periodo: Junho 2026"], icon: BarChart3 },
+                { title: "Despesas pagas", value: "R$ --", footer: ["Pago: R$ --"], icon: TrendingDown, tone: "text-rose-600" },
+                { title: "Despesas nao pagas", value: "R$ --", footer: ["A pagar: R$ --"], icon: AlertTriangle, tone: "text-amber-600" },
+            ]}
+        />
+        <FinancialBarsChart
+            title="Despesas previstas"
+            subtitle="Visualizacao de despesas pagas, nao pagas e total mensal previsto."
+            bars={[
+                { key: "paidExpenses", name: "Despesas Pagas", fill: "#f43f5e", stackId: "expenses" },
+                { key: "unpaidExpenses", name: "Despesas Nao Pagas", fill: "#fda4af", stackId: "expenses" },
+            ]}
+            lineKey="totalExpenses"
+            lineName="Total de despesas"
+        />
+        <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
+            <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                <div>
+                    <h3 className="text-lg font-black uppercase tracking-tight text-zinc-950 dark:text-white">Lista de despesas</h3>
+                    <p className="mt-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Selecione despesas para usar a opcao de exclusao local.</p>
+                </div>
+                <span className="rounded-full bg-zinc-950 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950">
+                    {selectedIds.length} selecionada(s)
+                </span>
+            </div>
+            <div className="overflow-hidden rounded-[24px] border border-zinc-200/70 dark:border-white/10">
+                <table className="w-full min-w-[860px] border-collapse text-left">
+                    <thead className="bg-zinc-50/90 dark:bg-white/[0.035]">
+                        <tr className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                            <th className="px-5 py-4">Selecionar</th>
+                            <th className="px-5 py-4">Categoria</th>
+                            <th className="px-5 py-4">Descricao</th>
+                            <th className="px-5 py-4">Propriedade</th>
+                            <th className="px-5 py-4">Vencimento</th>
+                            <th className="px-5 py-4">Status</th>
+                            <th className="px-5 py-4 text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
+                        {rows.map((row) => (
+                            <tr key={row.id} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                <td className="px-5 py-4">
+                                    <input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} className="h-4 w-4 rounded border-zinc-300" />
+                                </td>
+                                <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.category}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.property}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
+                                <td className="px-5 py-4">
+                                    <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Pago" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600")}>{row.status}</span>
+                                </td>
+                                <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </motion.div>
+);
+
+const StatementView = ({
+    motionProps,
+    openMenu,
+    setOpenMenu,
+}: {
+    motionProps: any;
+    openMenu: ManagementOptionsMenu;
+    setOpenMenu: (menu: ManagementOptionsMenu) => void;
+}) => (
+    <motion.div {...motionProps} key="statement-view" className="space-y-6 px-6 py-6">
+        <ManagementSectionHeader icon={ClipboardList} title="Extrato" subtitle="Pagamentos gerenciais no periodo" />
+        <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
+            <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-4">
+                    <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Periodo:</span>
+                    <SelectShell className="w-64">
+                        <option>Jun/2026</option>
+                        <option>Mai/2026</option>
+                        <option>Abr/2026</option>
+                    </SelectShell>
+                    <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white/70 text-zinc-500 dark:border-white/10 dark:bg-white/[0.035]">
+                        <Eye className="h-4 w-4" />
+                    </button>
+                </div>
+                <OptionsDropdown
+                    id="statement"
+                    openMenu={openMenu}
+                    setOpenMenu={setOpenMenu}
+                    items={[
+                        { label: "Exportar relatorio em PDF", icon: FileText, onClick: () => undefined },
+                        { label: "Exportar relatorio em Excel", icon: Download, onClick: () => undefined },
+                    ]}
+                />
+            </div>
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+                {[
+                    { title: "Saldo atual", value: "R$ 0,00", icon: Wallet, tone: "border-l-zinc-600 text-zinc-600" },
+                    { title: "Receitas pagas", value: "R$ 0,00", icon: TrendingUp, tone: "border-l-emerald-600 text-emerald-600" },
+                    { title: "Despesas pagas", value: "R$ 0,00", icon: TrendingDown, tone: "border-l-rose-600 text-rose-600" },
+                ].map((card) => (
+                    <div key={card.title} className={cn("rounded-[26px] border border-zinc-200 bg-white/70 p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.025] border-l-8", card.tone)}>
+                        <div className="flex items-center gap-5">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-950">
+                                <card.icon className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold">{card.title}</p>
+                                <p className="mt-1 text-3xl font-medium tracking-tight">{card.value}</p>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+        <InfoBlock>
+            <p>O relatorio do <span className="font-black">Extrato</span> e composto pela listagem de todas as <span className="font-black">Receitas e Despesas</span> com <span className="font-black">Data de Pagamento</span> dentro do <span className="font-black">Periodo: Junho 2026</span>.</p>
+            <p>O relatorio mostra somente pagamentos com algum valor. Pagamentos R$0,00 nao serao exibidos no relatorio.</p>
+            <p>As totalizacoes podem nao coincidir com o modulo Financeiro do sistema, pois sao utilizadas formas diferentes para o calculo.</p>
+        </InfoBlock>
+        <div className="flex flex-wrap gap-3">
+            {["Razao: Todas", "Propriedade: Todas", "Categoria Financeira: Todas"].map((filter) => (
+                <button key={filter} className="inline-flex h-11 items-center gap-2 rounded-2xl border border-zinc-200 bg-white/70 px-5 text-sm font-bold text-zinc-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300">
+                    <Filter className="h-4 w-4" />
+                    {filter}
+                </button>
+            ))}
+        </div>
+        <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
+            <div className="overflow-hidden rounded-[24px] border border-zinc-200/70 dark:border-white/10">
+                <table className="w-full min-w-[860px] border-collapse text-left">
+                    <thead className="bg-zinc-50/90 dark:bg-white/[0.035]">
+                        <tr className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                            <th className="px-5 py-4">Data</th>
+                            <th className="px-5 py-4">Descricao</th>
+                            <th className="px-5 py-4">Razao</th>
+                            <th className="px-5 py-4">Propriedade</th>
+                            <th className="px-5 py-4">Categoria</th>
+                            <th className="px-5 py-4 text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
+                        {statementRows.map((row) => (
+                            <tr key={`${row.date}-${row.description}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.date}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.reason}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.property}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.category}</td>
+                                <td className={cn("px-5 py-4 text-right font-black", row.amount.startsWith("-") ? "text-rose-600" : "text-emerald-600")}>{row.amount}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </motion.div>
+);
+
+const CashFlowIntroModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => (
+    <PremiumModal open={open} title="Conheca o Fluxo de Caixa" onClose={onClose} size="max-w-3xl" footer={<ModalButton variant="secondary" onClick={onClose}>Fechar</ModalButton>}>
+        <div className="space-y-6">
+            <p className="text-base font-black leading-relaxed text-zinc-800 dark:text-zinc-100">
+                Consulte facilmente receitas, despesas e o resultado mensal do seu consultorio!
+            </p>
+            <div className="space-y-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
+                <p className="font-black text-zinc-900 dark:text-white">Como funciona o fluxo de caixa:</p>
+                <ul className="list-disc space-y-2 pl-5">
+                    <li><span className="font-black">Resultados mensais:</span> O saldo mensal entre o total de receitas e despesas.</li>
+                    <li><span className="font-black">Configuracoes de convenio:</span> Se usar convenios, configure as regras de recebimento para refletirem no fluxo de caixa.</li>
+                    <li><span className="font-black">Visualizacao simplificada:</span> Facil acesso as receitas e despesas mensais, pagas e a pagar.</li>
+                </ul>
+            </div>
+            <div className="mx-auto max-w-xl rounded-[28px] border border-zinc-200 bg-zinc-50 p-4 shadow-2xl dark:border-white/10 dark:bg-white/[0.035]">
+                <div className="rounded-2xl bg-white p-4 dark:bg-zinc-950">
+                    <div className="mb-3 h-4 w-28 rounded bg-indigo-100 dark:bg-indigo-400/20" />
+                    <div className="grid grid-cols-6 gap-1 text-[7px] font-black">
+                        {Array.from({ length: 36 }).map((_, index) => (
+                            <div key={index} className={cn("h-6 rounded", index % 6 === 0 ? "bg-emerald-100" : index % 5 === 0 ? "bg-rose-100" : "bg-amber-50")} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div className="space-y-3">
+                {[
+                    ["Saldo inicial", "Tenha o valor disponivel no comeco do periodo."],
+                    ["Resultado acumulado", "Visualizacao acumulada dos resultados, para melhor entendimento de lucro ou prejuizo do seu consultorio."],
+                    ["Exportar", "Exporte seu fluxo de caixa em PDF ou Excel."],
+                    ["Agrupamento por categorias", "Veja as maiores receitas e despesas."],
+                    ["Filtros", "Consiga filtrar por Ano, Mes, Semana ou Dia."],
+                    ["Para clinicas", "Consiga filtrar o fluxo de caixa por profissional."],
+                ].map(([title, text]) => (
+                    <div key={title} className="flex gap-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
+                        <span className="h-fit rounded-full bg-cyan-100 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-200">Em breve</span>
+                        <p><span className="font-black text-zinc-900 dark:text-white">{title}:</span> {text}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    </PremiumModal>
+);
+
+const CashFlowView = ({ motionProps, onShowIntro }: { motionProps: any; onShowIntro: () => void }) => {
+    const months = ["Jan/26", "Fev/26", "Mar/26", "Abr/26", "Mai/26", "Jun/26", "Jul/26", "Ago/26", "Set/26", "Out/26", "Nov/26", "Dez/26"];
+    const rows = [
+        { label: "Receitas recebidas", tone: "bg-emerald-100/80 text-emerald-700", values: months.map(() => "-") },
+        { label: "Receitas a receber", tone: "bg-amber-50 text-amber-700", values: months.map(() => "-") },
+        { label: "Total receitas", tone: "bg-white text-emerald-700 font-black", values: months.map(() => "-") },
+        { label: "Despesas pagas", tone: "bg-rose-50 text-rose-600", values: months.map(() => "-") },
+        { label: "Despesas a pagar", tone: "bg-amber-50 text-amber-700", values: months.map(() => "-") },
+        { label: "Total despesas", tone: "bg-white text-rose-600 font-black", values: months.map(() => "-") },
+        { label: "Resultados", tone: "bg-white text-emerald-700 font-black", values: months.map(() => "R$ 0,00") },
+    ];
+
+    return (
+        <motion.div {...motionProps} key="cash-flow-view" className="space-y-6 px-6 py-6">
+            <ManagementSectionHeader icon={BarChart3} title="Fluxo de caixa" subtitle="Entradas, saidas e resultado mensal" />
+            <InfoBlock>
+                <p><span className="font-black">Fluxo de caixa</span> e um demonstrativo de todas as <span className="font-black">entradas e saidas em um determinado periodo</span>. Para esse acompanhamento estao incluidos:</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                    <li><span className="font-black">Total Receitas:</span> total de receitas recebidas e receitas a receber.</li>
+                    <li><span className="font-black">Total Despesas:</span> total de despesas pagas e despesas a pagar.</li>
+                    <li><span className="font-black">Resultados:</span> diferenca entre total receitas e total despesas.</li>
+                </ul>
+            </InfoBlock>
+            <div className="flex justify-end">
+                <button onClick={onShowIntro} className="h-11 rounded-2xl bg-zinc-200 px-8 text-sm font-bold text-zinc-600 transition-colors hover:text-zinc-950 dark:bg-white/10 dark:text-zinc-300 dark:hover:text-white">
+                    Como funciona?
+                </button>
+            </div>
+            <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
+                <div className="mb-6 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-zinc-500 shadow-sm dark:bg-white/[0.06]">
+                        <BarChart3 className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-sm font-black uppercase tracking-[0.12em] text-zinc-900 dark:text-white">Fluxo de caixa</h3>
+                </div>
+                <div className="overflow-x-auto rounded-[24px] border border-zinc-200/70 dark:border-white/10">
+                    <table className="w-full min-w-[1180px] border-collapse text-center text-sm">
+                        <thead className="bg-white dark:bg-white/[0.035]">
+                            <tr>
+                                <th className="px-4 py-4 text-left text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">Indicador</th>
+                                {months.map((month) => (
+                                    <th key={month} className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">{month}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row) => (
+                                <tr key={row.label} className={row.tone}>
+                                    <td className="px-4 py-4 text-left text-xs font-black">{row.label}</td>
+                                    {row.values.map((value, index) => (
+                                        <td key={`${row.label}-${months[index]}`} className="px-4 py-4">{value}</td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </motion.div>
+    );
+};
+
+const ManualChargesView = ({
+    motionProps,
+    onManualCharge,
+    openMenu,
+    setOpenMenu,
+}: {
+    motionProps: any;
+    onManualCharge: () => void;
+    openMenu: ManagementOptionsMenu;
+    setOpenMenu: (menu: ManagementOptionsMenu) => void;
+}) => (
+    <motion.div {...motionProps} key="manual-charges-view" className="space-y-6 px-6 py-6">
+        <ManagementSectionHeader icon={Receipt} title="Cobrancas geradas" subtitle="Cobrancas manuais da Gestao Financeira" />
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex h-11 min-w-[280px] items-center gap-3 rounded-2xl border border-zinc-200 bg-white/70 px-4 dark:border-white/10 dark:bg-white/[0.035]">
+                <Search className="h-4 w-4 text-zinc-400" />
+                <span className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Buscar cobranca</span>
+            </div>
+            <div className="flex gap-3">
+                <button onClick={onManualCharge} className="inline-flex h-11 items-center gap-3 rounded-2xl bg-zinc-950 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-xl transition-opacity hover:opacity-90 dark:bg-white dark:text-zinc-950">
+                    <Plus className="h-4 w-4" />
+                    Nova cobranca
+                </button>
+                <OptionsDropdown
+                    id="charges"
+                    openMenu={openMenu}
+                    setOpenMenu={setOpenMenu}
+                    items={[
+                        { label: "Exportar relatorio em PDF", icon: FileText, onClick: () => undefined },
+                        { label: "Exportar relatorio em Excel", icon: Download, onClick: () => undefined },
+                    ]}
+                />
+            </div>
+        </div>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {[
+                { label: "Geradas", value: "3", icon: Receipt },
+                { label: "Pendentes", value: "2", icon: AlertTriangle },
+                { label: "Recebidas", value: "1", icon: CheckCircle2 },
+            ].map((card) => (
+                <div key={card.label} className="rounded-[30px] border border-zinc-200/50 bg-white/60 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.015]">
+                    <card.icon className="mb-5 h-5 w-5 text-zinc-500" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">{card.label}</p>
+                    <p className="mt-3 text-4xl font-black tracking-[-0.05em] text-zinc-950 dark:text-white">{card.value}</p>
+                </div>
+            ))}
+        </div>
+        <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
+            <div className="overflow-hidden rounded-[24px] border border-zinc-200/70 dark:border-white/10">
+                <table className="w-full min-w-[860px] border-collapse text-left">
+                    <thead className="bg-zinc-50/90 dark:bg-white/[0.035]">
+                        <tr className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                            <th className="px-5 py-4">Cliente</th>
+                            <th className="px-5 py-4">Descricao</th>
+                            <th className="px-5 py-4">Vencimento</th>
+                            <th className="px-5 py-4">Tipo</th>
+                            <th className="px-5 py-4">Status</th>
+                            <th className="px-5 py-4 text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
+                        {manualChargeRows.map((row) => (
+                            <tr key={`${row.client}-${row.due}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.client}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
+                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.type}</td>
+                                <td className="px-5 py-4">
+                                    <span className="rounded-full bg-zinc-950/5 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-zinc-600 dark:bg-white/10 dark:text-zinc-300">{row.status}</span>
+                                </td>
+                                <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </motion.div>
+);
+
 const ManagementPlaceholderView = ({ view, motionProps }: { view: ManagementView; motionProps: any }) => {
     const meta = MANAGEMENT_VIEW_META[view];
     const Icon = meta.icon;
@@ -1003,6 +1614,11 @@ const FinancialManagementHome = () => {
     const [activeView, setActiveView] = useState<ManagementView>("overview");
     const [expandedGroups, setExpandedGroups] = useState<string[]>(["overview-root"]);
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+    const [activeModal, setActiveModal] = useState<ManagementModal>(null);
+    const [openMenu, setOpenMenu] = useState<ManagementOptionsMenu>(null);
+    const [showCashFlowIntro, setShowCashFlowIntro] = useState(false);
+    const [expenseRows, setExpenseRows] = useState<ExpenseRow[]>(expenseRowsSeed);
+    const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
 
     const motionProps = {
         initial: { opacity: 0, x: 20, filter: "blur(10px)" },
@@ -1015,6 +1631,7 @@ const FinancialManagementHome = () => {
         setActiveView(view);
         const parent = MANAGEMENT_NAV.find((group) => group.view === view || group.subItems?.some((sub) => sub.id === view));
         if (parent) setExpandedGroups([parent.id]);
+        if (view === "cash-flow") setShowCashFlowIntro(true);
     };
 
     const handleGroupClick = (group: ManagementNavGroup) => {
@@ -1039,8 +1656,59 @@ const FinancialManagementHome = () => {
         }
     };
 
+    const toggleExpenseSelected = (id: string) => {
+        setSelectedExpenseIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+    };
+
+    const deleteSelectedExpenses = () => {
+        if (selectedExpenseIds.length === 0) return;
+        setExpenseRows((current) => current.filter((row) => !selectedExpenseIds.includes(row.id)));
+        setSelectedExpenseIds([]);
+    };
+
     const renderContent = () => {
         if (activeView === "overview") return <ManagementOverview motionProps={motionProps} />;
+        if (activeView === "income") {
+            return (
+                <IncomeView
+                    motionProps={motionProps}
+                    onAdd={() => setActiveModal("income")}
+                    onManualCharge={() => setActiveModal("manual-charge")}
+                    openMenu={openMenu}
+                    setOpenMenu={setOpenMenu}
+                />
+            );
+        }
+        if (activeView === "expenses") {
+            return (
+                <ExpensesView
+                    motionProps={motionProps}
+                    rows={expenseRows}
+                    selectedIds={selectedExpenseIds}
+                    toggleSelected={toggleExpenseSelected}
+                    onAdd={() => setActiveModal("expense")}
+                    onDeleteSelected={deleteSelectedExpenses}
+                    openMenu={openMenu}
+                    setOpenMenu={setOpenMenu}
+                />
+            );
+        }
+        if (activeView === "statement") {
+            return <StatementView motionProps={motionProps} openMenu={openMenu} setOpenMenu={setOpenMenu} />;
+        }
+        if (activeView === "cash-flow") {
+            return <CashFlowView motionProps={motionProps} onShowIntro={() => setShowCashFlowIntro(true)} />;
+        }
+        if (activeView === "charges-generated") {
+            return (
+                <ManualChargesView
+                    motionProps={motionProps}
+                    onManualCharge={() => setActiveModal("manual-charge")}
+                    openMenu={openMenu}
+                    setOpenMenu={setOpenMenu}
+                />
+            );
+        }
         return <ManagementPlaceholderView view={activeView} motionProps={motionProps} />;
     };
 
@@ -1177,6 +1845,11 @@ const FinancialManagementHome = () => {
                     </AnimatePresence>
                 </div>
             </div>
+
+            <FinancialEntryModal type="income" open={activeModal === "income"} onClose={() => setActiveModal(null)} />
+            <FinancialEntryModal type="expense" open={activeModal === "expense"} onClose={() => setActiveModal(null)} />
+            <ManualChargeModal open={activeModal === "manual-charge"} onClose={() => setActiveModal(null)} />
+            <CashFlowIntroModal open={showCashFlowIntro} onClose={() => setShowCashFlowIntro(false)} />
         </div>
     );
 };
