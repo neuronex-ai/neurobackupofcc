@@ -5,6 +5,7 @@ import { Appointment, Patient } from '@/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
+import { createAppointmentFinancialEntryIfEnabled } from '@/lib/financial-appointment-automation';
 
 interface NewAppointmentData {
   patient_id: string | null;
@@ -149,6 +150,16 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
     throw new Error(appointmentError.message);
   }
 
+  try {
+    await createAppointmentFinancialEntryIfEnabled(
+      newAppointment as Appointment,
+      userId,
+      patientData.name
+    );
+  } catch (financialError) {
+    console.warn('[useAddAppointment] Agendamento criado, mas a automacao financeira nao foi aplicada:', financialError);
+  }
+
   return { newAppointment, patientData };
 };
 
@@ -173,7 +184,10 @@ export const useAddAppointment = () => {
       }
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointmentsByDateRange'] });
+      queryClient.invalidateQueries({ queryKey: ['financialEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['patientTransactions'] });
       queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
       queryClient.invalidateQueries({ queryKey: ['monthly-session-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-activities'] });
     },

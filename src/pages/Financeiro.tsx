@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
@@ -47,8 +47,13 @@ import { FeatureGate, LockedFeatureScreen } from "@/components/subscription";
 import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
 import {
     useCreateFinancialEntry,
+    useCreateFinancialCategory,
+    useCreateRecurringFinancialEntry,
     useDeleteFinancialEntries,
+    useFinancialAutomationSettings,
+    useFinancialCategories,
     useFinancialSummary,
+    useSaveFinancialAutomationSettings,
     type FinancialEntry,
     type FinancialEntryPaymentMethod,
     type FinancialMonthlyPoint,
@@ -371,7 +376,7 @@ type ManagementModal = "income" | "expense" | "manual-charge" | "batch-reconcile
 type ManagementOptionsMenu = "income" | "expenses" | "statement" | "charges" | "agreements" | null;
 
 type MetricCard = { title: string; value: string; footer: string[]; icon: LucideIcon; tone?: string };
-type ChartPoint = { month: string } & Partial<Record<string, string | number>>;
+type ChartPoint = FinancialMonthlyPoint | ({ month: string } & Partial<Record<string, string | number>>);
 
 interface OverdueIncomeRow {
     patient: string;
@@ -1166,7 +1171,7 @@ const ManagementOverview = ({
         <ManagementSectionHeader icon={PieChart} title="Visao Geral" subtitle="Resultado previsto, receitas, despesas e atrasos" />
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-            {overviewCards.map((card) => (
+            {cards.map((card) => (
                 <div key={card.title} className="relative overflow-hidden rounded-[32px] border border-zinc-200/50 bg-white/60 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.015]">
                     <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.02] dark:opacity-[0.04]" />
                     <div className="relative z-10 flex items-start justify-between gap-4">

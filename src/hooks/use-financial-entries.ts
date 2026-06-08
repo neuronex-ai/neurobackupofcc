@@ -45,6 +45,33 @@ export interface FinancialEntry {
   } | null;
 }
 
+export interface FinancialCategory {
+  id: string;
+  clinic_id: string | null;
+  professional_id: string;
+  type: FinancialEntryType;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinancialAutomationSettings {
+  id: string;
+  clinic_id: string | null;
+  professional_id: string;
+  appointment_auto_create_enabled: boolean;
+  appointment_default_amount: number | null;
+  appointment_default_category_id: string | null;
+  appointment_due_days: number;
+  attended_status_moves_to_pending: boolean;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FinancialEntryFilters {
   startDate?: Date;
   endDate?: Date;
@@ -79,6 +106,26 @@ export interface UpdateFinancialEntryInput extends Partial<NewFinancialEntryInpu
   paidAt?: Date | null;
 }
 
+export interface NewRecurringFinancialEntryInput {
+  type: FinancialEntryType;
+  title: string;
+  amount: number;
+  categoryId?: string | null;
+  frequency: 'weekly' | 'monthly' | 'yearly';
+  startDate: Date;
+  endDate?: Date | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateFinancialAutomationSettingsInput {
+  appointmentAutoCreateEnabled: boolean;
+  appointmentDefaultAmount?: number | null;
+  appointmentDefaultCategoryId?: string | null;
+  appointmentDueDays?: number;
+  attendedStatusMovesToPending?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
 export interface FinancialMonthlyPoint {
   month: string;
   paidIncome: number;
@@ -107,6 +154,25 @@ export interface FinancialSummary {
 }
 
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+export const DEFAULT_FINANCIAL_CATEGORIES: Record<FinancialEntryType, { name: string; color: string; icon: string }[]> = {
+  income: [
+    { name: 'Sessao', color: '#18181b', icon: 'calendar-check' },
+    { name: 'Cobranca Avulsa', color: '#10b981', icon: 'receipt' },
+    { name: 'Mensalidade', color: '#059669', icon: 'repeat' },
+    { name: 'Convenio', color: '#0f766e', icon: 'users' },
+    { name: 'Comissao', color: '#52525b', icon: 'percent' },
+    { name: 'Receitas nao categorizadas', color: '#71717a', icon: 'wallet' },
+  ],
+  expense: [
+    { name: 'Aluguel', color: '#18181b', icon: 'home' },
+    { name: 'Agua', color: '#52525b', icon: 'droplet' },
+    { name: 'Alimentacao', color: '#71717a', icon: 'utensils' },
+    { name: 'Adiantamento', color: '#3f3f46', icon: 'arrow-up-right' },
+    { name: 'Ajuste de caixa', color: '#27272a', icon: 'settings' },
+    { name: 'Despesas nao categorizadas', color: '#a1a1aa', icon: 'wallet' },
+  ],
+};
 
 export function toFinancialPaymentMethod(method?: string | null): FinancialEntryPaymentMethod {
   switch (method) {
@@ -337,6 +403,181 @@ export async function fetchFinancialEntries(userId: string, filters: FinancialEn
   return (data || []) as FinancialEntry[];
 }
 
+async function seedDefaultFinancialCategories(userId: string, type?: FinancialEntryType) {
+  const types: FinancialEntryType[] = type ? [type] : ['income', 'expense'];
+  const rows = types.flatMap((categoryType) =>
+    DEFAULT_FINANCIAL_CATEGORIES[categoryType].map((category) => ({
+      professional_id: userId,
+      type: categoryType,
+      name: category.name,
+      color: category.color,
+      icon: category.icon,
+      is_default: true,
+    }))
+  );
+
+  if (rows.length === 0) return;
+
+  const { error } = await supabase
+    .from('financial_categories')
+    .insert(rows);
+
+  if (error && !String(error.message || '').toLowerCase().includes('duplicate')) {
+    throw error;
+  }
+}
+
+export async function fetchFinancialCategories(userId: string, type?: FinancialEntryType) {
+  let query = supabase
+    .from('financial_categories')
+    .select('*')
+    .eq('professional_id', userId)
+    .order('is_default', { ascending: false })
+    .order('name', { ascending: true });
+
+  if (type) query = query.eq('type', type);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  if ((data || []).length === 0) {
+    await seedDefaultFinancialCategories(userId, type);
+
+    let seededQuery = supabase
+      .from('financial_categories')
+      .select('*')
+      .eq('professional_id', userId)
+      .order('is_default', { ascending: false })
+      .order('name', { ascending: true });
+
+    if (type) seededQuery = seededQuery.eq('type', type);
+
+    const { data: seededData, error: seededError } = await seededQuery;
+    if (seededError) throw seededError;
+    return (seededData || []) as FinancialCategory[];
+  }
+
+  return (data || []) as FinancialCategory[];
+}
+
+export async function fetchFinancialAutomationSettings(userId: string) {
+  const { data, error } = await supabase
+    .from('financial_automation_settings')
+    .select('*')
+    .eq('professional_id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as FinancialAutomationSettings | null;
+}
+
+export function useFinancialCategories(type?: FinancialEntryType) {
+  const { user } = useAuth();
+  const userId = user?.id;
+
+  return useQuery<FinancialCategory[], Error>({
+    queryKey: ['financialCategories', userId, type || 'all'],
+    queryFn: () => {
+      if (!userId) throw new Error('Usuario nao autenticado');
+      return fetchFinancialCategories(userId, type);
+    },
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 10,
+    retry: false,
+  });
+}
+
+export function useCreateFinancialCategory() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ type, name }: { type: FinancialEntryType; name: string }) => {
+      if (!user?.id) throw new Error('Usuario nao autenticado');
+      const normalizedName = name.trim();
+      if (!normalizedName) throw new Error('Informe o nome da categoria');
+
+      const { data, error } = await supabase
+        .from('financial_categories')
+        .insert({
+          professional_id: user.id,
+          type,
+          name: normalizedName,
+          color: type === 'income' ? '#18181b' : '#52525b',
+          icon: type === 'income' ? 'receipt' : 'wallet',
+          is_default: false,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as FinancialCategory;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financialCategories'] });
+    },
+  });
+}
+
+export function useFinancialAutomationSettings() {
+  const { user } = useAuth();
+  const userId = user?.id;
+
+  return useQuery<FinancialAutomationSettings | null, Error>({
+    queryKey: ['financialAutomationSettings', userId],
+    queryFn: () => {
+      if (!userId) throw new Error('Usuario nao autenticado');
+      return fetchFinancialAutomationSettings(userId);
+    },
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+}
+
+export function useSaveFinancialAutomationSettings() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: UpdateFinancialAutomationSettingsInput) => {
+      if (!user?.id) throw new Error('Usuario nao autenticado');
+
+      const payload = {
+        professional_id: user.id,
+        appointment_auto_create_enabled: input.appointmentAutoCreateEnabled,
+        appointment_default_amount: input.appointmentDefaultAmount ?? null,
+        appointment_default_category_id: input.appointmentDefaultCategoryId || null,
+        appointment_due_days: Math.max(0, Number(input.appointmentDueDays ?? 0)),
+        attended_status_moves_to_pending: input.attendedStatusMovesToPending ?? true,
+        metadata: input.metadata || {},
+      };
+
+      const existing = await fetchFinancialAutomationSettings(user.id);
+      const query = existing
+        ? supabase
+            .from('financial_automation_settings')
+            .update(payload)
+            .eq('id', existing.id)
+            .eq('professional_id', user.id)
+            .select()
+            .single()
+        : supabase
+            .from('financial_automation_settings')
+            .insert(payload)
+            .select()
+            .single();
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as FinancialAutomationSettings;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financialAutomationSettings'] });
+    },
+  });
+}
+
 export function useFinancialSummary(year: number, month: number) {
   const { data: entries = [], ...query } = useFinancialEntries({ limit: 5000 });
 
@@ -419,6 +660,42 @@ export function useCreateFinancialEntry() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
       queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
+    },
+  });
+}
+
+export function useCreateRecurringFinancialEntry() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: NewRecurringFinancialEntryInput) => {
+      if (!user?.id) throw new Error('Usuario nao autenticado');
+
+      const { data, error } = await supabase
+        .from('recurring_financial_entries')
+        .insert({
+          professional_id: user.id,
+          type: input.type,
+          title: input.title,
+          amount: Math.abs(Number(input.amount || 0)),
+          category_id: input.categoryId || null,
+          frequency: input.frequency,
+          start_date: format(input.startDate, 'yyyy-MM-dd'),
+          end_date: input.endDate ? format(input.endDate, 'yyyy-MM-dd') : null,
+          next_generation_date: format(input.startDate, 'yyyy-MM-dd'),
+          status: 'active',
+          metadata: input.metadata || {},
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recurringFinancialEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['financialEntries'] });
     },
   });
 }

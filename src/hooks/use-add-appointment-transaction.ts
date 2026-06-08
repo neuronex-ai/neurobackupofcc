@@ -26,30 +26,63 @@ interface NewAppointmentTransactionData {
 
 const addAppointmentTransaction = async (data: NewAppointmentTransactionData, userId: string) => {
   const financialStatus = fromLegacyTransactionStatus(data.status);
-  const { data: entry, error } = await supabase
+  const payload = {
+    professional_id: userId,
+    appointment_id: data.appointmentId,
+    title: data.description,
+    description: data.description,
+    amount: Math.abs(Number(data.amount || 0)),
+    type: data.type,
+    due_date: format(data.date, 'yyyy-MM-dd'),
+    competence_date: format(data.date, 'yyyy-MM-dd'),
+    paid_at: financialStatus === 'paid' ? data.date.toISOString() : null,
+    payment_method: toFinancialPaymentMethod(data.payment_method || 'pix'),
+    patient_id: data.patient_id || null,
+    status: financialStatus,
+    origin: 'appointment',
+    metadata: {
+      category: data.category || 'Sessao',
+      installments: data.installments || 1,
+      package_id: data.package_id || null,
+      source: 'appointment_explicit_financial_entry',
+    },
+  };
+
+  const { data: existingEntry, error: existingError } = await supabase
     .from('financial_entries')
-    .insert({
-      professional_id: userId,
-      appointment_id: data.appointmentId,
-      title: data.description,
-      description: data.description,
-      amount: Math.abs(Number(data.amount || 0)),
-      type: data.type,
-      due_date: format(data.date, 'yyyy-MM-dd'),
-      competence_date: format(data.date, 'yyyy-MM-dd'),
-      paid_at: financialStatus === 'paid' ? data.date.toISOString() : null,
-      payment_method: toFinancialPaymentMethod(data.payment_method || 'pix'),
-      patient_id: data.patient_id || null,
-      status: financialStatus,
-      origin: 'appointment',
-      metadata: {
-        category: data.category || 'Sessao',
-        installments: data.installments || 1,
-        package_id: data.package_id || null,
-      },
-    })
-    .select()
-    .single();
+    .select('*')
+    .eq('professional_id', userId)
+    .eq('appointment_id', data.appointmentId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+
+  const query = existingEntry
+    ? supabase
+        .from('financial_entries')
+        .update({
+          ...payload,
+          status: existingEntry.status === 'paid' && financialStatus !== 'paid' ? 'paid' : financialStatus,
+          paid_at: existingEntry.status === 'paid' && financialStatus !== 'paid' ? existingEntry.paid_at : payload.paid_at,
+          metadata: {
+            ...(existingEntry.metadata || {}),
+            ...payload.metadata,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingEntry.id)
+        .eq('professional_id', userId)
+        .select()
+        .single()
+    : supabase
+        .from('financial_entries')
+        .insert(payload)
+        .select()
+        .single();
+
+  const { data: entry, error } = await query;
 
   if (!error && entry) {
     return mapFinancialEntryToTransaction(entry as any);

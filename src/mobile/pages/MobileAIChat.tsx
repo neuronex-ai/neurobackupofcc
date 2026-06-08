@@ -185,6 +185,7 @@ export const MobileAIChat = () => {
         acc[key] = group;
         return acc;
     }, {} as Record<string, ChatSession[]>);
+    const groupedSessionEntries = Object.entries(groupedSessions) as [string, ChatSession[]][];
 
     const hasMessages = messages && messages.length > 0;
 
@@ -239,7 +240,7 @@ export const MobileAIChat = () => {
                                 </Button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-6 space-y-10 custom-scrollbar">
-                                {groupedSessions && Object.entries(groupedSessions).map(([label, list]) => (
+                                {groupedSessionEntries.map(([label, list]) => (
                                     <div key={label} className="space-y-4">
                                         <p className="text-[10px] font-black text-muted-foreground/40 dark:text-muted-foreground/30 uppercase tracking-[0.3em] px-2">{label}</p>
                                         <div className="space-y-2.5">

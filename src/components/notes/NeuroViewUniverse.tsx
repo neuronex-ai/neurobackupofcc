@@ -93,10 +93,10 @@ export const NeuroViewUniverse = ({
     const noteList = notes || [];
     const nodeMap = new Map<string, UniverseNode>();
     const linkList: UniverseLink[] = [];
-    const matchedPatientIds = new Set(
+    const matchedPatientIds = new Set<string>(
       patientList
         .filter((patient) => normalizedSearch && normalize(patient.name).includes(normalizedSearch))
-        .map((patient) => patient.id)
+        .map((patient) => String(patient.id))
     );
 
     const visibleNotes = normalizedSearch

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
 import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
+import { syncAppointmentFinancialEntryAfterUpdate } from '@/lib/financial-appointment-automation';
 
 interface UpdateAppointmentData {
   id: string;
@@ -90,6 +91,16 @@ const updateAppointmentFn = async ({ id, updates }: UpdateAppointmentData, userI
     syncGoogleUpdate(existingAppointment.google_event_id, action, updatedAppointment, accessToken);
   }
 
+  try {
+    await syncAppointmentFinancialEntryAfterUpdate(
+      existingAppointment as Appointment & { patient?: { name?: string | null } | null },
+      updatedAppointment as Appointment,
+      userId
+    );
+  } catch (financialError) {
+    console.warn('[useUpdateAppointment] Agendamento atualizado, mas a sincronizacao financeira nao foi aplicada:', financialError);
+  }
+
   return updatedAppointment;
 };
 
@@ -140,7 +151,10 @@ export const useUpdateAppointment = () => {
     onSettled: (data) => {
       queryClient.invalidateQueries({ queryKey: ['appointmentsByDateRange'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['financialEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['patientTransactions'] });
       queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
       queryClient.invalidateQueries({ queryKey: ['monthly-session-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-activities'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardAlerts'] });
