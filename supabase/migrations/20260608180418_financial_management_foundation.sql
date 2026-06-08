@@ -23,33 +23,7 @@ set search_path = ''
 as $$
   select
     (select auth.uid()) is not null
-    and (
-      (select auth.uid()) = owner_user_id
-      or (
-        scope_clinic_id is not null
-        and exists (
-          select 1
-          from public.organizations o
-          left join public.organization_members om
-            on om.organization_id = o.id
-           and om.user_id = (select auth.uid())
-           and om.status = 'active'
-          where o.id = scope_clinic_id
-            and (
-              o.owner_id = (select auth.uid())
-              or om.role = 'admin'
-              or (
-                coalesce((om.permissions ->> 'can_view_finance')::boolean, false)
-                and (
-                  not require_write
-                  or coalesce((om.permissions ->> 'can_edit_finance')::boolean, false)
-                  or coalesce((om.permissions ->> 'can_manage_finance')::boolean, false)
-                )
-              )
-            )
-        )
-      )
-    );
+    and (select auth.uid()) = owner_user_id;
 $$;
 
 revoke all on function private.can_access_financial_scope(uuid, uuid, boolean) from public;
@@ -58,7 +32,7 @@ grant execute on function private.can_access_financial_scope(uuid, uuid, boolean
 
 create table if not exists public.financial_categories (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid references public.organizations(id) on delete cascade,
+  clinic_id uuid,
   professional_id uuid not null references auth.users(id) on delete cascade,
   type text not null check (type in ('income', 'expense')),
   name text not null,
@@ -72,7 +46,7 @@ create table if not exists public.financial_categories (
 
 create table if not exists public.financial_entries (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid references public.organizations(id) on delete set null,
+  clinic_id uuid,
   professional_id uuid not null references auth.users(id) on delete cascade,
   patient_id uuid references public.patients(id) on delete set null,
   appointment_id uuid references public.appointments(id) on delete set null,
@@ -118,7 +92,7 @@ create table if not exists public.financial_entries (
 
 create table if not exists public.recurring_financial_entries (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid references public.organizations(id) on delete cascade,
+  clinic_id uuid,
   professional_id uuid not null references auth.users(id) on delete cascade,
   type text not null check (type in ('income', 'expense')),
   title text not null,
@@ -136,7 +110,7 @@ create table if not exists public.recurring_financial_entries (
 
 create table if not exists public.financial_reconciliations (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid references public.organizations(id) on delete set null,
+  clinic_id uuid,
   professional_id uuid not null references auth.users(id) on delete cascade,
   financial_entry_id uuid not null references public.financial_entries(id) on delete cascade,
   neurofinance_transaction_id uuid,
@@ -151,7 +125,7 @@ create table if not exists public.financial_reconciliations (
 
 create table if not exists public.financial_automation_settings (
   id uuid primary key default gen_random_uuid(),
-  clinic_id uuid references public.organizations(id) on delete cascade,
+  clinic_id uuid,
   professional_id uuid not null references auth.users(id) on delete cascade,
   appointment_auto_create_enabled boolean not null default false,
   appointment_default_amount numeric(14,2),
@@ -314,6 +288,11 @@ grant select, insert, update, delete on public.financial_entries to authenticate
 grant select, insert, update, delete on public.recurring_financial_entries to authenticated;
 grant select, insert, update, delete on public.financial_reconciliations to authenticated;
 grant select, insert, update, delete on public.financial_automation_settings to authenticated;
+revoke truncate, references, trigger on public.financial_categories from authenticated;
+revoke truncate, references, trigger on public.financial_entries from authenticated;
+revoke truncate, references, trigger on public.recurring_financial_entries from authenticated;
+revoke truncate, references, trigger on public.financial_reconciliations from authenticated;
+revoke truncate, references, trigger on public.financial_automation_settings from authenticated;
 
 drop trigger if exists set_updated_at on public.financial_categories;
 create trigger set_updated_at
@@ -367,8 +346,8 @@ begin
       )
       select
         t.user_id,
-        t.patient_id,
-        t.appointment_id,
+        patient_ref.id,
+        appointment_ref.id,
         case when t.type in ('income', 'expense') then t.type else 'income' end,
         coalesce(nullif(t.description, ''), case when t.type = 'expense' then 'Despesa' else 'Receita' end),
         t.description,
@@ -399,7 +378,7 @@ begin
           when coalesce(t.asaas_transaction_id, '') <> ''
             or coalesce(t.external_reference, '') ilike 'pay_%'
             then 'neurofinance'
-          when t.appointment_id is not null then 'appointment'
+          when appointment_ref.id is not null then 'appointment'
           when t.package_id is not null then 'package'
           else 'manual'
         end,
@@ -409,13 +388,19 @@ begin
           'category', t.category,
           'external_reference', t.external_reference,
           'asaas_transaction_id', t.asaas_transaction_id,
+          'legacy_patient_id', t.patient_id,
+          'legacy_appointment_id', t.appointment_id,
           'package_id', t.package_id,
           'attachment_url', t.attachment_url,
           'installments', t.installments
         )),
         coalesce(t.created_at, now()),
-        coalesce(t.updated_at, t.created_at, now())
+        coalesce(t.created_at, now())
       from public.transactions t
+      left join public.patients patient_ref
+        on patient_ref.id = t.patient_id
+      left join public.appointments appointment_ref
+        on appointment_ref.id = t.appointment_id
       where not exists (
         select 1
         from public.financial_entries fe
