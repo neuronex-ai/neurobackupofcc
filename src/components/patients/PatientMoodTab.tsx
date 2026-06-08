@@ -86,8 +86,8 @@ export const PatientMoodTab = ({ patientId }: PatientMoodTabProps) => {
     <div className="space-y-12 animate-fade-in pb-32">
 
       {/* Analytics Card */}
-      <GlassCard className="relative overflow-hidden bg-gradient-to-br from-white to-zinc-50 dark:from-[#0A0A0C] dark:to-zinc-900" innerClassName="p-8 md:p-12">
-        <div className="absolute top-0 right-0 p-40 bg-primary/5 dark:bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
+      <GlassCard className="relative overflow-hidden !border-zinc-200/70 bg-gradient-to-br from-white to-zinc-50/85 shadow-[0_24px_70px_-52px_rgba(24,24,27,0.32)] dark:!border-white/[0.052] dark:from-[#0a0a0c] dark:to-[#101012]/88 dark:shadow-[0_26px_78px_-54px_rgba(0,0,0,0.94),inset_0_1px_0_rgba(255,255,255,0.018)]" innerClassName="p-8 md:p-12">
+        <div className="absolute top-0 right-0 p-40 bg-zinc-950/[0.025] dark:bg-white/[0.018] rounded-full blur-[100px] pointer-events-none" />
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 relative z-10">
           <div className="flex items-center gap-5">
@@ -111,7 +111,7 @@ export const PatientMoodTab = ({ patientId }: PatientMoodTabProps) => {
           </div>
         </div>
 
-        <div className="h-[300px] w-full relative z-10 bg-zinc-100/30 dark:bg-black/20 rounded-[32px] p-6 border border-zinc-200/50 dark:border-white/5 shadow-inner">
+        <div className="h-[300px] w-full relative z-10 bg-zinc-100/30 dark:bg-black/24 rounded-[32px] p-6 border border-zinc-200/50 dark:border-white/[0.045] shadow-inner">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.03)" vertical={false} />
@@ -153,7 +153,7 @@ export const PatientMoodTab = ({ patientId }: PatientMoodTabProps) => {
           <div className="h-px flex-1 bg-gradient-to-l from-transparent to-zinc-200 dark:to-white/10" />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[...logs].reverse().map((log, idx) => {
             const config = moodConfig[log.mood_score] || moodConfig[3];
             const Icon = config.icon;
