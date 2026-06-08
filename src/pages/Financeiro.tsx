@@ -12,16 +12,25 @@ import {
     CircleDollarSign,
     ClipboardList,
     CreditCard,
+    Download,
+    Eye,
     FileText,
+    Filter,
+    HelpCircle,
     Landmark,
     LayoutDashboard,
     Loader2,
+    MoreHorizontal,
     PieChart,
+    Plus,
     Receipt,
+    Search,
     Settings,
+    Trash2,
     TrendingDown,
     TrendingUp,
     Wallet,
+    X,
 } from "lucide-react";
 import {
     Bar,
@@ -376,6 +385,58 @@ const overdueRows = [
     { patient: "Convenio exemplo", description: "Repasse pendente", due: "14/06/2026", amount: "R$ --" },
     { patient: "Paciente exemplo", description: "Pacote de sessoes", due: "20/06/2026", amount: "R$ --" },
 ];
+
+type ManagementModal = "income" | "expense" | "manual-charge" | null;
+type ManagementOptionsMenu = "income" | "expenses" | "statement" | "charges" | null;
+
+interface ExpenseRow {
+    id: string;
+    category: string;
+    description: string;
+    property: string;
+    due: string;
+    amount: string;
+    status: "Pago" | "Nao pago";
+}
+
+const incomeRows = [
+    { patient: "Ana Martins", description: "Sessao individual", due: "08/06/2026", amount: "R$ 250,00", status: "Pago", origin: "Agenda" },
+    { patient: "Bruno Lima", description: "Pacote mensal", due: "12/06/2026", amount: "R$ 900,00", status: "Nao pago", origin: "Manual" },
+    { patient: "Convenio Vida", description: "Repasse convenio", due: "18/06/2026", amount: "R$ 1.420,00", status: "Nao pago", origin: "Convenio" },
+    { patient: "Carla Nunes", description: "Sessao online", due: "24/06/2026", amount: "R$ 220,00", status: "Pago", origin: "Agenda" },
+];
+
+const expenseRowsSeed: ExpenseRow[] = [
+    { id: "expense-1", category: "Aluguel", description: "Sala de atendimento", property: "Clinica", due: "05/06/2026", amount: "R$ 2.400,00", status: "Pago" },
+    { id: "expense-2", category: "Agua", description: "Conta mensal", property: "Clinica", due: "11/06/2026", amount: "R$ 180,00", status: "Nao pago" },
+    { id: "expense-3", category: "Adiantamento", description: "Repasse administrativo", property: "Particular", due: "20/06/2026", amount: "R$ 750,00", status: "Nao pago" },
+    { id: "expense-4", category: "Ajuste de caixa", description: "Ajuste operacional", property: "Clinica", due: "28/06/2026", amount: "R$ 120,00", status: "Pago" },
+];
+
+const statementRows = [
+    { date: "03/06/2026", description: "Sessao individual - Ana Martins", reason: "Receita", property: "Clinica", category: "Consulta", amount: "R$ 250,00" },
+    { date: "05/06/2026", description: "Sala de atendimento", reason: "Despesa", property: "Clinica", category: "Aluguel", amount: "-R$ 2.400,00" },
+    { date: "12/06/2026", description: "Pacote mensal - Bruno Lima", reason: "Receita", property: "Particular", category: "Mensalidade", amount: "R$ 900,00" },
+];
+
+const manualChargeRows = [
+    { client: "Ana Martins", description: "Sessao individual", due: "08/06/2026", amount: "R$ 250,00", type: "Pix", status: "Pendente" },
+    { client: "Bruno Lima", description: "Pacote mensal", due: "12/06/2026", amount: "R$ 900,00", type: "Boleto", status: "Gerada" },
+    { client: "Carla Nunes", description: "Sessao online", due: "24/06/2026", amount: "R$ 220,00", type: "Manual", status: "Recebida" },
+];
+
+const financeChartData = overviewChartData.map((item) => ({
+    ...item,
+    totalIncome: item.paidIncome + item.unpaidIncome,
+    totalExpenses: item.paidExpenses + item.unpaidExpenses,
+}));
+
+const financeFormCategories = {
+    income: ["Cobranca Avulsa", "Comissao", "Deposito", "Mensalidade", "Receitas nao categorizadas", "Rendimentos"],
+    expense: ["13 salario", "Adiantamento", "Agua", "Ajuste de caixa", "Alimentacao", "Aluguel"],
+};
+
+const paymentMethods = ["Pix", "Boleto", "Cartao", "Dinheiro", "Transferencia externa", "Convenio", "Outro"];
 
 const moneyFormatter = (value: number) =>
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
