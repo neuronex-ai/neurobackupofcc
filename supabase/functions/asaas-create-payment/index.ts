@@ -191,6 +191,7 @@ Deno.serve(async (req: Request) => {
                 .from('financial_entries')
                 .update({
                     neurofinance_charge_id: paymentRecord.id,
+                    idempotency_key: financialEntry.idempotency_key || `neurofinance:charge:${paymentRecord.id}`,
                     updated_at: new Date().toISOString(),
                 })
                 .eq('id', financialEntry.id);

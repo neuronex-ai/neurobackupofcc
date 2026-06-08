@@ -36,6 +36,11 @@ export interface FinancialEntry {
   neurofinance_transaction_id: string | null;
   neurofinance_charge_id: string | null;
   legacy_transaction_id: string | null;
+  idempotency_key: string | null;
+  reversal_of_entry_id: string | null;
+  reversal_reason: string | null;
+  cancelled_at: string | null;
+  cancelled_reason: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -98,12 +103,17 @@ export interface NewFinancialEntryInput {
   categoryId?: string | null;
   patientId?: string | null;
   appointmentId?: string | null;
+  idempotencyKey?: string | null;
   metadata?: Record<string, unknown>;
 }
 
 export interface UpdateFinancialEntryInput extends Partial<NewFinancialEntryInput> {
   id: string;
   paidAt?: Date | null;
+  cancelledAt?: Date | null;
+  cancelledReason?: string | null;
+  reversalOfEntryId?: string | null;
+  reversalReason?: string | null;
 }
 
 export interface NewRecurringFinancialEntryInput {
@@ -114,6 +124,7 @@ export interface NewRecurringFinancialEntryInput {
   frequency: 'weekly' | 'monthly' | 'yearly';
   startDate: Date;
   endDate?: Date | null;
+  idempotencyKey?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -238,8 +249,15 @@ function isEntryInMonth(entry: FinancialEntry, year: number, month: number) {
   return reference.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`);
 }
 
+export function buildFinancialEntryIdempotencyKey(parts: Array<string | number | null | undefined>) {
+  return parts
+    .filter((part) => part !== null && part !== undefined && String(part).trim() !== '')
+    .map((part) => String(part).trim().toLowerCase().replace(/\s+/g, '-'))
+    .join(':');
+}
+
 export function computeFinancialSummary(entries: FinancialEntry[], year: number, month: number): FinancialSummary {
-  const monthEntries = entries.filter((entry) => isEntryInMonth(entry, year, month));
+  const monthEntries = entries.filter((entry) => entry.status !== 'cancelled' && isEntryInMonth(entry, year, month));
   const today = new Date().toISOString().slice(0, 10);
 
   return monthEntries.reduce<FinancialSummary>((summary, entry) => {
@@ -280,7 +298,7 @@ export function computeFinancialSummary(entries: FinancialEntry[], year: number,
 
 export function computeFinancialMonthlySeries(entries: FinancialEntry[], year: number): FinancialMonthlyPoint[] {
   return MONTHS.map((monthName, monthIndex) => {
-    const monthEntries = entries.filter((entry) => isEntryInMonth(entry, year, monthIndex));
+    const monthEntries = entries.filter((entry) => entry.status !== 'cancelled' && isEntryInMonth(entry, year, monthIndex));
     const point = monthEntries.reduce<FinancialMonthlyPoint>((acc, entry) => {
       const amount = Number(entry.amount || 0);
       const isPaid = entry.status === 'paid';
@@ -629,6 +647,7 @@ export function useCreateFinancialEntry() {
 
       const status = input.status || (input.paidAt ? 'paid' : 'pending');
       const paidAt = input.paidAt ? input.paidAt.toISOString() : null;
+      const idempotencyKey = input.idempotencyKey || null;
 
       const { data, error } = await supabase
         .from('financial_entries')
@@ -647,6 +666,7 @@ export function useCreateFinancialEntry() {
           origin: input.origin || 'manual',
           patient_id: input.patientId || null,
           appointment_id: input.appointmentId || null,
+          idempotency_key: idempotencyKey,
           metadata: input.metadata || {},
         })
         .select()
@@ -685,6 +705,14 @@ export function useCreateRecurringFinancialEntry() {
           end_date: input.endDate ? format(input.endDate, 'yyyy-MM-dd') : null,
           next_generation_date: format(input.startDate, 'yyyy-MM-dd'),
           status: 'active',
+          idempotency_key: input.idempotencyKey || buildFinancialEntryIdempotencyKey([
+            'recurring',
+            user.id,
+            input.type,
+            input.frequency,
+            input.title,
+            format(input.startDate, 'yyyy-MM-dd'),
+          ]),
           metadata: input.metadata || {},
         })
         .select()
@@ -721,6 +749,11 @@ function serializeFinancialEntryPatch(input: UpdateFinancialEntryInput) {
   if (input.categoryId !== undefined) patch.category_id = input.categoryId;
   if (input.patientId !== undefined) patch.patient_id = input.patientId;
   if (input.appointmentId !== undefined) patch.appointment_id = input.appointmentId;
+  if (input.idempotencyKey !== undefined) patch.idempotency_key = input.idempotencyKey;
+  if (input.cancelledAt !== undefined) patch.cancelled_at = input.cancelledAt ? input.cancelledAt.toISOString() : null;
+  if (input.cancelledReason !== undefined) patch.cancelled_reason = input.cancelledReason;
+  if (input.reversalOfEntryId !== undefined) patch.reversal_of_entry_id = input.reversalOfEntryId;
+  if (input.reversalReason !== undefined) patch.reversal_reason = input.reversalReason;
   if (input.metadata !== undefined) patch.metadata = input.metadata;
 
   return patch;
@@ -756,6 +789,96 @@ export function useUpdateFinancialEntry() {
 }
 
 export function useDeleteFinancialEntries() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!user?.id) throw new Error('Usuario nao autenticado');
+      if (ids.length === 0) return [];
+
+      const { data: rows, error: fetchError } = await supabase
+        .from('financial_entries')
+        .select('id,status,origin,appointment_id,neurofinance_charge_id,neurofinance_transaction_id,legacy_transaction_id')
+        .eq('professional_id', user.id)
+        .in('id', ids);
+
+      if (fetchError) throw fetchError;
+
+      const entries = rows || [];
+      const hardDeleteIds = entries
+        .filter((entry) =>
+          entry.status !== 'paid' &&
+          entry.origin === 'manual' &&
+          !entry.appointment_id &&
+          !entry.neurofinance_charge_id &&
+          !entry.neurofinance_transaction_id &&
+          !entry.legacy_transaction_id
+        )
+        .map((entry) => entry.id);
+
+      const cancelIds = entries
+        .filter((entry) => !hardDeleteIds.includes(entry.id))
+        .map((entry) => entry.id);
+
+      let deleted: Array<{ id: string }> = [];
+      if (hardDeleteIds.length > 0) {
+        const { data, error } = await supabase
+          .from('financial_entries')
+          .delete()
+          .eq('professional_id', user.id)
+          .in('id', hardDeleteIds)
+          .select('id');
+
+        if (error) throw error;
+        deleted = data || [];
+      }
+
+      let cancelled: Array<{ id: string }> = [];
+      if (cancelIds.length > 0) {
+        const { data, error } = await supabase
+          .from('financial_entries')
+          .update({
+            status: 'cancelled',
+            cancelled_at: new Date().toISOString(),
+            cancelled_reason: 'user_delete_request',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('professional_id', user.id)
+          .in('id', cancelIds)
+          .select('id');
+
+        if (error) throw error;
+        cancelled = data || [];
+      }
+
+      return [...deleted, ...cancelled];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financialEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['patientTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
+    },
+  });
+}
+
+export function useCancelFinancialEntry() {
+  const updateFinancialEntry = useUpdateFinancialEntry();
+
+  return useMutation({
+    mutationFn: async ({ id, reason = 'user_cancelled' }: { id: string; reason?: string }) => updateFinancialEntry.mutateAsync({
+      id,
+      status: 'cancelled',
+      paidAt: null,
+      cancelledAt: new Date(),
+      cancelledReason: reason,
+    }),
+  });
+}
+
+export function useHardDeleteFinancialEntriesUnsafe() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
