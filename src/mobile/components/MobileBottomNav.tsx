@@ -69,12 +69,14 @@ export const MobileBottomNav = () => {
         { label: "Início", href: "/dashboard", icon: Home },
         { label: "Agenda", href: "/agenda", icon: Calendar },
         { label: "Synapse", href: "/synapse-ai", icon: Sparkles, floating: true },
-        { label: "Banco", href: "/financeiro", icon: DollarSign },
+        { label: "Financeiro", href: "/financeiro", icon: DollarSign },
     ];
 
     const menuToRender = isPublicRoute ? publicMenuItems : sideMenuItems;
 
     const springConfig = { type: "spring" as const, stiffness: 450, damping: 35 };
+    const isNavItemActive = (href: string) =>
+        href === "/financeiro" ? location.pathname.startsWith("/financeiro") : location.pathname === href;
 
     return (
         <>
@@ -114,7 +116,7 @@ export const MobileBottomNav = () => {
                                 <div className="flex items-center gap-0.5 flex-1 justify-around">
                                     {mainNavItems.slice(0, 2).map((item) => {
                                         const Icon = item.icon!;
-                                        const isActive = location.pathname === item.href;
+                                        const isActive = isNavItemActive(item.href);
                                         return (
                                             <Link
                                                 key={item.href}
@@ -178,7 +180,7 @@ export const MobileBottomNav = () => {
                                 <div className="flex items-center gap-0.5 flex-1 justify-around">
                                     {mainNavItems.slice(3).map((item) => {
                                         const Icon = item.icon!;
-                                        const isActive = location.pathname === item.href;
+                                        const isActive = isNavItemActive(item.href);
                                         return (
                                             <Link
                                                 key={item.href}

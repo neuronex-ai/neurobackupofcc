@@ -45,7 +45,7 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
       title: 'NeuroFinance pendente',
       message: 'Ative sua subconta Asaas de produção para receber cobranças automáticas.',
       time: 'Financeiro',
-      actionLink: '/financeiro',
+      actionLink: '/financeiro/neurofinance',
     });
   } else if (financialAccount.last_sync_error) {
     alerts.push({
@@ -54,7 +54,7 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
       title: 'Sincronização Asaas',
       message: 'Não foi possível sincronizar sua subconta Asaas. Verifique o painel financeiro.',
       time: 'Financeiro',
-      actionLink: '/financeiro',
+      actionLink: '/financeiro/neurofinance',
     });
   } else if (['pending', 'onboarding', 'pending_review', 'restricted', 'disabled'].includes(financialAccount.status)) {
     alerts.push({
@@ -63,7 +63,7 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
       title: 'Conta Asaas em análise',
       message: 'Sua subconta ainda precisa de validação para liberar cobranças e repasses.',
       time: 'Financeiro',
-      actionLink: '/financeiro',
+      actionLink: '/financeiro/neurofinance',
     });
   }
 
@@ -84,7 +84,7 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
         title: 'Pagamento recebido',
         message: `${recentPayments.length} pagamento(s) confirmado(s): ${centsToBRL(totalReceived)}.`,
         time: 'Financeiro',
-        actionLink: '/financeiro',
+        actionLink: '/financeiro/neurofinance',
       });
     }
 
@@ -102,7 +102,7 @@ const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
         title: 'Repasse com atenção',
         message: `${problematicPayouts.length} repasse(s) tiveram falha ou cancelamento recente.`,
         time: 'Financeiro',
-        actionLink: '/financeiro',
+        actionLink: '/financeiro/neurofinance',
       });
     }
   }

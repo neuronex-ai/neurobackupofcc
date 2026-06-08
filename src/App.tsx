@@ -125,7 +125,7 @@ const SharedRoutes = () => {
         <Route path="/pacientes" element={<ProtectedRoute><Pacientes /></ProtectedRoute>} />
         <Route path="/pacientes/:id" element={<ProtectedRoute><PatientDetail /></ProtectedRoute>} />
         <Route path="/notas" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
-        <Route path="/financeiro" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
+        <Route path="/financeiro/*" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
 
         <Route path="/ajustes" element={<ProtectedRoute><Ajustes /></ProtectedRoute>} />
         <Route path="/teleconsulta" element={<ProtectedRoute><Teleconsulta /></ProtectedRoute>} />

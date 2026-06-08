@@ -60,7 +60,7 @@ export const Navbar = () => {
     { name: "Teleconsulta", href: "/teleconsulta", icon: Video },
     { name: "Pacientes", href: "/pacientes", icon: Users },
     { name: "Notas", href: "/notas", icon: NotebookPen },
-    { name: "NeuroFinance", href: "/financeiro", icon: DollarSign },
+    { name: "Financeiro", href: "/financeiro", icon: DollarSign },
   ];
 
   const handleLogout = async () => {

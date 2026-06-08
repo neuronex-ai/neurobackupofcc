@@ -80,7 +80,7 @@ export const PinModal = ({ open, onOpenChange, onSuccess }: PinModalProps) => {
             >
                 <Button
                     variant="ghost"
-                    onClick={() => { onOpenChange(false); navigate("/financeiro"); }}
+                    onClick={() => { onOpenChange(false); navigate("/financeiro/neurofinance"); }}
                     className="h-10 gap-2 rounded-full border border-white/5 bg-white/5 px-4 text-white/70 transition-all hover:bg-white/10 hover:text-white"
                 >
                     <ArrowLeft className="h-4 w-4" /> Voltar

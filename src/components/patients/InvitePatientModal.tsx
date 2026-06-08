@@ -96,7 +96,7 @@ export const InvitePatientModal = ({ isOpen, onClose, patient }: InvitePatientMo
                     className="p-0 h-auto text-red-500 font-black mt-2 flex items-center gap-1 text-[10px] uppercase tracking-widest"
                     onClick={() => {
                       onClose();
-                      navigate('/financeiro');
+                      navigate('/financeiro/neurofinance');
                     }}
                   >
                     Ir para Financeiro <ExternalLink className="w-3 h-3" />
