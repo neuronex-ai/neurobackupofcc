@@ -300,12 +300,12 @@ export default function PatientDetail() {
 
                                 <div className="mt-6 grid grid-cols-2 gap-2 border-t border-zinc-200/60 pt-5 dark:border-white/[0.06]">
                                     <EditPatientModal patient={patient}>
-                                        <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-white/[0.04] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
+                                        <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-[#141415] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
                                             <Edit className="h-4 w-4 mr-2" /> Editar
                                         </Button>
                                     </EditPatientModal>
                                     <DocumentGeneratorModal patient={patient}>
-                                        <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-white/[0.04] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
+                                        <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-[#141415] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
                                             <FileOutput className="h-4 w-4 mr-2" /> Docs
                                         </Button>
                                     </DocumentGeneratorModal>
@@ -325,7 +325,7 @@ export default function PatientDetail() {
                                     <div className="space-y-3">
                                         {patient.medications && patient.medications.length > 0 ? (
                                             patient.medications.map((med, idx) => (
-                                                <div key={idx} className="group relative overflow-hidden rounded-2xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-100 dark:border-white/[0.06] p-4 hover:bg-zinc-100 dark:hover:bg-white/[0.05] transition-all">
+                                                <div key={idx} className="group relative overflow-hidden rounded-2xl bg-zinc-50 dark:bg-[#141415] border border-zinc-100 dark:border-white/[0.075] p-4 hover:bg-zinc-100 dark:hover:bg-[#18181a] transition-all">
                                                     <div className="flex items-start justify-between gap-3">
                                                         <span className="text-sm font-bold text-zinc-700 dark:text-zinc-200">{med.name}</span>
                                                         {med.dosage && (

@@ -21,11 +21,11 @@ interface PatientUnifiedTimelineProps {
 }
 
 const moodConfig: Record<number, { icon: any, color: string, label: string, bg: string, border: string }> = {
-    1: { icon: Angry, color: "text-zinc-600 dark:text-zinc-400", label: "Péssimo", bg: "bg-white/64 dark:bg-[#0a0a0b]/58", border: "border-zinc-200/70 dark:border-white/[0.07]" },
-    2: { icon: Frown, color: "text-zinc-600 dark:text-zinc-400", label: "Ruim", bg: "bg-white/64 dark:bg-[#0a0a0b]/58", border: "border-zinc-200/70 dark:border-white/[0.07]" },
-    3: { icon: Meh, color: "text-zinc-900 dark:text-zinc-100", label: "Neutro", bg: "bg-white/64 dark:bg-[#0a0a0b]/58", border: "border-zinc-200/70 dark:border-white/[0.07]" },
-    4: { icon: Smile, color: "text-zinc-900 dark:text-zinc-100", label: "Bem", bg: "bg-white/64 dark:bg-[#0a0a0b]/58", border: "border-zinc-200/70 dark:border-white/[0.07]" },
-    5: { icon: Laugh, color: "text-zinc-900 dark:text-zinc-100", label: "Ótimo", bg: "bg-white/64 dark:bg-[#0a0a0b]/58", border: "border-zinc-200/70 dark:border-white/[0.07]" },
+    1: { icon: Angry, color: "text-zinc-600 dark:text-zinc-400", label: "Péssimo", bg: "bg-white/64 dark:bg-[#0b0b0d]", border: "border-zinc-200/70 dark:border-white/[0.085]" },
+    2: { icon: Frown, color: "text-zinc-600 dark:text-zinc-400", label: "Ruim", bg: "bg-white/64 dark:bg-[#0b0b0d]", border: "border-zinc-200/70 dark:border-white/[0.085]" },
+    3: { icon: Meh, color: "text-zinc-900 dark:text-zinc-100", label: "Neutro", bg: "bg-white/64 dark:bg-[#0b0b0d]", border: "border-zinc-200/70 dark:border-white/[0.085]" },
+    4: { icon: Smile, color: "text-zinc-900 dark:text-zinc-100", label: "Bem", bg: "bg-white/64 dark:bg-[#0b0b0d]", border: "border-zinc-200/70 dark:border-white/[0.085]" },
+    5: { icon: Laugh, color: "text-zinc-900 dark:text-zinc-100", label: "Ótimo", bg: "bg-white/64 dark:bg-[#0b0b0d]", border: "border-zinc-200/70 dark:border-white/[0.085]" },
 };
 
 const ExpandableText = ({ text, className, limit = 150 }: { text: string, className?: string, limit?: number }) => {
@@ -94,7 +94,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
     if (!timeline || timeline.length === 0) {
         return (
-            <GlassCard className="!rounded-[30px] !border-dashed !border-zinc-200/70 !bg-white/52 !py-24 !text-center !shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] !backdrop-blur-2xl dark:!border-white/[0.07] dark:!bg-[#0a0a0b]/52 dark:!shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+            <GlassCard className="!rounded-[30px] !border-dashed !border-zinc-200/70 !bg-white/52 !py-24 !text-center !shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] !backdrop-blur-2xl dark:!border-white/[0.085] dark:!bg-[#0b0b0d] dark:!shadow-[inset_0_1px_0_rgba(255,255,255,0.026)]">
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-muted-foreground">Linha do tempo vazia</p>
             </GlassCard>
         );
@@ -103,7 +103,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
     return (
         <div className="relative space-y-8 pb-24 pl-9 pr-1 pt-3">
             {/* Fine Filament Timeline Line */}
-            <div className="absolute bottom-8 left-[15px] top-0 z-0 w-px bg-gradient-to-b from-transparent via-zinc-950/12 to-transparent dark:via-white/[0.08]" />
+            <div className="absolute bottom-8 left-[15px] top-0 z-0 w-px bg-gradient-to-b from-transparent via-zinc-950/12 to-transparent dark:via-white/[0.095]" />
 
             {timeline.map((item, index) => {
                 const isLatest = index === 0;
@@ -138,7 +138,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                         <div className="group relative">
                             {item.type === 'note' && (
                                 <GlassCard
-                                    className="!rounded-[30px] !border-zinc-200/70 !bg-white/64 !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.45),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!border-white/[0.07] dark:!bg-[#0a0a0b]/58 dark:!shadow-[0_24px_62px_-44px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.032)] dark:hover:!border-white/[0.115] dark:hover:!bg-[#101012]/76"
+                                    className="!rounded-[30px] !border-zinc-200/70 !bg-white/64 !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.45),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!border-white/[0.085] dark:!bg-[#0b0b0d] dark:!shadow-[0_24px_62px_-46px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.026)] dark:hover:!border-white/[0.12] dark:hover:!bg-[#111113]"
                                     innerClassName="relative overflow-hidden"
                                 >
                                     <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.012] dark:opacity-[0.022]" />
@@ -166,7 +166,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                                             />
                                             <div className="flex flex-wrap gap-3 pt-4">
                                                 {item.data.ai_summary.topics?.slice(0, 5).map((t: string, i: number) => (
-                                                    <span key={i} className="text-[10px] bg-zinc-100 dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] px-3.5 py-2 rounded-xl text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-widest shadow-sm">
+                                                    <span key={i} className="text-[10px] bg-zinc-100 dark:bg-[#141415] border border-zinc-200 dark:border-white/[0.075] px-3.5 py-2 rounded-xl text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-widest shadow-sm">
                                                         {t}
                                                     </span>
                                                 ))}
@@ -185,14 +185,14 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
                             {item.type === 'goal' && (
                                 <GlassCard
-                                    className="group !rounded-[30px] !border-zinc-200/70 !bg-white/64 !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!border-white/[0.07] dark:!bg-[#0a0a0b]/58 dark:!shadow-[0_24px_62px_-44px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.032)] dark:hover:!border-white/[0.115] dark:hover:!bg-[#101012]/76"
+                                    className="group !rounded-[30px] !border-zinc-200/70 !bg-white/64 !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!border-white/[0.085] dark:!bg-[#0b0b0d] dark:!shadow-[0_24px_62px_-46px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.026)] dark:hover:!border-white/[0.12] dark:hover:!bg-[#111113]"
                                     innerClassName="flex items-center gap-5"
                                 >
                                     <div className={cn(
                                         "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-colors duration-300",
                                         item.data.is_completed
                                             ? "bg-zinc-900 text-zinc-100 dark:bg-white dark:text-black border-zinc-900 dark:border-white shadow-xl"
-                                            : "bg-zinc-100 dark:bg-white/[0.03] text-zinc-400 dark:text-zinc-600 border-zinc-200/50 dark:border-white/[0.06]"
+                                            : "bg-zinc-100 dark:bg-[#141415] text-zinc-400 dark:text-zinc-600 border-zinc-200/50 dark:border-white/[0.075]"
                                     )}>
                                         {item.data.is_completed ? <CheckCircle2 className="h-5 w-5" /> : <Target className="h-5 w-5" />}
                                     </div>
@@ -216,19 +216,19 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                                 const Icon = mood.icon;
                                 return (
                                     <GlassCard
-                                        className={cn("group relative overflow-hidden !rounded-[30px] !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!shadow-[0_24px_62px_-44px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.032)] dark:hover:!border-white/[0.115] dark:hover:!bg-[#101012]/76", mood.bg, mood.border)}
+                                        className={cn("group relative overflow-hidden !rounded-[30px] !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!shadow-[0_24px_62px_-46px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.026)] dark:hover:!border-white/[0.12] dark:hover:!bg-[#111113]", mood.bg, mood.border)}
                                         innerClassName="flex items-center gap-5"
                                     >
                                         <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.012] dark:opacity-[0.022]" />
                                         <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-zinc-950/[0.025] blur-[90px] dark:bg-white/[0.035]" />
-                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-zinc-200/70 bg-white/74 shadow-sm ring-1 ring-white/60 dark:border-white/[0.07] dark:bg-white/[0.04] dark:ring-white/[0.035]">
+                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-zinc-200/70 bg-white/74 shadow-sm ring-1 ring-white/60 dark:border-white/[0.075] dark:bg-[#141415] dark:ring-white/[0.035]">
                                             <Icon className={cn("h-6 w-6", mood.color)} />
                                         </div>
                                         <div className="flex flex-col gap-2">
                                             <span className="text-[11px] uppercase tracking-[0.4em] font-black text-zinc-400 dark:text-zinc-600">Bem-estar Diário</span>
                                             <p className="text-base font-bold tracking-tight text-foreground">{mood.label}</p>
                                             {item.data.notes && (
-                                                <p className="text-xs text-zinc-500 dark:text-zinc-400 italic mt-3 line-clamp-2 font-medium bg-white/50 dark:bg-black/20 px-4 py-2 rounded-xl border border-zinc-200/50 dark:border-white/[0.06] shadow-inner">
+                                                <p className="text-xs text-zinc-500 dark:text-zinc-400 italic mt-3 line-clamp-2 font-medium bg-white/50 dark:bg-[#080809] px-4 py-2 rounded-xl border border-zinc-200/50 dark:border-white/[0.065] shadow-inner">
                                                     "{item.data.notes}"
                                                 </p>
                                             )}
@@ -239,11 +239,11 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
 
                             {item.type === 'document' && (
                                 <GlassCard
-                                    className="group !rounded-[30px] !border-zinc-200/70 !bg-white/64 !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!border-white/[0.07] dark:!bg-[#0a0a0b]/58 dark:!shadow-[0_24px_62px_-44px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.032)] dark:hover:!border-white/[0.115] dark:hover:!bg-[#101012]/76"
+                                    className="group !rounded-[30px] !border-zinc-200/70 !bg-white/64 !p-6 !shadow-[0_22px_58px_-46px_rgba(24,24,27,0.42),inset_0_1px_0_rgba(255,255,255,0.76)] !backdrop-blur-2xl transition-all duration-300 hover:!border-zinc-300/80 hover:!bg-white/86 dark:!border-white/[0.085] dark:!bg-[#0b0b0d] dark:!shadow-[0_24px_62px_-46px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.026)] dark:hover:!border-white/[0.12] dark:hover:!bg-[#111113]"
                                     innerClassName="flex items-center justify-between"
                                 >
                                     <div className="flex min-w-0 flex-1 items-center gap-5">
-                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/55 text-foreground shadow-sm">
+                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/55 text-foreground shadow-sm dark:border-white/[0.075] dark:bg-[#141415]">
                                             <Paperclip className="h-5 w-5" />
                                         </div>
                                         <div className="flex flex-col gap-2 min-w-0">
@@ -256,7 +256,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-10 w-10 rounded-xl border border-border/70 bg-muted/55 text-muted-foreground transition-colors hover:bg-foreground hover:text-background"
+                                        className="h-10 w-10 rounded-xl border border-border/70 bg-muted/55 text-muted-foreground transition-colors hover:bg-foreground hover:text-background dark:border-white/[0.075] dark:bg-[#141415] dark:hover:bg-white dark:hover:text-black"
                                         onClick={() => handleDownload(item.data.path)}
                                     >
                                         <Download className="h-4 w-4" />
@@ -275,7 +275,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                         variant="outline"
                         disabled={isFetchingNextPage}
                         onClick={() => fetchNextPage()}
-                        className="h-12 rounded-2xl border-zinc-200/70 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.18em] text-foreground shadow-[0_18px_40px_-32px_rgba(24,24,27,0.45)] backdrop-blur-xl transition-all hover:bg-white active:scale-[0.98] dark:border-white/[0.075] dark:bg-white/[0.045] dark:hover:bg-white/[0.075]"
+                        className="h-12 rounded-2xl border-zinc-200/70 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.18em] text-foreground shadow-[0_18px_40px_-32px_rgba(24,24,27,0.45)] backdrop-blur-xl transition-all hover:bg-white active:scale-[0.98] dark:border-white/[0.085] dark:bg-[#141415] dark:hover:bg-[#18181a]"
                     >
                         {isFetchingNextPage ? (
                             <>

@@ -74,7 +74,7 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
 
   if (!latestNote?.ai_summary) {
     return (
-      <div className="rounded-3xl border border-dashed border-border/70 bg-card/45 px-6 py-10 text-center text-sm text-muted-foreground">
+      <div className="rounded-3xl border border-dashed border-border/70 bg-card/45 px-6 py-10 text-center text-sm text-muted-foreground dark:border-white/[0.085] dark:bg-[#0b0b0d]">
         Nenhum registro de análise clínica disponível para a sessão mais recente.
       </div>
     );
@@ -210,9 +210,9 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="group/card relative overflow-hidden rounded-[26px] border border-border/70 bg-card/78 p-6 shadow-[0_18px_48px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:p-7 dark:bg-[#0d0e10]/82 dark:shadow-[0_18px_48px_-36px_rgba(0,0,0,0.9)]"
+        className="group/card relative overflow-hidden rounded-[26px] border border-border/70 bg-card/78 p-6 shadow-[0_18px_48px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:p-7 dark:border-white/[0.085] dark:bg-[#0b0b0d] dark:shadow-[0_18px_48px_-40px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.026)]"
       >
-        <div className="pointer-events-none absolute inset-0 opacity-[0.025] dark:opacity-[0.045] [background-image:url('/noise.png')]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.025] dark:opacity-[0.025] [background-image:url('/noise.png')]" />
 
         <div className="relative z-10 mb-6 flex items-start justify-between gap-4">
           <div className="flex flex-col gap-2">
@@ -220,7 +220,7 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
               <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Synapse AI</span>
               <span className="block text-lg font-bold tracking-tight text-foreground">Resumo da sessão</span>
             </div>
-            <div className="mb-1 flex w-fit items-center gap-2 rounded-full border border-border/70 bg-muted/55 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <div className="mb-1 flex w-fit items-center gap-2 rounded-full border border-border/70 bg-muted/55 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground dark:border-white/[0.075] dark:bg-[#141415]">
               <SentimentIcon className="h-3.5 w-3.5" />
               <span>{summary.sentiment}</span>
             </div>
@@ -229,7 +229,7 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border border-border/70 bg-muted/45 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl border border-border/70 bg-muted/45 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground dark:border-white/[0.075] dark:bg-[#141415] dark:hover:bg-[#18181a]">
                   <MoreVertical className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -298,7 +298,7 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
             </div>
             <div className="flex flex-wrap gap-2.5">
               {summary.topics.map((topic) => (
-                <div key={topic} className="px-4 py-1.5 rounded-full bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 transition-colors text-xs text-zinc-600 dark:text-zinc-300 font-medium cursor-default">
+                <div key={topic} className="px-4 py-1.5 rounded-full bg-zinc-100 dark:bg-[#141415] border border-zinc-200 dark:border-white/[0.075] hover:bg-zinc-200 dark:hover:bg-[#18181a] transition-colors text-xs text-zinc-600 dark:text-zinc-300 font-medium cursor-default">
                   {topic}
                 </div>
               ))}
@@ -330,7 +330,7 @@ export const ClinicalSummaryCard = ({ latestNote, patient }: ClinicalSummaryCard
               {summary.next_steps.map((step) => (
                 <div
                   key={step}
-                  className="flex items-start gap-4 p-5 rounded-3xl bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/10 hover:border-zinc-200 dark:hover:border-white/10 transition-all select-text group/item"
+                  className="flex items-start gap-4 p-5 rounded-3xl bg-zinc-50 dark:bg-[#141415] border border-zinc-100 dark:border-white/[0.075] hover:bg-zinc-100 dark:hover:bg-[#18181a] hover:border-zinc-200 dark:hover:border-white/[0.11] transition-all select-text group/item"
                 >
                   <div className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 group-hover/item:bg-emerald-400 transition-colors mt-2 shrink-0" />
                   <span className="text-sm text-zinc-600 dark:text-zinc-300 font-light leading-relaxed">{step}</span>
