@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useState, type ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
@@ -440,6 +440,368 @@ const paymentMethods = ["Pix", "Boleto", "Cartao", "Dinheiro", "Transferencia ex
 
 const moneyFormatter = (value: number) =>
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
+const SelectShell = ({ children, className }: { children: ReactNode; className?: string }) => (
+    <select
+        className={cn(
+            "h-11 rounded-2xl border border-zinc-200 bg-white/70 px-4 text-sm font-bold text-zinc-600 outline-none transition-colors focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-200",
+            className
+        )}
+    >
+        {children}
+    </select>
+);
+
+const InputShell = ({ placeholder, className, type = "text" }: { placeholder?: string; className?: string; type?: string }) => (
+    <input
+        type={type}
+        placeholder={placeholder}
+        className={cn(
+            "h-11 rounded-2xl border border-zinc-200 bg-white/70 px-4 text-sm font-bold text-zinc-600 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-200",
+            className
+        )}
+    />
+);
+
+const FormLabel = ({ children, required }: { children: ReactNode; required?: boolean }) => (
+    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
+        {children}
+        {required ? <span className="ml-1 text-rose-500">*</span> : null}
+    </label>
+);
+
+const TogglePill = ({ active, onClick }: { active: boolean; onClick: () => void }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+            "flex h-8 w-[72px] items-center rounded-xl border p-0.5 transition-colors",
+            active
+                ? "border-zinc-950 bg-zinc-950 dark:border-white dark:bg-white"
+                : "border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.035]"
+        )}
+    >
+        <span
+            className={cn(
+                "flex h-7 w-10 items-center justify-center rounded-[10px] text-[10px] font-black uppercase transition-transform",
+                active
+                    ? "translate-x-0 bg-white text-zinc-950 dark:bg-zinc-950 dark:text-white"
+                    : "translate-x-7 bg-zinc-400 text-white dark:bg-zinc-600"
+            )}
+        >
+            {active ? "Sim" : "Nao"}
+        </span>
+    </button>
+);
+
+const PremiumModal = ({
+    open,
+    title,
+    children,
+    onClose,
+    footer,
+    size = "max-w-2xl",
+}: {
+    open: boolean;
+    title: string;
+    children: ReactNode;
+    onClose: () => void;
+    footer?: ReactNode;
+    size?: string;
+}) => {
+    if (!open) return null;
+
+    return (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-3xl">
+            <motion.div
+                initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 24, scale: 0.98 }}
+                className={cn("relative max-h-[92vh] w-full overflow-hidden rounded-[34px] border border-white/10 bg-white shadow-2xl dark:bg-zinc-950", size)}
+            >
+                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.025] dark:opacity-[0.055]" />
+                <div className="relative z-10 flex items-center justify-between border-b border-zinc-200/70 px-7 py-6 dark:border-white/10">
+                    <h2 className="text-2xl font-black tracking-[-0.04em] text-zinc-950 dark:text-white">{title}</h2>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:text-zinc-950 dark:bg-white/5 dark:text-zinc-400 dark:hover:text-white"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+                <div className="relative z-10 max-h-[calc(92vh-150px)] overflow-y-auto px-7 py-6 custom-scrollbar">{children}</div>
+                {footer ? (
+                    <div className="relative z-10 flex justify-end gap-3 border-t border-zinc-200/70 px-7 py-5 dark:border-white/10">
+                        {footer}
+                    </div>
+                ) : null}
+            </motion.div>
+        </div>
+    );
+};
+
+const ModalButton = ({ children, variant = "primary", onClick }: { children: ReactNode; variant?: "primary" | "secondary"; onClick?: () => void }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+            "h-11 rounded-2xl px-8 text-[11px] font-black uppercase tracking-[0.18em] transition-all active:scale-[0.98]",
+            variant === "primary"
+                ? "bg-zinc-950 text-white hover:opacity-90 dark:bg-white dark:text-zinc-950"
+                : "border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400 dark:hover:text-white"
+        )}
+    >
+        {children}
+    </button>
+);
+
+const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expense"; open: boolean; onClose: () => void }) => {
+    const [paid, setPaid] = useState(false);
+    const [repeat, setRepeat] = useState(false);
+    const isIncome = type === "income";
+
+    return (
+        <PremiumModal
+            open={open}
+            title={isIncome ? "Adicionar receita" : "Adicionar despesa"}
+            onClose={onClose}
+            footer={
+                <>
+                    <ModalButton variant="secondary" onClick={onClose}>Cancelar</ModalButton>
+                    <ModalButton onClick={onClose}>Salvar</ModalButton>
+                </>
+            }
+        >
+            <div className="space-y-6">
+                <div>
+                    <FormLabel>Propriedade <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-sky-500" /></FormLabel>
+                    <SelectShell className="w-full">
+                        <option>Clinica</option>
+                        <option>Particular</option>
+                    </SelectShell>
+                </div>
+
+                <div className="h-px bg-zinc-200 dark:bg-white/10" />
+
+                <div>
+                    <FormLabel required>Categoria financeira <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-sky-500" /></FormLabel>
+                    <div className="flex gap-3">
+                        <SelectShell className="flex-1">
+                            <option>Selecione</option>
+                            {financeFormCategories[type].map((category) => (
+                                <option key={category}>{category}</option>
+                            ))}
+                        </SelectShell>
+                        <button type="button" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:hover:text-white">
+                            <Plus className="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <FormLabel>Descricao</FormLabel>
+                    <InputShell placeholder="Digite aqui" className="w-full" />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <FormLabel required>Valor</FormLabel>
+                        <InputShell placeholder="R$ 0,00" className="w-full" />
+                    </div>
+                    <div>
+                        <FormLabel required>Data de vencimento</FormLabel>
+                        <InputShell placeholder="__/__/____" className="w-full" />
+                    </div>
+                </div>
+
+                <div className="h-px bg-zinc-200 dark:bg-white/10" />
+
+                <div className="flex flex-wrap items-center gap-4">
+                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Marcar como Pago:</span>
+                    <TogglePill active={paid} onClick={() => setPaid((value) => !value)} />
+                </div>
+
+                {paid ? (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                            <FormLabel required>Data de pagamento</FormLabel>
+                            <InputShell placeholder="__/__/____" className="w-full" />
+                        </div>
+                        <div>
+                            <FormLabel>Forma de pagamento</FormLabel>
+                            <SelectShell className="w-full">
+                                <option>-- Selecione --</option>
+                                {paymentMethods.map((method) => (
+                                    <option key={method}>{method}</option>
+                                ))}
+                            </SelectShell>
+                        </div>
+                    </div>
+                ) : null}
+
+                <div className="flex flex-wrap items-center gap-4">
+                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Repetir evento: <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-sky-500" /></span>
+                    <TogglePill active={repeat} onClick={() => setRepeat((value) => !value)} />
+                </div>
+
+                {repeat ? (
+                    <div className="space-y-4 rounded-[24px] border border-zinc-200/70 bg-zinc-50/70 p-4 dark:border-white/10 dark:bg-white/[0.025]">
+                        <div>
+                            <FormLabel>Escolha a recorrencia</FormLabel>
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <SelectShell className="w-full">
+                                    <option>Semanalmente</option>
+                                    <option>Mensalmente</option>
+                                    <option>Anualmente</option>
+                                </SelectShell>
+                                <InputShell placeholder="Toda Segunda-Feira" className="w-full opacity-70" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <label className="flex items-center gap-3 text-sm font-bold text-zinc-600 dark:text-zinc-300">
+                                <input type="radio" defaultChecked className="h-4 w-4" />
+                                Terminar apos:
+                                <InputShell type="number" placeholder="1" className="w-24" />
+                                repeticao(oes)
+                            </label>
+                            <label className="flex items-center gap-3 text-sm font-bold text-zinc-600 dark:text-zinc-300">
+                                <input type="radio" className="h-4 w-4" />
+                                Terminar em:
+                                <InputShell placeholder="__/__/____" className="w-36" />
+                            </label>
+                        </div>
+                    </div>
+                ) : null}
+
+                <div>
+                    <FormLabel>Observacoes</FormLabel>
+                    <textarea
+                        placeholder="Digite aqui"
+                        className="min-h-[112px] w-full rounded-2xl border border-zinc-200 bg-white/70 px-4 py-3 text-sm font-bold text-zinc-600 outline-none placeholder:text-zinc-400 focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-200"
+                    />
+                    <p className="mt-2 text-xs font-bold text-zinc-400">0 de 400 caracteres</p>
+                </div>
+            </div>
+        </PremiumModal>
+    );
+};
+
+const ManualChargeModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => (
+    <PremiumModal
+        open={open}
+        title="Gerar Cobranca Manual"
+        onClose={onClose}
+        footer={
+            <>
+                <ModalButton variant="secondary" onClick={onClose}>Cancelar</ModalButton>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="h-11 rounded-2xl bg-zinc-300 px-8 text-[11px] font-black uppercase tracking-[0.18em] text-white dark:bg-white/20"
+                >
+                    Gerar Cobranca
+                </button>
+            </>
+        }
+    >
+        <div className="space-y-6">
+            <div>
+                <FormLabel>Cliente</FormLabel>
+                <SelectShell className="w-full">
+                    <option>-- Selecione --</option>
+                    <option>Ana Martins</option>
+                    <option>Bruno Lima</option>
+                    <option>Carla Nunes</option>
+                </SelectShell>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                    <FormLabel required>Vencimento</FormLabel>
+                    <InputShell placeholder="08/06/2026" className="w-full" />
+                </div>
+                <div>
+                    <FormLabel required>Valor</FormLabel>
+                    <InputShell placeholder="R$ 0,00" className="w-full" />
+                </div>
+                <div>
+                    <FormLabel>Tipo de cobranca</FormLabel>
+                    <SelectShell className="w-full">
+                        <option>-- Selecione --</option>
+                        <option>Pix</option>
+                        <option>Boleto</option>
+                        <option>Cartao</option>
+                    </SelectShell>
+                </div>
+            </div>
+            <div>
+                <FormLabel required>Descricao</FormLabel>
+                <InputShell placeholder="Digite aqui" className="w-full md:w-1/2" />
+            </div>
+            <div className="flex min-h-[130px] items-center justify-center rounded-[28px] border border-dashed border-zinc-200 bg-zinc-50/70 text-center text-sm font-bold text-zinc-500 dark:border-white/10 dark:bg-white/[0.025] dark:text-zinc-400">
+                Escolha um cliente para visualizar os debitos.
+            </div>
+        </div>
+    </PremiumModal>
+);
+
+const OptionsDropdown = ({
+    id,
+    openMenu,
+    setOpenMenu,
+    items,
+}: {
+    id: Exclude<ManagementOptionsMenu, null>;
+    openMenu: ManagementOptionsMenu;
+    setOpenMenu: (menu: ManagementOptionsMenu) => void;
+    items: { label: string; icon: LucideIcon; onClick: () => void; danger?: boolean }[];
+}) => {
+    const isOpen = openMenu === id;
+
+    return (
+        <div className="relative">
+            <button
+                type="button"
+                onClick={() => setOpenMenu(isOpen ? null : id)}
+                className="inline-flex h-11 items-center gap-3 rounded-2xl border border-zinc-200 bg-white/70 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600 shadow-sm transition-colors hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300 dark:hover:text-white"
+            >
+                <MoreHorizontal className="h-4 w-4" />
+                Opcoes
+                <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-90")} />
+            </button>
+            <AnimatePresence>
+                {isOpen ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                        className="absolute right-0 top-13 z-[120] w-72 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-2 shadow-2xl dark:border-white/10 dark:bg-zinc-950"
+                    >
+                        {items.map((item) => (
+                            <button
+                                key={item.label}
+                                type="button"
+                                onClick={() => {
+                                    setOpenMenu(null);
+                                    item.onClick();
+                                }}
+                                className={cn(
+                                    "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black uppercase tracking-[0.1em] transition-colors",
+                                    item.danger
+                                        ? "text-rose-500 hover:bg-rose-500/10"
+                                        : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:hover:bg-white/5 dark:hover:text-white"
+                                )}
+                            >
+                                <item.icon className="h-4 w-4" />
+                                {item.label}
+                            </button>
+                        ))}
+                    </motion.div>
+                ) : null}
+            </AnimatePresence>
+        </div>
+    );
+};
 
 const ManagementSectionHeader = ({
     icon: Icon,
