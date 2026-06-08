@@ -18,7 +18,6 @@ import {
     Filter,
     HelpCircle,
     Landmark,
-    LayoutDashboard,
     Loader2,
     MoreHorizontal,
     PieChart,
@@ -180,8 +179,8 @@ const FinanceiroPortal = () => {
                     <p className="mb-5 text-[10px] font-black uppercase tracking-[0.42em] text-muted-foreground/50">
                         Modulo financeiro
                     </p>
-                    <h1 className="text-4xl font-black leading-tight tracking-[-0.055em] text-foreground md:text-7xl">
-                        Escolha sua camada financeira.
+                    <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-[-0.05em] text-foreground sm:text-4xl md:text-7xl">
+                        Escolha o seu <span className="font-medium italic text-foreground/30">Fluxo</span>
                     </h1>
                     <p className="mx-auto mt-5 max-w-2xl text-sm font-medium leading-relaxed text-muted-foreground md:text-lg">
                         Separe a gestao interna do consultorio da conta bancaria real. O dinheiro previsto fica na gestao; o saldo real continua no NeuroFinance.
@@ -225,7 +224,6 @@ const FinanceiroPortal = () => {
 
 type ManagementView =
     | "overview"
-    | "financial-panel"
     | "income"
     | "expenses"
     | "statement"
@@ -261,7 +259,6 @@ const MANAGEMENT_NAV: ManagementNavGroup[] = [
         label: "Transacoes",
         icon: Receipt,
         subItems: [
-            { id: "financial-panel", label: "Painel financeiro", icon: LayoutDashboard, description: "Resumo operacional das entradas e saidas." },
             { id: "income", label: "Receitas", icon: TrendingUp, description: "Receitas previstas, pendentes e pagas." },
             { id: "expenses", label: "Despesas", icon: TrendingDown, description: "Despesas previstas, pendentes e pagas." },
             { id: "statement", label: "Extrato", icon: ClipboardList, description: "Extrato gerencial sem transacoes bancarias reais." },
@@ -293,12 +290,6 @@ const MANAGEMENT_VIEW_META: Record<ManagementView, { title: string; subtitle: st
         subtitle: "Indicadores gerenciais do consultorio",
         icon: PieChart,
         items: [],
-    },
-    "financial-panel": {
-        title: "Painel financeiro",
-        subtitle: "Resumo operacional de transacoes gerenciais",
-        icon: LayoutDashboard,
-        items: ["Filtros por periodo", "Lancamentos manuais", "Separacao entre previsto e realizado"],
     },
     income: {
         title: "Receitas",
@@ -466,7 +457,7 @@ const InputShell = ({ placeholder, className, type = "text" }: { placeholder?: s
 const FormLabel = ({ children, required }: { children: ReactNode; required?: boolean }) => (
     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
         {children}
-        {required ? <span className="ml-1 text-rose-500">*</span> : null}
+        {required ? <span className="ml-1 text-zinc-950 dark:text-white">*</span> : null}
     </label>
 );
 
@@ -575,7 +566,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
         >
             <div className="space-y-6">
                 <div>
-                    <FormLabel>Propriedade <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-sky-500" /></FormLabel>
+                    <FormLabel>Propriedade <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-zinc-400" /></FormLabel>
                     <SelectShell className="w-full">
                         <option>Clinica</option>
                         <option>Particular</option>
@@ -585,7 +576,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                 <div className="h-px bg-zinc-200 dark:bg-white/10" />
 
                 <div>
-                    <FormLabel required>Categoria financeira <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-sky-500" /></FormLabel>
+                    <FormLabel required>Categoria financeira <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-zinc-400" /></FormLabel>
                     <div className="flex gap-3">
                         <SelectShell className="flex-1">
                             <option>Selecione</option>
@@ -641,7 +632,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                 ) : null}
 
                 <div className="flex flex-wrap items-center gap-4">
-                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Repetir evento: <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-sky-500" /></span>
+                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Repetir evento: <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-zinc-400" /></span>
                     <TogglePill active={repeat} onClick={() => setRepeat((value) => !value)} />
                 </div>
 
@@ -788,7 +779,7 @@ const OptionsDropdown = ({
                                 className={cn(
                                     "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black uppercase tracking-[0.1em] transition-colors",
                                     item.danger
-                                        ? "text-rose-500 hover:bg-rose-500/10"
+                                        ? "text-zinc-950 hover:bg-zinc-950/10 dark:text-white dark:hover:bg-white/10"
                                         : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:hover:bg-white/5 dark:hover:text-white"
                                 )}
                             >
@@ -937,7 +928,7 @@ const ManagementOverview = ({ motionProps }: { motionProps: any }) => (
                     <h3 className="text-lg font-black uppercase tracking-tight text-zinc-950 dark:text-white">Receitas atrasadas no periodo selecionado</h3>
                     <p className="mt-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Tabela base para inadimplencia gerencial.</p>
                 </div>
-                <span className="w-fit rounded-full bg-amber-500/10 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-amber-600 dark:text-amber-300">
+                <span className="w-fit rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400">
                     Layout sem dados reais
                 </span>
             </div>
@@ -971,20 +962,21 @@ const ManagementOverview = ({ motionProps }: { motionProps: any }) => (
 const FinanceMetricCards = ({ cards }: { cards: { title: string; value: string; footer: string[]; icon: LucideIcon; tone?: string }[] }) => (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         {cards.map((card) => (
-            <div key={card.title} className="relative overflow-hidden rounded-[32px] border border-zinc-200/50 bg-white/60 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.015]">
-                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.02] dark:opacity-[0.04]" />
+            <div key={card.title} className="relative overflow-hidden rounded-[32px] border border-zinc-200/60 bg-white/72 p-6 shadow-[0_18px_70px_-55px_rgba(0,0,0,0.95)] backdrop-blur-2xl dark:border-white/[0.055] dark:bg-white/[0.018]">
+                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.016] dark:opacity-[0.04]" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-950/10 to-transparent dark:via-white/12" />
                 <div className="relative z-10 flex items-start justify-between gap-4">
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.26em] text-zinc-400 dark:text-zinc-500">{card.title}</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.26em] text-zinc-500 dark:text-zinc-500">{card.title}</p>
                         <p className="mt-5 text-4xl font-black tracking-[-0.055em] text-zinc-950 dark:text-white">{card.value}</p>
                     </div>
-                    <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-white/10 dark:bg-white/[0.04]", card.tone)}>
+                    <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-zinc-950/10 bg-zinc-950 text-white shadow-[0_18px_45px_-28px_rgba(0,0,0,0.9)] dark:border-white/15 dark:bg-white dark:text-zinc-950", card.tone)}>
                         <card.icon className="h-5 w-5" />
                     </div>
                 </div>
                 <div className="relative z-10 mt-6 flex flex-wrap gap-2">
                     {card.footer.map((item) => (
-                        <span key={item} className="rounded-full border border-zinc-200/70 bg-zinc-50/80 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400">
+                        <span key={item} className="rounded-full border border-zinc-200/75 bg-zinc-50/90 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400">
                             {item}
                         </span>
                     ))}
@@ -1092,7 +1084,7 @@ const FinancialBarsChart = ({
 );
 
 const InfoBlock = ({ children }: { children: ReactNode }) => (
-    <div className="rounded-[26px] border border-sky-200/70 bg-sky-50/80 p-5 text-sm font-medium leading-relaxed text-sky-700 dark:border-sky-400/10 dark:bg-sky-400/10 dark:text-sky-200">
+    <div className="rounded-[26px] border border-zinc-200/75 bg-zinc-50/85 p-5 text-sm font-medium leading-relaxed text-zinc-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300">
         {children}
     </div>
 );
@@ -1131,8 +1123,8 @@ const IncomeView = ({
         <FinanceMetricCards
             cards={[
                 { title: "Total Previsto", value: "R$ --", footer: ["Periodo: Junho 2026"], icon: BarChart3 },
-                { title: "Receitas Pagas", value: "R$ --", footer: ["Pago: R$ --"], icon: TrendingUp, tone: "text-emerald-600" },
-                { title: "Receitas Nao Pagas", value: "R$ --", footer: ["Nao pago: R$ --"], icon: AlertTriangle, tone: "text-amber-600" },
+                { title: "Receitas Pagas", value: "R$ --", footer: ["Pago: R$ --"], icon: TrendingUp },
+                { title: "Receitas Nao Pagas", value: "R$ --", footer: ["Nao pago: R$ --"], icon: AlertTriangle },
             ]}
         />
         <FinancialBarsChart
@@ -1182,7 +1174,7 @@ const IncomeView = ({
                                 <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.origin}</td>
                                 <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
                                 <td className="px-5 py-4">
-                                    <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Pago" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600")}>{row.status}</span>
+                                    <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Pago" ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300")}>{row.status}</span>
                                 </td>
                                 <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
                             </tr>
@@ -1236,8 +1228,8 @@ const ExpensesView = ({
         <FinanceMetricCards
             cards={[
                 { title: "Total de Despesas", value: "R$ --", footer: ["Periodo: Junho 2026"], icon: BarChart3 },
-                { title: "Despesas pagas", value: "R$ --", footer: ["Pago: R$ --"], icon: TrendingDown, tone: "text-rose-600" },
-                { title: "Despesas nao pagas", value: "R$ --", footer: ["A pagar: R$ --"], icon: AlertTriangle, tone: "text-amber-600" },
+                { title: "Despesas pagas", value: "R$ --", footer: ["Pago: R$ --"], icon: TrendingDown },
+                { title: "Despesas nao pagas", value: "R$ --", footer: ["A pagar: R$ --"], icon: AlertTriangle },
             ]}
         />
         <FinancialBarsChart
@@ -1284,7 +1276,7 @@ const ExpensesView = ({
                                 <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.property}</td>
                                 <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
                                 <td className="px-5 py-4">
-                                    <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Pago" ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600")}>{row.status}</span>
+                                    <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Pago" ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300")}>{row.status}</span>
                                 </td>
                                 <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
                             </tr>
@@ -1308,7 +1300,7 @@ const StatementView = ({
     <motion.div {...motionProps} key="statement-view" className="space-y-6 px-6 py-6">
         <ManagementSectionHeader icon={ClipboardList} title="Extrato" subtitle="Pagamentos gerenciais no periodo" />
         <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
-            <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-4">
                     <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Periodo:</span>
                     <SelectShell className="w-64">
@@ -1330,26 +1322,14 @@ const StatementView = ({
                     ]}
                 />
             </div>
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-                {[
-                    { title: "Saldo atual", value: "R$ 0,00", icon: Wallet, tone: "border-l-zinc-600 text-zinc-600" },
-                    { title: "Receitas pagas", value: "R$ 0,00", icon: TrendingUp, tone: "border-l-emerald-600 text-emerald-600" },
-                    { title: "Despesas pagas", value: "R$ 0,00", icon: TrendingDown, tone: "border-l-rose-600 text-rose-600" },
-                ].map((card) => (
-                    <div key={card.title} className={cn("rounded-[26px] border border-zinc-200 bg-white/70 p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.025] border-l-8", card.tone)}>
-                        <div className="flex items-center gap-5">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-950">
-                                <card.icon className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold">{card.title}</p>
-                                <p className="mt-1 text-3xl font-medium tracking-tight">{card.value}</p>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
         </section>
+        <FinanceMetricCards
+            cards={[
+                { title: "Saldo atual", value: "R$ 0,00", footer: ["Periodo: Junho 2026"], icon: Wallet },
+                { title: "Receitas pagas", value: "R$ 0,00", footer: ["Pagamentos no periodo"], icon: TrendingUp },
+                { title: "Despesas pagas", value: "R$ 0,00", footer: ["Pagamentos no periodo"], icon: TrendingDown },
+            ]}
+        />
         <InfoBlock>
             <p>O relatorio do <span className="font-black">Extrato</span> e composto pela listagem de todas as <span className="font-black">Receitas e Despesas</span> com <span className="font-black">Data de Pagamento</span> dentro do <span className="font-black">Periodo: Junho 2026</span>.</p>
             <p>O relatorio mostra somente pagamentos com algum valor. Pagamentos R$0,00 nao serao exibidos no relatorio.</p>
@@ -1384,7 +1364,7 @@ const StatementView = ({
                                 <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.reason}</td>
                                 <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.property}</td>
                                 <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.category}</td>
-                                <td className={cn("px-5 py-4 text-right font-black", row.amount.startsWith("-") ? "text-rose-600" : "text-emerald-600")}>{row.amount}</td>
+                                <td className={cn("px-5 py-4 text-right font-black", row.amount.startsWith("-") ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-950 dark:text-white")}>{row.amount}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -1410,10 +1390,10 @@ const CashFlowIntroModal = ({ open, onClose }: { open: boolean; onClose: () => v
             </div>
             <div className="mx-auto max-w-xl rounded-[28px] border border-zinc-200 bg-zinc-50 p-4 shadow-2xl dark:border-white/10 dark:bg-white/[0.035]">
                 <div className="rounded-2xl bg-white p-4 dark:bg-zinc-950">
-                    <div className="mb-3 h-4 w-28 rounded bg-indigo-100 dark:bg-indigo-400/20" />
+                    <div className="mb-3 h-4 w-28 rounded bg-zinc-200 dark:bg-white/10" />
                     <div className="grid grid-cols-6 gap-1 text-[7px] font-black">
                         {Array.from({ length: 36 }).map((_, index) => (
-                            <div key={index} className={cn("h-6 rounded", index % 6 === 0 ? "bg-emerald-100" : index % 5 === 0 ? "bg-rose-100" : "bg-amber-50")} />
+                            <div key={index} className={cn("h-6 rounded", index % 6 === 0 ? "bg-zinc-300" : index % 5 === 0 ? "bg-zinc-200" : "bg-zinc-100")} />
                         ))}
                     </div>
                 </div>
@@ -1428,7 +1408,7 @@ const CashFlowIntroModal = ({ open, onClose }: { open: boolean; onClose: () => v
                     ["Para clinicas", "Consiga filtrar o fluxo de caixa por profissional."],
                 ].map(([title, text]) => (
                     <div key={title} className="flex gap-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
-                        <span className="h-fit rounded-full bg-cyan-100 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-700 dark:bg-cyan-400/10 dark:text-cyan-200">Em breve</span>
+                        <span className="h-fit rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300">Em breve</span>
                         <p><span className="font-black text-zinc-900 dark:text-white">{title}:</span> {text}</p>
                     </div>
                 ))}
@@ -1440,13 +1420,13 @@ const CashFlowIntroModal = ({ open, onClose }: { open: boolean; onClose: () => v
 const CashFlowView = ({ motionProps, onShowIntro }: { motionProps: any; onShowIntro: () => void }) => {
     const months = ["Jan/26", "Fev/26", "Mar/26", "Abr/26", "Mai/26", "Jun/26", "Jul/26", "Ago/26", "Set/26", "Out/26", "Nov/26", "Dez/26"];
     const rows = [
-        { label: "Receitas recebidas", tone: "bg-emerald-100/80 text-emerald-700", values: months.map(() => "-") },
-        { label: "Receitas a receber", tone: "bg-amber-50 text-amber-700", values: months.map(() => "-") },
-        { label: "Total receitas", tone: "bg-white text-emerald-700 font-black", values: months.map(() => "-") },
-        { label: "Despesas pagas", tone: "bg-rose-50 text-rose-600", values: months.map(() => "-") },
-        { label: "Despesas a pagar", tone: "bg-amber-50 text-amber-700", values: months.map(() => "-") },
-        { label: "Total despesas", tone: "bg-white text-rose-600 font-black", values: months.map(() => "-") },
-        { label: "Resultados", tone: "bg-white text-emerald-700 font-black", values: months.map(() => "R$ 0,00") },
+        { label: "Receitas recebidas", tone: "bg-zinc-100/80 text-zinc-800", values: months.map(() => "-") },
+        { label: "Receitas a receber", tone: "bg-zinc-50 text-zinc-600", values: months.map(() => "-") },
+        { label: "Total receitas", tone: "bg-white text-zinc-950 font-black", values: months.map(() => "-") },
+        { label: "Despesas pagas", tone: "bg-zinc-100/70 text-zinc-700", values: months.map(() => "-") },
+        { label: "Despesas a pagar", tone: "bg-zinc-50 text-zinc-600", values: months.map(() => "-") },
+        { label: "Total despesas", tone: "bg-white text-zinc-950 font-black", values: months.map(() => "-") },
+        { label: "Resultados", tone: "bg-white text-zinc-950 font-black", values: months.map(() => "R$ 0,00") },
     ];
 
     return (
