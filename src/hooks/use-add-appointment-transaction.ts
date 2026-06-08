@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 import {
+  buildFinancialEntryIdempotencyKey,
   fromLegacyTransactionStatus,
   mapFinancialEntryToTransaction,
   toFinancialPaymentMethod,
@@ -26,6 +27,7 @@ interface NewAppointmentTransactionData {
 
 const addAppointmentTransaction = async (data: NewAppointmentTransactionData, userId: string) => {
   const financialStatus = fromLegacyTransactionStatus(data.status);
+  const idempotencyKey = buildFinancialEntryIdempotencyKey(['appointment', 'explicit', data.appointmentId]);
   const payload = {
     professional_id: userId,
     appointment_id: data.appointmentId,
@@ -40,6 +42,7 @@ const addAppointmentTransaction = async (data: NewAppointmentTransactionData, us
     patient_id: data.patient_id || null,
     status: financialStatus,
     origin: 'appointment',
+    idempotency_key: idempotencyKey,
     metadata: {
       category: data.category || 'Sessao',
       installments: data.installments || 1,
@@ -52,7 +55,7 @@ const addAppointmentTransaction = async (data: NewAppointmentTransactionData, us
     .from('financial_entries')
     .select('*')
     .eq('professional_id', userId)
-    .eq('appointment_id', data.appointmentId)
+    .or(`appointment_id.eq.${data.appointmentId},idempotency_key.eq.${idempotencyKey}`)
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
