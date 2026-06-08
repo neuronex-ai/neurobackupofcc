@@ -54,6 +54,7 @@ import {
     useFinancialCategories,
     useFinancialSummary,
     useSaveFinancialAutomationSettings,
+    useUpdateFinancialEntry,
     type FinancialEntry,
     type FinancialEntryPaymentMethod,
     type FinancialMonthlyPoint,
@@ -470,6 +471,15 @@ const formatDateLabel = (value: string) => {
     return year && month && day ? `${day}/${month}/${year}` : value;
 };
 
+const entryReferenceDate = (entry: FinancialEntry) =>
+    entry.paid_at?.slice(0, 10) || entry.competence_date || entry.due_date || entry.created_at.slice(0, 10);
+
+const isDateInRange = (date: string, start: string, end: string) =>
+    Boolean(date) && (!start || date >= start) && (!end || date <= end);
+
+const isAgreementEntry = (entry: FinancialEntry) =>
+    entry.type === "income" && entry.status !== "cancelled" && (entry.payment_method === "convenio" || entry.origin === "convenio");
+
 const entryDateLabel = (entry: FinancialEntry) =>
     formatDateLabel(entry.paid_at?.slice(0, 10) || entry.due_date || entry.competence_date || entry.created_at.slice(0, 10));
 
@@ -793,15 +803,17 @@ const PremiumModal = ({
     );
 };
 
-const ModalButton = ({ children, variant = "primary", onClick }: { children: ReactNode; variant?: "primary" | "secondary"; onClick?: () => void }) => (
+const ModalButton = ({ children, variant = "primary", onClick, disabled }: { children: ReactNode; variant?: "primary" | "secondary"; onClick?: () => void; disabled?: boolean }) => (
     <button
         type="button"
         onClick={onClick}
+        disabled={disabled}
         className={cn(
             "h-11 rounded-2xl px-8 text-[11px] font-black uppercase tracking-[0.18em] transition-all active:scale-[0.98]",
             variant === "primary"
                 ? "bg-zinc-950 text-white hover:opacity-90 dark:bg-white dark:text-zinc-950"
-                : "border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400 dark:hover:text-white"
+                : "border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400 dark:hover:text-white",
+            disabled && "cursor-not-allowed opacity-45 hover:opacity-45"
         )}
     >
         {children}
@@ -2025,6 +2037,12 @@ const BatchAgreementModal = ({
     actionLabel,
     startDate,
     endDate,
+    eligibleCount,
+    isSaving,
+    onConfirm,
+    amountValue,
+    onAmountChange,
+    errorMessage,
 }: {
     open: boolean;
     onClose: () => void;
@@ -2032,6 +2050,12 @@ const BatchAgreementModal = ({
     actionLabel: string;
     startDate: string;
     endDate: string;
+    eligibleCount: number;
+    isSaving?: boolean;
+    onConfirm: () => void;
+    amountValue?: string;
+    onAmountChange?: (value: string) => void;
+    errorMessage?: string | null;
 }) => (
     <PremiumModal
         open={open}
@@ -2041,7 +2065,9 @@ const BatchAgreementModal = ({
         footer={
             <>
                 <ModalButton variant="secondary" onClick={onClose}>Cancelar</ModalButton>
-                <ModalButton onClick={onClose}>{actionLabel}</ModalButton>
+                <ModalButton onClick={onConfirm} disabled={isSaving || eligibleCount === 0 || (onAmountChange && parseMoneyInput(amountValue || "") <= 0)}>
+                    {isSaving ? "Processando" : actionLabel}
+                </ModalButton>
             </>
         }
     >
@@ -2058,9 +2084,22 @@ const BatchAgreementModal = ({
                     E importante notar que essa lista e a mesma encontrada na tela de relatorio de Repasses de Convenio com os filtros aplicados.
                 </p>
             </div>
+            {onAmountChange ? (
+                <div className="space-y-2">
+                    <FormLabel required>Novo valor de repasse</FormLabel>
+                    <InputShell placeholder="R$ 0,00" value={amountValue || ""} onChange={onAmountChange} />
+                </div>
+            ) : null}
             <div className="rounded-[24px] border border-dashed border-zinc-200 bg-white/65 p-5 text-xs font-bold leading-relaxed text-zinc-500 dark:border-white/10 dark:bg-white/[0.02] dark:text-zinc-400">
-                Nesta etapa, a acao ainda e apenas visual. A conciliacao real e a atualizacao em lote entram na rodada de backend/Supabase.
+                {eligibleCount > 0
+                    ? `${eligibleCount} sessao(oes) de convenio esta(ao) elegivel(eis) para esta acao.`
+                    : "Nao ha sessoes de convenio nao conciliadas dentro do periodo aplicado."}
             </div>
+            {errorMessage ? (
+                <div className="rounded-[20px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-red-700 dark:text-red-300">
+                    {errorMessage}
+                </div>
+            ) : null}
         </div>
     </PremiumModal>
 );
@@ -2110,7 +2149,22 @@ const AgreementRepassesView = ({
     setPeriod: (period: { start: string; end: string }) => void;
 }) => {
     const [showValues, setShowValues] = useState(true);
+    const [situationFilter, setSituationFilter] = useState("Situacao: Todas");
+    const [agreementFilter, setAgreementFilter] = useState("Convenio: Todos");
+    const [dateFilter, setDateFilter] = useState("Filtrar por data de: Liberacao");
     const displayedValue = (value: string) => showValues ? value : "R$ ---";
+    const agreementOptions = useMemo(() => {
+        const names = Array.from(new Set(rows.map((row) => row.agreement).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+        return ["Convenio: Todos", ...names];
+    }, [rows]);
+    const filteredRows = useMemo(() => rows.filter((row) => {
+        const matchesSituation =
+            situationFilter === "Situacao: Todas" ||
+            (situationFilter === "Conciliados" && row.status === "Conciliado") ||
+            (situationFilter === "Nao conciliados" && row.status === "Nao conciliado");
+        const matchesAgreement = agreementFilter === "Convenio: Todos" || row.agreement === agreementFilter;
+        return matchesSituation && matchesAgreement;
+    }), [agreementFilter, rows, situationFilter]);
 
     return (
         <motion.div {...motionProps} key="agreement-repasses-view" className="space-y-6 px-6 py-6">
@@ -2177,9 +2231,9 @@ const AgreementRepassesView = ({
             <section className="relative overflow-visible rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
                 <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                     <div className="flex flex-wrap gap-3">
-                        <SelectShell className="w-48" options={["Situacao: Todas", "Conciliados", "Nao conciliados"]} />
-                        <SelectShell className="w-52" options={["Convenio: Todos", "Convenio Vida", "Saude Plena", "Clinica Mais"]} />
-                        <SelectShell className="w-72" options={["Filtrar por data de: Liberacao", "Repasse de convenio", "Vencimento ou sessao"]} />
+                        <SelectShell className="w-48" options={["Situacao: Todas", "Conciliados", "Nao conciliados"]} value={situationFilter} onChange={setSituationFilter} />
+                        <SelectShell className="w-52" options={agreementOptions} value={agreementFilter} onChange={setAgreementFilter} />
+                        <SelectShell className="w-72" options={["Filtrar por data de: Liberacao", "Repasse de convenio", "Vencimento ou sessao"]} value={dateFilter} onChange={setDateFilter} />
                     </div>
                     <button className="inline-flex h-11 items-center gap-3 rounded-2xl border border-zinc-950/80 bg-white/80 px-5 text-sm font-black text-zinc-800 transition-colors hover:bg-zinc-950 hover:text-white dark:border-white/20 dark:bg-white/[0.035] dark:text-zinc-200 dark:hover:bg-white dark:hover:text-zinc-950">
                         <Filter className="h-4 w-4" />
@@ -2199,9 +2253,9 @@ const AgreementRepassesView = ({
                                 <th className="px-5 py-4 text-right">Valor</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
-                            {rows.length > 0 ? (
-                                rows.map((row) => (
+                    <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
+                            {filteredRows.length > 0 ? (
+                                filteredRows.map((row) => (
                                     <tr key={`${row.patient}-${row.releaseDate}-${row.session}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
                                         <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.patient}</td>
                                         <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.session}</td>
@@ -2215,7 +2269,7 @@ const AgreementRepassesView = ({
                                     </tr>
                                 ))
                             ) : (
-                                <EmptyTableRow colSpan={7} title="Nenhum repasse de convenio encontrado" description="Sessoes e lancamentos com metodo ou origem convenio aparecem aqui quando existirem." />
+                                <EmptyTableRow colSpan={7} title="Nenhum repasse de convenio encontrado" description="Sessoes e lancamentos com metodo ou origem convenio aparecem aqui quando existirem ou quando passarem pelos filtros aplicados." />
                             )}
                         </tbody>
                     </table>
@@ -2409,6 +2463,8 @@ const FinancialManagementHome = () => {
     const [openMenu, setOpenMenu] = useState<ManagementOptionsMenu>(null);
     const [showCashFlowIntro, setShowCashFlowIntro] = useState(false);
     const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
+    const [batchTransferAmount, setBatchTransferAmount] = useState("");
+    const [agreementBatchError, setAgreementBatchError] = useState<string | null>(null);
     const [agreementPeriod, setAgreementPeriod] = useState(() => {
         const now = new Date();
         const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
@@ -2431,6 +2487,7 @@ const FinancialManagementHome = () => {
         error: financialError,
     } = useFinancialSummary(selectedYear, currentMonth);
     const deleteFinancialEntries = useDeleteFinancialEntries();
+    const updateFinancialEntry = useUpdateFinancialEntry();
 
     const periodEntries = useMemo(() => financialEntries.filter((entry) => {
         const date = entry.paid_at?.slice(0, 10) || entry.due_date || entry.competence_date || entry.created_at.slice(0, 10);
@@ -2492,9 +2549,11 @@ const FinancialManagementHome = () => {
             status: manualChargeStatusLabel(entry),
         })), [periodEntries]);
 
-    const agreementEntries = useMemo(() => periodEntries.filter((entry) =>
-        entry.type === "income" && (entry.payment_method === "convenio" || entry.origin === "convenio")
-    ), [periodEntries]);
+    const agreementEntries = useMemo(() => financialEntries.filter((entry) =>
+        isAgreementEntry(entry) && isDateInRange(entryReferenceDate(entry), agreementPeriod.start, agreementPeriod.end)
+    ), [financialEntries, agreementPeriod]);
+
+    const eligibleAgreementEntries = useMemo(() => agreementEntries.filter((entry) => entry.status !== "paid"), [agreementEntries]);
 
     const agreementRows = useMemo<AgreementRepassRow[]>(() => agreementEntries.map((entry) => ({
         patient: entryClientLabel(entry),
@@ -2570,12 +2629,27 @@ const FinancialManagementHome = () => {
         { title: "Subtotal Nao Conciliados", value: moneyFormatter(agreementTotals.pending), footer: ["Sessoes liberadas pendentes"], icon: AlertTriangle },
     ], [agreementTotals, agreementPeriod]);
 
-    const agreementChartData = useMemo<ChartPoint[]>(() => chartData.map((point) => ({
-        ...point,
-        reconciledAgreement: point.convenioPaid,
-        unreconciledAgreement: point.convenioPending,
-        totalAgreement: point.convenioTotal,
-    })), [chartData]);
+    const agreementChartYear = Number(agreementPeriod.start.slice(0, 4)) || selectedYear;
+    const agreementChartData = useMemo<ChartPoint[]>(() => chartData.map((point, monthIndex) => {
+        const monthEntries = agreementEntries.filter((entry) => {
+            const date = entryReferenceDate(entry);
+            const [year, month] = date.split("-");
+            return Number(year) === agreementChartYear && Number(month) === monthIndex + 1;
+        });
+        const reconciledAgreement = monthEntries
+            .filter((entry) => entry.status === "paid")
+            .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+        const unreconciledAgreement = monthEntries
+            .filter((entry) => entry.status !== "paid")
+            .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+
+        return {
+            ...point,
+            reconciledAgreement,
+            unreconciledAgreement,
+            totalAgreement: reconciledAgreement + unreconciledAgreement,
+        };
+    }), [agreementChartYear, agreementEntries, chartData]);
 
     const cashFlowMonths = useMemo(() => chartData.map((point, index) => `${point.month}/${String(selectedYear).slice(-2) || String(index + 1)}`), [chartData, selectedYear]);
 
@@ -2634,6 +2708,62 @@ const FinancialManagementHome = () => {
         deleteFinancialEntries.mutate(selectedExpenseIds, {
             onSuccess: () => setSelectedExpenseIds([]),
         });
+    };
+
+    const reconcileAgreementEntries = async () => {
+        if (eligibleAgreementEntries.length === 0 || updateFinancialEntry.isPending) return;
+        const reconciledAt = new Date();
+
+        try {
+            setAgreementBatchError(null);
+            await Promise.all(eligibleAgreementEntries.map((entry) => updateFinancialEntry.mutateAsync({
+                id: entry.id,
+                status: "paid",
+                paidAt: reconciledAt,
+                paymentMethod: "convenio",
+                metadata: {
+                    ...(entry.metadata || {}),
+                    agreement_reconciled_at: reconciledAt.toISOString(),
+                    agreement_reconciled_by: "financial_management_batch",
+                    agreement_reconcile_period_start: agreementPeriod.start,
+                    agreement_reconcile_period_end: agreementPeriod.end,
+                },
+            })));
+
+            setActiveModal(null);
+        } catch (error) {
+            console.error("[FinancialManagement] Falha ao conciliar repasses em lote", error);
+            setAgreementBatchError(error instanceof Error ? error.message : "Nao foi possivel conciliar os repasses.");
+        }
+    };
+
+    const updateAgreementTransferAmounts = async () => {
+        const nextAmount = parseMoneyInput(batchTransferAmount);
+        if (eligibleAgreementEntries.length === 0 || nextAmount <= 0 || updateFinancialEntry.isPending) return;
+        const updatedAt = new Date().toISOString();
+
+        try {
+            setAgreementBatchError(null);
+            await Promise.all(eligibleAgreementEntries.map((entry) => updateFinancialEntry.mutateAsync({
+                id: entry.id,
+                amount: nextAmount,
+                paymentMethod: "convenio",
+                metadata: {
+                    ...(entry.metadata || {}),
+                    agreement_repass_amount_updated_at: updatedAt,
+                    agreement_repass_amount_updated_by: "financial_management_batch",
+                    agreement_repass_previous_amount: Number(entry.amount || 0),
+                    agreement_repass_period_start: agreementPeriod.start,
+                    agreement_repass_period_end: agreementPeriod.end,
+                },
+            })));
+
+            setBatchTransferAmount("");
+            setActiveModal(null);
+        } catch (error) {
+            console.error("[FinancialManagement] Falha ao alterar repasses em lote", error);
+            setAgreementBatchError(error instanceof Error ? error.message : "Nao foi possivel alterar os repasses.");
+        }
     };
 
     const renderContent = () => {
@@ -2717,8 +2847,15 @@ const FinancialManagementHome = () => {
                     rows={agreementRows}
                     openMenu={openMenu}
                     setOpenMenu={setOpenMenu}
-                    onBatchReconcile={() => setActiveModal("batch-reconcile")}
-                    onBatchUpdate={() => setActiveModal("batch-update-transfer")}
+                    onBatchReconcile={() => {
+                        setAgreementBatchError(null);
+                        setActiveModal("batch-reconcile");
+                    }}
+                    onBatchUpdate={() => {
+                        setAgreementBatchError(null);
+                        setBatchTransferAmount("");
+                        setActiveModal("batch-update-transfer");
+                    }}
                     period={agreementPeriod}
                     setPeriod={setAgreementPeriod}
                 />
@@ -2871,19 +3008,36 @@ const FinancialManagementHome = () => {
             <ManualChargeModal open={activeModal === "manual-charge"} onClose={() => setActiveModal(null)} />
             <BatchAgreementModal
                 open={activeModal === "batch-reconcile"}
-                onClose={() => setActiveModal(null)}
+                onClose={() => {
+                    setAgreementBatchError(null);
+                    setActiveModal(null);
+                }}
                 title="Conciliar varias sessoes em lote"
                 actionLabel="Conciliar em lote"
                 startDate={agreementPeriod.start}
                 endDate={agreementPeriod.end}
+                eligibleCount={eligibleAgreementEntries.length}
+                isSaving={updateFinancialEntry.isPending}
+                onConfirm={reconcileAgreementEntries}
+                errorMessage={agreementBatchError}
             />
             <BatchAgreementModal
                 open={activeModal === "batch-update-transfer"}
-                onClose={() => setActiveModal(null)}
+                onClose={() => {
+                    setAgreementBatchError(null);
+                    setBatchTransferAmount("");
+                    setActiveModal(null);
+                }}
                 title="Alterar valor de varios repasses"
                 actionLabel="Alterar repasses"
                 startDate={agreementPeriod.start}
                 endDate={agreementPeriod.end}
+                eligibleCount={eligibleAgreementEntries.length}
+                isSaving={updateFinancialEntry.isPending}
+                onConfirm={updateAgreementTransferAmounts}
+                amountValue={batchTransferAmount}
+                onAmountChange={setBatchTransferAmount}
+                errorMessage={agreementBatchError}
             />
             <CashFlowIntroModal open={showCashFlowIntro} onClose={() => setShowCashFlowIntro(false)} />
         </div>
