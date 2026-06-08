@@ -342,20 +342,20 @@ const DesktopFinanceiro = () => {
 
     return (
         <div className="min-h-screen w-full flex flex-col font-sans relative bg-background text-foreground selection:bg-primary/20 pt-10">
-            <div className="absolute inset-0 premium-noise opacity-[0.03] dark:opacity-[0.06] pointer-events-none fixed z-[100] mix-blend-overlay" />
+            <div className="pointer-events-none fixed inset-0 z-0 premium-noise opacity-[0.025] mix-blend-overlay dark:opacity-[0.05]" />
 
             <div className="flex-1 w-full max-w-[2200px] mx-auto px-6 md:px-8 lg:px-12 xl:px-16 relative z-10 flex gap-6 pb-12">
                 <motion.nav
                     initial={{ opacity: 0, x: -18 }}
                     animate={{ opacity: 1, x: 0, width: isSidebarExpanded ? 302 : 88 }}
-                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{ type: "spring", stiffness: 260, damping: 32, mass: 0.72 }}
                     onMouseEnter={() => setIsSidebarExpanded(true)}
                     onMouseLeave={() => setIsSidebarExpanded(false)}
-                    className="hidden lg:flex shrink-0 relative z-[70]"
+                    className="relative z-30 hidden shrink-0 lg:flex"
                 >
-                    <div className="w-full sticky top-10 max-h-[calc(100vh-5rem)] bg-white/72 dark:bg-[#070708]/72 backdrop-blur-3xl border border-zinc-200/70 dark:border-white/[0.08] rounded-[30px] shadow-[0_24px_90px_-60px_rgba(0,0,0,0.72)] flex flex-col p-3 overflow-hidden">
-                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,.82),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(0,0,0,.045),transparent_42%)] dark:bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,.07),transparent_38%)]" />
-                        <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.045]" />
+                    <div className="sticky top-10 flex max-h-[calc(100vh-5rem)] w-full flex-col overflow-hidden rounded-[30px] border border-zinc-200/75 bg-white/80 p-3 shadow-[0_24px_74px_-54px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-black/[0.025] backdrop-blur-3xl dark:border-white/[0.075] dark:bg-[#070708]/80 dark:shadow-[0_28px_86px_-58px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.055)] dark:ring-white/[0.035]">
+                        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.55),transparent_28%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.55),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(0,0,0,.04),transparent_42%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,.055),transparent_30%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.075),transparent_38%)]" />
+                        <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.04]" />
                         <div className={cn(
                             "relative z-10 flex flex-col gap-2 overflow-y-auto overflow-x-hidden custom-scrollbar",
                             isSidebarExpanded ? "pr-1" : "items-center pr-0"
@@ -370,10 +370,10 @@ const DesktopFinanceiro = () => {
                                             onClick={() => handleGroupClick(group)}
                                             title={group.label}
                                             className={cn(
-                                                "h-12 flex items-center rounded-2xl transition-all duration-300 group relative",
+                                                "group relative flex h-12 items-center rounded-2xl transition-all duration-300 ease-out",
                                                 isSidebarExpanded ? "w-full gap-3 px-3" : "w-14 justify-center px-0",
                                                 hasActiveSub
-                                                    ? "bg-zinc-950 text-white shadow-[0_14px_34px_-22px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950"
+                                                    ? "bg-zinc-950 text-white shadow-[0_16px_38px_-26px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950"
                                                     : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-950/[0.045] dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.055]"
                                             )}
                                         >
@@ -390,7 +390,7 @@ const DesktopFinanceiro = () => {
                                                         initial={{ opacity: 0, x: -8, width: 0 }}
                                                         animate={{ opacity: 1, x: 0, width: "auto" }}
                                                         exit={{ opacity: 0, x: -8, width: 0 }}
-                                                        transition={{ duration: 0.18 }}
+                                                        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                                                         className="flex min-w-0 flex-1 items-center justify-between overflow-hidden"
                                                     >
                                                         <span className="truncate text-[10px] font-black uppercase tracking-[0.15em]">
@@ -411,7 +411,7 @@ const DesktopFinanceiro = () => {
                                                     initial={{ height: 0, opacity: 0 }}
                                                     animate={{ height: "auto", opacity: 1 }}
                                                     exit={{ height: 0, opacity: 0 }}
-                                                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                                                    transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                                                     className="overflow-hidden flex flex-col gap-1 px-1 pb-1"
                                                 >
                                                     {group.subItems.map((sub) => {
@@ -443,7 +443,7 @@ const DesktopFinanceiro = () => {
                                                                             initial={{ height: 0, opacity: 0 }}
                                                                             animate={{ height: "auto", opacity: 1 }}
                                                                             exit={{ height: 0, opacity: 0 }}
-                                                                            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                                                                            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
                                                                             className="overflow-hidden pl-7 pr-1"
                                                                         >
                                                                             <div className="flex flex-col gap-1 border-l border-zinc-200/70 pl-3 dark:border-white/10">

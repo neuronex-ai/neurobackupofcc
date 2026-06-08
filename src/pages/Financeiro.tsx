@@ -43,6 +43,7 @@ import {
 } from "recharts";
 
 import { FeatureGate, LockedFeatureScreen } from "@/components/subscription";
+import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
@@ -432,16 +433,138 @@ const paymentMethods = ["Pix", "Boleto", "Cartao", "Dinheiro", "Transferencia ex
 const moneyFormatter = (value: number) =>
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-const SelectShell = ({ children, className }: { children: ReactNode; className?: string }) => (
-    <select
-        className={cn(
-            "h-11 rounded-2xl border border-zinc-200 bg-white/70 px-4 text-sm font-bold text-zinc-600 outline-none transition-colors focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-200",
-            className
-        )}
-    >
-        {children}
-    </select>
-);
+const PremiumBarShape = (props: any) => {
+    const { x = 0, y = 0, width = 0, height = 0, fill = "#18181b" } = props;
+    const numericWidth = Number(width);
+    const numericHeight = Number(height);
+    const numericX = Number(x);
+    const numericY = Number(y);
+
+    if (numericHeight <= 0 || numericWidth <= 0) return null;
+
+    const fillColor = String(fill);
+    const radius = Math.min(10, numericWidth / 2);
+    const glowId = `bar-glow-${fillColor.replace(/[^a-zA-Z0-9]/g, "")}-${Math.round(numericX)}-${Math.round(numericY)}`;
+
+    return (
+        <g>
+            <defs>
+                <filter id={glowId} x="-80%" y="-80%" width="260%" height="260%">
+                    <feGaussianBlur stdDeviation="5" result="coloredBlur" />
+                    <feMerge>
+                        <feMergeNode in="coloredBlur" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>
+            <rect
+                x={numericX}
+                y={numericY + numericHeight - Math.min(18, numericHeight)}
+                width={numericWidth}
+                height={Math.min(28, numericHeight + 10)}
+                rx={radius}
+                fill={fillColor}
+                opacity={0.18}
+                filter={`url(#${glowId})`}
+            />
+            <rect
+                x={numericX}
+                y={numericY}
+                width={numericWidth}
+                height={numericHeight}
+                rx={radius}
+                ry={radius}
+                fill={fillColor}
+                opacity={0.96}
+            />
+            <rect
+                x={numericX + Math.max(2, numericWidth * 0.16)}
+                y={numericY + 2}
+                width={Math.max(2, numericWidth * 0.32)}
+                height={Math.max(0, numericHeight - 4)}
+                rx={Math.max(1, radius / 2)}
+                fill="rgba(255,255,255,0.24)"
+            />
+            <rect
+                x={numericX + 1}
+                y={numericY + 1}
+                width={Math.max(0, numericWidth - 2)}
+                height={Math.min(12, numericHeight / 2)}
+                rx={Math.max(1, radius - 1)}
+                fill="rgba(255,255,255,0.16)"
+            />
+        </g>
+    );
+};
+
+const SelectShell = ({
+    options,
+    defaultValue,
+    placeholder = "Selecione",
+    className,
+}: {
+    options: string[];
+    defaultValue?: string;
+    placeholder?: string;
+    className?: string;
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [selected, setSelected] = useState(defaultValue ?? options[0] ?? "");
+    const currentLabel = selected || placeholder;
+
+    return (
+        <div className={cn("relative", className)}>
+            <button
+                type="button"
+                onClick={() => setIsOpen((value) => !value)}
+                className={cn(
+                    "group flex h-11 w-full items-center justify-between gap-3 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 text-left text-sm font-bold text-zinc-700 shadow-[0_12px_34px_-30px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition-all duration-200 hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-200 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] dark:hover:bg-white/[0.07]",
+                    isOpen && "border-zinc-400 ring-4 ring-zinc-950/[0.035] dark:border-white/20 dark:ring-white/[0.045]"
+                )}
+            >
+                <span className={cn("truncate", !selected && "text-zinc-400")}>{currentLabel}</span>
+                <ChevronRight className={cn("h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-300 ease-out group-hover:text-zinc-700 dark:group-hover:text-zinc-200", isOpen && "rotate-90")} />
+            </button>
+
+            <AnimatePresence>
+                {isOpen ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.98, filter: "blur(6px)" }}
+                        animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                        exit={{ opacity: 0, y: 8, scale: 0.98, filter: "blur(6px)" }}
+                        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                        className="absolute left-0 right-0 top-[calc(100%+8px)] z-[230] max-h-64 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_28px_90px_-38px_rgba(0,0,0,0.85)] backdrop-blur-3xl dark:border-white/10 dark:bg-zinc-950/95"
+                    >
+                        <div className="custom-scrollbar max-h-60 overflow-y-auto pr-1">
+                            {options.map((option) => {
+                                const isSelected = option === selected;
+                                return (
+                                    <button
+                                        key={option}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelected(option);
+                                            setIsOpen(false);
+                                        }}
+                                        className={cn(
+                                            "flex min-h-10 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-bold transition-all duration-150",
+                                            isSelected
+                                                ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
+                                                : "text-zinc-500 hover:bg-zinc-950/[0.045] hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                                        )}
+                                    >
+                                        <span className="truncate">{option}</span>
+                                        {isSelected ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : null}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </motion.div>
+                ) : null}
+            </AnimatePresence>
+        </div>
+    );
+};
 
 const InputShell = ({ placeholder, className, type = "text" }: { placeholder?: string; className?: string; type?: string }) => (
     <input
@@ -500,35 +623,39 @@ const PremiumModal = ({
     footer?: ReactNode;
     size?: string;
 }) => {
-    if (!open) return null;
-
     return (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-3xl">
-            <motion.div
-                initial={{ opacity: 0, y: 24, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 24, scale: 0.98 }}
-                className={cn("relative max-h-[92vh] w-full overflow-hidden rounded-[34px] border border-white/10 bg-white shadow-2xl dark:bg-zinc-950", size)}
-            >
-                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.025] dark:opacity-[0.055]" />
-                <div className="relative z-10 flex items-center justify-between border-b border-zinc-200/70 px-7 py-6 dark:border-white/10">
-                    <h2 className="text-2xl font-black tracking-[-0.04em] text-zinc-950 dark:text-white">{title}</h2>
+        <ResponsiveModal
+            open={open}
+            onOpenChange={(nextOpen) => {
+                if (!nextOpen) onClose();
+            }}
+            className={cn(
+                "max-h-[88vh] w-[94vw] gap-0 overflow-hidden rounded-[32px] border border-zinc-200/80 bg-white/95 p-0 shadow-[0_54px_120px_-48px_rgba(0,0,0,0.62)] ring-1 ring-black/5 backdrop-blur-3xl outline-none dark:border-white/[0.08] dark:bg-[#080809]/95 dark:ring-white/5 [&>button]:hidden",
+                size
+            )}
+            drawerClassName="bg-white dark:bg-[#080809]"
+        >
+            <div className="relative flex max-h-[88vh] min-h-0 flex-col overflow-hidden">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-zinc-500/[0.035] to-transparent dark:from-white/[0.025]" />
+                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.045]" />
+                <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-zinc-200/70 px-6 py-5 dark:border-white/10 md:px-8">
+                    <h2 className="text-xl font-black tracking-[-0.035em] text-zinc-950 dark:text-white md:text-2xl">{title}</h2>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:text-zinc-950 dark:bg-white/5 dark:text-zinc-400 dark:hover:text-white"
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-all hover:bg-zinc-200 hover:text-zinc-950 active:scale-95 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white"
                     >
                         <X className="h-5 w-5" />
                     </button>
                 </div>
-                <div className="relative z-10 max-h-[calc(92vh-150px)] overflow-y-auto px-7 py-6 custom-scrollbar">{children}</div>
+                <div className="custom-scrollbar relative z-10 min-h-0 flex-1 overflow-y-auto px-6 py-5 md:px-8 md:py-6">{children}</div>
                 {footer ? (
-                    <div className="relative z-10 flex justify-end gap-3 border-t border-zinc-200/70 px-7 py-5 dark:border-white/10">
+                    <div className="relative z-10 flex shrink-0 justify-end gap-3 border-t border-zinc-200/70 bg-zinc-50/70 px-6 py-4 backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.025] md:px-8">
                         {footer}
                     </div>
                 ) : null}
-            </motion.div>
-        </div>
+            </div>
+        </ResponsiveModal>
     );
 };
 
@@ -567,10 +694,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
             <div className="space-y-6">
                 <div>
                     <FormLabel>Propriedade <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-zinc-400" /></FormLabel>
-                    <SelectShell className="w-full">
-                        <option>Clinica</option>
-                        <option>Particular</option>
-                    </SelectShell>
+                    <SelectShell className="w-full" options={["Clinica", "Particular"]} />
                 </div>
 
                 <div className="h-px bg-zinc-200 dark:bg-white/10" />
@@ -578,12 +702,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                 <div>
                     <FormLabel required>Categoria financeira <HelpCircle className="ml-1 inline h-3.5 w-3.5 text-zinc-400" /></FormLabel>
                     <div className="flex gap-3">
-                        <SelectShell className="flex-1">
-                            <option>Selecione</option>
-                            {financeFormCategories[type].map((category) => (
-                                <option key={category}>{category}</option>
-                            ))}
-                        </SelectShell>
+                        <SelectShell className="flex-1" options={["Selecione", ...financeFormCategories[type]]} />
                         <button type="button" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-500 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:hover:text-white">
                             <Plus className="h-4 w-4" />
                         </button>
@@ -621,12 +740,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                         </div>
                         <div>
                             <FormLabel>Forma de pagamento</FormLabel>
-                            <SelectShell className="w-full">
-                                <option>-- Selecione --</option>
-                                {paymentMethods.map((method) => (
-                                    <option key={method}>{method}</option>
-                                ))}
-                            </SelectShell>
+                            <SelectShell className="w-full" options={["-- Selecione --", ...paymentMethods]} />
                         </div>
                     </div>
                 ) : null}
@@ -641,11 +755,7 @@ const FinancialEntryModal = ({ type, open, onClose }: { type: "income" | "expens
                         <div>
                             <FormLabel>Escolha a recorrencia</FormLabel>
                             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                <SelectShell className="w-full">
-                                    <option>Semanalmente</option>
-                                    <option>Mensalmente</option>
-                                    <option>Anualmente</option>
-                                </SelectShell>
+                                <SelectShell className="w-full" options={["Semanalmente", "Mensalmente", "Anualmente"]} />
                                 <InputShell placeholder="Toda Segunda-Feira" className="w-full opacity-70" />
                             </div>
                         </div>
@@ -699,12 +809,7 @@ const ManualChargeModal = ({ open, onClose }: { open: boolean; onClose: () => vo
         <div className="space-y-6">
             <div>
                 <FormLabel>Cliente</FormLabel>
-                <SelectShell className="w-full">
-                    <option>-- Selecione --</option>
-                    <option>Ana Martins</option>
-                    <option>Bruno Lima</option>
-                    <option>Carla Nunes</option>
-                </SelectShell>
+                <SelectShell className="w-full" options={["-- Selecione --", "Ana Martins", "Bruno Lima", "Carla Nunes"]} />
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
@@ -717,12 +822,7 @@ const ManualChargeModal = ({ open, onClose }: { open: boolean; onClose: () => vo
                 </div>
                 <div>
                     <FormLabel>Tipo de cobranca</FormLabel>
-                    <SelectShell className="w-full">
-                        <option>-- Selecione --</option>
-                        <option>Pix</option>
-                        <option>Boleto</option>
-                        <option>Cartao</option>
-                    </SelectShell>
+                    <SelectShell className="w-full" options={["-- Selecione --", "Pix", "Boleto", "Cartao"]} />
                 </div>
             </div>
             <div>
@@ -870,24 +970,21 @@ const ManagementOverview = ({ motionProps }: { motionProps: any }) => (
                         Grafico combinado para Receitas e Despesas. Nesta etapa os dados sao placeholders de layout, sem consulta ao Supabase.
                     </p>
                 </div>
-                <label className="flex h-11 items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 px-4 dark:border-white/10 dark:bg-white/[0.035]">
+                <div className="flex items-center gap-3">
                     <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">Ano</span>
-                    <select className="bg-transparent text-xs font-black text-zinc-700 outline-none dark:text-zinc-200" defaultValue="2026">
-                        <option value="2026">2026</option>
-                        <option value="2025">2025</option>
-                        <option value="2024">2024</option>
-                    </select>
-                </label>
+                    <SelectShell className="w-32" options={["2026", "2025", "2024"]} defaultValue="2026" />
+                </div>
             </div>
 
             <div className="relative z-10 h-[360px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={overviewChartData} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
+                    <ComposedChart data={overviewChartData} barCategoryGap="22%" barGap={5} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-white/10" />
                         <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: "currentColor" }} className="text-zinc-400" />
                         <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `R$${Number(value) / 1000}k`} tick={{ fontSize: 10, fontWeight: 800, fill: "currentColor" }} className="text-zinc-400" />
                         <Tooltip
                             formatter={(value: number, name: string) => [moneyFormatter(Number(value)), name]}
+                            cursor={{ fill: "rgba(24,24,27,0.035)", radius: 18 }}
                             contentStyle={{
                                 borderRadius: 18,
                                 border: "1px solid rgba(148,163,184,.25)",
@@ -897,10 +994,10 @@ const ManagementOverview = ({ motionProps }: { motionProps: any }) => (
                             }}
                             labelStyle={{ color: "rgba(255,255,255,.65)", fontWeight: 800 }}
                         />
-                        <Bar name="Receitas Pagas" dataKey="paidIncome" stackId="income" fill="#10b981" radius={[8, 8, 0, 0]} />
-                        <Bar name="Receitas Nao Pagas" dataKey="unpaidIncome" stackId="income" fill="#86efac" radius={[8, 8, 0, 0]} />
-                        <Bar name="Despesas Pagas" dataKey="paidExpenses" stackId="expenses" fill="#f43f5e" radius={[8, 8, 0, 0]} />
-                        <Bar name="Despesas Nao Pagas" dataKey="unpaidExpenses" stackId="expenses" fill="#fda4af" radius={[8, 8, 0, 0]} />
+                        <Bar name="Receitas Pagas" dataKey="paidIncome" stackId="income" fill="#10b981" barSize={18} maxBarSize={22} shape={<PremiumBarShape />} />
+                        <Bar name="Receitas Nao Pagas" dataKey="unpaidIncome" stackId="income" fill="#86efac" barSize={18} maxBarSize={22} shape={<PremiumBarShape />} />
+                        <Bar name="Despesas Pagas" dataKey="paidExpenses" stackId="expenses" fill="#f43f5e" barSize={18} maxBarSize={22} shape={<PremiumBarShape />} />
+                        <Bar name="Despesas Nao Pagas" dataKey="unpaidExpenses" stackId="expenses" fill="#fda4af" barSize={18} maxBarSize={22} shape={<PremiumBarShape />} />
                         <Line name="Resultado previsto" type="monotone" dataKey="result" stroke="#18181b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                     </ComposedChart>
                 </ResponsiveContainer>
@@ -1000,15 +1097,10 @@ const FinanceToolbar = ({
     options?: ReactNode;
 }) => (
     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <label className="flex h-11 w-fit items-center gap-3 rounded-2xl border border-zinc-200 bg-white/70 px-4 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+        <div className="flex w-fit items-center gap-3">
             <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">{periodLabel}</span>
-            <select className="bg-transparent text-xs font-black text-zinc-700 outline-none dark:text-zinc-200" defaultValue={periodValue}>
-                <option value="2026">2026</option>
-                <option value="2025">2025</option>
-                <option value="2024">2024</option>
-                <option value="jun/2026">Jun/2026</option>
-            </select>
-        </label>
+            <SelectShell className="w-36" options={["2026", "2025", "2024", "Jun/2026"]} defaultValue={periodValue} />
+        </div>
         <div className="flex flex-wrap gap-3">
             {addLabel && onAdd ? (
                 <button
@@ -1046,12 +1138,13 @@ const FinancialBarsChart = ({
         </div>
         <div className="relative z-10 h-[330px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={financeChartData} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
+                <ComposedChart data={financeChartData} barCategoryGap="24%" barGap={5} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-white/10" />
                     <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: "currentColor" }} className="text-zinc-400" />
                     <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `R$${Number(value) / 1000}k`} tick={{ fontSize: 10, fontWeight: 800, fill: "currentColor" }} className="text-zinc-400" />
                     <Tooltip
                         formatter={(value: number, name: string) => [moneyFormatter(Number(value)), name]}
+                        cursor={{ fill: "rgba(24,24,27,0.035)", radius: 18 }}
                         contentStyle={{
                             borderRadius: 18,
                             border: "1px solid rgba(148,163,184,.25)",
@@ -1062,7 +1155,7 @@ const FinancialBarsChart = ({
                         labelStyle={{ color: "rgba(255,255,255,.65)", fontWeight: 800 }}
                     />
                     {bars.map((bar) => (
-                        <Bar key={bar.key} name={bar.name} dataKey={bar.key} stackId={bar.stackId} fill={bar.fill} radius={[8, 8, 0, 0]} />
+                        <Bar key={bar.key} name={bar.name} dataKey={bar.key} stackId={bar.stackId} fill={bar.fill} barSize={18} maxBarSize={22} shape={<PremiumBarShape />} />
                     ))}
                     <Line name={lineName} type="monotone" dataKey={lineKey} stroke="#18181b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 </ComposedChart>
@@ -1209,7 +1302,7 @@ const ExpensesView = ({
         <ManagementSectionHeader icon={TrendingDown} title="Despesas" subtitle="Saidas previstas, pagas e nao pagas" />
         <FinanceToolbar
             periodLabel="Periodo"
-            periodValue="jun/2026"
+            periodValue="Jun/2026"
             addLabel="Adicionar despesa"
             onAdd={onAdd}
             options={
@@ -1303,11 +1396,7 @@ const StatementView = ({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-4">
                     <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Periodo:</span>
-                    <SelectShell className="w-64">
-                        <option>Jun/2026</option>
-                        <option>Mai/2026</option>
-                        <option>Abr/2026</option>
-                    </SelectShell>
+                    <SelectShell className="w-64" options={["Jun/2026", "Mai/2026", "Abr/2026"]} />
                     <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white/70 text-zinc-500 dark:border-white/10 dark:bg-white/[0.035]">
                         <Eye className="h-4 w-4" />
                     </button>
@@ -1694,20 +1783,20 @@ const FinancialManagementHome = () => {
 
     return (
         <div className="min-h-screen w-full flex flex-col font-sans relative bg-background text-foreground selection:bg-primary/20 pt-10">
-            <div className="absolute inset-0 premium-noise opacity-[0.03] dark:opacity-[0.06] pointer-events-none fixed z-[100] mix-blend-overlay" />
+            <div className="pointer-events-none fixed inset-0 z-0 premium-noise opacity-[0.025] mix-blend-overlay dark:opacity-[0.05]" />
 
             <div className="flex-1 w-full max-w-[2200px] mx-auto px-6 md:px-8 lg:px-12 xl:px-16 relative z-10 flex gap-6 pb-12">
                 <motion.nav
                     initial={{ opacity: 0, x: -18 }}
                     animate={{ opacity: 1, x: 0, width: isSidebarExpanded ? 302 : 88 }}
-                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{ type: "spring", stiffness: 260, damping: 32, mass: 0.72 }}
                     onMouseEnter={() => setIsSidebarExpanded(true)}
                     onMouseLeave={() => setIsSidebarExpanded(false)}
-                    className="hidden lg:flex shrink-0 relative z-[70]"
+                    className="relative z-30 hidden shrink-0 lg:flex"
                 >
-                    <div className="w-full sticky top-10 max-h-[calc(100vh-5rem)] bg-white/72 dark:bg-[#070708]/72 backdrop-blur-3xl border border-zinc-200/70 dark:border-white/[0.08] rounded-[30px] shadow-[0_24px_90px_-60px_rgba(0,0,0,0.72)] flex flex-col p-3 overflow-hidden">
-                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,.82),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(0,0,0,.045),transparent_42%)] dark:bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,.07),transparent_38%)]" />
-                        <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.045]" />
+                    <div className="sticky top-10 flex max-h-[calc(100vh-5rem)] w-full flex-col overflow-hidden rounded-[30px] border border-zinc-200/75 bg-white/80 p-3 shadow-[0_24px_74px_-54px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-black/[0.025] backdrop-blur-3xl dark:border-white/[0.075] dark:bg-[#070708]/80 dark:shadow-[0_28px_86px_-58px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.055)] dark:ring-white/[0.035]">
+                        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.55),transparent_28%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.55),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(0,0,0,.04),transparent_42%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,.055),transparent_30%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.075),transparent_38%)]" />
+                        <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.04]" />
                         <div className={cn(
                             "relative z-10 flex flex-col gap-2 overflow-y-auto overflow-x-hidden custom-scrollbar",
                             isSidebarExpanded ? "pr-1" : "items-center pr-0"
@@ -1722,10 +1811,10 @@ const FinancialManagementHome = () => {
                                             onClick={() => handleGroupClick(group)}
                                             title={group.label}
                                             className={cn(
-                                                "h-12 flex items-center rounded-2xl transition-all duration-300 group relative",
+                                                "group relative flex h-12 items-center rounded-2xl transition-all duration-300 ease-out",
                                                 isSidebarExpanded ? "w-full gap-3 px-3" : "w-14 justify-center px-0",
                                                 hasActiveSub
-                                                    ? "bg-zinc-950 text-white shadow-[0_14px_34px_-22px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950"
+                                                    ? "bg-zinc-950 text-white shadow-[0_16px_38px_-26px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950"
                                                     : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-950/[0.045] dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.055]"
                                             )}
                                         >
@@ -1742,7 +1831,7 @@ const FinancialManagementHome = () => {
                                                         initial={{ opacity: 0, x: -8, width: 0 }}
                                                         animate={{ opacity: 1, x: 0, width: "auto" }}
                                                         exit={{ opacity: 0, x: -8, width: 0 }}
-                                                        transition={{ duration: 0.18 }}
+                                                        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
                                                         className="flex min-w-0 flex-1 items-center justify-between overflow-hidden"
                                                     >
                                                         <span className="truncate text-[10px] font-black uppercase tracking-[0.15em]">
@@ -1765,7 +1854,7 @@ const FinancialManagementHome = () => {
                                                     initial={{ height: 0, opacity: 0 }}
                                                     animate={{ height: "auto", opacity: 1 }}
                                                     exit={{ height: 0, opacity: 0 }}
-                                                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                                                    transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                                                     className="overflow-hidden flex flex-col gap-1 px-1 pb-1"
                                                 >
                                                     {group.subItems.map((sub) => {
@@ -1799,7 +1888,7 @@ const FinancialManagementHome = () => {
                     </div>
                 </motion.nav>
 
-                <div className="lg:hidden fixed left-0 right-0 top-0 z-[80] border-b border-zinc-200/50 bg-background/78 px-4 py-3 backdrop-blur-2xl dark:border-white/10">
+                <div className="fixed left-0 right-0 top-0 z-[80] border-b border-zinc-200/50 bg-background/80 px-4 py-3 backdrop-blur-2xl dark:border-white/10 lg:hidden">
                     <div className="flex gap-2 overflow-x-auto no-scrollbar">
                         {MANAGEMENT_NAV.flatMap((group) => group.view ? [{ id: group.view, label: group.label, icon: group.icon }] : group.subItems || []).map((item) => (
                             <button
