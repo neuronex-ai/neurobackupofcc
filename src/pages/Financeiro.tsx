@@ -45,7 +45,14 @@ import {
 
 import { FeatureGate, LockedFeatureScreen } from "@/components/subscription";
 import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
-import { useCreateFinancialEntry, useFinancialEntries, type FinancialEntry, type FinancialEntryPaymentMethod } from "@/hooks/use-financial-entries";
+import {
+    useCreateFinancialEntry,
+    useDeleteFinancialEntries,
+    useFinancialSummary,
+    type FinancialEntry,
+    type FinancialEntryPaymentMethod,
+    type FinancialMonthlyPoint,
+} from "@/hooks/use-financial-entries";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
@@ -360,50 +367,18 @@ const MANAGEMENT_VIEW_META: Record<ManagementView, { title: string; subtitle: st
     },
 };
 
-const overviewCards = [
-    {
-        title: "Resultado previsto",
-        value: "R$ --",
-        footer: ["Resultado atual: R$ --"],
-        icon: BarChart3,
-    },
-    {
-        title: "Receitas previstas",
-        value: "R$ --",
-        footer: ["Pago: R$ --", "Nao pago: R$ --"],
-        icon: TrendingUp,
-    },
-    {
-        title: "Despesas previstas",
-        value: "R$ --",
-        footer: ["Pago: R$ --", "A pagar: R$ --"],
-        icon: TrendingDown,
-    },
-] satisfies { title: string; value: string; footer: string[]; icon: LucideIcon }[];
-
-const overviewChartData = [
-    { month: "Jan", paidIncome: 12800, unpaidIncome: 2200, paidExpenses: 4200, unpaidExpenses: 900, result: 7900 },
-    { month: "Fev", paidIncome: 14200, unpaidIncome: 1800, paidExpenses: 4600, unpaidExpenses: 1200, result: 8400 },
-    { month: "Mar", paidIncome: 13600, unpaidIncome: 2600, paidExpenses: 5100, unpaidExpenses: 800, result: 8300 },
-    { month: "Abr", paidIncome: 15800, unpaidIncome: 2100, paidExpenses: 5300, unpaidExpenses: 1100, result: 9500 },
-    { month: "Mai", paidIncome: 17100, unpaidIncome: 1900, paidExpenses: 5900, unpaidExpenses: 1400, result: 9700 },
-    { month: "Jun", paidIncome: 16400, unpaidIncome: 2800, paidExpenses: 6100, unpaidExpenses: 1300, result: 8800 },
-    { month: "Jul", paidIncome: 17600, unpaidIncome: 2400, paidExpenses: 6200, unpaidExpenses: 1000, result: 10800 },
-    { month: "Ago", paidIncome: 18200, unpaidIncome: 2300, paidExpenses: 6400, unpaidExpenses: 900, result: 11300 },
-    { month: "Set", paidIncome: 16900, unpaidIncome: 3100, paidExpenses: 6600, unpaidExpenses: 1500, result: 7900 },
-    { month: "Out", paidIncome: 18800, unpaidIncome: 2500, paidExpenses: 6900, unpaidExpenses: 1100, result: 12300 },
-    { month: "Nov", paidIncome: 19400, unpaidIncome: 2200, paidExpenses: 7200, unpaidExpenses: 1200, result: 13200 },
-    { month: "Dez", paidIncome: 20100, unpaidIncome: 2600, paidExpenses: 7600, unpaidExpenses: 1400, result: 13100 },
-];
-
-const overdueRows = [
-    { patient: "Paciente exemplo", description: "Sessao individual", due: "10/06/2026", amount: "R$ --" },
-    { patient: "Convenio exemplo", description: "Repasse pendente", due: "14/06/2026", amount: "R$ --" },
-    { patient: "Paciente exemplo", description: "Pacote de sessoes", due: "20/06/2026", amount: "R$ --" },
-];
-
 type ManagementModal = "income" | "expense" | "manual-charge" | "batch-reconcile" | "batch-update-transfer" | null;
 type ManagementOptionsMenu = "income" | "expenses" | "statement" | "charges" | "agreements" | null;
+
+type MetricCard = { title: string; value: string; footer: string[]; icon: LucideIcon; tone?: string };
+type ChartPoint = Record<string, string | number>;
+
+interface OverdueIncomeRow {
+    patient: string;
+    description: string;
+    due: string;
+    amount: string;
+}
 
 interface ExpenseRow {
     id: string;
@@ -433,56 +408,30 @@ interface StatementRow {
     amount: string;
 }
 
-const incomeRows: IncomeRow[] = [
-    { patient: "Ana Martins", description: "Sessao individual", due: "08/06/2026", amount: "R$ 250,00", status: "Pago", origin: "Agenda" },
-    { patient: "Bruno Lima", description: "Pacote mensal", due: "12/06/2026", amount: "R$ 900,00", status: "Nao pago", origin: "Manual" },
-    { patient: "Convenio Vida", description: "Repasse convenio", due: "18/06/2026", amount: "R$ 1.420,00", status: "Nao pago", origin: "Convenio" },
-    { patient: "Carla Nunes", description: "Sessao online", due: "24/06/2026", amount: "R$ 220,00", status: "Pago", origin: "Agenda" },
-];
+interface ManualChargeRow {
+    client: string;
+    description: string;
+    due: string;
+    amount: string;
+    type: string;
+    status: string;
+}
 
-const expenseRowsSeed: ExpenseRow[] = [
-    { id: "expense-1", category: "Aluguel", description: "Sala de atendimento", property: "Clinica", due: "05/06/2026", amount: "R$ 2.400,00", status: "Pago" },
-    { id: "expense-2", category: "Agua", description: "Conta mensal", property: "Clinica", due: "11/06/2026", amount: "R$ 180,00", status: "Nao pago" },
-    { id: "expense-3", category: "Adiantamento", description: "Repasse administrativo", property: "Particular", due: "20/06/2026", amount: "R$ 750,00", status: "Nao pago" },
-    { id: "expense-4", category: "Ajuste de caixa", description: "Ajuste operacional", property: "Clinica", due: "28/06/2026", amount: "R$ 120,00", status: "Pago" },
-];
+interface AgreementRepassRow {
+    patient: string;
+    session: string;
+    agreement: string;
+    releaseDate: string;
+    transferDate: string;
+    status: "Conciliado" | "Nao conciliado";
+    amount: string;
+}
 
-const statementRows: StatementRow[] = [
-    { date: "03/06/2026", description: "Sessao individual - Ana Martins", reason: "Receita", property: "Clinica", category: "Consulta", amount: "R$ 250,00" },
-    { date: "05/06/2026", description: "Sala de atendimento", reason: "Despesa", property: "Clinica", category: "Aluguel", amount: "-R$ 2.400,00" },
-    { date: "12/06/2026", description: "Pacote mensal - Bruno Lima", reason: "Receita", property: "Particular", category: "Mensalidade", amount: "R$ 900,00" },
-];
-
-const manualChargeRows = [
-    { client: "Ana Martins", description: "Sessao individual", due: "08/06/2026", amount: "R$ 250,00", type: "Pix", status: "Pendente" },
-    { client: "Bruno Lima", description: "Pacote mensal", due: "12/06/2026", amount: "R$ 900,00", type: "Boleto", status: "Gerada" },
-    { client: "Carla Nunes", description: "Sessao online", due: "24/06/2026", amount: "R$ 220,00", type: "Manual", status: "Recebida" },
-];
-
-const agreementRepassesRows = [
-    { patient: "Ana Martins", session: "Sessao individual", agreement: "Convenio Vida", releaseDate: "04/06/2026", transferDate: "18/06/2026", status: "Conciliado", amount: "R$ 180,00" },
-    { patient: "Bruno Lima", session: "Sessao online", agreement: "Saude Plena", releaseDate: "09/06/2026", transferDate: "24/06/2026", status: "Nao conciliado", amount: "R$ 165,00" },
-    { patient: "Carla Nunes", session: "Pacote convenio", agreement: "Clinica Mais", releaseDate: "12/06/2026", transferDate: "28/06/2026", status: "Nao conciliado", amount: "R$ 420,00" },
-    { patient: "Diego Rocha", session: "Sessao presencial", agreement: "Convenio Vida", releaseDate: "17/06/2026", transferDate: "30/06/2026", status: "Conciliado", amount: "R$ 190,00" },
-];
-
-const financeChartData = overviewChartData.map((item) => ({
-    ...item,
-    totalIncome: item.paidIncome + item.unpaidIncome,
-    totalExpenses: item.paidExpenses + item.unpaidExpenses,
-}));
-
-const agreementChartData = overviewChartData.map((item, index) => {
-    const reconciled = Math.round(item.paidIncome * 0.34);
-    const unreconciled = Math.round(item.unpaidIncome * (0.72 + index * 0.02));
-
-    return {
-        ...item,
-        reconciledAgreement: reconciled,
-        unreconciledAgreement: unreconciled,
-        totalAgreement: reconciled + unreconciled,
-    };
-});
+interface CashFlowTableRow {
+    label: string;
+    tone: string;
+    values: string[];
+}
 
 const financeFormCategories = {
     income: ["Cobranca Avulsa", "Comissao", "Deposito", "Mensalidade", "Receitas nao categorizadas", "Rendimentos"],
@@ -492,7 +441,27 @@ const financeFormCategories = {
 const paymentMethods = ["Pix", "Boleto", "Cartao", "Dinheiro", "Transferencia externa", "Convenio", "Outro"];
 
 const moneyFormatter = (value: number) =>
-    value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+    value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const fullMonthNames = [
+    "Janeiro",
+    "Fevereiro",
+    "Marco",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
+];
+
+const shortMonthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+const buildPeriodLabel = (year: number, month: number) => `${fullMonthNames[month]} ${year}`;
+const buildShortPeriodLabel = (year: number, month: number) => `${shortMonthNames[month]}/${String(year).slice(-2)}`;
 
 const formatDateLabel = (value: string) => {
     const [year, month, day] = value.split("-");
@@ -517,6 +486,34 @@ const entryOriginLabel = (entry: FinancialEntry) => {
     if (entry.origin === "package") return "Pacote";
     return "Manual";
 };
+
+const isOpenFinancialEntry = (entry: FinancialEntry) => ["planned", "pending", "overdue"].includes(entry.status);
+
+const isOverdueIncomeEntry = (entry: FinancialEntry) => {
+    const today = new Date().toISOString().slice(0, 10);
+    return entry.type === "income" && isOpenFinancialEntry(entry) && Boolean(entry.due_date) && String(entry.due_date) < today;
+};
+
+const paymentMethodLabel = (method: FinancialEntryPaymentMethod) => {
+    if (method === "pix") return "Pix";
+    if (method === "boleto") return "Boleto";
+    if (method === "card") return "Cartao";
+    if (method === "cash") return "Dinheiro";
+    if (method === "external_transfer") return "Transferencia";
+    if (method === "convenio") return "Convenio";
+    if (method === "manual") return "Manual";
+    return "Outro";
+};
+
+const manualChargeStatusLabel = (entry: FinancialEntry) => {
+    if (entry.status === "paid") return "Recebida";
+    if (entry.status === "cancelled") return "Cancelada";
+    if (entry.neurofinance_charge_id) return "Gerada";
+    return "Pendente";
+};
+
+const agreementStatusLabel = (entry: FinancialEntry): AgreementRepassRow["status"] =>
+    entry.status === "paid" ? "Conciliado" : "Nao conciliado";
 
 const parseMoneyInput = (value: string) => {
     const normalized = value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
@@ -1095,7 +1092,23 @@ const ManagementSectionHeader = ({
     </div>
 );
 
-const ManagementOverview = ({ motionProps }: { motionProps: any }) => (
+const ManagementOverview = ({
+    motionProps,
+    cards,
+    chartData,
+    overdueRows,
+    selectedYear,
+    yearOptions,
+    onYearChange,
+}: {
+    motionProps: any;
+    cards: MetricCard[];
+    chartData: FinancialMonthlyPoint[];
+    overdueRows: OverdueIncomeRow[];
+    selectedYear: number;
+    yearOptions: string[];
+    onYearChange: (value: string) => void;
+}) => (
     <motion.div {...motionProps} key="management-overview" className="space-y-6 px-6 py-6">
         <ManagementSectionHeader icon={PieChart} title="Visao Geral" subtitle="Resultado previsto, receitas, despesas e atrasos" />
 
@@ -1132,22 +1145,22 @@ const ManagementOverview = ({ motionProps }: { motionProps: any }) => (
                             Resultado previsto
                         </h3>
                         <span className="rounded-full bg-zinc-950 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950">
-                            Preview visual
+                            Ledger real
                         </span>
                     </div>
                     <p className="mt-2 max-w-xl text-xs font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
-                        Grafico combinado para Receitas e Despesas. Nesta etapa os dados sao placeholders de layout, sem consulta ao Supabase.
+                        Grafico combinado para Receitas e Despesas a partir dos lancamentos gerenciais do periodo.
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
                     <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">Ano</span>
-                    <SelectShell className="w-32" options={["2026", "2025", "2024"]} defaultValue="2026" />
+                    <SelectShell className="w-32" options={yearOptions} value={String(selectedYear)} onChange={onYearChange} />
                 </div>
             </div>
 
             <div className="relative z-10 h-[360px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={overviewChartData} barCategoryGap="22%" barGap={5} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
+                    <ComposedChart data={chartData} barCategoryGap="22%" barGap={5} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-200 dark:text-white/10" />
                         <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: "currentColor" }} className="text-zinc-400" />
                         <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `R$${Number(value) / 1000}k`} tick={{ fontSize: 10, fontWeight: 800, fill: "currentColor" }} className="text-zinc-400" />
@@ -1195,7 +1208,7 @@ const ManagementOverview = ({ motionProps }: { motionProps: any }) => (
                     <p className="mt-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Tabela base para inadimplencia gerencial.</p>
                 </div>
                 <span className="w-fit rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400">
-                    Layout sem dados reais
+                    {overdueRows.length} em aberto
                 </span>
             </div>
 
@@ -1210,14 +1223,18 @@ const ManagementOverview = ({ motionProps }: { motionProps: any }) => (
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
-                        {overdueRows.map((row) => (
-                            <tr key={`${row.patient}-${row.due}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
-                                <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.patient}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
-                                <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
-                            </tr>
-                        ))}
+                        {overdueRows.length > 0 ? (
+                            overdueRows.map((row) => (
+                                <tr key={`${row.patient}-${row.due}-${row.description}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                    <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.patient}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
+                                    <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <EmptyTableRow colSpan={4} title="Nenhuma receita atrasada no periodo" description="Quando houver lancamentos vencidos e nao pagos, eles aparecem aqui." />
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -1255,12 +1272,16 @@ const FinanceMetricCards = ({ cards }: { cards: { title: string; value: string; 
 const FinanceToolbar = ({
     periodLabel = "Ano",
     periodValue = "2026",
+    periodOptions = ["2026", "2025", "2024"],
+    onPeriodChange,
     addLabel,
     onAdd,
     options,
 }: {
     periodLabel?: string;
     periodValue?: string;
+    periodOptions?: string[];
+    onPeriodChange?: (value: string) => void;
     addLabel?: string;
     onAdd?: () => void;
     options?: ReactNode;
@@ -1268,7 +1289,7 @@ const FinanceToolbar = ({
     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex w-fit items-center gap-3">
             <span className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">{periodLabel}</span>
-            <SelectShell className="w-36" options={["2026", "2025", "2024", "Jun/2026"]} defaultValue={periodValue} />
+            <SelectShell className="w-36" options={periodOptions} value={periodValue} onChange={onPeriodChange} />
         </div>
         <div className="flex flex-wrap gap-3">
             {addLabel && onAdd ? (
@@ -1292,14 +1313,14 @@ const FinancialBarsChart = ({
     bars,
     lineKey,
     lineName,
-    data = financeChartData,
+    data,
 }: {
     title: string;
     subtitle: string;
     bars: { key: string; name: string; fill: string; stackId?: string }[];
     lineKey: string;
     lineName: string;
-    data?: typeof financeChartData;
+    data: ChartPoint[];
 }) => (
     <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
         <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.04]" />
@@ -1353,9 +1374,32 @@ const InfoBlock = ({ children }: { children: ReactNode }) => (
     </div>
 );
 
+const EmptyTableRow = ({
+    colSpan,
+    title,
+    description,
+}: {
+    colSpan: number;
+    title: string;
+    description: string;
+}) => (
+    <tr className="bg-white/50 dark:bg-white/[0.01]">
+        <td colSpan={colSpan} className="px-5 py-10 text-center">
+            <p className="text-sm font-black text-zinc-800 dark:text-white">{title}</p>
+            <p className="mt-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">{description}</p>
+        </td>
+    </tr>
+);
+
 const IncomeView = ({
     motionProps,
     rows,
+    cards,
+    chartData,
+    periodLabel,
+    selectedYear,
+    yearOptions,
+    onYearChange,
     onAdd,
     onManualCharge,
     openMenu,
@@ -1363,6 +1407,12 @@ const IncomeView = ({
 }: {
     motionProps: any;
     rows: IncomeRow[];
+    cards: MetricCard[];
+    chartData: FinancialMonthlyPoint[];
+    periodLabel: string;
+    selectedYear: number;
+    yearOptions: string[];
+    onYearChange: (value: string) => void;
     onAdd: () => void;
     onManualCharge: () => void;
     openMenu: ManagementOptionsMenu;
@@ -1371,6 +1421,9 @@ const IncomeView = ({
     <motion.div {...motionProps} key="income-view" className="space-y-6 px-6 py-6">
         <ManagementSectionHeader icon={TrendingUp} title="Receitas" subtitle="Entradas previstas, pagas e nao pagas" />
         <FinanceToolbar
+            periodValue={String(selectedYear)}
+            periodOptions={yearOptions}
+            onPeriodChange={onYearChange}
             addLabel="Adicionar receita"
             onAdd={onAdd}
             options={
@@ -1386,16 +1439,11 @@ const IncomeView = ({
                 />
             }
         />
-        <FinanceMetricCards
-            cards={[
-                { title: "Total Previsto", value: "R$ --", footer: ["Periodo: Junho 2026"], icon: BarChart3 },
-                { title: "Receitas Pagas", value: "R$ --", footer: ["Pago: R$ --"], icon: TrendingUp },
-                { title: "Receitas Nao Pagas", value: "R$ --", footer: ["Nao pago: R$ --"], icon: AlertTriangle },
-            ]}
-        />
+        <FinanceMetricCards cards={cards} />
         <FinancialBarsChart
             title="Receitas previstas"
             subtitle="Visualizacao de receitas pagas, nao pagas e total previsto por mes."
+            data={chartData}
             bars={[
                 { key: "paidIncome", name: "Receitas Pagas", fill: "#10b981", stackId: "income" },
                 { key: "unpaidIncome", name: "Receitas Nao Pagas", fill: "#86efac", stackId: "income" },
@@ -1405,8 +1453,8 @@ const IncomeView = ({
         />
         <InfoBlock>
             <p>A listagem abaixo sao todas as entradas lancadas no sistema, compostas por sessoes ou outras receitas, que:</p>
-            <p className="mt-3 font-black">1- Foram Pagas no Periodo: Junho 2026.</p>
-            <p className="mt-1 font-black">2- Possuem status de Nao pago com a Data de Vencimento no Periodo: Junho 2026.</p>
+            <p className="mt-3 font-black">1- Foram Pagas no Periodo: {periodLabel}.</p>
+            <p className="mt-1 font-black">2- Possuem status de Nao pago com a Data de Vencimento no Periodo: {periodLabel}.</p>
             <p className="mt-3">Nao encontrou o que precisa nessa lista? Clique aqui pois disponibilizamos um novo relatorio chamado: <span className="font-black">Pagamento por Sessao</span>. Se mesmo assim nao te ajudar, entre em contato com nossa equipe.</p>
         </InfoBlock>
         <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white/55 p-6 shadow-sm backdrop-blur-2xl dark:border-white/[0.045] dark:bg-white/[0.012]">
@@ -1433,18 +1481,22 @@ const IncomeView = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
-                        {rows.map((row) => (
-                            <tr key={`${row.patient}-${row.due}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
-                                <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.patient}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.origin}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
-                                <td className="px-5 py-4">
-                                    <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Pago" ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300")}>{row.status}</span>
-                                </td>
-                                <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
-                            </tr>
-                        ))}
+                        {rows.length > 0 ? (
+                            rows.map((row) => (
+                                <tr key={`${row.patient}-${row.due}-${row.description}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                    <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.patient}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.origin}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
+                                    <td className="px-5 py-4">
+                                        <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Pago" ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300")}>{row.status}</span>
+                                    </td>
+                                    <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <EmptyTableRow colSpan={6} title="Nenhuma receita encontrada" description="Receitas manuais, de agenda ou NeuroFinance aparecem aqui quando existirem no periodo." />
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -1455,6 +1507,11 @@ const IncomeView = ({
 const ExpensesView = ({
     motionProps,
     rows,
+    cards,
+    chartData,
+    selectedYear,
+    yearOptions,
+    onYearChange,
     selectedIds,
     toggleSelected,
     onAdd,
@@ -1464,6 +1521,11 @@ const ExpensesView = ({
 }: {
     motionProps: any;
     rows: ExpenseRow[];
+    cards: MetricCard[];
+    chartData: FinancialMonthlyPoint[];
+    selectedYear: number;
+    yearOptions: string[];
+    onYearChange: (value: string) => void;
     selectedIds: string[];
     toggleSelected: (id: string) => void;
     onAdd: () => void;
@@ -1474,8 +1536,10 @@ const ExpensesView = ({
     <motion.div {...motionProps} key="expenses-view" className="space-y-6 px-6 py-6">
         <ManagementSectionHeader icon={TrendingDown} title="Despesas" subtitle="Saidas previstas, pagas e nao pagas" />
         <FinanceToolbar
-            periodLabel="Periodo"
-            periodValue="Jun/2026"
+            periodLabel="Ano"
+            periodValue={String(selectedYear)}
+            periodOptions={yearOptions}
+            onPeriodChange={onYearChange}
             addLabel="Adicionar despesa"
             onAdd={onAdd}
             options={
@@ -1491,16 +1555,11 @@ const ExpensesView = ({
                 />
             }
         />
-        <FinanceMetricCards
-            cards={[
-                { title: "Total de Despesas", value: "R$ --", footer: ["Periodo: Junho 2026"], icon: BarChart3 },
-                { title: "Despesas pagas", value: "R$ --", footer: ["Pago: R$ --"], icon: TrendingDown },
-                { title: "Despesas nao pagas", value: "R$ --", footer: ["A pagar: R$ --"], icon: AlertTriangle },
-            ]}
-        />
+        <FinanceMetricCards cards={cards} />
         <FinancialBarsChart
             title="Despesas previstas"
             subtitle="Visualizacao de despesas pagas, nao pagas e total mensal previsto."
+            data={chartData}
             bars={[
                 { key: "paidExpenses", name: "Despesas Pagas", fill: "#f43f5e", stackId: "expenses" },
                 { key: "unpaidExpenses", name: "Despesas Nao Pagas", fill: "#fda4af", stackId: "expenses" },
@@ -1512,7 +1571,7 @@ const ExpensesView = ({
             <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div>
                     <h3 className="text-lg font-black uppercase tracking-tight text-zinc-950 dark:text-white">Lista de despesas</h3>
-                    <p className="mt-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Selecione despesas para usar a opcao de exclusao local.</p>
+                    <p className="mt-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">Selecione despesas para excluir lancamentos gerenciais.</p>
                 </div>
                 <span className="rounded-full bg-zinc-950 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950">
                     {selectedIds.length} selecionada(s)
@@ -1532,21 +1591,25 @@ const ExpensesView = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
-                        {rows.map((row) => (
-                            <tr key={row.id} className="bg-white/50 text-sm dark:bg-white/[0.01]">
-                                <td className="px-5 py-4">
-                                    <input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} className="h-4 w-4 rounded border-zinc-300" />
-                                </td>
-                                <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.category}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.property}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
-                                <td className="px-5 py-4">
-                                    <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Pago" ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300")}>{row.status}</span>
-                                </td>
-                                <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
-                            </tr>
-                        ))}
+                        {rows.length > 0 ? (
+                            rows.map((row) => (
+                                <tr key={row.id} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                    <td className="px-5 py-4">
+                                        <input type="checkbox" checked={selectedIds.includes(row.id)} onChange={() => toggleSelected(row.id)} className="h-4 w-4 rounded border-zinc-300" />
+                                    </td>
+                                    <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.category}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.property}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.due}</td>
+                                    <td className="px-5 py-4">
+                                        <span className={cn("rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]", row.status === "Pago" ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300")}>{row.status}</span>
+                                    </td>
+                                    <td className="px-5 py-4 text-right font-black text-zinc-900 dark:text-white">{row.amount}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <EmptyTableRow colSpan={7} title="Nenhuma despesa encontrada" description="Despesas criadas manualmente ou por recorrencia aparecem aqui quando existirem no periodo." />
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -1557,11 +1620,15 @@ const ExpensesView = ({
 const StatementView = ({
     motionProps,
     rows,
+    cards,
+    periodLabel,
     openMenu,
     setOpenMenu,
 }: {
     motionProps: any;
     rows: StatementRow[];
+    cards: MetricCard[];
+    periodLabel: string;
     openMenu: ManagementOptionsMenu;
     setOpenMenu: (menu: ManagementOptionsMenu) => void;
 }) => (
@@ -1571,7 +1638,7 @@ const StatementView = ({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap items-center gap-4">
                     <span className="text-lg font-bold text-zinc-800 dark:text-zinc-200">Periodo:</span>
-                    <SelectShell className="w-64" options={["Jun/2026", "Mai/2026", "Abr/2026"]} />
+                    <SelectShell className="w-64" options={[periodLabel]} value={periodLabel} />
                     <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white/70 text-zinc-500 dark:border-white/10 dark:bg-white/[0.035]">
                         <Eye className="h-4 w-4" />
                     </button>
@@ -1587,15 +1654,9 @@ const StatementView = ({
                 />
             </div>
         </section>
-        <FinanceMetricCards
-            cards={[
-                { title: "Saldo atual", value: "R$ 0,00", footer: ["Periodo: Junho 2026"], icon: Wallet },
-                { title: "Receitas pagas", value: "R$ 0,00", footer: ["Pagamentos no periodo"], icon: TrendingUp },
-                { title: "Despesas pagas", value: "R$ 0,00", footer: ["Pagamentos no periodo"], icon: TrendingDown },
-            ]}
-        />
+        <FinanceMetricCards cards={cards} />
         <InfoBlock>
-            <p>O relatorio do <span className="font-black">Extrato</span> e composto pela listagem de todas as <span className="font-black">Receitas e Despesas</span> com <span className="font-black">Data de Pagamento</span> dentro do <span className="font-black">Periodo: Junho 2026</span>.</p>
+            <p>O relatorio do <span className="font-black">Extrato</span> e composto pela listagem de todas as <span className="font-black">Receitas e Despesas</span> com <span className="font-black">Data de Pagamento</span> dentro do <span className="font-black">Periodo: {periodLabel}</span>.</p>
             <p>O relatorio mostra somente pagamentos com algum valor. Pagamentos R$0,00 nao serao exibidos no relatorio.</p>
             <p>As totalizacoes podem nao coincidir com o modulo Financeiro do sistema, pois sao utilizadas formas diferentes para o calculo.</p>
         </InfoBlock>
@@ -1621,16 +1682,20 @@ const StatementView = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
-                        {rows.map((row) => (
-                            <tr key={`${row.date}-${row.description}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
-                                <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.date}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.reason}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.property}</td>
-                                <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.category}</td>
-                                <td className={cn("px-5 py-4 text-right font-black", row.amount.startsWith("-") ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-950 dark:text-white")}>{row.amount}</td>
-                            </tr>
-                        ))}
+                        {rows.length > 0 ? (
+                            rows.map((row) => (
+                                <tr key={`${row.date}-${row.description}`} className="bg-white/50 text-sm dark:bg-white/[0.01]">
+                                    <td className="px-5 py-4 font-black text-zinc-900 dark:text-white">{row.date}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.description}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.reason}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.property}</td>
+                                    <td className="px-5 py-4 text-zinc-500 dark:text-zinc-400">{row.category}</td>
+                                    <td className={cn("px-5 py-4 text-right font-black", row.amount.startsWith("-") ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-950 dark:text-white")}>{row.amount}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <EmptyTableRow colSpan={6} title="Nenhum pagamento no periodo" description="Apenas receitas e despesas pagas aparecem no extrato gerencial." />
+                        )}
                     </tbody>
                 </table>
             </div>

@@ -51,6 +51,9 @@ export interface FinancialEntryFilters {
   type?: FinancialEntryType;
   status?: FinancialEntryStatus | FinancialEntryStatus[];
   patientId?: string;
+  origin?: string;
+  onlyPaid?: boolean;
+  onlyOpen?: boolean;
   limit?: number;
 }
 
@@ -70,6 +73,40 @@ export interface NewFinancialEntryInput {
   appointmentId?: string | null;
   metadata?: Record<string, unknown>;
 }
+
+export interface UpdateFinancialEntryInput extends Partial<NewFinancialEntryInput> {
+  id: string;
+  paidAt?: Date | null;
+}
+
+export interface FinancialMonthlyPoint {
+  month: string;
+  paidIncome: number;
+  unpaidIncome: number;
+  paidExpenses: number;
+  unpaidExpenses: number;
+  totalIncome: number;
+  totalExpenses: number;
+  result: number;
+  convenioTotal: number;
+  convenioPaid: number;
+  convenioPending: number;
+}
+
+export interface FinancialSummary {
+  incomePlanned: number;
+  incomePaid: number;
+  incomeUnpaid: number;
+  expensePlanned: number;
+  expensePaid: number;
+  expenseUnpaid: number;
+  resultPlanned: number;
+  resultCurrent: number;
+  overdueIncome: number;
+  overdueCount: number;
+}
+
+const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 export function toFinancialPaymentMethod(method?: string | null): FinancialEntryPaymentMethod {
   switch (method) {
@@ -120,6 +157,104 @@ export function fromLegacyTransactionStatus(status?: string | null): FinancialEn
   if (String(status || '').toLowerCase() === 'planned') return 'planned';
   if (String(status || '').toLowerCase() === 'overdue') return 'overdue';
   return 'pending';
+}
+
+export function financialEntryReferenceDate(entry: FinancialEntry) {
+  return entry.paid_at?.slice(0, 10) || entry.competence_date || entry.due_date || entry.created_at.slice(0, 10);
+}
+
+function isOpenStatus(status: FinancialEntryStatus) {
+  return ['planned', 'pending', 'overdue'].includes(status);
+}
+
+function isEntryInMonth(entry: FinancialEntry, year: number, month: number) {
+  const reference = financialEntryReferenceDate(entry);
+  return reference.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`);
+}
+
+export function computeFinancialSummary(entries: FinancialEntry[], year: number, month: number): FinancialSummary {
+  const monthEntries = entries.filter((entry) => isEntryInMonth(entry, year, month));
+  const today = new Date().toISOString().slice(0, 10);
+
+  return monthEntries.reduce<FinancialSummary>((summary, entry) => {
+    const amount = Number(entry.amount || 0);
+    const isPaid = entry.status === 'paid';
+    const isOverdue = entry.type === 'income' && isOpenStatus(entry.status) && Boolean(entry.due_date) && String(entry.due_date) < today;
+
+    if (entry.type === 'income') {
+      summary.incomePlanned += amount;
+      if (isPaid) summary.incomePaid += amount;
+      else summary.incomeUnpaid += amount;
+      if (isOverdue) {
+        summary.overdueIncome += amount;
+        summary.overdueCount += 1;
+      }
+    } else {
+      summary.expensePlanned += amount;
+      if (isPaid) summary.expensePaid += amount;
+      else summary.expenseUnpaid += amount;
+    }
+
+    summary.resultPlanned = summary.incomePlanned - summary.expensePlanned;
+    summary.resultCurrent = summary.incomePaid - summary.expensePaid;
+    return summary;
+  }, {
+    incomePlanned: 0,
+    incomePaid: 0,
+    incomeUnpaid: 0,
+    expensePlanned: 0,
+    expensePaid: 0,
+    expenseUnpaid: 0,
+    resultPlanned: 0,
+    resultCurrent: 0,
+    overdueIncome: 0,
+    overdueCount: 0,
+  });
+}
+
+export function computeFinancialMonthlySeries(entries: FinancialEntry[], year: number): FinancialMonthlyPoint[] {
+  return MONTHS.map((monthName, monthIndex) => {
+    const monthEntries = entries.filter((entry) => isEntryInMonth(entry, year, monthIndex));
+    const point = monthEntries.reduce<FinancialMonthlyPoint>((acc, entry) => {
+      const amount = Number(entry.amount || 0);
+      const isPaid = entry.status === 'paid';
+      const isConvenio = entry.payment_method === 'convenio' || entry.origin === 'convenio';
+
+      if (entry.type === 'income') {
+        if (isPaid) acc.paidIncome += amount;
+        else acc.unpaidIncome += amount;
+
+        if (isConvenio) {
+          acc.convenioTotal += amount;
+          if (isPaid) acc.convenioPaid += amount;
+          else acc.convenioPending += amount;
+        }
+      } else if (isPaid) {
+        acc.paidExpenses += amount;
+      } else {
+        acc.unpaidExpenses += amount;
+      }
+
+      acc.totalIncome = acc.paidIncome + acc.unpaidIncome;
+      acc.totalExpenses = acc.paidExpenses + acc.unpaidExpenses;
+      acc.result = acc.totalIncome - acc.totalExpenses;
+      return acc;
+    }, {
+      month: monthName,
+      paidIncome: 0,
+      unpaidIncome: 0,
+      paidExpenses: 0,
+      unpaidExpenses: 0,
+      totalIncome: 0,
+      totalExpenses: 0,
+      result: 0,
+      convenioTotal: 0,
+      convenioPaid: 0,
+      convenioPending: 0,
+    });
+
+    return point;
+  });
 }
 
 export function mapFinancialEntryToTransaction(entry: FinancialEntry): Transaction {
@@ -185,9 +320,32 @@ export async function fetchFinancialEntries(userId: string, filters: FinancialEn
     query = query.eq('patient_id', filters.patientId);
   }
 
+  if (filters.origin) {
+    query = query.eq('origin', filters.origin);
+  }
+
+  if (filters.onlyPaid) {
+    query = query.eq('status', 'paid');
+  }
+
+  if (filters.onlyOpen) {
+    query = query.in('status', ['planned', 'pending', 'overdue']);
+  }
+
   const { data, error } = await query;
   if (error) throw error;
   return (data || []) as FinancialEntry[];
+}
+
+export function useFinancialSummary(year: number, month: number) {
+  const { data: entries = [], ...query } = useFinancialEntries({ limit: 5000 });
+
+  return {
+    ...query,
+    data: computeFinancialSummary(entries, year, month),
+    entries,
+    chartData: computeFinancialMonthlySeries(entries, year),
+  };
 }
 
 export function useFinancialEntries(filters: FinancialEntryFilters = {}) {
@@ -197,7 +355,19 @@ export function useFinancialEntries(filters: FinancialEntryFilters = {}) {
   const endStr = filters.endDate ? format(filters.endDate, 'yyyy-MM-dd') : 'all';
 
   return useQuery<FinancialEntry[], Error>({
-    queryKey: ['financialEntries', userId, startStr, endStr, filters.type || 'all', filters.status || 'all', filters.patientId || 'all', filters.limit || 500],
+    queryKey: [
+      'financialEntries',
+      userId,
+      startStr,
+      endStr,
+      filters.type || 'all',
+      Array.isArray(filters.status) ? filters.status.join(',') : filters.status || 'all',
+      filters.patientId || 'all',
+      filters.origin || 'all',
+      filters.onlyPaid ? 'paid' : 'all',
+      filters.onlyOpen ? 'open' : 'all',
+      filters.limit || 500,
+    ],
     queryFn: () => {
       if (!userId) throw new Error('Usuario nao autenticado');
       return fetchFinancialEntries(userId, filters);
@@ -250,5 +420,106 @@ export function useCreateFinancialEntry() {
       queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
       queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
     },
+  });
+}
+
+function serializeFinancialEntryPatch(input: UpdateFinancialEntryInput) {
+  const patch: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.description !== undefined) {
+    patch.description = input.description;
+    if (input.title === undefined) patch.title = input.description;
+  }
+  if (input.type !== undefined) patch.type = input.type;
+  if (input.amount !== undefined) patch.amount = Math.abs(Number(input.amount || 0));
+  if (input.dueDate !== undefined) patch.due_date = format(input.dueDate, 'yyyy-MM-dd');
+  if (input.competenceDate !== undefined) patch.competence_date = format(input.competenceDate, 'yyyy-MM-dd');
+  if (input.paidAt !== undefined) patch.paid_at = input.paidAt ? input.paidAt.toISOString() : null;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.paymentMethod !== undefined) patch.payment_method = input.paymentMethod;
+  if (input.origin !== undefined) patch.origin = input.origin;
+  if (input.categoryId !== undefined) patch.category_id = input.categoryId;
+  if (input.patientId !== undefined) patch.patient_id = input.patientId;
+  if (input.appointmentId !== undefined) patch.appointment_id = input.appointmentId;
+  if (input.metadata !== undefined) patch.metadata = input.metadata;
+
+  return patch;
+}
+
+export function useUpdateFinancialEntry() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: UpdateFinancialEntryInput) => {
+      if (!user?.id) throw new Error('Usuario nao autenticado');
+
+      const { data, error } = await supabase
+        .from('financial_entries')
+        .update(serializeFinancialEntryPatch(input))
+        .eq('id', input.id)
+        .eq('professional_id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as FinancialEntry;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financialEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['patientTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
+    },
+  });
+}
+
+export function useDeleteFinancialEntries() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!user?.id) throw new Error('Usuario nao autenticado');
+      if (ids.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from('financial_entries')
+        .delete()
+        .eq('professional_id', user.id)
+        .in('id', ids)
+        .select('id');
+
+      if (error) throw error;
+      return data || [];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financialEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['patientTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
+    },
+  });
+}
+
+export function useMarkFinancialEntryPaid() {
+  const updateFinancialEntry = useUpdateFinancialEntry();
+
+  return useMutation({
+    mutationFn: async ({ id, paidAt = new Date(), paymentMethod = 'manual' }: {
+      id: string;
+      paidAt?: Date;
+      paymentMethod?: FinancialEntryPaymentMethod;
+    }) => updateFinancialEntry.mutateAsync({
+      id,
+      status: 'paid',
+      paidAt,
+      paymentMethod,
+    }),
   });
 }
