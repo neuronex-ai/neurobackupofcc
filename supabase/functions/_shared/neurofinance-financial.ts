@@ -336,4 +336,16 @@ export async function refreshOverviewSnapshot(
         { target_financial_account_id: financialAccountId }
     );
     if (error) throw error;
+
+    if (availableBalance != null && !syncError) {
+        const { error: clearError } = await supabaseAdmin
+            .from("neurofinance_overview_snapshots")
+            .update({
+                last_sync_error: null,
+                is_stale: false,
+                updated_at: new Date().toISOString(),
+            })
+            .eq("financial_account_id", financialAccountId);
+        if (clearError) throw clearError;
+    }
 }

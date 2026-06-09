@@ -306,11 +306,23 @@ async function syncAccount(financialAccount: any, mode: "incremental" | "full") 
         mode === "full" ? "full_reconciliation" : "incremental_reconciliation"
     );
 
+    const currentMetadata = financialAccount.metadata || {};
     await supabaseAdmin
         .from("financial_accounts")
         .update({
             last_balance_sync_at: new Date().toISOString(),
             last_sync_error: null,
+            metadata: {
+                ...currentMetadata,
+                provider_connection: {
+                    ...(currentMetadata.provider_connection || {}),
+                    status: "connected",
+                    recovered_at: new Date().toISOString(),
+                    error_code: null,
+                    error_message: null,
+                    support_required: false,
+                },
+            },
             updated_at: new Date().toISOString(),
         })
         .eq("id", financialAccount.id);
