@@ -233,6 +233,9 @@ serve(async (req) => {
         if (relevantMemoriesText) {
             systemPromptText += relevantMemoriesText;
         }
+        if (recentMemoriesText) {
+            systemPromptText += recentMemoriesText;
+        }
 
         // 5. Recuperar Histórico Recente da Sessão Atual (Short-term memory)
         const { data: history } = await supabaseAdmin
