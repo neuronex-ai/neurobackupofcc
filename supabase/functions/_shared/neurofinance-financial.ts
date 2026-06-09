@@ -180,9 +180,6 @@ export async function upsertPaymentFromProvider(
     const actualFee = providerNetAmount == null
         ? null
         : Math.max(grossAmount - providerNetAmount, 0);
-    const refundAmount = state.fundsStatus === "refunded"
-        ? Math.round(Number(payment.refundedValue || payment.value || 0) * 100)
-        : existing?.refund_amount || 0;
 
     const { data: existing, error: existingError } = await supabaseAdmin
         .from("nb_payments")
@@ -192,6 +189,10 @@ export async function upsertPaymentFromProvider(
         .maybeSingle();
 
     if (existingError) throw existingError;
+
+    const refundAmount = state.fundsStatus === "refunded"
+        ? Math.round(Number(payment.refundedValue || payment.value || 0) * 100)
+        : existing?.refund_amount || 0;
 
     const patch = {
         user_id: financialAccount.user_id,
