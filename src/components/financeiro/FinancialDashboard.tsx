@@ -55,6 +55,7 @@ import { AutomaticAnticipation } from "@/components/financeiro/antecipacoes/Auto
 import { SalesSimulator } from "@/components/financeiro/cobrancas/SalesSimulator";
 import { ChargebacksPanel } from "@/components/financeiro/cobrancas/ChargebacksPanel";
 import { AsaasAccountStatusTimeline } from "@/components/financeiro/AsaasAccountStatusTimeline";
+import { DetailedStatementPanel } from "@/components/financeiro/DetailedStatementPanel";
 import type { Transaction } from "@/types";
 
 export type FinanceView =
@@ -219,32 +220,13 @@ export function FinancialDashboard({
         case "extrato":
             return (
                 <motion.div {...motionProps} key="extrato" className="px-6 py-6">
-                    <div className="mx-auto max-w-6xl space-y-6">
+                    <div className="mx-auto max-w-7xl space-y-6">
                         <SectionHeader icon={FileText} title="Extrato detalhado" subtitle="Histórico unificado NeuroFinance e manual" onBack={handleGoBack} />
-                        <div className="flex flex-col gap-6">
-                            <div className="flex w-fit items-center gap-2 rounded-[24px] border border-zinc-200/50 bg-white/60 p-1.5 dark:border-white/10 dark:bg-white/[0.015]">
-                                {([
-                                    { id: "realizado", label: "Realizado", icon: Activity },
-                                    { id: "futuro", label: "Futuro e pendente", icon: Calendar },
-                                    { id: "assinaturas", label: "Assinaturas", icon: LayoutList },
-                                ] as const).map((tab) => (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setExtratoTab(tab.id)}
-                                        className={`flex items-center gap-2 rounded-[16px] px-6 py-2.5 transition-all duration-300 ${extratoTab === tab.id ? "bg-zinc-900 text-white shadow-md dark:bg-white dark:text-black" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/5 dark:hover:text-white"}`}
-                                    >
-                                        <tab.icon className="h-4 w-4" />
-                                        <span className="text-xs font-bold tracking-wide">{tab.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-
-                            <ContentWrapper>
-                                {extratoTab === "realizado" && <FinancialStatement transactions={realizedTransactions} isLoading={isLoadingTransactions || isNbStatementLoading} onSelectTransaction={setSelectedTransaction} />}
-                                {extratoTab === "futuro" && <FinancialStatement transactions={futureTransactions} isLoading={isLoadingTransactions || isNbStatementLoading} onSelectTransaction={setSelectedTransaction} />}
-                                {extratoTab === "assinaturas" && <FinancialStatement transactions={subscriptionTransactions} isLoading={isLoadingTransactions || isNbStatementLoading} onSelectTransaction={setSelectedTransaction} />}
-                            </ContentWrapper>
-                        </div>
+                        <DetailedStatementPanel
+                            tab={extratoTab}
+                            onTabChange={setExtratoTab}
+                            onSelectTransaction={setSelectedTransaction}
+                        />
                     </div>
                 </motion.div>
             );

@@ -122,7 +122,6 @@ export function hasNeuroFinanceReference(transaction: Transaction) {
     const source = normalizeStatementText(metadata.source);
     return (
         transaction.origin === "gateway_auto" ||
-        Boolean(transaction.external_reference) ||
         Boolean(metadata.asaas_payment_id) ||
         Boolean(metadata.asaas_transfer_id) ||
         Boolean(metadata.provider_type) ||

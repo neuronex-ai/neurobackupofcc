@@ -13,7 +13,6 @@ import {
     Clock,
     Copy,
     ExternalLink,
-    Filter,
     Loader2,
     MoreVertical,
     Plus,
@@ -34,6 +33,7 @@ import { useInvoiceActions, useInvoicesPage } from "@/hooks/use-invoices";
 import { usePatients } from "@/hooks/use-patients";
 import { formatCurrency, cn } from "@/lib/utils";
 import { NewInvoiceModal } from "@/components/financeiro/NewInvoiceModal";
+import { AdvancedFilterPopover as SharedAdvancedFilterPopover } from "@/components/financeiro/AdvancedFilterPopover";
 import type { Invoice } from "@/types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
@@ -372,14 +372,7 @@ function AdvancedFilters({
     clearFilters: () => void;
 }) {
     return (
-        <Popover>
-            <PopoverTrigger asChild>
-                <Button variant="outline" className="h-12 rounded-[18px] border-zinc-200 bg-white/70 px-5 text-[10px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.035]">
-                    <Filter className="mr-2 h-4 w-4" />
-                    Filtros {activeFilters > 0 ? `(${activeFilters})` : ""}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={12} className="w-[min(960px,calc(100vw-56px))] overflow-hidden rounded-[28px] border-zinc-200 bg-white/95 p-0 shadow-[0_36px_90px_-36px_rgba(0,0,0,0.45)] backdrop-blur-3xl dark:border-white/10 dark:bg-zinc-950/95">
+        <SharedAdvancedFilterPopover activeFilters={activeFilters} onClear={clearFilters}>
                 <div className="grid gap-8 p-7 lg:grid-cols-[1.1fr_1fr_1.35fr]">
                     <div className="space-y-5">
                         <FilterDateGroup title="Período de vencimento" start={dueStart} end={dueEnd} onStart={setDueStart} onEnd={setDueEnd} />
@@ -389,16 +382,7 @@ function AdvancedFilters({
                     <FilterCheckGroup title="Tipos de cobrança" options={filterTypeOptions} selected={typeFilters} onToggle={toggleType} />
                     <FilterCheckGroup title="Situação das cobranças" options={filterStatusOptions} selected={statusFilters} onToggle={toggleStatus} twoColumns />
                 </div>
-                <div className="flex items-center justify-end gap-3 border-t border-zinc-200/70 bg-zinc-50/80 px-7 py-4 dark:border-white/10 dark:bg-white/[0.025]">
-                    <Button variant="outline" onClick={clearFilters} className="h-11 rounded-full px-6 text-[10px] font-black uppercase tracking-[0.16em]">
-                        Limpar
-                    </Button>
-                    <Button className="h-11 rounded-full bg-zinc-950 px-7 text-[10px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950">
-                        Aplicar
-                    </Button>
-                </div>
-            </PopoverContent>
-        </Popover>
+        </SharedAdvancedFilterPopover>
     );
 }
 

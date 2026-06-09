@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Calendar, Filter } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,8 +38,10 @@ export function AdvancedFilterPopover({
     align = "start",
     widthClassName = "w-[min(960px,calc(100vw-56px))]",
 }: AdvancedFilterPopoverProps) {
+    const [open, setOpen] = useState(false);
+
     return (
-        <Popover>
+        <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button variant="outline" className="h-12 rounded-[18px] border-zinc-200 bg-white/70 px-5 text-[10px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.035]">
                     <Filter className="mr-2 h-4 w-4" />
@@ -52,7 +54,13 @@ export function AdvancedFilterPopover({
                     <Button variant="outline" onClick={onClear} className="h-11 rounded-full px-6 text-[10px] font-black uppercase tracking-[0.16em]">
                         {clearLabel}
                     </Button>
-                    <Button onClick={onApply} className="h-11 rounded-full bg-zinc-950 px-7 text-[10px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950">
+                    <Button
+                        onClick={() => {
+                            onApply?.();
+                            setOpen(false);
+                        }}
+                        className="h-11 rounded-full bg-zinc-950 px-7 text-[10px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950"
+                    >
                         {applyLabel}
                     </Button>
                 </div>
