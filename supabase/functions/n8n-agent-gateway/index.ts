@@ -326,7 +326,13 @@ serve(async (req: Request) => {
     // 1. Auth Check
     const authHeader = req.headers.get('Authorization');
     const expectedToken = Deno.env.get('N8N_WEBHOOK_SECRET');
-    if (expectedToken && authHeader !== `Bearer ${expectedToken}`) {
+    if (!expectedToken) {
+      return new Response(JSON.stringify({ error: 'Gateway secret is not configured.' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (authHeader !== `Bearer ${expectedToken}`) {
       return new Response(JSON.stringify({ error: 'Unauthorized. Invalid Bearer token.' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
