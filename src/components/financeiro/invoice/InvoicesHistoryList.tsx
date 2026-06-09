@@ -12,7 +12,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
-export const InvoicesHistoryList = () => {
+interface InvoicesHistoryListProps {
+    fiscalOnly?: boolean;
+    heightClassName?: string;
+}
+
+export const InvoicesHistoryList = ({ fiscalOnly = false, heightClassName = "h-[350px]" }: InvoicesHistoryListProps) => {
     const { data: invoices, isLoading } = useInvoices();
     const { data: patients } = usePatients();
     const queryClient = useQueryClient();
@@ -56,20 +61,21 @@ export const InvoicesHistoryList = () => {
         );
     }
 
-    // Mostrar todas as invoices, não só fiscais, para que o usuário possa ver as cobranças geradas
-    const allInvoices = invoices || [];
+    const allInvoices = fiscalOnly
+        ? (invoices || []).filter((invoice) => Boolean(invoice.nfse_status))
+        : invoices || [];
 
     if (allInvoices.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-20 text-zinc-600 border border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
                 <Wallet className="h-10 w-10 mb-3 opacity-20" />
-                <p className="text-sm font-medium">Nenhuma cobrança registrada</p>
+                <p className="text-sm font-medium">{fiscalOnly ? "Nenhuma nota fiscal registrada" : "Nenhuma cobrança registrada"}</p>
             </div>
         );
     }
 
     return (
-        <ScrollArea className="h-[350px] pr-2">
+        <ScrollArea className={`${heightClassName} pr-2`}>
             <div className="space-y-2">
                 {allInvoices.map((inv) => {
                     const isFiscal = !!inv.nfse_status;
@@ -78,17 +84,17 @@ export const InvoicesHistoryList = () => {
                     return (
                         <div
                             key={inv.id}
-                            className="group flex items-center justify-between p-3 rounded-xl border border-white/5 bg-zinc-900/30 hover:bg-zinc-900/60 transition-all"
+                            className="group flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-3 transition-all hover:bg-zinc-50 dark:border-white/5 dark:bg-zinc-900/30 dark:hover:bg-zinc-900/60"
                         >
                             <div className="flex items-center gap-3">
                                 <div className={cn(
-                                    "w-9 h-9 rounded-lg flex items-center justify-center border shadow-sm bg-zinc-800/50 border-white/5"
+                                    "w-9 h-9 rounded-lg flex items-center justify-center border shadow-sm bg-zinc-100 border-zinc-200 dark:bg-zinc-800/50 dark:border-white/5"
                                 )}>
                                     {inv.status === 'paid' ? <FileCheck className="h-4 w-4 text-emerald-500" /> : <Wallet className="h-4 w-4 text-zinc-400" />}
                                 </div>
 
                                 <div>
-                                    <h4 className="text-xs font-bold text-zinc-200">{getPatientName(inv.patient_id!)}</h4>
+                                    <h4 className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{getPatientName(inv.patient_id!)}</h4>
                                     <div className="flex items-center gap-2 mt-0.5 text-[10px] text-zinc-500">
                                         <span className={cn("uppercase font-medium", statusColor)}>{inv.status === 'paid' ? 'PAGO' : 'PENDENTE'}</span>
                                         <span>•</span>

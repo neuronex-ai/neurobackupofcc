@@ -2,7 +2,7 @@
 
 import { ReactNode } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Package, User, LayoutGrid } from "lucide-react";
+import { Crown, Package, User, LayoutGrid } from "lucide-react";
 import { useAllPackages } from "@/hooks/use-all-packages";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,6 +32,28 @@ export const GlobalPlanosModal = ({ children }: { children: ReactNode }) => {
                 </DialogHeader>
 
                 <div className="flex-1 p-10 bg-zinc-50/30 dark:bg-black/20 overflow-y-auto custom-scrollbar">
+                    <div className="relative mb-8 min-h-[210px] overflow-hidden rounded-[34px] bg-zinc-950 p-7 text-white shadow-[0_28px_80px_-36px_rgba(0,0,0,0.75)] dark:bg-white dark:text-zinc-950">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,.2),transparent_26%),linear-gradient(135deg,transparent,rgba(255,255,255,.06))] dark:bg-[radial-gradient(circle_at_85%_15%,rgba(0,0,0,.14),transparent_28%)]" />
+                        <div className="relative z-10 flex h-full flex-col justify-between gap-10">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex h-14 w-14 items-center justify-center rounded-[20px] border border-white/15 bg-white/10 dark:border-black/10 dark:bg-black/[0.04]">
+                                    <Crown className="h-6 w-6" />
+                                </div>
+                                <div className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-amber-300 dark:border-amber-600/20 dark:bg-amber-500/10 dark:text-amber-700">
+                                    Premium · Em breve
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black uppercase tracking-[0.28em] text-white/45 dark:text-black/40">Nova experiência de recorrência</p>
+                                <h3 className="mt-2 max-w-xl text-2xl font-black leading-tight tracking-[-0.03em]">
+                                    Crie Pacotes Psicoterapêuticos por Assinatura
+                                </h3>
+                                <p className="mt-3 max-w-2xl text-sm font-medium leading-relaxed text-white/60 dark:text-black/55">
+                                    Organize sessões recorrentes, cobrança automática e acompanhamento do pacote em uma única assinatura.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
 
                     {isLoading ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

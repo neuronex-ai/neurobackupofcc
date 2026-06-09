@@ -12,9 +12,13 @@ export interface SalesSimulationInput {
   anticipate?: boolean;
 }
 
-function feeFor(rule: TariffRule | undefined, amount: number) {
+export function tariffPercentRate(rule: TariffRule | undefined) {
+  return Number(rule?.percent_rate || 0) / 100;
+}
+
+export function feeFor(rule: TariffRule | undefined, amount: number) {
   if (!rule) return null;
-  const percent = Number(rule.percent_rate || 0);
+  const percent = tariffPercentRate(rule);
   const fixed = Number(rule.fixed_fee_cents || 0);
   return Math.round(amount * percent) + fixed;
 }
@@ -54,7 +58,7 @@ export function useNeurofinanceSimulator() {
     }
 
     const chargedAmount = input.passFeesToClient
-      ? Math.ceil((amount + Number(rule.fixed_fee_cents || 0)) / (1 - Number(rule.percent_rate || 0)))
+      ? Math.ceil((amount + Number(rule.fixed_fee_cents || 0)) / (1 - tariffPercentRate(rule)))
       : amount;
     const chargedFee = feeFor(rule, chargedAmount) || fee;
 

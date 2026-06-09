@@ -4,8 +4,10 @@ import React, { useCallback, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowRight,
   Barcode,
+  CalendarDays,
   Check,
   Copy,
   CreditCard,
@@ -26,16 +28,19 @@ import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useGenerateInvoice } from "@/hooks/use-generate-invoice";
+import { useNeurofinanceSimulator, type SimulatorMethod } from "@/hooks/use-neurofinance-simulator";
 import { usePatients } from "@/hooks/use-patients";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { cn } from "@/lib/utils";
 import { toUserFacingError } from "@/lib/user-facing-error";
 import { AnimatePresence, motion } from "framer-motion";
+import { format } from "date-fns";
 
 const NewInvoiceSchema = z.object({
   patientId: z.string().min(1, { message: "Selecione um paciente." }),
   amount: z.coerce.number().positive({ message: "O valor deve ser maior que zero." }),
   description: z.string().min(3, { message: "Descrição curta obrigatória." }),
+  dueDate: z.string().min(1, { message: "Defina o vencimento da cobrança." }),
   paymentMethods: z.array(z.string()).min(1, "Selecione pelo menos um método."),
 });
 
@@ -45,7 +50,7 @@ const QUICK_AMOUNTS = [150, 200, 250, 300];
 
 export const NewInvoiceModal = React.memo(({ children }: { children?: React.ReactNode }) => {
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<"form" | "success">("form");
+  const [step, setStep] = useState<"form" | "confirmation" | "success">("form");
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [boletoUrl, setBoletoUrl] = useState<string | null>(null);
   const [pixData, setPixData] = useState<{ qrCode?: string; copyPaste?: string } | undefined>();
@@ -53,6 +58,7 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
 
   const { data: patients } = usePatients();
   const { mutate: generateInvoice, isPending: isCreating } = useGenerateInvoice();
+  const { simulate } = useNeurofinanceSimulator();
   const { isConnected: isAccountReady } = useFinancialAccount();
 
   const form = useForm<NewInvoiceFormValues>({
@@ -60,12 +66,23 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
     defaultValues: {
       description: "Sessão de Psicoterapia",
       amount: undefined as unknown as number,
+      dueDate: format(new Date(), "yyyy-MM-dd"),
       paymentMethods: ["pix", "card"],
     },
     mode: "onChange",
   });
 
   const watchedAmount = form.watch("amount");
+  const watchedPaymentMethods = form.watch("paymentMethods");
+  const feeSummaries = watchedPaymentMethods.map((method) => ({
+    method,
+    label: method === "pix" ? "Pix" : method === "card" ? "Cartão à vista" : "Boleto",
+    ...simulate({
+      amount: Math.round(Number(watchedAmount || 0) * 100),
+      method: method as SimulatorMethod,
+      installments: 1,
+    }),
+  }));
 
   const reset = useCallback(() => {
     setStep("form");
@@ -81,7 +98,7 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
     if (!value) setTimeout(reset, 300);
   }, [reset]);
 
-  const onSubmit = useCallback((values: NewInvoiceFormValues) => {
+  const issueInvoice = useCallback((values: NewInvoiceFormValues) => {
     if (!isAccountReady) {
       toast.error("Atenção: sua conta NeuroFinance precisa estar conectada para gerar cobranças reais.");
       return;
@@ -104,7 +121,7 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
         patientId: values.patientId,
         amount: values.amount,
         description: values.description,
-        dueDate: new Date(),
+        dueDate: new Date(`${values.dueDate}T12:00:00`),
         billingType,
         paymentMethodType,
       },
@@ -125,6 +142,10 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
     );
   }, [isAccountReady, generateInvoice]);
 
+  const onSubmit = useCallback(() => {
+    setStep("confirmation");
+  }, []);
+
   const handleCopy = useCallback((text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copiado.`);
@@ -144,6 +165,95 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
     const msg = `Olá ${patient.name.split(" ")[0]}! Segue o link para o pagamento da sua sessão (${amountStr}):\n${paymentUrl}`;
     window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, "_blank");
   }, [patients, paymentUrl, form]);
+
+  const renderConfirmation = () => {
+    const values = form.getValues();
+    const patient = patients?.find((item) => item.id === values.patientId);
+    const currency = (value: number) =>
+      (value / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+    return (
+      <div className="flex h-full max-h-[inherit] flex-col">
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-8 pb-6 pt-8 dark:border-white/5">
+          <div>
+            <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-zinc-100">Confirmar cobrança</h2>
+            <p className="mt-1 text-xs font-medium text-zinc-500">Revise os dados e o valor líquido de cada método.</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => handleOpenChange(false)} className="h-10 w-10 rounded-full hover:bg-zinc-100 dark:hover:bg-white/5">
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <div className="custom-scrollbar flex-1 space-y-6 overflow-y-auto bg-zinc-50/30 px-8 py-8 dark:bg-transparent">
+          <div className="rounded-[28px] border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <SummaryItem label="Paciente" value={patient?.name || "Paciente selecionado"} />
+              <SummaryItem label="Vencimento" value={new Date(`${values.dueDate}T12:00:00`).toLocaleDateString("pt-BR")} />
+              <SummaryItem label="Descrição" value={values.description} />
+              <SummaryItem
+                label="Valor da cobrança"
+                value={Number(values.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-3 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Taxas estimadas por método</p>
+            <div className="space-y-3">
+              {feeSummaries.map((summary) => (
+                <div key={summary.method} className="rounded-[24px] border border-zinc-200 bg-white p-5 dark:border-white/10 dark:bg-white/[0.03]">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-black text-zinc-900 dark:text-white">{summary.label}</p>
+                      <p className="mt-1 text-[10px] font-bold text-zinc-400">
+                        {summary.rule?.price_label || "Condição confirmada no processamento"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Taxa descontada</p>
+                      <p className="mt-1 text-sm font-black text-rose-600 dark:text-rose-400">
+                        {summary.feeAmount == null ? "A confirmar" : `- ${currency(summary.feeAmount)}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-4 text-xs dark:border-white/5">
+                    <span className="font-bold text-zinc-500">Valor líquido previsto</span>
+                    <strong className="text-emerald-600 dark:text-emerald-400">
+                      {summary.netAmount == null ? "A confirmar" : currency(summary.netAmount)}
+                    </strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.06] px-5 py-4 text-xs font-medium leading-relaxed text-amber-800 dark:text-amber-300">
+            As tarifas são estimativas das condições atuais da conta e são descontadas somente quando o paciente paga.
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-between gap-4 border-t border-zinc-100 bg-white p-8 dark:border-white/5 dark:bg-black/20">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setStep("form")}
+            className="h-14 gap-2 rounded-[20px] px-6 text-[10px] font-black uppercase tracking-widest text-zinc-500"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Voltar
+          </Button>
+          <Button
+            type="button"
+            onClick={() => issueInvoice(values)}
+            disabled={isCreating}
+            className="h-14 gap-3 rounded-[20px] bg-zinc-900 px-10 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-2xl transition-all hover:opacity-90 active:scale-95 dark:bg-white dark:text-black"
+          >
+            {isCreating ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Emitir cobrança <ArrowRight className="h-4 w-4" /></>}
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   const renderSuccess = () => (
     <div className="flex h-full max-h-[inherit] flex-col">
@@ -317,6 +427,28 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
                   </button>
                 ))}
               </div>
+
+              <FormField
+                control={form.control}
+                name="dueDate"
+                render={({ field }) => (
+                  <FormItem className="space-y-4">
+                    <FormLabel className="ml-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      Vencimento da cobrança
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        min={format(new Date(), "yyyy-MM-dd")}
+                        {...field}
+                        className="h-16 rounded-[24px] border-zinc-200 bg-white px-7 text-sm font-bold text-zinc-900 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-[10px] font-bold text-red-500" />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <div className="space-y-8">
@@ -409,10 +541,10 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
         <Button
           type="button"
           onClick={form.handleSubmit(onSubmit)}
-          disabled={isCreating}
+          disabled={!isAccountReady}
           className="h-16 gap-3 rounded-[20px] bg-zinc-900 px-12 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-2xl transition-all hover:opacity-90 active:scale-95 dark:bg-white dark:text-black"
         >
-          {isCreating ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Gerar cobrança <ArrowRight className="h-4 w-4" /></>}
+          Revisar cobrança <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -435,7 +567,7 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
             transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
             className="h-full"
           >
-            {step === "success" ? renderSuccess() : renderForm()}
+            {step === "success" ? renderSuccess() : step === "confirmation" ? renderConfirmation() : renderForm()}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -444,3 +576,10 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
 });
 
 NewInvoiceModal.displayName = "NewInvoiceModal";
+
+const SummaryItem = ({ label, value }: { label: string; value: string }) => (
+  <div>
+    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">{label}</p>
+    <p className="mt-2 text-sm font-black text-zinc-900 dark:text-white">{value}</p>
+  </div>
+);

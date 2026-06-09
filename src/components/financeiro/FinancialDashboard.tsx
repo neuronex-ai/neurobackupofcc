@@ -8,7 +8,6 @@ import {
     Landmark,
     Receipt,
     FileText,
-    LayoutDashboard,
     Users,
     Settings,
     BadgeCent,
@@ -23,6 +22,7 @@ import {
     LayoutList,
     Repeat,
     WalletCards,
+    PlusCircle,
 } from "lucide-react";
 
 import { CashFlowScenarios } from "@/components/financeiro/CashFlowScenarios";
@@ -52,6 +52,7 @@ import { AnticipationRequest } from "@/components/financeiro/antecipacoes/Antici
 import { AutomaticAnticipation } from "@/components/financeiro/antecipacoes/AutomaticAnticipation";
 import { SalesSimulator } from "@/components/financeiro/cobrancas/SalesSimulator";
 import { ChargebacksPanel } from "@/components/financeiro/cobrancas/ChargebacksPanel";
+import { AsaasAccountStatusTimeline } from "@/components/financeiro/AsaasAccountStatusTimeline";
 import type { Transaction } from "@/types";
 
 export type FinanceView =
@@ -71,6 +72,7 @@ export type FinanceView =
     | "pagamentos-agendar"
     | "pagamentos-grupos"
     | "contas-bancarias"
+    | "saude-conta"
     | "extrato"
     | "fluxo-caixa"
     | "receitas"
@@ -85,13 +87,13 @@ export type FinanceView =
     | "antecipacoes-automatica"
     | "antecipacoes-simulador"
     | "antecipacoes-historico"
-    | "fiscal-painel"
+    | "fiscal-dados"
+    | "fiscal-nova"
     | "fiscal-lista"
     | "repasses-convenio"
     | "repasses-profissional"
     | "repasses-salas"
-    | "tarifas"
-    | "configuracoes";
+    | "tarifas";
 
 const SectionHeader = ({
     icon: Icon,
@@ -305,7 +307,9 @@ export function FinancialDashboard({
         case "pagamentos-grupos":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={FolderOpen} title="Pagamentos em lote" subtitle="Organize várias contas de uma vez" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosGrupos /></ContentWrapper></motion.div>;
         case "contas-bancarias":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Landmark} title="Contas" subtitle="Conta bancária de destino" onBack={handleGoBack} /><ContentWrapper><BankAccountsView /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Landmark} title="Ajustes NeuroFinance" subtitle="Conta bancária" onBack={handleGoBack} /><ContentWrapper><BankAccountsView /></ContentWrapper></motion.div>;
+        case "saude-conta":
+            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={ShieldCheck} title="Saúde da conta" subtitle="Status documental e análise cadastral" onBack={handleGoBack} /><AsaasAccountStatusTimeline /></motion.div>;
         case "fluxo-caixa":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={TrendingUp} title="Fluxo" subtitle="Análise de caixa" onBack={handleGoBack} /><div className="h-[500px] overflow-hidden rounded-[32px]"><CashFlowScenarios /></div></motion.div>;
         case "cobrancas-historia":
@@ -327,16 +331,16 @@ export function FinancialDashboard({
             return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={WalletCards} title="Simular antecipação" subtitle="Veja o valor antes de confirmar" onBack={() => setActiveView("antecipacoes-solicitar")} /><AnticipationRequest /></motion.div>;
         case "antecipacoes-historico":
             return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Repeat} title="Histórico de antecipações" subtitle="O que já foi antecipado" onBack={() => setActiveView("antecipacoes-lista")} /><AnticipationsList /></motion.div>;
-        case "fiscal-painel":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={LayoutDashboard} title="NFS-e automática" subtitle="Emissão Asaas após pagamento" onBack={handleGoBack} /><ContentWrapper><FiscalConfigPanel /></ContentWrapper></motion.div>;
+        case "fiscal-dados":
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Landmark} title="Dados Fiscais" subtitle="Informações usadas na emissão da NFS-e" onBack={handleGoBack} /><ContentWrapper><FiscalConfigPanel /></ContentWrapper></motion.div>;
+        case "fiscal-nova":
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={PlusCircle} title="Emitir nova nota fiscal" subtitle="Nova emissão de NFS-e" onBack={handleGoBack} /><ContentWrapper><CapabilityNotice icon={PlusCircle} title="Em breve" description="A emissão manual de uma nova nota fiscal estará disponível nesta área." /></ContentWrapper></motion.div>;
         case "fiscal-lista":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={FileText} title="Minhas NFS-e" subtitle="Histórico fiscal" onBack={handleGoBack} /><ContentWrapper><InvoicesHistoryList /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={FileText} title="Minhas Notas Fiscais" subtitle="Histórico fiscal" onBack={handleGoBack} /><ContentWrapper><InvoicesHistoryList fiscalOnly /></ContentWrapper></motion.div>;
         case "repasses-profissional":
             return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Users} title="Split & Repasses" subtitle="Destino bancário e regras de divisão" onBack={handleGoBack} /><ContentWrapper><BankAccountsView /></ContentWrapper><ContentWrapper><SmartSplit /></ContentWrapper></motion.div>;
         case "tarifas":
             return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Receipt} title="Tarifas" subtitle="Custos e prazos, sem letras miúdas" onBack={handleGoBack} /><NeuroFinanceTariffs /></motion.div>;
-        case "configuracoes":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Settings} title="Configurações" subtitle="Preferências do sistema" onBack={handleGoBack} /><ContentWrapper><div className="py-20 text-center"><Settings className="mx-auto mb-4 h-12 w-12 text-zinc-300" /><p className="text-xs font-black uppercase tracking-widest text-zinc-500">Configurações avançadas em desenvolvimento.</p></div></ContentWrapper></motion.div>;
         default:
             return null;
     }

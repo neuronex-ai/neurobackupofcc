@@ -5,8 +5,10 @@ import { cn } from "@/lib/utils";
 interface NeuroNexCardProps {
   name: string;
   bankName?: string;
+  bankCode?: string;
   agency?: string;
   account?: string;
+  accountType?: string;
   isExpanded?: boolean;
   onToggle?: () => void;
   className?: string;
@@ -73,17 +75,21 @@ const WhiteSteelTexture = () => (
 export const NeuroNexCard = ({
   name,
   bankName = "NEURONEX",
+  bankCode,
   agency = "0001",
   account = "**** 8829",
+  accountType = "Conta corrente",
   isExpanded = false,
   onToggle,
   className,
   showSensitive = false
 }: NeuroNexCardProps) => {
-  const displayAccount = showSensitive ? account : `**** **** **** ${account.replace(/[^\d]/g, '').slice(-4)}`;
   const lastFour = account.replace(/[^\d]/g, '').slice(-4);
-
-
+  const displayAccount = showSensitive
+    ? account
+    : lastFour
+      ? `•••• •••• •••• ${lastFour}`
+      : "Não informada";
 
   return (
     <>
@@ -132,7 +138,7 @@ export const NeuroNexCard = ({
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-800 dark:text-zinc-800">{bankName}</span>
                   <span className="text-zinc-300 dark:text-zinc-300">/</span>
-                  <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-500">BANK</span>
+                  <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-500">CONTA CADASTRADA</span>
                 </div>
                 <ShieldCheck className="w-4 h-4 text-zinc-300 dark:text-zinc-300" />
               </div>
@@ -151,12 +157,12 @@ export const NeuroNexCard = ({
 
                 <div className="grid grid-cols-2 gap-8 pt-2">
                   <div>
-                    <p className="text-[7px] font-bold uppercase tracking-[0.25em] mb-1.5 text-zinc-400 dark:text-zinc-400">Validade</p>
-                    <p className="text-[11px] font-mono font-bold tracking-widest text-zinc-600 dark:text-zinc-600">12/30</p>
+                    <p className="text-[7px] font-bold uppercase tracking-[0.25em] mb-1.5 text-zinc-400 dark:text-zinc-400">Tipo</p>
+                    <p className="text-[11px] font-bold tracking-wide text-zinc-600 dark:text-zinc-600">{accountType}</p>
                   </div>
                   <div>
-                    <p className="text-[7px] font-bold uppercase tracking-[0.25em] mb-1.5 text-zinc-400 dark:text-zinc-400">CVC</p>
-                    <p className="text-[11px] font-mono font-bold tracking-widest text-zinc-600 dark:text-zinc-600">{showSensitive ? '912' : '***'}</p>
+                    <p className="text-[7px] font-bold uppercase tracking-[0.25em] mb-1.5 text-zinc-400 dark:text-zinc-400">Banco</p>
+                    <p className="text-[11px] font-mono font-bold tracking-widest text-zinc-600 dark:text-zinc-600">{bankCode || bankName}</p>
                   </div>
                 </div>
               </div>
@@ -187,7 +193,7 @@ export const NeuroNexCard = ({
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-black tracking-[0.2em] uppercase text-zinc-800 dark:text-white/90">NEURONEX</span>
                   <span className="font-light text-zinc-400 dark:text-zinc-600">/</span>
-                  <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-zinc-500 dark:text-zinc-500">BANK</span>
+                  <span className="max-w-[150px] truncate text-[11px] font-bold tracking-[0.12em] uppercase text-zinc-500 dark:text-zinc-500">{bankName}</span>
                 </div>
                 <Wifi className="w-5 h-5 rotate-90 text-zinc-300 dark:text-white/20" />
               </div>
@@ -203,7 +209,7 @@ export const NeuroNexCard = ({
                     <span>••••</span>
                     <span>••••</span>
                   </div>
-                  <span className="text-[22px] font-mono font-bold tracking-widest text-zinc-800 dark:text-white/95">{lastFour}</span>
+                  <span className="text-[22px] font-mono font-bold tracking-widest text-zinc-800 dark:text-white/95">{lastFour || "----"}</span>
                 </div>
 
                 <div className="flex justify-between items-end border-t pt-3 border-zinc-200 dark:border-white/5">

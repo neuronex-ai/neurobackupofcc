@@ -12,7 +12,6 @@ import {
     Receipt,
     Loader2,
     FileText,
-    LayoutDashboard,
     Users,
     Settings,
     BadgeCent,
@@ -29,6 +28,7 @@ import {
     Repeat,
     WalletCards,
     Activity,
+    PlusCircle,
 } from "lucide-react";
 
 import { useFinancialMetrics } from "@/hooks/use-financial-metrics";
@@ -159,10 +159,11 @@ const FINANCE_NAV: NavItem[] = [
     },
     {
         id: 'bank-settings-root',
-        label: "Configuracoes bancarias",
+        label: "Ajustes NeuroFinance",
         icon: Landmark,
         subItems: [
-            { id: 'contas-bancarias', label: 'Conta bancaria', icon: Landmark },
+            { id: 'contas-bancarias', label: 'Conta bancária', icon: Landmark },
+            { id: 'saude-conta', label: 'Saúde da conta', icon: ShieldCheck },
         ],
     },
     {
@@ -170,8 +171,9 @@ const FINANCE_NAV: NavItem[] = [
         label: "NFS-e",
         icon: FileText,
         subItems: [
-            { id: 'fiscal-painel', label: 'Painel Fiscal', icon: LayoutDashboard },
-            { id: 'fiscal-lista', label: 'Minhas Notas', icon: FileCheck },
+            { id: 'fiscal-dados', label: 'Dados Fiscais', icon: Landmark },
+            { id: 'fiscal-nova', label: 'Emitir nova nota fiscal', icon: PlusCircle, tag: 'Em breve' },
+            { id: 'fiscal-lista', label: 'Minhas Notas Fiscais', icon: FileCheck },
         ],
     },
     {

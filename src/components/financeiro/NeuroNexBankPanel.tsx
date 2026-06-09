@@ -11,16 +11,20 @@ import {
     X,
     Search,
     Download,
-    Landmark,
     Settings,
     TrendingUp,
     Clock,
     ChevronRight,
     ArrowDownLeft,
-    PieChart,
     Package,
     FileText,
-    RefreshCw
+    RefreshCw,
+    Eye,
+    EyeOff,
+    Send,
+    Activity,
+    CalendarDays,
+    AlertTriangle,
 } from "lucide-react";
 import { NeuroNexCard } from "@/components/financeiro/NeuroNexCard";
 import { useProfile } from "@/hooks/use-profile";
@@ -28,7 +32,6 @@ import { toast } from "sonner";
 
 import { NewInvoiceModal } from "./NewInvoiceModal";
 import { NfseGenerateModal } from "./NfseGenerateModal";
-import { AsaasGestaoModal } from "./AsaasGestaoModal";
 import { GlobalPlanosModal } from "./GlobalPlanosModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -57,7 +60,7 @@ const MiniActionBlock = ({ icon: Icon, label, onClick, disabled = false, variant
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "group shrink-0 flex flex-col items-center gap-1.5 transition-all duration-300 py-1",
+            "group flex w-20 shrink-0 flex-col items-center gap-1.5 py-1 transition-all duration-300 md:w-24",
             disabled && "opacity-40 cursor-not-allowed"
         )}
     >
@@ -73,7 +76,7 @@ const MiniActionBlock = ({ icon: Icon, label, onClick, disabled = false, variant
             )} />
         </div>
         <span className={cn(
-            "text-[7px] md:text-[8px] font-black uppercase tracking-[0.1em] text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors text-center w-14 md:w-16 leading-tight"
+            "w-full text-center text-[7px] font-black uppercase leading-tight tracking-[0.1em] text-zinc-400 transition-colors group-hover:text-zinc-900 dark:text-zinc-500 dark:group-hover:text-white md:text-[8px]"
         )}>
             {label}
         </span>
@@ -82,7 +85,7 @@ const MiniActionBlock = ({ icon: Icon, label, onClick, disabled = false, variant
 
 export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = false, onNavigate }: NeuroNexBankPanelProps) => {
     // 1. Hooks de dados
-    const { isConnected } = useFinancialAccount();
+    const { isConnected, account } = useFinancialAccount();
     const {
         data: balanceData,
         isLoading: isLoadingBalance,
@@ -101,6 +104,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
 
     const [searchQuery, setSearchQuery] = useState("");
     const [cardExpanded, setCardExpanded] = useState(false);
+    const [showValues, setShowValues] = useState(true);
     const [detailPeriod, setDetailPeriod] = useState("all");
     const [detailMethod, setDetailMethod] = useState("all");
     const [detailStatus, setDetailStatus] = useState("all");
@@ -115,9 +119,21 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
         isStale: false,
     }, [balanceData]);
 
-    const cardName = useMemo(() => profile
-        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim().toUpperCase()
-        : "MEMBRO NEURONEX", [profile]);
+    const cardName = useMemo(() => (
+        account?.bank_holder_name ||
+        account?.holder_name ||
+        (profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : "") ||
+        "MEMBRO NEURONEX"
+    ).toUpperCase(), [account?.bank_holder_name, account?.holder_name, profile]);
+
+    const cardBankName = account?.bank_name || (account?.bank_code ? `Banco ${account.bank_code}` : "Banco cadastrado");
+    const cardAgency = account?.bank_agency || "Não informada";
+    const cardAccount = account?.bank_account
+        ? `${account.bank_account}${account.bank_account_digit ? `-${account.bank_account_digit}` : ""}`
+        : account?.bank_account_last4
+            ? `•••• ${account.bank_account_last4}`
+            : "Não informada";
+    const cardAccountType = account?.bank_account_type === "CONTA_POUPANCA" ? "Poupança" : "Conta corrente";
 
     const filteredTransactions = useMemo(() => {
         return transactions.filter(t => {
@@ -213,17 +229,30 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
     const actionButtons = useMemo(() => (
         <>
             <NewInvoiceModal>
-                <MiniActionBlock icon={QrCode} label="Cobrar" variant="primary" />
+                <MiniActionBlock icon={QrCode} label="Cobrar Paciente" variant="primary" />
             </NewInvoiceModal>
 
             <MiniActionBlock
                 icon={ArrowUpRight}
-                label="Repasse"
+                label="Sacar"
                 onClick={() => onNavigate?.('transferencias')}
                 disabled={!isConnected}
             />
 
-            <NfseGenerateModal>
+            <MiniActionBlock
+                icon={Send}
+                label="Transferir via Pix"
+                onClick={() => onNavigate?.('pix-transferir')}
+                disabled={!isConnected}
+            />
+
+            <MiniActionBlock
+                icon={Banknote}
+                label="Extrato Detalhado"
+                onClick={() => onNavigate?.('extrato')}
+            />
+
+            <NfseGenerateModal onNavigate={onNavigate}>
                 <MiniActionBlock
                     icon={FileText}
                     label="NFS-e"
@@ -232,35 +261,33 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
             </NfseGenerateModal>
 
             <MiniActionBlock
-                icon={Banknote}
-                label="Extrato"
-                onClick={() => onNavigate?.('extrato')}
+                icon={AlertTriangle}
+                label="Inadimplência"
+                onClick={() => onNavigate?.('cobrancas-historia')}
             />
 
-            <AsaasGestaoModal>
-                <MiniActionBlock
-                    icon={PieChart}
-                    label="Gestão"
-                />
-            </AsaasGestaoModal>
+            <MiniActionBlock
+                icon={Activity}
+                label="Chargeback"
+                onClick={() => onNavigate?.('cobrancas-chargebacks')}
+            />
 
             <MiniActionBlock
-                icon={Landmark}
-                label="Conta Bancária"
-                onClick={() => onNavigate?.('contas-bancarias')}
+                icon={CalendarDays}
+                label="Calendário de Recebimentos"
             />
 
             <GlobalPlanosModal>
                 <MiniActionBlock
                     icon={Package}
-                    label="Planos"
+                    label="Planos e Pacotes"
                 />
             </GlobalPlanosModal>
 
             <MiniActionBlock
                 icon={Settings}
                 label="Configurações"
-                onClick={() => onNavigate?.('configuracoes')}
+                onClick={() => onNavigate?.('contas-bancarias')}
             />
         </>
     ), [isConnected, onNavigate]);
@@ -294,6 +321,9 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
     const faturamentoTotal = bankBalance?.totalReceived || 0;
     const quantoSaiu = bankBalance?.paidOut || 0;
     const quantoVaiCair = bankBalance?.pending || 0;
+    const displayAmount = (value: number) => showValues
+        ? value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+        : "••••••";
 
     return (
         <div className="w-full space-y-8">
@@ -500,15 +530,26 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                         <p className="text-[8px] md:text-[9px] text-zinc-400 font-black uppercase tracking-[0.2em]">Conta PJ Conectada</p>
                                     </div>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={handleSync}
-                                    disabled={isSyncing}
-                                    title="Sincronizar dados financeiros"
-                                    className="ml-auto flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-all hover:text-zinc-950 active:scale-95 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-400 dark:hover:text-white"
-                                >
-                                    <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
-                                </button>
+                                <div className="ml-auto flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowValues((current) => !current)}
+                                        title={showValues ? "Ocultar valores" : "Mostrar valores"}
+                                        aria-pressed={!showValues}
+                                        className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-all hover:text-zinc-950 active:scale-95 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-400 dark:hover:text-white"
+                                    >
+                                        {showValues ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSync}
+                                        disabled={isSyncing}
+                                        title="Sincronizar dados financeiros"
+                                        className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-all hover:text-zinc-950 active:scale-95 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-400 dark:hover:text-white"
+                                    >
+                                        <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="flex flex-col xl:flex-row items-center gap-6 xl:gap-8 w-full max-w-4xl">
@@ -531,7 +572,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                         <div className="flex items-baseline gap-3 md:gap-4">
                                             <span className="text-2xl md:text-4xl text-zinc-400 dark:text-white/30 font-light translate-y-[-4px] md:translate-y-[-6px] italic">R$</span>
                                             <p className="text-5xl md:text-6xl lg:text-[72px] font-black tracking-[-0.05em] text-zinc-900 dark:text-white leading-none">
-                                                {(displayBalance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                {displayAmount(displayBalance || 0)}
                                             </p>
                                         </div>
                                     )}
@@ -556,7 +597,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                         <p className="text-[7.5px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.15em] mb-1.5 leading-none">Quanto Entrou</p>
                                         <p className="text-sm md:text-base font-black text-zinc-900 dark:text-white tracking-tighter leading-none flex items-baseline gap-1">
                                             <span className="text-[9px] text-zinc-400 font-medium italic">R$</span>
-                                            {isLoadingBalance ? "..." : faturamentoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            {isLoadingBalance ? "..." : displayAmount(faturamentoTotal)}
                                         </p>
                                     </div>
 
@@ -567,7 +608,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                         <p className="text-[7.5px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.15em] mb-1.5 leading-none">Quanto Saiu</p>
                                         <p className="text-[13px] md:text-sm font-bold text-zinc-900 dark:text-white/90 leading-none flex items-baseline gap-1">
                                             <span className="text-[8px] text-zinc-400 font-light italic">R$</span>
-                                            {isLoadingBalance ? "..." : quantoSaiu.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            {isLoadingBalance ? "..." : displayAmount(quantoSaiu)}
                                         </p>
                                     </div>
 
@@ -578,7 +619,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                         <p className="text-[7.5px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.15em] mb-1.5 leading-none">Vai Cair</p>
                                         <p className="text-[13px] md:text-sm font-bold text-zinc-900 dark:text-white/90 leading-none flex items-baseline gap-1">
                                             <span className="text-[8px] text-zinc-400 font-light italic">R$</span>
-                                            {isLoadingBalance ? "..." : quantoVaiCair.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            {isLoadingBalance ? "..." : displayAmount(quantoVaiCair)}
                                         </p>
                                     </div>
                                 </div>
@@ -591,9 +632,11 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                         <div className="relative z-10 w-full flex flex-col items-center transform scale-75 md:scale-90 xl:scale-100 transition-all duration-700">
                             <NeuroNexCard
                                 name={cardName}
-                                bankName="NeuroFinance"
-                                agency="0001"
-                                account="**** 8820"
+                                bankName={cardBankName}
+                                bankCode={account?.bank_code || undefined}
+                                agency={cardAgency}
+                                account={cardAccount}
+                                accountType={cardAccountType}
                                 isExpanded={cardExpanded}
                                 showSensitive={true}
                                 onToggle={() => setCardExpanded(!cardExpanded)}
@@ -604,7 +647,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
             </div>
 
             <div className="relative group/actions py-1.5 bg-white dark:bg-white/[0.015] border border-zinc-200 dark:border-white/[0.05] rounded-[24px] px-8 shadow-sm">
-                <div className="flex items-center justify-center gap-6 md:gap-10 lg:gap-14 overflow-x-auto no-scrollbar py-1">
+                <div className="flex items-start justify-start gap-5 overflow-x-auto py-1 no-scrollbar 2xl:justify-center">
                     {actionButtons}
                 </div>
             </div>
