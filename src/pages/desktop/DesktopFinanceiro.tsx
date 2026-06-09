@@ -30,9 +30,9 @@ import {
     WalletCards,
     Activity,
     PlusCircle,
+    CalendarClock,
 } from "lucide-react";
 
-import { useFinancialMetrics } from "@/hooks/use-financial-metrics";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useFinancialSettings } from "@/hooks/use-financial-settings";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
@@ -124,6 +124,7 @@ const FINANCE_NAV: NavItem[] = [
         subItems: [
             { id: 'pagamentos-boletos', label: 'Pagar boletos', icon: Barcode, description: 'Digite, arraste imagem ou anexe PDF' },
             { id: 'pagamentos-pix', label: 'Pagar Pix', icon: QrCode, description: 'Pague com Pix copia e cola' },
+            { id: 'pagamentos-agendados', label: 'Pagamentos Agendados', icon: CalendarClock, tag: 'Em breve', description: 'Acompanhe pagamentos programados pela conta NeuroFinance' },
         ],
     },
     {
@@ -198,7 +199,6 @@ const DesktopFinanceiro = () => {
         needsInitialOnboarding
     } = useFinancialAccount();
 
-    const { data: metrics } = useFinancialMetrics();
     const { data: transactions, isLoading: isLoadingTransactions } = useTransactions(subMonths(new Date(), 3));
     const { data: nbStatement, isLoading: isNbStatementLoading } = useNeuroFinanceStatement(subDays(new Date(), 30), new Date());
     const { isLoading: isLoadingSettings } = useFinancialSettings();
@@ -209,8 +209,6 @@ const DesktopFinanceiro = () => {
     const [expandedGroups, setExpandedGroups] = useState<string[]>(['account-balance-root']);
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
     const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'wizard'>('welcome');
-
-    const currentMonthShort = new Date().toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().replace('.', '');
 
     const allTransactions = useMemo(() => {
         const merged = [...(transactions || [])];
@@ -511,8 +509,6 @@ const DesktopFinanceiro = () => {
                             setActiveView={setActiveView}
                             allTransactions={allTransactions}
                             isLoadingTransactions={isLoadingTransactions}
-                            metrics={metrics}
-                            currentMonthShort={currentMonthShort}
                             motionProps={motionProps}
                             extratoTab={extratoTab}
                             setExtratoTab={setExtratoTab}

@@ -24,7 +24,6 @@ import {
     EyeOff,
     Send,
     Activity,
-    CalendarDays,
     AlertTriangle,
 } from "lucide-react";
 import { NeuroNexCard } from "@/components/financeiro/NeuroNexCard";
@@ -63,6 +62,7 @@ type PanelNavigationView =
     | "fiscal-dados"
     | "cobrancas-historia"
     | "cobrancas-chargebacks"
+    | "pagamentos-boletos"
     | "contas-bancarias";
 
 interface MiniActionBlockProps {
@@ -295,8 +295,9 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
             />
 
             <MiniActionBlock
-                icon={CalendarDays}
-                label="Calendário de Recebimentos"
+                icon={ReceiptText}
+                label="Pagamentos"
+                onClick={() => onNavigate?.('pagamentos-boletos')}
             />
 
             <GlobalPlanosModal>

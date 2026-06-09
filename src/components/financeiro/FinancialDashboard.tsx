@@ -24,6 +24,7 @@ import {
     Repeat,
     WalletCards,
     PlusCircle,
+    CalendarClock,
 } from "lucide-react";
 
 import { CashFlowScenarios } from "@/components/financeiro/CashFlowScenarios";
@@ -34,7 +35,7 @@ import { SmartSplit } from "@/components/financeiro/SmartSplit";
 import { InvoicesHistoryList } from "@/components/financeiro/invoice/InvoicesHistoryList";
 import { BankTransferView } from "@/components/financeiro/BankTransferView";
 import { BankAccountsView } from "@/components/financeiro/BankAccountsView";
-import { FinancialAnalyticsChart } from "@/components/financeiro/FinancialAnalyticsChart";
+import { ReceivablesCalendarCard } from "@/components/financeiro/ReceivablesCalendarCard";
 import TransactionDetailView from "@/components/financeiro/TransactionDetailView";
 import { PixPagarCopiaCola } from "@/components/financeiro/pix/PixPagarCopiaCola";
 import { PixTransferir } from "@/components/financeiro/pix/PixTransferir";
@@ -54,7 +55,6 @@ import { AutomaticAnticipation } from "@/components/financeiro/antecipacoes/Auto
 import { SalesSimulator } from "@/components/financeiro/cobrancas/SalesSimulator";
 import { ChargebacksPanel } from "@/components/financeiro/cobrancas/ChargebacksPanel";
 import { AsaasAccountStatusTimeline } from "@/components/financeiro/AsaasAccountStatusTimeline";
-import type { FinancialMetrics } from "@/hooks/use-financial-metrics";
 import type { Transaction } from "@/types";
 
 export type FinanceView =
@@ -71,6 +71,7 @@ export type FinanceView =
     | "pagamentos"
     | "pagamentos-boletos"
     | "pagamentos-pix"
+    | "pagamentos-agendados"
     | "pagamentos-agendar"
     | "pagamentos-grupos"
     | "contas-bancarias"
@@ -162,8 +163,6 @@ export interface FinancialDashboardProps {
     setActiveView: (view: FinanceView) => void;
     allTransactions: Transaction[];
     isLoadingTransactions: boolean;
-    metrics?: FinancialMetrics;
-    currentMonthShort: string;
     motionProps: HTMLMotionProps<"div">;
     extratoTab: "realizado" | "futuro" | "assinaturas";
     setExtratoTab: (tab: "realizado" | "futuro" | "assinaturas") => void;
@@ -180,8 +179,6 @@ export function FinancialDashboard({
     setActiveView,
     allTransactions,
     isLoadingTransactions,
-    metrics,
-    currentMonthShort,
     motionProps,
     extratoTab,
     setExtratoTab,
@@ -209,36 +206,12 @@ export function FinancialDashboard({
                 <motion.div {...motionProps} key="conta-digital" className="space-y-6 px-6 py-6">
                     <NeuroNexBankPanel transactions={allTransactions} isLoadingTransactions={isLoadingTransactions} onNavigate={setActiveView} />
 
-                    <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-                        <motion.div whileHover={{ y: -4, scale: 1.01 }} className="group/widget relative overflow-hidden rounded-[40px] border border-zinc-200/50 bg-white/60 p-8 shadow-xl backdrop-blur-2xl dark:border-white/[0.04] dark:bg-white/[0.015]">
-                            <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.02] mix-blend-overlay dark:opacity-[0.04]" />
-                            <div className="mb-6 flex items-center justify-between">
-                                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400 dark:text-zinc-500">Faturamento mensal</p>
-                                <div className="rounded-full bg-zinc-900 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-white shadow-lg dark:bg-white dark:text-black">{currentMonthShort}</div>
-                            </div>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-xl font-light italic text-zinc-400">R$</span>
-                                <p className="text-4xl font-black tracking-[-0.05em] text-zinc-900 dark:text-white xl:text-5xl">
-                                    {(metrics?.currentMonthRevenue || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                </p>
-                            </div>
-                        </motion.div>
-
-                        <motion.div whileHover={{ y: -4, scale: 1.01 }} className="group/widget relative overflow-hidden rounded-[40px] bg-zinc-900 p-8 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.5)] dark:bg-white dark:shadow-[0_24px_48px_-12px_rgba(255,255,255,0.05)]">
-                            <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-overlay" />
-                            <div className="mb-6 flex items-center justify-between">
-                                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 dark:text-black/40">Lucro líquido</p>
-                                <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-white dark:border-black/5 dark:bg-black/5 dark:text-black">{currentMonthShort}</div>
-                            </div>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-xl font-light italic text-white/30 dark:text-black/30">R$</span>
-                                <p className="text-4xl font-black tracking-[-0.05em] text-white dark:text-zinc-900 xl:text-5xl">
-                                    {(metrics?.netProfit || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                                </p>
-                            </div>
-                        </motion.div>
-                    </div>
-                    <FinancialAnalyticsChart />
+                    <ReceivablesCalendarCard
+                        onOpenFutureStatement={() => {
+                            setExtratoTab("futuro");
+                            setActiveView("extrato");
+                        }}
+                    />
                     <AsaasRegulatoryFooter />
                 </motion.div>
             );
@@ -304,6 +277,8 @@ export function FinancialDashboard({
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Barcode} title="Pagar boletos" subtitle="Linha digitável, imagem ou PDF" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosAgendamento /></ContentWrapper></motion.div>;
         case "pagamentos-pix":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={QrCode} title="Pagar Pix" subtitle="Use o saldo da conta para pagar" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PixPagarCopiaCola /></ContentWrapper></motion.div>;
+        case "pagamentos-agendados":
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={CalendarClock} title="Pagamentos Agendados" subtitle="Programações da conta NeuroFinance" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><CapabilityNotice icon={CalendarClock} title="Em breve" description="A integração com os pagamentos agendados da Asaas será disponibilizada nesta área." /></ContentWrapper></motion.div>;
         case "pagamentos-agendar":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Calendar} title="Pagar contas" subtitle="Boletos e Pix de fornecedores" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosAgendamento /></ContentWrapper></motion.div>;
         case "pagamentos-grupos":
