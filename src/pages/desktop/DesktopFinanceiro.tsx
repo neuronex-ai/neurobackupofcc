@@ -37,6 +37,7 @@ import { useTransactions } from "@/hooks/use-transactions";
 import { useFinancialSettings } from "@/hooks/use-financial-settings";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { useNeuroFinanceStatement } from "@/hooks/use-neurofinance-statement";
+import { useNeuroFinanceBalanceDetails } from "@/hooks/use-neurofinance-balance-details";
 import { subMonths, subDays, isAfter } from "date-fns";
 
 import { CustomOnboardingFlow } from "@/components/financeiro/CustomOnboardingFlow";
@@ -201,6 +202,7 @@ const DesktopFinanceiro = () => {
 
     const { data: transactions, isLoading: isLoadingTransactions } = useTransactions(subMonths(new Date(), 3));
     const { data: nbStatement, isLoading: isNbStatementLoading } = useNeuroFinanceStatement(subDays(new Date(), 30), new Date());
+    const { data: nbFutureDetails, isLoading: isNbFutureLoading } = useNeuroFinanceBalanceDetails("futuro");
     const { isLoading: isLoadingSettings } = useFinancialSettings();
 
     const [activeView, setActiveView] = useState<FinanceView>('conta-digital');
@@ -226,9 +228,18 @@ const DesktopFinanceiro = () => {
         allTransactions.filter(t => !isAfter(new Date(t.date), new Date()) && t.status === 'completed'),
         [allTransactions]);
 
-    const futureTransactions = useMemo(() =>
-        allTransactions.filter(t => isAfter(new Date(t.date), new Date()) || t.status === 'pending'),
-        [allTransactions]);
+    const futureTransactions = useMemo(() => {
+        const merged = new Map<string, Transaction>();
+
+        [...allTransactions, ...(nbFutureDetails || [])].forEach((transaction) => {
+            const key = transaction.external_reference || transaction.id;
+            if (!merged.has(key)) merged.set(key, transaction);
+        });
+
+        return Array.from(merged.values())
+            .filter(t => isAfter(new Date(t.date), new Date()) || t.status === 'pending')
+            .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime());
+    }, [allTransactions, nbFutureDetails]);
 
     const subscriptionTransactions = useMemo(() =>
         allTransactions.filter(t => t.description?.toLowerCase().includes('assinatura') || t.category === 'recurring'),
@@ -515,7 +526,7 @@ const DesktopFinanceiro = () => {
                             realizedTransactions={realizedTransactions}
                             futureTransactions={futureTransactions}
                             subscriptionTransactions={subscriptionTransactions}
-                            isNbStatementLoading={isNbStatementLoading}
+                            isNbStatementLoading={isNbStatementLoading || isNbFutureLoading}
                         />
                     </AnimatePresence>
                 </div>

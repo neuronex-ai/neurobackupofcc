@@ -77,12 +77,11 @@ function mapSnapshot(snapshot: FinancialOverviewSnapshot | null): NeuroFinanceBa
     };
 }
 
-export const useNeuroFinanceBalance = () => {
+export const useNeuroFinanceBalanceSnapshot = () => {
     const { user } = useAuth();
-    const queryClient = useQueryClient();
     const queryKey = ["neurofinance-overview", user?.id];
 
-    const query = useQuery<NeuroFinanceBalance, Error>({
+    return useQuery<NeuroFinanceBalance, Error>({
         queryKey,
         queryFn: async () => {
             if (!user?.id) return EMPTY_BALANCE;
@@ -100,6 +99,13 @@ export const useNeuroFinanceBalance = () => {
         staleTime: 1000 * 60 * 10,
         placeholderData: EMPTY_BALANCE,
     });
+};
+
+export const useNeuroFinanceBalance = () => {
+    const { user } = useAuth();
+    const queryClient = useQueryClient();
+    const queryKey = ["neurofinance-overview", user?.id];
+    const query = useNeuroFinanceBalanceSnapshot();
 
     const sync = useMutation<unknown, Error, boolean>({
         mutationFn: async (force = false) => {

@@ -36,9 +36,11 @@ import {
   type ReceivableCalendarItem,
   type ReceivableSource,
   type ReceivableStatus,
+  updateReceivableDateSelection,
   useReceivablesCalendar,
 } from "@/hooks/use-receivables-calendar";
 import { useUpdateFinancialEntry } from "@/hooks/use-financial-entries";
+import { useNeuroFinanceBalanceSnapshot } from "@/hooks/use-neurofinance-balance";
 
 type CalendarMode = "receivables" | "payments";
 
@@ -51,7 +53,19 @@ const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const SOURCE_LABELS: Record<ReceivableSource, string> = {
   neurofinance: "NeuroFinance",
   agenda: "Agenda",
-  manual: "Manual",
+  manual: "Gestão Financeira",
+};
+
+const SOURCE_STYLES: Record<ReceivableSource, string> = {
+  neurofinance: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  agenda: "border-cyan-500/20 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+  manual: "border-violet-500/20 bg-violet-500/10 text-violet-700 dark:text-violet-300",
+};
+
+const SOURCE_DOTS: Record<ReceivableSource, string> = {
+  neurofinance: "bg-emerald-500",
+  agenda: "bg-cyan-400",
+  manual: "bg-violet-500",
 };
 
 const STATUS_LABELS: Record<ReceivableStatus, string> = {
@@ -77,10 +91,6 @@ const STATUS_STYLES: Record<ReceivableStatus, string> = {
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-function sameDate(left: Date, right: Date) {
-  return format(left, "yyyy-MM-dd") === format(right, "yyyy-MM-dd");
-}
-
 function selectionBounds(selectedDates: Date[]) {
   if (selectedDates.length === 0) return null;
   const sorted = [...selectedDates].sort((a, b) => a.getTime() - b.getTime());
@@ -96,11 +106,12 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const queryClient = useQueryClient();
   const updateEntry = useUpdateFinancialEntry();
+  const { data: overviewSnapshot } = useNeuroFinanceBalanceSnapshot();
 
   const gridStart = startOfWeek(startOfMonth(visibleMonth), { weekStartsOn: 1 });
   const gridEnd = endOfWeek(endOfMonth(visibleMonth), { weekStartsOn: 1 });
   const calendarDays = eachDayOfInterval({ start: gridStart, end: gridEnd });
-  const { data: items = [], isLoading } = useReceivablesCalendar(gridStart, gridEnd);
+  const { data: items = [], isLoading, isFetching } = useReceivablesCalendar(gridStart, gridEnd);
 
   const itemsByDate = useMemo(() => {
     return items.reduce<Record<string, ReceivableCalendarItem[]>>((result, item) => {
@@ -118,14 +129,7 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
   const selectedTotal = filteredItems.reduce((total, item) => total + item.amount, 0);
 
   const handleDayClick = (day: Date) => {
-    setSelectedDates((current) => {
-      const selectedIndex = current.findIndex((selected) => sameDate(selected, day));
-      if (selectedIndex >= 0) {
-        return current.filter((_, index) => index !== selectedIndex);
-      }
-      if (current.length >= 2) return [day];
-      return [...current, day].sort((a, b) => a.getTime() - b.getTime());
-    });
+    setSelectedDates((current) => updateReceivableDateSelection(current, day));
   };
 
   const navigateMonth = (direction: "previous" | "next") => {
@@ -143,10 +147,11 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
         paidAt: status === "paid" ? new Date() : null,
         cancelledAt: status === "cancelled" ? new Date() : null,
       });
-      await queryClient.invalidateQueries({ queryKey: ["receivables-calendar"] });
+      await queryClient.invalidateQueries({ queryKey: ["financialEntries"] });
       toast.success("Status do recebimento atualizado.");
-    } catch {
-      // O hook já apresenta a mensagem de erro.
+    } catch (error) {
+      console.error("Falha ao atualizar status do recebimento:", error);
+      toast.error("Não foi possível atualizar o status.");
     }
   };
 
@@ -237,10 +242,23 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                   </Button>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4 text-[9px] font-black uppercase tracking-widest text-zinc-500">
-                  <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-emerald-500" /> Recebidos</span>
-                  <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-blue-500" /> Previstos</span>
-                  <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-red-500" /> Vencidos</span>
+                <div className="flex flex-col items-start gap-2 md:items-end">
+                  <div className="flex flex-wrap items-center gap-4 text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                    <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-emerald-500" /> NeuroFinance</span>
+                    <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-cyan-400" /> Agenda</span>
+                    <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-violet-500" /> Gestão Financeira</span>
+                  </div>
+                  {overviewSnapshot.lastUpdatedAt && (
+                    <span className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-wider text-zinc-400">
+                      {isFetching && <Loader2 className="h-3 w-3 animate-spin" />}
+                      Dados NeuroFinance atualizados em {new Date(overviewSnapshot.lastUpdatedAt).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -261,13 +279,13 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                   {calendarDays.map((day) => {
                     const dateKey = format(day, "yyyy-MM-dd");
                     const dayItems = itemsByDate[dateKey] || [];
-                    const selected = selectedDates.some((selectedDate) => sameDate(selectedDate, day));
+                    const selected = selectedDates.some((selectedDate) => isSameDay(selectedDate, day));
                     const inSelectedRange = selectedBounds &&
                       dateKey >= selectedBounds.start &&
                       dateKey <= selectedBounds.end;
-                    const paidTotal = dayItems.filter((item) => item.status === "paid").reduce((total, item) => total + item.amount, 0);
-                    const pendingTotal = dayItems.filter((item) => item.status !== "paid").reduce((total, item) => total + item.amount, 0);
-                    const hasOverdue = dayItems.some((item) => item.status === "overdue");
+                    const dayTotal = dayItems.reduce((total, item) => total + item.amount, 0);
+                    const daySources = Array.from(new Set(dayItems.map((item) => item.source)));
+                    const hasPending = dayItems.some((item) => item.status !== "paid");
 
                     return (
                       <button
@@ -292,20 +310,25 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
 
                         {dayItems.length > 0 && (
                           <div className="mt-3 space-y-1.5">
-                            {paidTotal > 0 && (
-                              <p className={cn("truncate text-[8px] font-black text-emerald-600 dark:text-emerald-400", selected && "text-emerald-300 dark:text-emerald-700")}>
-                                + {currency(paidTotal)}
-                              </p>
-                            )}
-                            {pendingTotal > 0 && (
-                              <p className={cn("truncate text-[8px] font-black text-blue-600 dark:text-blue-400", selected && "text-blue-300 dark:text-blue-700")}>
-                                {currency(pendingTotal)} previsto
-                              </p>
-                            )}
+                            <p className={cn(
+                              "truncate text-[8px] font-black text-zinc-700 dark:text-zinc-200",
+                              selected && "text-white dark:text-black",
+                            )}>
+                              {currency(dayTotal)}
+                            </p>
+                            <p className={cn(
+                              "text-[7px] font-black uppercase tracking-wider text-zinc-400",
+                              selected && "text-zinc-300 dark:text-zinc-600",
+                            )}>
+                              {hasPending ? "previsto" : "recebido"}
+                            </p>
                             <div className="flex items-center gap-1.5 pt-1">
-                              {paidTotal > 0 && <i className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
-                              {pendingTotal > 0 && <i className="h-1.5 w-1.5 rounded-full bg-blue-500" />}
-                              {hasOverdue && <i className="h-1.5 w-1.5 rounded-full bg-red-500" />}
+                              {daySources.map((source) => (
+                                <i
+                                  key={source}
+                                  className={cn("h-1.5 w-1.5 rounded-full ring-2 ring-white dark:ring-zinc-950", SOURCE_DOTS[source])}
+                                />
+                              ))}
                             </div>
                           </div>
                         )}
@@ -323,7 +346,9 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                     <p className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-400">Recebimentos no período</p>
                     <div className="mt-1 flex flex-wrap items-baseline gap-3">
                       <h3 className="text-base font-black text-zinc-950 dark:text-white">{selectedPeriodLabel}</h3>
-                      <span className="text-xs font-bold text-zinc-400">{currency(selectedTotal)}</span>
+                      <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-700 dark:bg-white/5 dark:text-zinc-200">
+                        Total: {currency(selectedTotal)}
+                      </span>
                     </div>
                   </div>
                   <Button
@@ -359,10 +384,9 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                           <TableCell>
                             <span className={cn(
                               "inline-flex rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-widest",
-                              item.source === "neurofinance"
-                                ? "border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-black"
-                                : "border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300",
+                              SOURCE_STYLES[item.source],
                             )}>
+                              <i className={cn("mr-1.5 h-1.5 w-1.5 rounded-full", SOURCE_DOTS[item.source])} />
                               {SOURCE_LABELS[item.source]}
                             </span>
                           </TableCell>

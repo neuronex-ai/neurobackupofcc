@@ -38,6 +38,9 @@ function mapItem(item: AccountMovement, userId: string): Transaction {
             : "pending",
         external_reference: item.reference_id || undefined,
         origin: "gateway_auto",
+        patients: item.patient_name
+            ? { name: item.patient_name, email: null }
+            : null,
     };
 }
 
