@@ -23,6 +23,14 @@ const buildWhatsAppContext = (context: any, channel?: string, source?: any, remo
     };
 };
 
+const compactMemoryContent = (content: string, maxLength = 700) => {
+    const clean = String(content || "")
+        .replace(/```json\s+synapse_widget[\s\S]*?```/gi, "[widget Synapse]")
+        .replace(/\s+/g, " ")
+        .trim();
+    return clean.length > maxLength ? `${clean.slice(0, maxLength)}...` : clean;
+};
+
 serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -177,6 +185,34 @@ serve(async (req) => {
 
         // 3. Salvar msg usuário com Embedding e UserID
         // Nota: O embedding pode ser null se falhar, o DB aceita (se não definimos not null, a migration default é nullable)
+        let recentMemoriesText = "";
+        let recentQuery = supabaseAdmin
+            .from('messages')
+            .select('content, role, created_at, session_id')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(12);
+
+        if (sessionId) {
+            recentQuery = recentQuery.neq('session_id', sessionId);
+        }
+
+        const { data: recentMemories, error: recentMemoryError } = await recentQuery;
+        if (recentMemoryError) {
+            console.error("Erro ao buscar memorias recentes Synapse:", recentMemoryError);
+        }
+
+        if (recentMemories && recentMemories.length > 0) {
+            const recentList = recentMemories
+                .reverse()
+                .map((m: any) => {
+                    const date = new Date(m.created_at).toLocaleString('pt-BR');
+                    return `- [${date}] (${m.role}): ${compactMemoryContent(m.content)}`;
+                })
+                .join('\n');
+            recentMemoriesText = `\n\n=== MEMORIA RECENTE ENTRE CANAIS ===\nUse estas mensagens recentes do mesmo profissional como memoria operacional, especialmente quando a pergunta for generica, como \"lembra?\", \"reenvie\", \"o que falamos?\" ou \"continue\". Nao afirme que nao lembra antes de verificar esta secao.\n${recentList}\n==============================\n`;
+        }
+
         const { error: userMsgError } = await supabaseAdmin.from('messages').insert([{
             user_id: user.id,
             content: message,
