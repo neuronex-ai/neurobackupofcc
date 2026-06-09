@@ -343,6 +343,11 @@ export function computeFinancialMonthlySeries(entries: FinancialEntry[], year: n
 
 export function mapFinancialEntryToTransaction(entry: FinancialEntry): Transaction {
   const metadata = entry.metadata || {};
+  const transactionMetadata = {
+    ...metadata,
+    financial_entry_origin: entry.origin,
+    financial_entry_payment_method: entry.payment_method,
+  };
   const date =
     entry.paid_at?.slice(0, 10) ||
     entry.competence_date ||
@@ -366,7 +371,9 @@ export function mapFinancialEntryToTransaction(entry: FinancialEntry): Transacti
     attachment_url: typeof metadata.attachment_url === 'string' ? metadata.attachment_url : undefined,
     origin: (entry.origin === 'neurofinance' ? 'gateway_auto' : 'manual') as TransactionOrigin,
     patient_id: entry.patient_id || undefined,
+    patient_name: entry.patients?.name,
     status: toLegacyTransactionStatus(entry.status),
+    metadata: transactionMetadata,
     patients: entry.patients || null,
   };
 }

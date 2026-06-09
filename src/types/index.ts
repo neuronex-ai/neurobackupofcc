@@ -111,7 +111,12 @@ export interface Transaction {
   attachment_url?: string; // URL do comprovante (PDF/IMG)
   origin?: TransactionOrigin;
   patient_id?: string;
+  patient_name?: string;
   status?: string;
+  metadata?: Record<string, unknown> | null;
+  receipt_url?: string;
+  invoice_url?: string;
+  bank_slip_url?: string;
   patients?: {
     name: string;
     email: string | null;

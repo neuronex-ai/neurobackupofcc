@@ -27,6 +27,12 @@ export const useNeuroFinanceStatement = (startDate?: Date, endDate?: Date) => {
 
             return ((data || []) as AccountMovement[]).map((item) => {
                 const metadata = (item.metadata || {}) as Record<string, any>;
+                const transactionMetadata = {
+                    ...metadata,
+                    overview_group: item.overview_group,
+                    item_type: item.item_type,
+                    payment_method: item.payment_method,
+                };
                 const receiptUrl = metadata.receipt_url || metadata.transaction_receipt_url || metadata.asaas_transaction_receipt_url;
                 const invoiceUrl = metadata.invoice_url || metadata.checkout_url || metadata.asaas_invoice_url;
                 const bankSlipUrl = metadata.bank_slip_url || metadata.asaas_bank_slip_url;
@@ -53,7 +59,7 @@ export const useNeuroFinanceStatement = (startDate?: Date, endDate?: Date) => {
                     attachment_url: receiptUrl || invoiceUrl || bankSlipUrl || undefined,
                     origin: "gateway_auto",
                     patient_name: item.patient_name || undefined,
-                    metadata,
+                    metadata: transactionMetadata,
                     receipt_url: receiptUrl || undefined,
                     invoice_url: invoiceUrl || undefined,
                     bank_slip_url: bankSlipUrl || undefined,
