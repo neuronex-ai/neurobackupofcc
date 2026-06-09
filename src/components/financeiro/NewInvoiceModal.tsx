@@ -126,14 +126,14 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
         paymentMethodType,
       },
       {
-        onSuccess: (data: any) => {
+        onSuccess: (data) => {
           setPaymentUrl(data.paymentUrl || null);
           setBoletoUrl(data.boletoUrl || null);
           setPixData(data.pixQrCode ? { qrCode: data.pixQrCode, copyPaste: data.pixCopyPaste } : undefined);
           setExpiresAt(data.expiresAt);
           setStep("success");
         },
-        onError: (err: any) => {
+        onError: (err) => {
           console.error("Erro ao gerar fatura:", err);
           const friendlyError = toUserFacingError(err, "payment");
           toast.error(friendlyError.title, { description: friendlyError.message });
@@ -153,7 +153,7 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
 
   const handleShare = useCallback(() => {
     const values = form.getValues();
-    const patient = patients?.find((p: any) => p.id === values.patientId);
+    const patient = patients?.find((p) => p.id === values.patientId);
 
     if (!patient?.phone || !paymentUrl) {
       toast.error("Dados incompletos para compartilhamento.");

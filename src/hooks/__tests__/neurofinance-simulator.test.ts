@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { feeFor, tariffPercentRate } from "../use-neurofinance-simulator";
+import type { TariffRule } from "@/lib/neurofinance-types";
 
 const cardRule = {
   percent_rate: 2.99,
   fixed_fee_cents: 49,
-} as any;
+} as TariffRule;
 
 describe("neurofinance simulator math", () => {
   it("calculates fixed plus percentual fee in cents", () => {

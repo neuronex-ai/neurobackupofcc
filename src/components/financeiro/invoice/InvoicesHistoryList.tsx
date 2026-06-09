@@ -44,7 +44,7 @@ export const InvoicesHistoryList = ({ fiscalOnly = false, heightClassName = "h-[
             queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
             queryClient.invalidateQueries({ queryKey: ['advancedCashFlow'] });
             queryClient.invalidateQueries({ queryKey: ['pendingInvoicesTotal'] });
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error(e);
             toast.error(getUserFacingErrorMessage(e, "delete"));
         } finally {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import type { ElementType, MouseEventHandler } from "react";
 import { cn } from "@/lib/utils";
 import {
     Wallet,
@@ -50,11 +51,31 @@ import { toUserFacingError } from "@/lib/user-facing-error";
 interface NeuroNexBankPanelProps {
     transactions?: Transaction[];
     isLoadingTransactions?: boolean;
-    onNavigate?: (view: any) => void;
+    onNavigate?: (view: PanelNavigationView) => void;
 }
 
-const MiniActionBlock = ({ icon: Icon, label, onClick, disabled = false, variant = 'default' }: any) => (
+type PanelNavigationView =
+    | "transferencias"
+    | "pix-transferir"
+    | "extrato"
+    | "fiscal-nova"
+    | "fiscal-lista"
+    | "fiscal-dados"
+    | "cobrancas-historia"
+    | "cobrancas-chargebacks"
+    | "contas-bancarias";
+
+interface MiniActionBlockProps {
+    icon: ElementType<{ className?: string }>;
+    label: string;
+    onClick?: MouseEventHandler<HTMLButtonElement>;
+    disabled?: boolean;
+    variant?: "default" | "primary";
+}
+
+const MiniActionBlock = ({ icon: Icon, label, onClick, disabled = false, variant = 'default' }: MiniActionBlockProps) => (
     <motion.button
+        type="button"
         whileHover={{ scale: 1.05, y: -2 }}
         whileTap={{ scale: 0.95 }}
         onClick={onClick}
@@ -137,8 +158,9 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
 
     const filteredTransactions = useMemo(() => {
         return transactions.filter(t => {
+            const patientName = (t as Transaction & { patient_name?: string }).patient_name || "";
             const matchesSearch = t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (t as any).patient_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 t.amount.toString().includes(searchQuery);
             return matchesSearch;
         });

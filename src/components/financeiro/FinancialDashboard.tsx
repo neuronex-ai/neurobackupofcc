@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import type { ReactNode } from "react";
+import type { HTMLMotionProps } from "framer-motion";
+import type { ElementType, ReactNode } from "react";
 import {
     QrCode,
     Key,
@@ -53,6 +54,7 @@ import { AutomaticAnticipation } from "@/components/financeiro/antecipacoes/Auto
 import { SalesSimulator } from "@/components/financeiro/cobrancas/SalesSimulator";
 import { ChargebacksPanel } from "@/components/financeiro/cobrancas/ChargebacksPanel";
 import { AsaasAccountStatusTimeline } from "@/components/financeiro/AsaasAccountStatusTimeline";
+import type { FinancialMetrics } from "@/hooks/use-financial-metrics";
 import type { Transaction } from "@/types";
 
 export type FinanceView =
@@ -102,7 +104,7 @@ const SectionHeader = ({
     action,
     onBack,
 }: {
-    icon: any;
+    icon: ElementType<{ className?: string }>;
     title: string;
     subtitle: string;
     action?: ReactNode;
@@ -143,7 +145,7 @@ const ContentWrapper = ({ children }: { children: ReactNode }) => (
     </div>
 );
 
-const CapabilityNotice = ({ icon: Icon, title, description }: { icon: any; title: string; description: string }) => (
+const CapabilityNotice = ({ icon: Icon, title, description }: { icon: ElementType<{ className?: string }>; title: string; description: string }) => (
     <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50/50 px-8 text-center dark:border-white/10 dark:bg-white/[0.015]">
         <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
             <Icon className="h-6 w-6 text-zinc-500" />
@@ -160,9 +162,9 @@ export interface FinancialDashboardProps {
     setActiveView: (view: FinanceView) => void;
     allTransactions: Transaction[];
     isLoadingTransactions: boolean;
-    metrics: any;
+    metrics?: FinancialMetrics;
     currentMonthShort: string;
-    motionProps: any;
+    motionProps: HTMLMotionProps<"div">;
     extratoTab: "realizado" | "futuro" | "assinaturas";
     setExtratoTab: (tab: "realizado" | "futuro" | "assinaturas") => void;
     realizedTransactions: Transaction[];
@@ -205,7 +207,7 @@ export function FinancialDashboard({
         case "conta-digital":
             return (
                 <motion.div {...motionProps} key="conta-digital" className="space-y-6 px-6 py-6">
-                    <NeuroNexBankPanel transactions={allTransactions} isLoadingTransactions={isLoadingTransactions} onNavigate={setActiveView as any} />
+                    <NeuroNexBankPanel transactions={allTransactions} isLoadingTransactions={isLoadingTransactions} onNavigate={setActiveView} />
 
                     <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
                         <motion.div whileHover={{ y: -4, scale: 1.01 }} className="group/widget relative overflow-hidden rounded-[40px] border border-zinc-200/50 bg-white/60 p-8 shadow-xl backdrop-blur-2xl dark:border-white/[0.04] dark:bg-white/[0.015]">
@@ -248,14 +250,14 @@ export function FinancialDashboard({
                         <SectionHeader icon={FileText} title="Extrato detalhado" subtitle="Histórico unificado NeuroFinance e manual" onBack={handleGoBack} />
                         <div className="flex flex-col gap-6">
                             <div className="flex w-fit items-center gap-2 rounded-[24px] border border-zinc-200/50 bg-white/60 p-1.5 dark:border-white/10 dark:bg-white/[0.015]">
-                                {[
+                                {([
                                     { id: "realizado", label: "Realizado", icon: Activity },
                                     { id: "futuro", label: "Futuro e pendente", icon: Calendar },
                                     { id: "assinaturas", label: "Assinaturas", icon: LayoutList },
-                                ].map((tab) => (
+                                ] as const).map((tab) => (
                                     <button
                                         key={tab.id}
-                                        onClick={() => setExtratoTab(tab.id as any)}
+                                        onClick={() => setExtratoTab(tab.id)}
                                         className={`flex items-center gap-2 rounded-[16px] px-6 py-2.5 transition-all duration-300 ${extratoTab === tab.id ? "bg-zinc-900 text-white shadow-md dark:bg-white dark:text-black" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/5 dark:hover:text-white"}`}
                                     >
                                         <tab.icon className="h-4 w-4" />

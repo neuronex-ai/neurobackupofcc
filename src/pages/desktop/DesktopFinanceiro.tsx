@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import type { ElementType } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -43,18 +44,20 @@ import { AsaasRegulatoryFooter } from "@/components/financeiro/AsaasRegulatoryFo
 import { FinanceiroMainContent, FinanceView } from "@/components/financeiro/FinanceiroMainContent";
 import { Transaction } from "@/types";
 
+interface NavSubItem {
+    id: FinanceView;
+    label: string;
+    icon: ElementType<{ className?: string }>;
+    tag?: string;
+    description?: string;
+    subItems?: NavSubItem[];
+}
+
 interface NavItem {
     id: string;
     label: string;
-    icon: any;
-    subItems?: {
-        id: FinanceView;
-        label: string;
-        icon: any;
-        tag?: string;
-        description?: string;
-        subItems?: any[];
-    }[];
+    icon: ElementType<{ className?: string }>;
+    subItems?: NavSubItem[];
 }
 
 const FINANCE_NAV: NavItem[] = [
@@ -239,8 +242,8 @@ const DesktopFinanceiro = () => {
                 s.id === activeView || s.subItems?.some(ss => ss.id === activeView)
             )
         );
-        if (group && !expandedGroups.includes(group.id)) {
-            setExpandedGroups([group.id]);
+        if (group) {
+            setExpandedGroups((current) => current.includes(group.id) ? current : [group.id]);
         }
     }, [activeView]);
 
@@ -271,7 +274,7 @@ const DesktopFinanceiro = () => {
         initial: { opacity: 0, x: 20, filter: "blur(10px)" },
         animate: { opacity: 1, x: 0, filter: "blur(0px)" },
         exit: { opacity: 0, x: -20, filter: "blur(10px)" },
-        transition: { duration: 0.4, ease: [0.23, 1, 0.32, 1] as any }
+        transition: { duration: 0.4, ease: [0.23, 1, 0.32, 1] as const }
     };
 
     if (isLoadingConnect || isLoadingSettings) {
