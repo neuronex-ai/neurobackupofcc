@@ -2,6 +2,22 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { generateEmbedding } from './embeddings.ts';
 
+const normalizeIdempotencyPart = (value: unknown) =>
+    String(value || '')
+        .trim()
+        .replace(/[^a-zA-Z0-9:._-]+/g, '_')
+        .slice(0, 140);
+
+const buildSynapseEntryIdempotencyKey = (ctx: any, toolName: string) => {
+    const channel = normalizeIdempotencyPart(ctx?.channel || ctx?.source?.channel || ctx?.context?.channel || 'app') || 'app';
+    const explicitKey = ctx?.idempotencyKey || ctx?.context?.idempotency_key || ctx?.source?.idempotency_key;
+    if (explicitKey) return `synapse:${channel}:${toolName}:${normalizeIdempotencyPart(explicitKey)}`;
+
+    const sourceMessageId = ctx?.source?.source_message_id || ctx?.source?.message_id || ctx?.context?.source_message_id;
+    if (sourceMessageId) return `synapse:${channel}:${toolName}:${normalizeIdempotencyPart(sourceMessageId)}`;
+
+    return `synapse:${channel}:${toolName}:${crypto.randomUUID()}`;
+};
 
 export async function executeTool(name: string, args: any, ctx: any) {
     const { supabaseUser, user } = ctx;
@@ -1097,11 +1113,40 @@ Retorne APENAS o texto do documento, formatado em Markdown.
             case 'create_transaction': {
                 const amount = Math.abs(Number(args.amount || 0));
                 const entryDate = args.date || new Date().toISOString().split('T')[0];
+                const idempotencyKey = buildSynapseEntryIdempotencyKey(ctx, 'create_transaction');
+
+                const { data: existingTransaction, error: existingError } = await ctx.supabaseAdmin
+                    .from('financial_entries')
+                    .select('*')
+                    .eq('professional_id', user.id)
+                    .eq('idempotency_key', idempotencyKey)
+                    .maybeSingle();
+
+                if (existingError) {
+                    result = { error: `Erro ao verificar idempotencia: ${existingError.message}` };
+                    break;
+                }
+
+                if (existingTransaction) {
+                    const formattedValue = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(existingTransaction.amount || amount));
+                    result = {
+                        success: true,
+                        message: `Lancamento de ${formattedValue} ja estava registrado. Mantive o registro existente para evitar duplicidade.`,
+                        transactionId: existingTransaction.id,
+                        idempotencyKey,
+                    };
+                    structuredData = {
+                        type: 'transaction_created',
+                        data: { transaction: existingTransaction }
+                    };
+                    break;
+                }
 
                 const { data: transaction, error: createError } = await ctx.supabaseAdmin
                     .from('financial_entries')
                     .insert({
                         professional_id: user.id,
+                        idempotency_key: idempotencyKey,
                         title: args.description,
                         description: args.description,
                         amount: amount,
@@ -1117,6 +1162,9 @@ Retorne APENAS o texto do documento, formatado em Markdown.
                             category: args.category || 'Outros',
                             source: 'synapse_global',
                             legacy_tool: 'create_transaction',
+                            channel: ctx?.channel || 'app',
+                            session_id: ctx?.sessionId || null,
+                            source_message_id: ctx?.source?.source_message_id || null,
                         },
                     })
                     .select()

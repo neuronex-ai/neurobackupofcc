@@ -6,6 +6,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const normalizeIdempotencyPart = (value: unknown) =>
+  String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9:._-]+/g, '_')
+    .slice(0, 140);
+
+const buildN8nFinancialIdempotencyKey = (action: string, professionalId: string, params: any, body: any) => {
+  const explicitKey = params?.idempotency_key || body?.idempotency_key;
+  if (explicitKey) return `n8n:${action}:${normalizeIdempotencyPart(explicitKey)}`;
+
+  const sourceMessageId = params?.source_message_id || body?.source_message_id || params?.message_id || body?.message_id;
+  if (sourceMessageId) return `n8n:${action}:${normalizeIdempotencyPart(sourceMessageId)}`;
+
+  return `n8n:${action}:${normalizeIdempotencyPart(professionalId)}:${crypto.randomUUID()}`;
+};
+
 // ── Gmail Helpers ──────────────────────────────────────────────────────
 const toBase64 = (str: string) => {
   const bytes = new TextEncoder().encode(str);
@@ -485,9 +501,28 @@ serve(async (req: Request) => {
           methodInput.includes('convenio') ? 'convenio' :
           methodInput === 'manual' ? 'manual' : 'other';
         const normalizedDate = String(date).slice(0, 10);
+        const idempotencyKey = buildN8nFinancialIdempotencyKey(actionClean, profissionalIdClean, params, body);
+
+        const { data: existingEntry, error: existingEntryError } = await supabaseClient
+          .from('financial_entries')
+          .select('*')
+          .eq('professional_id', profissionalIdClean)
+          .eq('idempotency_key', idempotencyKey)
+          .maybeSingle();
+
+        if (existingEntryError) throw existingEntryError;
+        if (existingEntry) {
+          result = {
+            ...existingEntry,
+            already_exists: true,
+            idempotency_key: idempotencyKey,
+          };
+          break;
+        }
 
         const { data, error } = await supabaseClient.from('financial_entries').insert({
           professional_id: profissionalIdClean,
+          idempotency_key: idempotencyKey,
           patient_id: patient_id || null,
           appointment_id: appointment_id || null,
           type,
@@ -504,6 +539,8 @@ serve(async (req: Request) => {
             category: category || null,
             source: 'synapse_n8n_agent',
             legacy_tool: 'add_transaction',
+            source_message_id: params?.source_message_id || body?.source_message_id || null,
+            channel: params?.channel || body?.channel || null,
           },
         }).select().single();
         if (error) throw error;
