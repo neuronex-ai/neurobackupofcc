@@ -8,6 +8,21 @@ import { generateSystemPrompt } from "./prompt-gen.ts";
 import { executeTool } from "./tools-exec.ts";
 import { generateEmbedding } from "./embeddings.ts";
 
+const buildWhatsAppContext = (context: any, channel?: string, source?: any, remoteJid?: string) => {
+    if (channel !== 'whatsapp') return context || {};
+
+    return {
+        ...(context || {}),
+        currentContext: context?.currentContext || 'synapse',
+        route: context?.route || 'whatsapp',
+        source: context?.source || 'whatsapp',
+        channel: 'whatsapp',
+        remoteJid: remoteJid || source?.remote_jid || null,
+        instanceName: source?.instance_name || context?.instanceName || null,
+        pushName: source?.push_name || context?.pushName || null,
+    };
+};
+
 serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -31,6 +46,7 @@ serve(async (req) => {
         let { message, sessionId: _sessionId, session_id, context, professional_id, channel, source, remote_jid, attachments } = payload;
 
         let sessionId = session_id || _sessionId;
+        context = buildWhatsAppContext(context, channel, source, remote_jid);
 
         let user;
         let supabaseUser;
@@ -83,6 +99,16 @@ serve(async (req) => {
             if (binding) {
                 const synapseConversationId = binding.id;
                 sessionId = synapseConversationId;
+
+                await supabaseAdmin
+                    .from('synapse_channel_bindings')
+                    .update({
+                        push_name: source?.push_name || null,
+                        instance_name: source?.instance_name || null,
+                        last_seen_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', synapseConversationId);
             } else {
                 // Auto-create chat_session and binding for whatsapp
                 const synapseConversationId = crypto.randomUUID();
@@ -129,11 +155,16 @@ serve(async (req) => {
         // 2. Buscar Memórias Relevantes (RAG Global)
         let relevantMemoriesText = "";
         if (userEmbedding && userEmbedding.length > 0) {
-            const { data: memories } = await supabaseAdmin.rpc('match_messages_gemini', {
+            const { data: memories, error: memoryError } = await supabaseAdmin.rpc('match_messages_gemini_for_user', {
+                target_user_id: user.id,
                 query_embedding: userEmbedding,
                 match_threshold: 0.60, // Limite de similaridade
                 match_count: 5
             });
+
+            if (memoryError) {
+                console.error("Erro ao buscar memorias Synapse:", memoryError);
+            }
 
             if (memories && memories.length > 0) {
                 const memoryList = memories.map((m: any) => {
@@ -229,7 +260,15 @@ serve(async (req) => {
                 const { name, args } = functionCall.functionCall;
                 console.log(`[AI] Calling tool: ${name}`, args);
 
-                const { result, structuredData } = await executeTool(name, args, { supabaseUser, supabaseAdmin, user });
+                const { result, structuredData } = await executeTool(name, args, {
+                    supabaseUser,
+                    supabaseAdmin,
+                    user,
+                    sessionId,
+                    channel,
+                    source,
+                    context,
+                });
 
                 if (structuredData) finalClientAction = structuredData;
 
@@ -277,7 +316,7 @@ serve(async (req) => {
         }
 
         // 8. Retorno
-        return new Response(JSON.stringify({ response: finalResponseText, clientAction: finalClientAction }), {
+        return new Response(JSON.stringify({ response: finalResponseText, clientAction: finalClientAction, session_id: sessionId }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
         });
