@@ -647,12 +647,12 @@ const SelectShell = ({
                 type="button"
                 onClick={() => setIsOpen((value) => !value)}
                 className={cn(
-                    "group flex h-11 w-full items-center justify-between gap-3 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 text-left text-sm font-bold text-zinc-700 shadow-[0_12px_34px_-30px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition-all duration-200 hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-200 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] dark:hover:bg-white/[0.07]",
-                    isOpen && "border-zinc-400 ring-4 ring-zinc-950/[0.035] dark:border-white/20 dark:ring-white/[0.045]"
+                    "group flex h-11 w-full items-center justify-between gap-3 rounded-2xl border border-zinc-200/80 bg-white/85 px-4 text-left text-sm font-bold text-zinc-700 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.8)] outline-none transition-all duration-300 hover:border-zinc-400 hover:bg-white dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-200 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] dark:hover:bg-white/[0.07]",
+                    isOpen && "border-zinc-950 ring-4 ring-zinc-950/[0.02] dark:border-white/20 dark:ring-white/[0.045]"
                 )}
             >
                 <span className={cn("truncate", !selected && "text-zinc-400")}>{currentLabel}</span>
-                <ChevronRight className={cn("h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-300 ease-out group-hover:text-zinc-700 dark:group-hover:text-zinc-200", isOpen && "rotate-90")} />
+                <ChevronRight className={cn("h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-500 ease-apple group-hover:text-zinc-950 dark:group-hover:text-zinc-200", isOpen && "rotate-90")} />
             </button>
 
             <AnimatePresence>
@@ -661,8 +661,8 @@ const SelectShell = ({
                         initial={{ opacity: 0, y: 8, scale: 0.98, filter: "blur(6px)" }}
                         animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
                         exit={{ opacity: 0, y: 8, scale: 0.98, filter: "blur(6px)" }}
-                        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                        className="absolute left-0 right-0 top-[calc(100%+8px)] z-[230] max-h-64 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_28px_90px_-38px_rgba(0,0,0,0.85)] backdrop-blur-3xl dark:border-white/10 dark:bg-zinc-950/95"
+                        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                        className="absolute left-0 right-0 top-[calc(100%+8px)] z-[230] max-h-64 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_28px_90px_-38px_rgba(0,0,0,0.45)] backdrop-blur-3xl dark:border-white/10 dark:bg-zinc-950/95"
                     >
                         <div className="custom-scrollbar max-h-60 overflow-y-auto pr-1">
                             {options.map((option) => {
@@ -677,7 +677,7 @@ const SelectShell = ({
                                             setIsOpen(false);
                                         }}
                                         className={cn(
-                                            "flex min-h-10 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-bold transition-all duration-150",
+                                            "flex min-h-10 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-bold transition-all duration-200",
                                             isSelected
                                                 ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
                                                 : "text-zinc-500 hover:bg-zinc-950/[0.045] hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
@@ -781,7 +781,7 @@ const PremiumModal = ({
         >
             <div className="relative flex max-h-[88vh] min-h-0 flex-col overflow-hidden">
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-zinc-500/[0.035] to-transparent dark:from-white/[0.025]" />
-                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.045]" />
+                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.018] dark:opacity-[0.04]" />
                 <div className="relative z-10 flex shrink-0 items-center justify-between border-b border-zinc-200/70 px-6 py-5 dark:border-white/10 md:px-8">
                     <h2 className="text-xl font-black tracking-[-0.035em] text-zinc-950 dark:text-white md:text-2xl">{title}</h2>
                     <button
@@ -1283,9 +1283,6 @@ const ManagementOverview = ({
                         <h3 className="text-lg font-black uppercase tracking-tight text-zinc-950 dark:text-white">
                             Resultado previsto
                         </h3>
-                        <span className="rounded-full bg-zinc-950 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950">
-                            Ledger real
-                        </span>
                     </div>
                     <p className="mt-2 max-w-xl text-xs font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">
                         Grafico combinado para Receitas e Despesas a partir dos lancamentos gerenciais do periodo.
@@ -2021,7 +2018,7 @@ const ManualChargesView = ({
                                 </tr>
                             ))
                         ) : (
-                            <EmptyTableRow colSpan={6} title="Nenhuma cobranca gerencial encontrada" description="Cobrancas manuais ou vinculadas ao NeuroFinance aparecem aqui quando tiverem vinculo com um lancamento." />
+                            <EmptyTableRow colSpan={6} title="Nenhuma cobranca gerencial encontrada" description="Cobrancas manuais or vinculadas ao NeuroFinance aparecem aqui quando tiverem vinculo com um lancamento." />
                         )}
                     </tbody>
                 </table>
