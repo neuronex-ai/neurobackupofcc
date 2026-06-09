@@ -125,9 +125,20 @@ verify_jwt = true
 entrypoint = "./functions/financial-pin/index.ts"
 
 
+[functions.gemini-text-chat]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/gemini-text-chat/index.ts"
+
+[functions.synapse-whatsapp-in]
+enabled = true
+verify_jwt = false
+import_map = "./functions/synapse-whatsapp-in/deno.json"
+entrypoint = "./functions/synapse-whatsapp-in/index.ts"
+
 [functions.n8n-agent-gateway]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/n8n-agent-gateway/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx

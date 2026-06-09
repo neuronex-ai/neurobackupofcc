@@ -6,6 +6,39 @@ const corsHeaders = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-synapse-channel-secret",
 };
 
+const jsonResponse = (payload: Record<string, unknown>, status = 200) =>
+    new Response(JSON.stringify(payload), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+const normalizeInstanceKey = (value: unknown) => String(value || "").trim().toLowerCase();
+
+const stripSynapseWidgets = (text: string) =>
+    text
+        .replace(/```json\s+synapse_widget[\s\S]*?```/gi, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
+const splitForWhatsApp = (text: string, maxLength = 1000) => {
+    const clean = stripSynapseWidgets(text);
+    if (!clean) return [];
+
+    const chunks: string[] = [];
+    let remaining = clean;
+
+    while (remaining.length > maxLength) {
+        const slice = remaining.slice(0, maxLength);
+        const breakAt = Math.max(slice.lastIndexOf("\n"), slice.lastIndexOf(" "));
+        const end = breakAt > 240 ? breakAt : maxLength;
+        chunks.push(remaining.slice(0, end).trim());
+        remaining = remaining.slice(end).trim();
+    }
+
+    if (remaining) chunks.push(remaining);
+    return chunks;
+};
+
 serve(async (req) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
@@ -15,103 +48,119 @@ serve(async (req) => {
         const channelSecret = req.headers.get("x-synapse-channel-secret");
         const envChannelSecret = Deno.env.get("SYNAPSE_CHANNEL_SECRET");
 
-        if (!channelSecret || channelSecret !== envChannelSecret) {
-            return new Response(JSON.stringify({ error: "Unauthorized Gateway" }), {
-                status: 401,
-                headers: { ...corsHeaders, "Content-Type": "application/json" }
-            });
+        if (!envChannelSecret || !channelSecret || channelSecret !== envChannelSecret) {
+            return jsonResponse({ error: "Unauthorized Gateway" }, 401);
         }
 
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        const internalSecret = Deno.env.get("SYNAPSE_INTERNAL_SECRET");
+
+        if (!supabaseUrl || !supabaseKey || !internalSecret) {
+            throw new Error("Configuracao interna Synapse/Supabase ausente.");
+        }
+
+        const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
+            auth: { persistSession: false },
+        });
 
         const body = await req.json();
         const {
-            professional_id,
             remote_jid,
             message,
-            instance_name,
             push_name,
             source_message_id,
             source_timestamp,
             channel = "whatsapp",
             message_type = "text",
-            attachments = []
+            attachments = [],
         } = body;
+        const instanceName = body.instance_name || body.instance;
+        const instanceKey = normalizeInstanceKey(instanceName);
 
-        if (!professional_id || !remote_jid || !message) {
-            return new Response(JSON.stringify({ error: "Missing required fields" }), {
-                status: 400,
-                headers: { ...corsHeaders, "Content-Type": "application/json" }
-            });
+        if (!instanceKey || !remote_jid || !message) {
+            return jsonResponse({ error: "Missing required fields: instance_name, remote_jid and message" }, 400);
         }
 
-        const sessionIdFormat = `whatsapp:${professional_id}:${remote_jid}`;
+        const { data: instance, error: instanceError } = await supabaseAdmin
+            .from("synapse_whatsapp_instances")
+            .select("professional_id, instance_name, enabled")
+            .eq("instance_key", instanceKey)
+            .maybeSingle();
 
-        // Enviar para o Core (gemini-text-chat) interno
-        const internalSecret = Deno.env.get("SYNAPSE_INTERNAL_SECRET");
-        if (!internalSecret) throw new Error("SYNAPSE_INTERNAL_SECRET não configurado no backend");
+        if (instanceError) throw instanceError;
+        if (!instance || instance.enabled === false) {
+            return jsonResponse({ error: "WhatsApp instance is not mapped or is disabled" }, 404);
+        }
+
+        const professionalId = instance.professional_id;
+        const sessionIdFormat = `whatsapp:${professionalId}:${remote_jid}`;
 
         const corePayload = {
-            professional_id,
+            professional_id: professionalId,
             session_id: sessionIdFormat,
+            remote_jid,
             channel,
             message,
             attachments,
+            context: {
+                currentContext: "synapse",
+                route: "whatsapp",
+                source: "whatsapp",
+                channel,
+                instanceName: instance.instance_name,
+                remoteJid: remote_jid,
+                pushName: push_name || null,
+            },
             source: {
                 remote_jid,
-                instance_name,
+                instance_name: instance.instance_name,
                 push_name,
                 source_message_id,
                 source_timestamp,
-                message_type
-            }
+                message_type,
+            },
         };
 
-        const coreUrl = `${supabaseUrl}/functions/v1/gemini-text-chat`;
-
-        const coreResponse = await fetch(coreUrl, {
+        const coreResponse = await fetch(`${supabaseUrl}/functions/v1/gemini-text-chat`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "x-internal-synapse-secret": internalSecret
+                "x-internal-synapse-secret": internalSecret,
             },
-            body: JSON.stringify(corePayload)
+            body: JSON.stringify(corePayload),
         });
 
-        if (!coreResponse.ok) {
-            const errorText = await coreResponse.text();
-            throw new Error(`Core Error: ${errorText}`);
+        const coreText = await coreResponse.text();
+        let coreData: Record<string, any> = {};
+        try {
+            coreData = coreText ? JSON.parse(coreText) : {};
+        } catch {
+            coreData = { error: coreText };
         }
 
-        const coreData = await coreResponse.json();
+        if (!coreResponse.ok) {
+            return jsonResponse({
+                error: "Core Synapse Error",
+                details: coreData.error || coreText,
+            }, coreResponse.status);
+        }
 
-        // Quebrar resposta para WhatsApp (cada chunk máx 1000 caracteres se for MT text, opcional)
-        // Aqui deixamos flexível caso o webhook chame
-        const responseText = coreData.response || "";
-        const replyChunks = responseText ? responseText.match(/[\s\S]{1,1000}/g) : [];
+        const replyText = stripSynapseWidgets(String(coreData.response || ""));
+        const replyChunks = splitForWhatsApp(replyText);
 
-        const responsePayload = {
+        return jsonResponse({
             ok: true,
-            session_id: sessionIdFormat,
-            professional_id,
+            session_id: coreData.session_id || sessionIdFormat,
+            professional_id: professionalId,
             remote_jid,
-            reply_text: responseText,
+            reply_text: replyText,
             reply_chunks: replyChunks,
-            core_result: coreData
-        };
-
-        return new Response(JSON.stringify(responsePayload), {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
+            client_action: coreData.clientAction || null,
+            core_result: coreData,
         });
-
     } catch (error: any) {
-        console.error("Gateway Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+        console.error("[synapse-whatsapp-in] Gateway Error:", error);
+        return jsonResponse({ error: error?.message || "Internal gateway error" }, 500);
     }
 });
