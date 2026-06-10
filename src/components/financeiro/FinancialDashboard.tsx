@@ -213,6 +213,7 @@ export function FinancialDashboard({
                             setExtratoTab("futuro");
                             setActiveView("extrato");
                         }}
+                        onOpenScheduledPayments={() => setActiveView("pagamentos-agendados")}
                     />
                     <AsaasRegulatoryFooter />
                 </motion.div>

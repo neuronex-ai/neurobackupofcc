@@ -18,7 +18,6 @@ import {
 import { ptBR } from "date-fns/locale";
 import {
   ArrowRight,
-  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -28,6 +27,7 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ScheduledPaymentsCalendar } from "@/components/financeiro/ScheduledPaymentsCalendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,7 @@ type CalendarMode = "receivables" | "payments";
 
 interface ReceivablesCalendarCardProps {
   onOpenFutureStatement: () => void;
+  onOpenScheduledPayments: () => void;
 }
 
 const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
@@ -114,7 +115,10 @@ function selectionBounds(selectedDates: Date[]) {
   };
 }
 
-export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCalendarCardProps) {
+export function ReceivablesCalendarCard({
+  onOpenFutureStatement,
+  onOpenScheduledPayments,
+}: ReceivablesCalendarCardProps) {
   const [mode, setMode] = useState<CalendarMode>("receivables");
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
@@ -209,22 +213,7 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
         </div>
 
         {mode === "payments" ? (
-          <div className="flex min-h-[520px] flex-col items-center justify-center rounded-[32px] border border-dashed border-zinc-200 bg-zinc-50/60 px-8 text-center dark:border-white/10 dark:bg-white/[0.015]">
-            <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-zinc-950 text-white shadow-xl dark:bg-white dark:text-black">
-              <CalendarClock className="h-7 w-7" />
-            </div>
-            <div className="mt-6 flex items-center gap-2">
-              <h3 className="text-lg font-black uppercase tracking-tight text-zinc-950 dark:text-white">
-                Calendário de Pagamentos
-              </h3>
-              <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
-                Em breve
-              </span>
-            </div>
-            <p className="mt-3 max-w-lg text-sm leading-relaxed text-zinc-500">
-              Os pagamentos agendados via NeuroFinance e Asaas aparecerão aqui assim que a integração for liberada.
-            </p>
-          </div>
+          <ScheduledPaymentsCalendar onOpenAllPayments={onOpenScheduledPayments} />
         ) : (
           <>
             <div className="rounded-[32px] border border-zinc-200/70 bg-white p-4 dark:border-white/[0.06] dark:bg-black/20 md:p-6">

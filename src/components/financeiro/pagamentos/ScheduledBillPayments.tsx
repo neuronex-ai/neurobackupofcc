@@ -223,7 +223,7 @@ export function ScheduledBillPayments() {
   );
 }
 
-function BillPaymentDetailsDialog({
+export function BillPaymentDetailsDialog({
   record,
   downloading,
   onDownload,
