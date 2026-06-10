@@ -50,7 +50,7 @@ export function BillPaymentPinDialog({
               <DialogDescription className="mt-2 text-xs leading-relaxed text-zinc-400">
                 Digite seu PIN de 6 dígitos para autorizar o pagamento de{" "}
                 <strong className="text-white">{formatCurrency(value)}</strong> para{" "}
-                <strong className="text-white">{beneficiaryName || "o beneficiário confirmado"}</strong>.
+                <strong className="text-white">{beneficiaryName || "o recebedor informado pela instituição"}</strong>.
               </DialogDescription>
             </div>
 

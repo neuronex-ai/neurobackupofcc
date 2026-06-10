@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { findBoletoCandidate, normalizeBoletoInput, onlyDigits } from "../boleto";
+import { findBoletoCandidate, isValidBoletoDigits, normalizeBoletoInput, onlyDigits } from "../boleto";
+
+const VALID_BOLETO = "46191110000000000004250768519014814720000020000";
 
 describe("boleto helpers", () => {
   it("normalizes line input", () => {
@@ -14,6 +16,17 @@ describe("boleto helpers", () => {
   });
 
   it("finds boleto candidates in text", () => {
-    expect(findBoletoCandidate(`boleto ${"9".repeat(47)} fim`)).toBe("9".repeat(47));
+    expect(findBoletoCandidate(`boleto ${VALID_BOLETO} fim`)).toBe(VALID_BOLETO);
+  });
+
+  it("removes an adjacent OCR digit instead of treating a bank slip as a 48-digit utility bill", () => {
+    expect(VALID_BOLETO).toHaveLength(47);
+    expect(isValidBoletoDigits(VALID_BOLETO)).toBe(true);
+    expect(findBoletoCandidate(`${VALID_BOLETO}6`)).toBe(VALID_BOLETO);
+  });
+
+  it("finds a valid boleto among other numbers extracted from a PDF", () => {
+    const formatted = "46191.11000 00000.000042 50768.519014 8 14720000020000";
+    expect(findBoletoCandidate(`Emitido em 09/06/2026 ${formatted} 6 Pagina 1`)).toBe(VALID_BOLETO);
   });
 });

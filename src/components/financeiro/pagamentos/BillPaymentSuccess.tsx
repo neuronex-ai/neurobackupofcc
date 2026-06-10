@@ -76,8 +76,8 @@ export function BillPaymentSuccess({
             <p>${escapeHtml(copy.description)}</p>
             <p class="value">${escapeHtml(formatCurrency(consultation.value))}</p>
             <dl>
-              <div class="row"><dt>Recebedor</dt><dd>${escapeHtml(consultation.beneficiaryName || "Beneficiário confirmado")}</dd></div>
-              <div class="row"><dt>Instituição</dt><dd>${escapeHtml(consultation.bankName || "Asaas")}</dd></div>
+              <div class="row"><dt>Recebedor</dt><dd>${escapeHtml(consultation.beneficiaryName || "Não informado")}</dd></div>
+              <div class="row"><dt>Instituição</dt><dd>${escapeHtml(consultation.bankName || (consultation.bankCode ? `Código bancário ${consultation.bankCode}` : "Não informada"))}</dd></div>
               <div class="row"><dt>Identificador</dt><dd>${escapeHtml(providerBillId || execution.record?.external_reference)}</dd></div>
               <div class="row"><dt>Status</dt><dd>${escapeHtml(execution.status)}</dd></div>
               <div class="row"><dt>Solicitado em</dt><dd>${escapeHtml(new Date().toLocaleString("pt-BR"))}</dd></div>
@@ -106,7 +106,7 @@ export function BillPaymentSuccess({
         <p className="text-[9px] font-black uppercase tracking-[0.24em] opacity-45">Valor do boleto</p>
         <p className="mt-2 text-4xl font-black tracking-[-0.05em]">{formatCurrency(consultation.value)}</p>
         <div className="mt-6 grid gap-3 border-t border-white/10 pt-5 text-[10px] font-bold dark:border-black/10 sm:grid-cols-2">
-          <span className="flex items-center gap-2"><Landmark className="h-4 w-4" /> {consultation.bankName || "Instituição confirmada"}</span>
+          <span className="flex items-center gap-2"><Landmark className="h-4 w-4" /> {consultation.bankName || (consultation.bankCode ? `Banco ${consultation.bankCode}` : "Instituição não informada")}</span>
           <span className="flex items-center gap-2"><ReceiptText className="h-4 w-4" /> {providerBillId || "Identificador registrado"}</span>
         </div>
       </div>

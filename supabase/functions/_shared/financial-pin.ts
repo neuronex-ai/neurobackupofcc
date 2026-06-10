@@ -1,6 +1,12 @@
-import * as bcrypt from "https://esm.sh/bcryptjs@2.4.3";
+import * as bcryptModule from "https://esm.sh/bcryptjs@2.4.3";
 
 import { supabaseAdmin } from "./asaas-client.ts";
+
+interface BcryptRuntime {
+    compare(value: string, hash: string): Promise<boolean>;
+}
+
+const bcrypt = (bcryptModule as unknown as { default: BcryptRuntime }).default;
 
 export function isValidFinancialPinFormat(pin?: string) {
     return typeof pin === "string" && /^\d{6}$/.test(pin);
@@ -32,13 +38,16 @@ export async function verifyFinancialPin(userId: string, pin?: string) {
 
     const isValid = await bcrypt.compare(pin as string, settings.pin_hash);
     if (isValid) {
-        await supabaseAdmin
+        const { error: auditError } = await supabaseAdmin
             .from("user_financial_settings")
             .update({
                 pin_last_verified_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             })
             .eq("user_id", userId);
+        if (auditError) {
+            console.warn("[financial-pin] PIN validated, but audit timestamp could not be stored:", auditError.message);
+        }
     }
 
     return {

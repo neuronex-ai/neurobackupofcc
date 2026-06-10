@@ -9,6 +9,10 @@ import {
     recordBaasOperation,
     supabaseAdmin,
 } from "../_shared/asaas-client.ts";
+import {
+    normalizeAsaasBillSimulation,
+    validateNormalizedBillSimulation,
+} from "../_shared/asaas-bill.ts";
 import { verifyFinancialPin } from "../_shared/financial-pin.ts";
 
 const CONSULTATION_TTL_MS = 10 * 60 * 1000;
@@ -43,15 +47,6 @@ function providerReceiptUrl(payload: any) {
         payload?.receiptUrl ||
         payload?.paymentReceiptUrl ||
         null;
-}
-
-function providerBeneficiary(payload: any) {
-    return {
-        name: payload?.beneficiaryName || payload?.beneficiary?.name || null,
-        document: payload?.beneficiaryDocument || payload?.beneficiary?.cpfCnpj || null,
-        bankCode: typeof payload?.bank === "string" ? payload.bank : payload?.bankCode || payload?.bank?.code || null,
-        bankName: payload?.bankName || payload?.bank?.name || null,
-    };
 }
 
 function consultationPayload(record: any) {
@@ -132,8 +127,11 @@ Deno.serve(async (req: Request) => {
                 apiKey,
             );
 
-            const resolvedIdentificationField = input.identificationField ||
-                digits((result as any)?.identificationField || (result as any)?.identification_field);
+            const normalizedBill = normalizeAsaasBillSimulation(
+                (result || {}) as Record<string, unknown>,
+            );
+            const resolvedIdentificationField = normalizedBill.identificationField ||
+                input.identificationField;
             if (!resolvedIdentificationField) {
                 return errorResponse(
                     "O boleto foi localizado, mas a linha digitável não foi retornada. Digite a linha para continuar.",
@@ -142,8 +140,35 @@ Deno.serve(async (req: Request) => {
                 );
             }
 
-            const beneficiary = providerBeneficiary(result);
+            normalizedBill.identificationField = resolvedIdentificationField;
+            const missingFields = validateNormalizedBillSimulation(normalizedBill);
+            if (missingFields.length > 0) {
+                console.error("[asaas-bill-payment] Incomplete bill simulation:", {
+                    missingFields,
+                    providerKeys: Object.keys((result || {}) as Record<string, unknown>),
+                });
+                return errorResponse(
+                    "A instituição não retornou todos os dados necessários para uma confirmação segura. Tente novamente mais tarde.",
+                    422,
+                    { code: "INCOMPLETE_BILL_DATA", missingFields },
+                );
+            }
+
             const scheduleDate = validateScheduleDate(body.scheduleDate);
+            if (
+                scheduleDate &&
+                normalizedBill.minimumScheduleDate &&
+                scheduleDate < normalizedBill.minimumScheduleDate
+            ) {
+                return errorResponse(
+                    `A primeira data disponível para este pagamento é ${normalizedBill.minimumScheduleDate}.`,
+                    400,
+                    {
+                        code: "INVALID_SCHEDULE_DATE",
+                        minimumScheduleDate: normalizedBill.minimumScheduleDate,
+                    },
+                );
+            }
             const expiresAt = new Date(Date.now() + CONSULTATION_TTL_MS).toISOString();
             const externalReference = `neurofinance:bill:${crypto.randomUUID()}`;
 
@@ -156,14 +181,14 @@ Deno.serve(async (req: Request) => {
                     barcode: input.barCode || null,
                     external_reference: externalReference,
                     status: "review_pending",
-                    amount: cents((result as any)?.value || (result as any)?.amount),
-                    fee_amount: cents((result as any)?.fee),
-                    due_date: (result as any)?.dueDate || (result as any)?.due_date || null,
+                    amount: cents(normalizedBill.value),
+                    fee_amount: cents(normalizedBill.fee),
+                    due_date: normalizedBill.dueDate,
                     scheduled_date: scheduleDate,
-                    beneficiary_name: beneficiary.name,
-                    beneficiary_document: beneficiary.document,
-                    bank_code: beneficiary.bankCode,
-                    bank_name: beneficiary.bankName,
+                    beneficiary_name: normalizedBill.beneficiaryName,
+                    beneficiary_document: normalizedBill.beneficiaryDocument,
+                    bank_code: normalizedBill.bankCode,
+                    bank_name: normalizedBill.bankName,
                     description: "Pagamento de boleto pelo NeuroFinance",
                     consultation_expires_at: expiresAt,
                     provider_payload: result || {},
@@ -177,6 +202,7 @@ Deno.serve(async (req: Request) => {
             return jsonResponse({
                 success: true,
                 consultation: consultationPayload(record),
+                bill: normalizedBill,
             });
         }
 

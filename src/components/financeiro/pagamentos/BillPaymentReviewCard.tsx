@@ -31,19 +31,25 @@ export function BillPaymentReviewCard({
     {
       icon: UserRound,
       label: "Recebedor",
-      value: consultation.beneficiaryName || "Beneficiário confirmado",
+      value: consultation.beneficiaryName || "Não informado pela instituição",
       detail: maskDocument(consultation.beneficiaryDocument),
     },
     {
       icon: Landmark,
       label: "Instituição",
-      value: consultation.bankName || "Instituição informada pela Asaas",
-      detail: consultation.bankCode ? `Código ${consultation.bankCode}` : "CIP / Asaas",
+      value: consultation.bankName || (consultation.bankCode
+        ? `Código bancário ${consultation.bankCode}`
+        : "Não informada pela instituição"),
+      detail: consultation.bankCode
+        ? `Código COMPE ${consultation.bankCode}`
+        : "Dado não retornado na consulta",
     },
     {
       icon: CalendarDays,
       label: "Vencimento",
-      value: formatDate(consultation.dueDate),
+      value: consultation.dueDate
+        ? formatDate(consultation.dueDate)
+        : "Não informado pela instituição",
       detail: consultation.scheduleDate
         ? `Pagamento programado para ${formatDate(consultation.scheduleDate)}`
         : "Pagamento no vencimento",
