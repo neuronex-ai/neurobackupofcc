@@ -39,7 +39,6 @@ import {
   useReceivablesCalendar,
 } from "@/hooks/use-receivables-calendar";
 import { useUpdateFinancialEntry } from "@/hooks/use-financial-entries";
-import { useNeuroFinanceBalanceSnapshot } from "@/hooks/use-neurofinance-balance";
 
 type CalendarMode = "receivables" | "payments";
 
@@ -56,9 +55,9 @@ const SOURCE_LABELS: Record<ReceivableSource, string> = {
 };
 
 const SOURCE_STYLES: Record<ReceivableSource, string> = {
-  neurofinance: "border-emerald-500/20 bg-emerald-500/[0.055] text-zinc-700 dark:text-zinc-200",
-  agenda: "border-cyan-500/20 bg-cyan-500/[0.055] text-zinc-700 dark:text-zinc-200",
-  manual: "border-violet-500/20 bg-violet-500/[0.055] text-zinc-700 dark:text-zinc-200",
+  neurofinance: "border-emerald-500/25 bg-emerald-50 text-emerald-800 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-200",
+  agenda: "border-cyan-500/25 bg-cyan-50 text-cyan-800 dark:border-cyan-400/25 dark:bg-cyan-400/10 dark:text-cyan-200",
+  manual: "border-violet-500/25 bg-violet-50 text-violet-800 dark:border-violet-400/25 dark:bg-violet-400/10 dark:text-violet-200",
 };
 
 const SOURCE_DOTS: Record<ReceivableSource, string> = {
@@ -84,13 +83,13 @@ const STATUS_LABELS: Record<ReceivableStatus, string> = {
 };
 
 const STATUS_STYLES: Record<ReceivableStatus, string> = {
-  planned: "border-sky-500/20 bg-white text-zinc-600 dark:bg-white/[0.035] dark:text-zinc-300",
-  pending: "border-amber-500/25 bg-white text-zinc-700 dark:bg-white/[0.035] dark:text-zinc-200",
-  processing: "border-blue-500/20 bg-white text-zinc-600 dark:bg-white/[0.035] dark:text-zinc-300",
-  confirmed: "border-blue-500/20 bg-white text-zinc-600 dark:bg-white/[0.035] dark:text-zinc-300",
-  paid: "border-emerald-500/25 bg-white text-zinc-700 dark:bg-white/[0.035] dark:text-zinc-200",
-  overdue: "border-red-500/25 bg-white text-zinc-700 dark:bg-white/[0.035] dark:text-zinc-200",
-  cancelled: "border-zinc-300 bg-white text-zinc-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400",
+  planned: "border-sky-500/25 bg-sky-50 text-sky-800 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-200",
+  pending: "border-amber-500/30 bg-amber-50 text-amber-800 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-200",
+  processing: "border-blue-500/25 bg-blue-50 text-blue-800 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-200",
+  confirmed: "border-blue-500/25 bg-blue-50 text-blue-800 dark:border-blue-400/25 dark:bg-blue-400/10 dark:text-blue-200",
+  paid: "border-emerald-500/30 bg-emerald-50 text-emerald-800 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-200",
+  overdue: "border-red-500/30 bg-red-50 text-red-800 dark:border-red-400/25 dark:bg-red-400/10 dark:text-red-200",
+  cancelled: "border-zinc-300 bg-zinc-100 text-zinc-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-300",
 };
 
 const STATUS_DOTS: Record<ReceivableStatus, string> = {
@@ -121,12 +120,11 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const queryClient = useQueryClient();
   const updateEntry = useUpdateFinancialEntry();
-  const { data: overviewSnapshot } = useNeuroFinanceBalanceSnapshot();
 
   const gridStart = startOfWeek(startOfMonth(visibleMonth), { weekStartsOn: 1 });
   const gridEnd = endOfWeek(endOfMonth(visibleMonth), { weekStartsOn: 1 });
   const calendarDays = eachDayOfInterval({ start: gridStart, end: gridEnd });
-  const { data: items = [], isLoading, isFetching } = useReceivablesCalendar(gridStart, gridEnd);
+  const { data: items = [], isLoading } = useReceivablesCalendar(gridStart, gridEnd);
 
   const itemsByDate = useMemo(() => {
     return items.reduce<Record<string, ReceivableCalendarItem[]>>((result, item) => {
@@ -257,23 +255,10 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                   </Button>
                 </div>
 
-                <div className="flex flex-col items-start gap-2 md:items-end">
-                  <div className="flex flex-wrap items-center gap-4 text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                <div className="flex flex-wrap items-center gap-4 text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                     <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-emerald-500" /> NeuroFinance</span>
                     <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-cyan-400" /> Agenda</span>
                     <span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-violet-500" /> Gestão Financeira</span>
-                  </div>
-                  {overviewSnapshot.lastUpdatedAt && (
-                    <span className="flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-wider text-zinc-400">
-                      {isFetching && <Loader2 className="h-3 w-3 animate-spin" />}
-                      Dados NeuroFinance atualizados em {new Date(overviewSnapshot.lastUpdatedAt).toLocaleString("pt-BR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -355,14 +340,14 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
             </div>
 
             {selectedBounds && (
-              <div className="relative mt-6 overflow-hidden rounded-[32px] border border-zinc-200/70 bg-white/80 shadow-[0_20px_54px_-42px_rgba(24,24,27,0.35)] dark:border-white/[0.06] dark:bg-[#0b0c0e]/88">
+              <div className="relative mt-6 overflow-hidden rounded-[32px] border border-zinc-200 bg-white shadow-[0_20px_54px_-42px_rgba(24,24,27,0.35)] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-[0_24px_70px_-45px_rgba(0,0,0,0.85)]">
                 <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.032]" />
-                <div className="relative z-10 flex flex-col gap-4 border-b border-zinc-100 bg-zinc-50/45 p-5 dark:border-white/5 dark:bg-white/[0.015] md:flex-row md:items-center md:justify-between">
+                <div className="relative z-10 flex flex-col gap-4 border-b border-zinc-200 bg-zinc-50 p-5 dark:border-white/[0.08] dark:bg-zinc-900 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <p className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-400">Recebimentos no período</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-500 dark:text-zinc-400">Recebimentos no período</p>
                     <div className="mt-1 flex flex-wrap items-baseline gap-3">
                       <h3 className="text-base font-black text-zinc-950 dark:text-white">{selectedPeriodLabel}</h3>
-                      <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-black text-zinc-700 shadow-sm dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-200">
+                      <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-black text-zinc-700 shadow-sm dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-100">
                         Total: {currency(selectedTotal)}
                       </span>
                     </div>
@@ -371,7 +356,7 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                     type="button"
                     variant="outline"
                     onClick={onOpenFutureStatement}
-                    className="rounded-full border-zinc-200 px-5 text-[9px] font-black uppercase tracking-widest dark:border-white/10"
+                    className="rounded-full border-zinc-200 bg-white px-5 text-[9px] font-black uppercase tracking-widest text-zinc-950 dark:border-white/10 dark:bg-white dark:text-zinc-950"
                   >
                     Extrato <ArrowRight className="ml-2 h-3.5 w-3.5" />
                   </Button>
@@ -383,20 +368,20 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                     <p className="mt-3 text-xs font-black uppercase tracking-widest text-zinc-500">Nenhum recebimento neste período</p>
                   </div>
                 ) : (
-                  <Table className="relative z-10">
-                    <TableHeader className="bg-zinc-50/55 dark:bg-white/[0.012]">
-                      <TableRow className="border-zinc-100 hover:bg-transparent dark:border-white/5">
-                        <TableHead className="text-[9px] font-black uppercase tracking-widest">Origem</TableHead>
-                        <TableHead className="text-[9px] font-black uppercase tracking-widest">Paciente</TableHead>
-                        <TableHead className="text-[9px] font-black uppercase tracking-widest">Cobrança</TableHead>
-                        <TableHead className="text-[9px] font-black uppercase tracking-widest">Status</TableHead>
-                        <TableHead className="text-[9px] font-black uppercase tracking-widest">Data</TableHead>
-                        <TableHead className="text-right text-[9px] font-black uppercase tracking-widest">Valor</TableHead>
+                  <Table className="relative z-10 bg-white dark:bg-zinc-950">
+                    <TableHeader className="bg-zinc-50 dark:bg-zinc-900/80">
+                      <TableRow className="border-zinc-200 hover:bg-transparent dark:border-white/[0.08] dark:hover:bg-transparent">
+                        <TableHead className="text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Origem</TableHead>
+                        <TableHead className="text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Paciente</TableHead>
+                        <TableHead className="text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Cobrança</TableHead>
+                        <TableHead className="text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Status</TableHead>
+                        <TableHead className="text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Data</TableHead>
+                        <TableHead className="text-right text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Valor</TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody>
+                    <TableBody className="bg-white dark:bg-zinc-950">
                       {filteredItems.map((item) => (
-                        <TableRow key={item.id} className="group/receivable border-zinc-100 transition-colors hover:bg-zinc-50/75 dark:border-white/5 dark:hover:bg-white/[0.025]">
+                        <TableRow key={item.id} className="group/receivable border-zinc-100 bg-white transition-colors hover:bg-zinc-50 dark:border-white/[0.07] dark:bg-zinc-950 dark:hover:bg-zinc-900">
                           <TableCell className={cn("border-l-2 py-4", SOURCE_CELL_ACCENTS[item.source])}>
                             <span className={cn(
                               "inline-flex items-center rounded-full border px-2.5 py-1.5 text-[8px] font-black uppercase tracking-widest shadow-sm",
@@ -406,7 +391,7 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                               {SOURCE_LABELS[item.source]}
                             </span>
                           </TableCell>
-                          <TableCell className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                          <TableCell className="text-xs font-bold text-zinc-700 dark:text-zinc-200">
                             {item.patientName || "Não informado"}
                           </TableCell>
                           <TableCell>
@@ -449,7 +434,7 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs font-bold text-zinc-500">
+                          <TableCell className="text-xs font-bold text-zinc-500 dark:text-zinc-300">
                             {format(parseISO(item.date), "dd/MM/yyyy")}
                           </TableCell>
                           <TableCell className="text-right text-sm font-black tabular-nums text-zinc-950 dark:text-white">
