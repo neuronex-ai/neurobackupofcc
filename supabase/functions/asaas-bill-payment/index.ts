@@ -1,7 +1,9 @@
 import {
     asaasRequest,
+    corsHeaders,
     corsResponse,
     errorResponse,
+    getAsaasBalance,
     getAuthenticatedUser,
     getFinancialAccount,
     getFinancialAccountAsaasApiKey,
@@ -13,6 +15,13 @@ import {
     normalizeAsaasBillSimulation,
     validateNormalizedBillSimulation,
 } from "../_shared/asaas-bill.ts";
+import {
+    dateInTimeZone,
+    evaluateBillScheduling,
+    normalizeBillPaymentStatus,
+    type BillPaymentMode,
+    validateBillPaymentDecision,
+} from "../_shared/asaas-bill-scheduling.ts";
 import { verifyFinancialPin } from "../_shared/financial-pin.ts";
 
 const CONSULTATION_TTL_MS = 10 * 60 * 1000;
@@ -32,16 +41,6 @@ function billInput(body: Record<string, any>) {
     };
 }
 
-function normalizeBillStatus(status?: string) {
-    const value = String(status || "PENDING").toUpperCase();
-    if (value === "PAID") return "paid";
-    if (value === "FAILED") return "failed";
-    if (value === "CANCELLED" || value === "CANCELED") return "cancelled";
-    if (value === "REFUNDED") return "refunded";
-    if (value === "BANK_PROCESSING" || value === "AWAITING_CHECKOUT_RISK_ANALYSIS_REQUEST") return "processing";
-    return "processing";
-}
-
 function providerReceiptUrl(payload: any) {
     return payload?.transactionReceiptUrl ||
         payload?.receiptUrl ||
@@ -49,7 +48,25 @@ function providerReceiptUrl(payload: any) {
         null;
 }
 
+function simulationPayload(record: any) {
+    return record?.provider_payload?.consultation || record?.provider_payload || {};
+}
+
 function consultationPayload(record: any) {
+    const simulation = normalizeAsaasBillSimulation(simulationPayload(record));
+    const availableBalanceCents = record.available_balance_at_review == null
+        ? null
+        : Number(record.available_balance_at_review);
+    const totalCents = Number(record.amount || 0) + Number(record.fee_amount || 0);
+    const today = dateInTimeZone();
+    const scheduling = evaluateBillScheduling({
+        availableBalanceCents,
+        totalCents,
+        minimumScheduleDate: simulation.minimumScheduleDate,
+        dueDate: record.due_date,
+        today,
+    });
+
     return {
         id: record.id,
         status: record.status,
@@ -62,7 +79,38 @@ function consultationPayload(record: any) {
         bankCode: record.bank_code,
         bankName: record.bank_name,
         expiresAt: record.consultation_expires_at,
+        minimumScheduleDate: simulation.minimumScheduleDate,
+        availableBalance: availableBalanceCents == null ? null : availableBalanceCents / 100,
+        requiredBalance: totalCents / 100,
+        balanceShortfall: scheduling.balanceShortfallCents / 100,
+        canPayNow: scheduling.canPayNow,
+        canSchedule: scheduling.canSchedule,
+        recommendedMode: scheduling.recommendedMode,
+        defaultScheduleDate: scheduling.defaultScheduleDate,
+        paymentMode: record.payment_mode,
     };
+}
+
+async function availableBalanceForReview(financialAccountId: string, apiKey: string) {
+    try {
+        const balance = await getAsaasBalance(apiKey);
+        return {
+            cents: Math.max(0, cents(balance.balance)),
+            source: "asaas_live",
+        };
+    } catch (error) {
+        console.warn("[asaas-bill-payment] Live balance unavailable, using snapshot:", error);
+        const { data, error: snapshotError } = await supabaseAdmin
+            .from("neurofinance_overview_snapshots")
+            .select("available_balance")
+            .eq("financial_account_id", financialAccountId)
+            .maybeSingle();
+        if (snapshotError) throw snapshotError;
+        return {
+            cents: data?.available_balance == null ? null : Number(data.available_balance),
+            source: data?.available_balance == null ? "unavailable" : "snapshot",
+        };
+    }
 }
 
 async function findConsultation(userId: string, consultationId: string) {
@@ -110,6 +158,34 @@ Deno.serve(async (req: Request) => {
             return jsonResponse({ success: true, ...(result as Record<string, unknown>) });
         }
 
+        if (action === "receipt") {
+            const consultationId = String(body.consultationId || "");
+            const record = consultationId ? await findConsultation(user.id, consultationId) : null;
+            if (!record?.receipt_url) {
+                return errorResponse("O comprovante deste boleto ainda não está disponível.", 404, {
+                    code: "BILL_RECEIPT_NOT_AVAILABLE",
+                });
+            }
+
+            const receiptResponse = await fetch(record.receipt_url, { redirect: "follow" });
+            if (!receiptResponse.ok) {
+                return errorResponse("Não foi possível baixar o comprovante agora.", 502, {
+                    code: "BILL_RECEIPT_DOWNLOAD_FAILED",
+                });
+            }
+            const contentType = receiptResponse.headers.get("content-type") || "application/pdf";
+            const extension = contentType.includes("pdf") ? "pdf" : "html";
+            return new Response(await receiptResponse.arrayBuffer(), {
+                status: 200,
+                headers: {
+                    ...corsHeaders,
+                    "Content-Type": contentType,
+                    "Content-Disposition": `attachment; filename="comprovante-boleto-${record.id}.${extension}"`,
+                    "Cache-Control": "private, no-store",
+                },
+            });
+        }
+
         if (action === "consult" || action === "simulate") {
             const input = billInput(body);
             if (!input.identificationField && !input.barCode) {
@@ -154,21 +230,15 @@ Deno.serve(async (req: Request) => {
                 );
             }
 
-            const scheduleDate = validateScheduleDate(body.scheduleDate);
-            if (
-                scheduleDate &&
-                normalizedBill.minimumScheduleDate &&
-                scheduleDate < normalizedBill.minimumScheduleDate
-            ) {
+            const today = dateInTimeZone();
+            if (normalizedBill.dueDate && normalizedBill.dueDate < today) {
                 return errorResponse(
-                    `A primeira data disponível para este pagamento é ${normalizedBill.minimumScheduleDate}.`,
-                    400,
-                    {
-                        code: "INVALID_SCHEDULE_DATE",
-                        minimumScheduleDate: normalizedBill.minimumScheduleDate,
-                    },
+                    "Este boleto está vencido e não pode ser agendado pelo NeuroFinance.",
+                    422,
+                    { code: "BILL_OVERDUE" },
                 );
             }
+            const balance = await availableBalanceForReview(account.id, apiKey);
             const expiresAt = new Date(Date.now() + CONSULTATION_TTL_MS).toISOString();
             const externalReference = `neurofinance:bill:${crypto.randomUUID()}`;
 
@@ -184,14 +254,24 @@ Deno.serve(async (req: Request) => {
                     amount: cents(normalizedBill.value),
                     fee_amount: cents(normalizedBill.fee),
                     due_date: normalizedBill.dueDate,
-                    scheduled_date: scheduleDate,
+                    scheduled_date: null,
+                    payment_mode: null,
+                    available_balance_at_review: balance.cents,
+                    balance_source: balance.source,
                     beneficiary_name: normalizedBill.beneficiaryName,
                     beneficiary_document: normalizedBill.beneficiaryDocument,
                     bank_code: normalizedBill.bankCode,
                     bank_name: normalizedBill.bankName,
                     description: "Pagamento de boleto pelo NeuroFinance",
                     consultation_expires_at: expiresAt,
-                    provider_payload: result || {},
+                    provider_payload: {
+                        consultation: result || {},
+                        review: {
+                            availableBalance: balance.cents == null ? null : balance.cents / 100,
+                            balanceSource: balance.source,
+                            checkedAt: new Date().toISOString(),
+                        },
+                    },
                     updated_at: new Date().toISOString(),
                 })
                 .select()
@@ -226,6 +306,13 @@ Deno.serve(async (req: Request) => {
                 });
             }
 
+            const paymentMode = String(body.paymentMode || "") as BillPaymentMode;
+            if (!["now", "scheduled"].includes(paymentMode)) {
+                return errorResponse("Escolha pagar agora ou agendar o boleto.", 400, {
+                    code: "PAYMENT_MODE_REQUIRED",
+                });
+            }
+
             const pinResult = await verifyFinancialPin(user.id, String(body.pin || ""));
             if (!pinResult.isValid) {
                 return errorResponse(pinResult.message || "PIN incorreto.", 403, {
@@ -233,11 +320,30 @@ Deno.serve(async (req: Request) => {
                 });
             }
 
+            const simulation = normalizeAsaasBillSimulation(simulationPayload(record));
+            const balance = await availableBalanceForReview(account.id, apiKey);
+            const totalCents = Number(record.amount || 0) + Number(record.fee_amount || 0);
+            const today = dateInTimeZone();
+            const scheduleDate = validateBillPaymentDecision(
+                paymentMode,
+                validateScheduleDate(body.scheduleDate),
+                {
+                    availableBalanceCents: balance.cents,
+                    totalCents,
+                    minimumScheduleDate: simulation.minimumScheduleDate,
+                    dueDate: record.due_date,
+                    today,
+                },
+            );
             const authorizedAt = new Date().toISOString();
             const { data: authorized, error } = await supabaseAdmin
                 .from("neurofinance_bill_payments")
                 .update({
                     status: "authorized",
+                    payment_mode: paymentMode,
+                    scheduled_date: scheduleDate,
+                    available_balance_at_review: balance.cents,
+                    balance_source: balance.source,
                     authorized_at: authorizedAt,
                     updated_at: authorizedAt,
                 })
@@ -293,6 +399,50 @@ Deno.serve(async (req: Request) => {
                 });
             }
 
+            let preparedRecord = record;
+            if (record.payment_mode === "now") {
+                const simulation = normalizeAsaasBillSimulation(simulationPayload(record));
+                const balance = await availableBalanceForReview(account.id, apiKey);
+                const totalCents = Number(record.amount || 0) + Number(record.fee_amount || 0);
+                if (balance.cents == null || balance.cents < totalCents) {
+                    const today = dateInTimeZone();
+                    const fallbackDate = record.due_date;
+                    const availability = evaluateBillScheduling({
+                        availableBalanceCents: balance.cents,
+                        totalCents,
+                        minimumScheduleDate: simulation.minimumScheduleDate,
+                        dueDate: fallbackDate,
+                        today,
+                    });
+                    if (!availability.canSchedule || !fallbackDate) {
+                        return errorResponse(
+                            "O saldo ficou insuficiente e este boleto não possui uma data futura válida para agendamento.",
+                            409,
+                            { code: "INSUFFICIENT_BALANCE" },
+                        );
+                    }
+
+                    const { data: scheduledRecord, error: scheduleError } = await supabaseAdmin
+                        .from("neurofinance_bill_payments")
+                        .update({
+                            payment_mode: "scheduled",
+                            scheduled_date: fallbackDate,
+                            available_balance_at_review: balance.cents,
+                            balance_source: balance.source,
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq("id", record.id)
+                        .eq("user_id", user.id)
+                        .eq("status", "authorized")
+                        .select()
+                        .single();
+                    if (scheduleError) throw scheduleError;
+                    preparedRecord = scheduledRecord;
+                }
+            }
+
+            const autoScheduled = preparedRecord.payment_mode === "scheduled" &&
+                record.payment_mode === "now";
             const submittedAt = new Date().toISOString();
             const { data: claimed, error: claimError } = await supabaseAdmin
                 .from("neurofinance_bill_payments")
@@ -301,7 +451,7 @@ Deno.serve(async (req: Request) => {
                     submitted_at: submittedAt,
                     updated_at: submittedAt,
                 })
-                .eq("id", record.id)
+                .eq("id", preparedRecord.id)
                 .eq("user_id", user.id)
                 .eq("status", "authorized")
                 .select()
@@ -325,10 +475,15 @@ Deno.serve(async (req: Request) => {
 
             try {
                 const result = await asaasRequest("/bill", "POST", payload, apiKey);
-                const status = normalizeBillStatus((result as any)?.status);
+                const providerStatus = String((result as any)?.status || "PENDING").toUpperCase();
+                const status = normalizeBillPaymentStatus(
+                    providerStatus,
+                    (result as any)?.scheduleDate || claimed.scheduled_date,
+                );
                 const receiptUrl = providerReceiptUrl(result);
                 const providerPayload = {
-                    consultation: claimed.provider_payload || {},
+                    consultation: simulationPayload(claimed),
+                    review: claimed.provider_payload?.review || {},
                     execution: result || {},
                 };
 
@@ -342,11 +497,14 @@ Deno.serve(async (req: Request) => {
                     .from("neurofinance_bill_payments")
                     .update({
                         provider_bill_id: (result as any)?.id || null,
+                        provider_status: providerStatus,
                         status,
                         amount: cents((result as any)?.value || Number(claimed.amount) / 100),
                         fee_amount: cents((result as any)?.fee || Number(claimed.fee_amount) / 100),
                         due_date: (result as any)?.dueDate || claimed.due_date,
                         scheduled_date: (result as any)?.scheduleDate || claimed.scheduled_date,
+                        payment_date: (result as any)?.paymentDate || null,
+                        can_be_cancelled: Boolean((result as any)?.canBeCancelled),
                         receipt_url: receiptUrl,
                         paid_at: status === "paid" ? new Date().toISOString() : null,
                         provider_payload: providerPayload,
@@ -374,6 +532,7 @@ Deno.serve(async (req: Request) => {
                     record: updated,
                     status,
                     receiptUrl,
+                    autoScheduled,
                 });
             } catch (error: any) {
                 const statusCode = Number(error?.status || 500);

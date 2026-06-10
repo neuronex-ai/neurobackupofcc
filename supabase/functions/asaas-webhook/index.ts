@@ -39,6 +39,10 @@ import {
     upsertPaymentFromProvider,
 } from '../_shared/neurofinance-financial.ts';
 import { syncFinancialEntryForPayment } from '../_shared/financial-management.ts';
+import {
+    dateInTimeZone,
+    normalizeBillPaymentStatus,
+} from '../_shared/asaas-bill-scheduling.ts';
 
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return corsResponse();
@@ -136,7 +140,9 @@ Deno.serve(async (req: Request) => {
                     break;
 
                 default:
-                    if (event.startsWith('RECEIVABLE_ANTICIPATION_')) {
+                    if (event.startsWith('BILL_')) {
+                        await handleBillEvent(body.bill || resource, event);
+                    } else if (event.startsWith('RECEIVABLE_ANTICIPATION_')) {
                         await handleReceivableAnticipationEvent(body.anticipation || resource, event, webhookFinancialAccount);
                     } else if (event.startsWith('ACCOUNT_STATUS_')) {
                         await handleAccountStatus(body.accountStatus, event);
@@ -167,6 +173,7 @@ Deno.serve(async (req: Request) => {
 
 function getWebhookResource(body: any) {
     return body?.payment ||
+        body?.bill ||
         body?.transfer ||
         body?.accountStatus ||
         body?.subscription ||
@@ -179,6 +186,7 @@ function getWebhookResource(body: any) {
 
 function inferProviderObjectType(body: any) {
     if (body?.payment) return 'payment';
+    if (body?.bill) return 'bill';
     if (body?.transfer) return 'transfer';
     if (body?.accountStatus) return 'account_status';
     if (body?.subscription) return 'subscription';
