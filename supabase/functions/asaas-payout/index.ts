@@ -66,7 +66,7 @@ function savedBankDestination(account: any): Destination | null {
 function payoutResponse(record: any) {
     return {
         ...outgoingResponse(record),
-        destinationType: record.kind === "payout_pix" ? "pix_key" : "saved_bank",
+        destinationType: ["pix_transfer", "payout_pix"].includes(record.kind) ? "pix_key" : "saved_bank",
     };
 }
 
@@ -76,7 +76,7 @@ async function findRequest(userId: string, id: string) {
         .select("*")
         .eq("id", id)
         .eq("user_id", userId)
-        .in("kind", ["payout_pix", "payout_bank"])
+        .in("kind", ["pix_transfer", "payout_pix", "payout_bank"])
         .maybeSingle();
     if (error) throw error;
     return data;
@@ -91,12 +91,16 @@ function transferParams(record: any) {
     const destination = (record.destination_payload || {}) as Destination;
     const params: any = {
         value: Number(record.amount) / 100,
-        operationType: record.kind === "payout_pix" ? "PIX" : "TED",
-        description: record.kind === "payout_pix" ? "Saque por Pix" : "Saque para conta cadastrada",
+        operationType: ["pix_transfer", "payout_pix"].includes(record.kind) ? "PIX" : "TED",
+        description: record.kind === "pix_transfer"
+            ? "Transferência via Pix"
+            : record.kind === "payout_pix"
+                ? "Saque por Pix"
+                : "Saque para conta cadastrada",
         externalReference: record.external_reference,
     };
 
-    if (record.kind === "payout_pix") {
+    if (["pix_transfer", "payout_pix"].includes(record.kind)) {
         params.pixAddressKey = destination.pix_key;
         params.pixAddressKeyType = destination.pix_key_type;
         return params;
@@ -131,6 +135,7 @@ Deno.serve(async (req: Request) => {
 
         if (action === "consult") {
             const amount = Math.round(Number(body.amount || 0));
+            const purpose = String(body.purpose || "payout") === "transfer" ? "transfer" : "payout";
             if (!Number.isFinite(amount) || amount <= 0) {
                 return errorResponse("Digite um valor válido para sacar.", 400, { code: "INVALID_AMOUNT" });
             }
@@ -144,7 +149,7 @@ Deno.serve(async (req: Request) => {
 
             const requestedDestination = (body.destination || {}) as Destination;
             let destination: Destination | null = null;
-            let kind: "payout_pix" | "payout_bank";
+            let kind: "pix_transfer" | "payout_pix" | "payout_bank";
             if (requestedDestination.type === "pix_key") {
                 const keyType = detectPixKeyType(requestedDestination.pix_key);
                 const pixKey = normalizePixKeyForProvider(requestedDestination.pix_key, keyType);
@@ -172,8 +177,13 @@ Deno.serve(async (req: Request) => {
                     validation_source: "asaas_dict",
                     provider_lookup: lookup,
                 };
-                kind = "payout_pix";
+                kind = purpose === "transfer" ? "pix_transfer" : "payout_pix";
             } else {
+                if (purpose === "transfer") {
+                    return errorResponse("Informe uma chave Pix para realizar a transferência.", 400, {
+                        code: "PIX_KEY_REQUIRED",
+                    });
+                }
                 destination = savedBankDestination(account);
                 kind = "payout_bank";
                 if (!destination || !sanitizeDigits(destination.holder_document)) {
@@ -188,7 +198,7 @@ Deno.serve(async (req: Request) => {
                 financial_account_id: account.id,
                 kind,
                 status: "review_pending",
-                external_reference: `neurofinance:payout:${crypto.randomUUID()}`,
+                external_reference: `neurofinance:${purpose}:${crypto.randomUUID()}`,
                 amount,
                 available_balance_at_review: balance,
                 destination_summary: destination.summary,
@@ -270,13 +280,13 @@ Deno.serve(async (req: Request) => {
                     provider_status: String(transfer.status || "PENDING").toUpperCase(),
                     amount: Number(claimed.amount),
                     fee_amount: transferFee,
-                    operation_type: claimed.kind === "payout_pix" ? "pix" : "ted",
+                    operation_type: claimed.kind === "pix_transfer" ? "pix_transfer" : claimed.kind === "payout_pix" ? "pix" : "ted",
                     currency: "brl",
                     status,
-                    destination_type: claimed.kind === "payout_pix" ? "pix_key" : "saved_bank",
+                    destination_type: ["pix_transfer", "payout_pix"].includes(claimed.kind) ? "pix_key" : "saved_bank",
                     destination_summary: claimed.destination_summary,
                     destination_payload: claimed.destination_payload || {},
-                    pix_key: claimed.kind === "payout_pix" ? claimed.destination_payload?.pix_key : null,
+                    pix_key: ["pix_transfer", "payout_pix"].includes(claimed.kind) ? claimed.destination_payload?.pix_key : null,
                     receipt_url: receiptUrl,
                     requested_at: new Date().toISOString(),
                     processed_at: status === "paid" ? new Date().toISOString() : null,
@@ -287,7 +297,7 @@ Deno.serve(async (req: Request) => {
                         asaas_transfer_id: transfer.id,
                         transaction_receipt_url: receiptUrl,
                         external_reference: claimed.external_reference,
-                        source: "neurofinance_secure_payout",
+                        source: claimed.kind === "pix_transfer" ? "neurofinance_secure_pix_transfer" : "neurofinance_secure_payout",
                     },
                 });
 

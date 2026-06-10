@@ -6,7 +6,7 @@ create table if not exists public.neurofinance_outgoing_requests (
   financial_account_id uuid references public.financial_accounts(id) on delete set null,
   payout_id uuid references public.nb_payouts(id) on delete set null,
   provider text not null default 'asaas',
-  kind text not null check (kind in ('pix_qr_payment', 'payout_pix', 'payout_bank')),
+  kind text not null check (kind in ('pix_qr_payment', 'pix_transfer', 'payout_pix', 'payout_bank')),
   status text not null default 'review_pending',
   external_reference text not null default gen_random_uuid()::text,
   amount integer not null default 0,

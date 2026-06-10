@@ -1,4 +1,4 @@
-export type OutgoingKind = "pix_qr_payment" | "payout_pix" | "payout_bank";
+export type OutgoingKind = "pix_qr_payment" | "pix_transfer" | "payout_pix" | "payout_bank";
 
 export const OUTGOING_CONSULTATION_TTL_MS = 10 * 60 * 1000;
 

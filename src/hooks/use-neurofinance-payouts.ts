@@ -29,6 +29,7 @@ export interface NeuroFinancePayout {
 export interface RequestPayoutParams {
     amount?: number;
     description?: string;
+    purpose?: "payout" | "transfer";
     destination?: {
         type: "saved_bank" | "manual_bank" | "pix_key";
         pix_key?: string;
@@ -62,7 +63,7 @@ export interface PayoutDestination extends Record<string, unknown> {
 
 export interface PayoutConsultation {
     id: string;
-    kind: "payout_pix" | "payout_bank";
+    kind: "pix_transfer" | "payout_pix" | "payout_bank";
     status: string;
     amount: number;
     fee: number;
