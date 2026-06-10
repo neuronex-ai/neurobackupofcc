@@ -235,7 +235,7 @@ Deno.serve(async (req: Request) => {
             const record = await findRequest(user.id, String(body.requestId || ""));
             if (!record) return errorResponse("Esta revisão de saque não foi encontrada.", 404, { code: "CONSULTATION_NOT_FOUND" });
             if (record.provider_operation_id && ["pending", "in_transit", "paid"].includes(record.status)) {
-                return jsonResponse({ success: true, request: payoutResponse(record), transfer: record.provider_payload?.execution || {}, idempotent: true });
+                return jsonResponse({ success: true, request: payoutResponse(record), transfer: record.provider_payload?.execution || {}, status: record.status, receiptUrl: record.receipt_url, idempotent: true });
             }
             if (["submitting", "submission_unknown"].includes(record.status)) {
                 return errorResponse("Este saque já foi enviado e aguarda confirmação bancária.", 409, { code: "PAYOUT_ALREADY_SUBMITTED" });
@@ -332,10 +332,14 @@ Deno.serve(async (req: Request) => {
             const transfer = await asaasRequest<any>(`/transfers/${encodeURIComponent(record.provider_operation_id)}`, "GET", undefined, apiKey);
             const receiptUrl = providerReceiptUrl(transfer) || record.receipt_url;
             const status = normalizeTransferStatus(transfer?.status);
+            const completedAt = status === "paid"
+                ? transfer?.effectiveDate || transfer?.confirmedDate || record.completed_at || new Date().toISOString()
+                : record.completed_at;
             await supabaseAdmin.from("neurofinance_outgoing_requests").update({
                 status,
                 provider_status: String(transfer?.status || record.provider_status || "").toUpperCase(),
                 receipt_url: receiptUrl,
+                completed_at: completedAt,
                 provider_payload: {
                     consultation: record.provider_payload?.consultation || {},
                     review: record.provider_payload?.review || {},
@@ -348,6 +352,10 @@ Deno.serve(async (req: Request) => {
                     status,
                     provider_status: String(transfer?.status || record.provider_status || "").toUpperCase(),
                     receipt_url: receiptUrl,
+                    processed_at: status === "paid" ? new Date().toISOString() : null,
+                    completed_at: completedAt,
+                    reconciliation_status: status === "paid" ? "reconciled" : "estimated",
+                    reconciled_at: status === "paid" ? new Date().toISOString() : null,
                     provider_payload: transfer,
                     updated_at: new Date().toISOString(),
                 }).eq("id", record.payout_id);
