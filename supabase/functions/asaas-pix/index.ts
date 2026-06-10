@@ -6,6 +6,7 @@ import {
     getFinancialAccount,
     getFinancialAccountAsaasApiKey,
     jsonResponse,
+    recordBaasOperation,
     supabaseAdmin,
 } from "../_shared/asaas-client.ts";
 
