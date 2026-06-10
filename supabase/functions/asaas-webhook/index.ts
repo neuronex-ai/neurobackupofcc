@@ -688,6 +688,83 @@ async function handleReceivableAnticipationEvent(anticipation: any, event: strin
     await touchFinancialAccountEvent(financialAccount.id, event);
 }
 
+async function findBillPaymentByProviderResource(bill: any) {
+    if (!bill?.id && !bill?.externalReference) return null;
+
+    let query = supabaseAdmin
+        .from('neurofinance_bill_payments')
+        .select('*');
+    query = bill?.id
+        ? query.eq('provider_bill_id', bill.id)
+        : query.eq('external_reference', bill.externalReference);
+
+    const { data, error } = await query.maybeSingle();
+    if (error) throw error;
+    return data;
+}
+
+async function handleBillEvent(bill: any, event: string) {
+    const record = await findBillPaymentByProviderResource(bill);
+    if (!record) {
+        console.warn(`[asaas-webhook] Bill payment not found: ${bill?.id || bill?.externalReference || event}`);
+        return;
+    }
+
+    const providerStatus = String(bill?.status || event.replace(/^BILL_/, '')).toUpperCase();
+    const scheduleDate = bill?.scheduleDate || record.scheduled_date;
+    const status = normalizeBillPaymentStatus(providerStatus, scheduleDate, dateInTimeZone());
+    const receiptUrl = bill?.transactionReceiptUrl ||
+        bill?.receiptUrl ||
+        record.receipt_url ||
+        null;
+    const failureMessage = Array.isArray(bill?.failReasons)
+        ? bill.failReasons.map((reason: any) => reason?.description || reason?.message || String(reason)).join('; ')
+        : bill?.failReasons
+            ? String(bill.failReasons)
+            : null;
+
+    const providerPayload = {
+        ...(record.provider_payload || {}),
+        execution: bill || record.provider_payload?.execution || {},
+        latestWebhook: {
+            event,
+            receivedAt: new Date().toISOString(),
+            bill: bill || {},
+        },
+    };
+
+    const { error } = await supabaseAdmin
+        .from('neurofinance_bill_payments')
+        .update({
+            provider_status: providerStatus,
+            status,
+            amount: bill?.value != null
+                ? Math.round(Number(bill.value || 0) * 100)
+                : Number(record.amount || 0),
+            fee_amount: bill?.fee != null
+                ? Math.round(Number(bill.fee || 0) * 100)
+                : Number(record.fee_amount || 0),
+            due_date: bill?.dueDate || record.due_date,
+            scheduled_date: scheduleDate,
+            payment_date: bill?.paymentDate || record.payment_date,
+            paid_at: status === 'paid' ? record.paid_at || new Date().toISOString() : record.paid_at,
+            can_be_cancelled: bill?.canBeCancelled == null
+                ? record.can_be_cancelled
+                : Boolean(bill.canBeCancelled),
+            receipt_url: receiptUrl,
+            provider_payload: providerPayload,
+            error_code: status === 'failed' ? event : null,
+            error_message: status === 'failed' ? failureMessage || 'Pagamento não confirmado pela instituição.' : null,
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', record.id);
+    if (error) throw error;
+
+    await refreshOverviewSnapshot(record.financial_account_id);
+    await touchFinancialAccountEvent(record.financial_account_id, event);
+    console.log(`[asaas-webhook] Bill synchronized (${event}): ${record.id}`);
+}
+
 async function handleTransferPending(transfer: any) {
     if (!transfer?.id) return;
 

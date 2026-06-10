@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -16,8 +17,19 @@ export interface BillConsultation {
   beneficiaryDocument?: string | null;
   bankCode?: string | null;
   bankName?: string | null;
+  minimumScheduleDate?: string | null;
+  availableBalance?: number | null;
+  requiredBalance: number;
+  balanceShortfall: number;
+  canPayNow: boolean;
+  canSchedule: boolean;
+  recommendedMode?: BillPaymentMode | null;
+  defaultScheduleDate?: string | null;
+  paymentMode?: BillPaymentMode | null;
   expiresAt: string;
 }
+
+export type BillPaymentMode = "now" | "scheduled";
 
 export interface BillPaymentRecord {
   id: string;
@@ -26,16 +38,27 @@ export interface BillPaymentRecord {
   provider_bill_id?: string | null;
   external_reference: string;
   status: string;
+  provider_status?: string | null;
+  payment_mode?: BillPaymentMode | null;
   amount: number;
   fee_amount?: number;
   due_date?: string | null;
   scheduled_date?: string | null;
+  payment_date?: string | null;
   beneficiary_name?: string | null;
   beneficiary_document?: string | null;
   bank_name?: string | null;
   bank_code?: string | null;
   receipt_url?: string | null;
+  can_be_cancelled?: boolean | null;
+  available_balance_at_review?: number | null;
+  balance_source?: string | null;
+  provider_payload?: Record<string, unknown>;
   error_message?: string | null;
+  authorized_at?: string | null;
+  submitted_at?: string | null;
+  paid_at?: string | null;
+  updated_at?: string;
   created_at: string;
 }
 
@@ -46,6 +69,7 @@ export interface BillExecutionResponse {
   status: string;
   receiptUrl?: string | null;
   idempotent?: boolean;
+  autoScheduled?: boolean;
 }
 
 function boletoPayload(input: string) {
@@ -97,19 +121,25 @@ async function invokeBillPaymentAction<T>(body: Record<string, unknown>): Promis
   return data as T;
 }
 
-export async function fetchBillConsultation(params: { input: string; scheduleDate?: string }) {
+export async function fetchBillConsultation(params: { input: string }) {
   return invokeBillPaymentAction<{ success: boolean; consultation: BillConsultation }>({
     action: "consult",
     ...boletoPayload(params.input),
-    scheduleDate: params.scheduleDate,
   });
 }
 
-export async function authorizeBillPayment(params: { consultationId: string; pin: string }) {
+export async function authorizeBillPayment(params: {
+  consultationId: string;
+  pin: string;
+  paymentMode: BillPaymentMode;
+  scheduleDate?: string | null;
+}) {
   return invokeBillPaymentAction<{ success: boolean; consultation: BillConsultation }>({
     action: "authorize",
     consultationId: params.consultationId,
     pin: params.pin,
+    paymentMode: params.paymentMode,
+    scheduleDate: params.scheduleDate,
   });
 }
 
@@ -118,6 +148,27 @@ export async function executeBillPayment(consultationId: string) {
     action: "execute",
     consultationId,
   });
+}
+
+export async function downloadBillReceipt(record: BillPaymentRecord) {
+  const { data, error } = await supabase.functions.invoke("asaas-bill-payment", {
+    body: { action: "receipt", consultationId: record.id },
+  });
+  if (error) {
+    throw new Error((await extractEdgeMessage(error)) || "Não foi possível baixar o comprovante.");
+  }
+  if (!(data instanceof Blob)) {
+    throw new Error("O comprovante retornou em um formato inesperado.");
+  }
+
+  const url = URL.createObjectURL(data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `comprovante-boleto-${record.id}.${data.type.includes("pdf") ? "pdf" : "html"}`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function useNeurofinanceBillPayments() {
@@ -132,17 +183,9 @@ export function useNeurofinanceBillPayments() {
         .from("neurofinance_bill_payments")
         .select("*")
         .eq("user_id", user!.id)
-        .in("status", [
-          "submitting",
-          "submission_unknown",
-          "processing",
-          "paid",
-          "failed",
-          "cancelled",
-          "refunded",
-        ])
+        .not("provider_bill_id", "is", null)
         .order("created_at", { ascending: false })
-        .limit(25);
+        .limit(100);
       if (error) throw error;
       return (data || []) as BillPaymentRecord[];
     },
@@ -167,6 +210,28 @@ export function useNeurofinanceBillPayments() {
     },
     onError: (error: Error) => toast.error(error.message),
   });
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`neurofinance-bill-payments-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "neurofinance_bill_payments",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => queryClient.invalidateQueries({ queryKey: ["neurofinance-bill-payments", user.id] }),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient, user?.id]);
 
   return { list, consult, authorize, execute };
 }

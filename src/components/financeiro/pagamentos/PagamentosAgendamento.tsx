@@ -24,6 +24,7 @@ import { useBoletoReader } from "@/hooks/use-boleto-reader";
 import {
   type BillConsultation,
   type BillExecutionResponse,
+  type BillPaymentMode,
   useNeurofinanceBillPayments,
 } from "@/hooks/use-neurofinance-bill-payments";
 import { formatBoletoValue, normalizeBoletoInput } from "@/lib/boleto";
@@ -38,10 +39,13 @@ export function PagamentosAgendamento() {
   const [tab, setTab] = useState<Tab>("boleto");
   const [step, setStep] = useState<BillStep>("input");
   const [input, setInput] = useState("");
-  const [scheduleDate, setScheduleDate] = useState("");
   const [dragging, setDragging] = useState(false);
   const [consultation, setConsultation] = useState<BillConsultation | null>(null);
   const [execution, setExecution] = useState<BillExecutionResponse | null>(null);
+  const [decision, setDecision] = useState<{
+    paymentMode: BillPaymentMode;
+    scheduleDate?: string | null;
+  } | null>(null);
   const [pinOpen, setPinOpen] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
 
@@ -52,9 +56,9 @@ export function PagamentosAgendamento() {
   const resetFlow = () => {
     setStep("input");
     setInput("");
-    setScheduleDate("");
     setConsultation(null);
     setExecution(null);
+    setDecision(null);
     setPinOpen(false);
     setPinError(null);
     consult.reset();
@@ -80,10 +84,7 @@ export function PagamentosAgendamento() {
     }
 
     try {
-      const response = await consult.mutateAsync({
-        input,
-        scheduleDate: scheduleDate || undefined,
-      });
+      const response = await consult.mutateAsync({ input });
       setConsultation(response.consultation);
       setStep("review");
     } catch {
@@ -92,12 +93,17 @@ export function PagamentosAgendamento() {
   };
 
   const handlePinConfirm = async (pin: string) => {
-    if (!consultation) return;
+    if (!consultation || !decision) return;
     setPinError(null);
     let wasAuthorized = false;
 
     try {
-      await authorize.mutateAsync({ consultationId: consultation.id, pin });
+      await authorize.mutateAsync({
+        consultationId: consultation.id,
+        pin,
+        paymentMode: decision.paymentMode,
+        scheduleDate: decision.scheduleDate,
+      });
       wasAuthorized = true;
       setPinOpen(false);
       setStep("processing");
@@ -109,9 +115,15 @@ export function PagamentosAgendamento() {
 
       setExecution(result);
       setStep("success");
-      toast.success(result.status === "paid"
-        ? "Pagamento confirmado."
-        : "Pagamento enviado para processamento.");
+      toast.success(
+        result.record.payment_mode === "scheduled" || result.status === "scheduled"
+          ? result.autoScheduled
+            ? "O saldo mudou e o boleto foi agendado com segurança."
+            : "Pagamento agendado com sucesso."
+          : result.status === "paid"
+            ? "Pagamento confirmado."
+            : "Pagamento enviado para processamento.",
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Não foi possível autorizar o pagamento.";
       if (!wasAuthorized) {
@@ -122,6 +134,7 @@ export function PagamentosAgendamento() {
       setStep("input");
       setConsultation(null);
       setExecution(null);
+      setDecision(null);
     }
   };
 
@@ -129,6 +142,7 @@ export function PagamentosAgendamento() {
     setTab(nextTab);
     setPinOpen(false);
     setPinError(null);
+    setDecision(null);
   };
 
   return (
@@ -217,29 +231,15 @@ export function PagamentosAgendamento() {
                       placeholder="Digite aqui a linha digitável"
                       className="h-13 rounded-[18px] border-zinc-200 bg-white/80 px-5 text-sm dark:border-white/10 dark:bg-white/[0.04]"
                     />
-                    <div className="grid gap-3 md:grid-cols-[1fr_180px]">
-                      <div>
-                        <Input
-                          value={scheduleDate}
-                          onChange={(event) => setScheduleDate(event.target.value)}
-                          type="date"
-                          aria-label="Data do pagamento"
-                          className="h-12 rounded-[16px] border-zinc-200 bg-white/80 px-4 dark:border-white/10 dark:bg-white/[0.04]"
-                        />
-                        <p className="mt-1.5 px-1 text-[9px] font-semibold text-zinc-400">
-                          Opcional. Sem data, o pagamento seguirá o vencimento.
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={handleConsult}
-                        disabled={!normalized.isValid || consult.isPending}
-                        className="h-12 rounded-[16px] bg-zinc-950 text-[10px] font-black uppercase tracking-[0.16em] text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950"
-                      >
-                        {consult.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ReceiptText className="mr-2 h-4 w-4" />}
-                        Consultar
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleConsult}
+                      disabled={!normalized.isValid || consult.isPending}
+                      className="h-12 w-full rounded-[16px] bg-zinc-950 text-[10px] font-black uppercase tracking-[0.16em] text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950"
+                    >
+                      {consult.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ReceiptText className="mr-2 h-4 w-4" />}
+                      Consultar e escolher pagamento
+                    </Button>
                   </div>
                 </section>
 
@@ -274,8 +274,10 @@ export function PagamentosAgendamento() {
                   onBack={() => {
                     setStep("input");
                     setConsultation(null);
+                    setDecision(null);
                   }}
-                  onConfirm={() => {
+                  onConfirm={(nextDecision) => {
+                    setDecision(nextDecision);
                     setPinError(null);
                     setPinOpen(true);
                   }}
@@ -306,6 +308,7 @@ export function PagamentosAgendamento() {
               onConfirm={handlePinConfirm}
               beneficiaryName={consultation.beneficiaryName}
               value={consultation.value}
+              paymentMode={decision?.paymentMode}
               isLoading={authorize.isPending}
               errorMessage={pinError}
             />

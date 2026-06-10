@@ -19,7 +19,13 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", "&#039;");
 }
 
-function statusCopy(status: string) {
+function statusCopy(status: string, scheduled: boolean) {
+  if (scheduled) {
+    return {
+      title: "Pagamento agendado",
+      description: "O boleto foi registrado com segurança e será processado na data escolhida.",
+    };
+  }
   if (status === "paid") {
     return {
       title: "Pagamento confirmado",
@@ -37,7 +43,8 @@ export function BillPaymentSuccess({
   execution,
   onNewPayment,
 }: BillPaymentSuccessProps) {
-  const copy = statusCopy(execution.status);
+  const scheduled = execution.record?.payment_mode === "scheduled" || execution.status === "scheduled";
+  const copy = statusCopy(execution.status, scheduled);
   const providerBillId = execution.record?.provider_bill_id || String(execution.bill?.id || "");
   const receiptUrl = execution.receiptUrl || execution.record?.receipt_url;
 
@@ -105,6 +112,11 @@ export function BillPaymentSuccess({
       <div className="mx-auto mt-8 max-w-xl rounded-[28px] bg-zinc-950 p-6 text-left text-white shadow-2xl dark:bg-white dark:text-zinc-950">
         <p className="text-[9px] font-black uppercase tracking-[0.24em] opacity-45">Valor do boleto</p>
         <p className="mt-2 text-4xl font-black tracking-[-0.05em]">{formatCurrency(consultation.value)}</p>
+        {scheduled && execution.record?.scheduled_date && (
+          <p className="mt-2 text-[10px] font-black uppercase tracking-[0.16em] opacity-55">
+            Agendado para {new Date(`${execution.record.scheduled_date}T12:00:00`).toLocaleDateString("pt-BR")}
+          </p>
+        )}
         <div className="mt-6 grid gap-3 border-t border-white/10 pt-5 text-[10px] font-bold dark:border-black/10 sm:grid-cols-2">
           <span className="flex items-center gap-2"><Landmark className="h-4 w-4" /> {consultation.bankName || (consultation.bankCode ? `Banco ${consultation.bankCode}` : "Instituição não informada")}</span>
           <span className="flex items-center gap-2"><ReceiptText className="h-4 w-4" /> {providerBillId || "Identificador registrado"}</span>

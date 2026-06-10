@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { cn, formatCurrency } from "@/lib/utils";
+import type { BillPaymentMode } from "@/hooks/use-neurofinance-bill-payments";
 
 interface BillPaymentPinDialogProps {
   open: boolean;
@@ -12,6 +13,7 @@ interface BillPaymentPinDialogProps {
   onConfirm: (pin: string) => Promise<void>;
   beneficiaryName?: string | null;
   value: number;
+  paymentMode?: BillPaymentMode | null;
   isLoading: boolean;
   errorMessage?: string | null;
 }
@@ -22,6 +24,7 @@ export function BillPaymentPinDialog({
   onConfirm,
   beneficiaryName,
   value,
+  paymentMode,
   isLoading,
   errorMessage,
 }: BillPaymentPinDialogProps) {
@@ -48,7 +51,7 @@ export function BillPaymentPinDialog({
             <div className="mt-6 text-center">
               <DialogTitle className="text-xl font-black tracking-tight">Assinatura digital</DialogTitle>
               <DialogDescription className="mt-2 text-xs leading-relaxed text-zinc-400">
-                Digite seu PIN de 6 dígitos para autorizar o pagamento de{" "}
+                Digite seu PIN de 6 dígitos para autorizar {paymentMode === "scheduled" ? "o agendamento" : "o pagamento"} de{" "}
                 <strong className="text-white">{formatCurrency(value)}</strong> para{" "}
                 <strong className="text-white">{beneficiaryName || "o recebedor informado pela instituição"}</strong>.
               </DialogDescription>
