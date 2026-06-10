@@ -100,6 +100,7 @@ export const useNeuroFinancePayouts = (limit = 30) => {
                 .select("*")
                 .eq("user_id", user.id)
                 .neq("operation_type", "pix_qr_payment")
+                .neq("operation_type", "pix_transfer")
                 .order("created_at", { ascending: false })
                 .limit(limit);
 
@@ -142,7 +143,8 @@ export const useSecurePayout = () => {
             queryClient.invalidateQueries({ queryKey: ["NeuroFinance-payouts"] });
             queryClient.invalidateQueries({ queryKey: ["neurofinance-overview"] });
             queryClient.invalidateQueries({ queryKey: ["neurofinance-statement"] });
-            toast.success(`Saque de R$ ${data.request.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} solicitado.`);
+            const label = data.request.kind === "pix_transfer" ? "Transferência" : "Saque";
+            toast.success(`${label} de R$ ${data.request.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} solicitado.`);
         },
         onError: (error) => {
             const friendlyError = toUserFacingError(error, "transfer");

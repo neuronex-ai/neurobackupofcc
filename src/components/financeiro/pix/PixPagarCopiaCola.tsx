@@ -13,17 +13,11 @@ import {
   type PixPaymentExecution,
   useNeurofinancePixPayment,
 } from "@/hooks/use-neurofinance-pix-payment";
+import { formatMoneyInput, moneyInputToNumber } from "@/lib/financial-input";
 import { cn, formatCurrency } from "@/lib/utils";
 
 type PixStep = "input" | "review" | "processing" | "success";
 const wait = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-
-function moneyToNumber(value: string) {
-  const normalized = (value.includes(",") ? value.replace(/\./g, "").replace(",", ".") : value)
-    .replace(/[^\d.]/g, "");
-  const number = Number(normalized);
-  return Number.isFinite(number) ? number : 0;
-}
 
 function moneyInput(value: number) {
   return value > 0 ? value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
@@ -47,7 +41,7 @@ export function PixPagarCopiaCola() {
   const { consult, authorize, execute, receipt } = useNeurofinancePixPayment();
 
   const selectedValue = useMemo(
-    () => consultation?.canChangeValue ? moneyToNumber(value) : Number(consultation?.amount || 0),
+    () => consultation?.canChangeValue ? moneyInputToNumber(value) : Number(consultation?.amount || 0),
     [consultation, value],
   );
   const canConfirm = Boolean(
@@ -169,7 +163,7 @@ export function PixPagarCopiaCola() {
                 {consultation.canChangeValue ? (
                   <div className="relative mt-3">
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 text-3xl font-light text-zinc-400">R$</span>
-                    <Input value={value} onChange={(event) => setValue(event.target.value)} inputMode="decimal" placeholder="0,00" className="h-16 border-0 bg-transparent pl-12 text-5xl font-black tracking-[-0.05em] shadow-none focus-visible:ring-0" />
+                    <Input value={value} onChange={(event) => setValue(formatMoneyInput(event.target.value))} inputMode="decimal" placeholder="0,00" className="h-16 border-0 bg-transparent pl-12 text-5xl font-black tracking-[-0.05em] shadow-none focus-visible:ring-0" />
                     <p className="mt-2 text-xs text-zinc-500">O recebedor permite definir o valor deste Pix.</p>
                   </div>
                 ) : <p className="mt-3 text-5xl font-black tracking-[-0.05em]">{formatCurrency(consultation.amount)}</p>}

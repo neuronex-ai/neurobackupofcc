@@ -79,7 +79,8 @@ export function useNeuroFinancePix() {
                     patient_id: params.patientId || null,
                     appointment_id: params.appointmentId || null,
                     payment_methods: ['pix'],
-                    customer_name: params.devedor?.nome || undefined,
+                    patient_name: params.devedor?.nome || undefined,
+                    patient_cpf: params.devedor?.cpf || params.devedor?.cnpj || undefined,
                     expires_in_minutes: params.expiracao || 60,
                 },
             });

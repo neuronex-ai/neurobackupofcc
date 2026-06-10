@@ -58,8 +58,22 @@ export function normalizePixKeyForProvider(rawValue: unknown, type = detectPixKe
     return value;
 }
 
+export function normalizeExternalPixKeyLookup(raw: any) {
+    const owner = raw?.owner || raw?.account?.owner || raw?.recipient || {};
+    const institution = raw?.financialInstitution || raw?.institution || raw?.account?.financialInstitution || {};
+    return {
+        key: raw?.key || raw?.pixAddressKey || raw?.addressKey || null,
+        type: raw?.type || raw?.keyType || null,
+        holderName: owner?.name || owner?.fullName || raw?.ownerName || raw?.name || null,
+        holderDocument: owner?.cpfCnpj || owner?.document || raw?.cpfCnpj || raw?.ownerDocument || null,
+        bankCode: institution?.code || institution?.bank?.code || raw?.bankCode || null,
+        bankName: institution?.name || raw?.ispbName || raw?.institutionName || null,
+        raw,
+    };
+}
+
 export function normalizePixQrConsultation(raw: any) {
-    const receiver = raw?.receiver || {};
+    const receiver = raw?.receiver || raw?.recipient || {};
     const totalValue = Number(raw?.totalValue ?? raw?.value ?? 0);
     return {
         payload: String(raw?.payload || ""),
@@ -75,11 +89,11 @@ export function normalizePixQrConsultation(raw: any) {
         cannotBePaidReason: raw?.cannotBePaidReason || null,
         canBePaidWithDifferentValue: raw?.canBePaidWithDifferentValue === true,
         receiver: {
-            name: receiver?.name || receiver?.tradingName || null,
+            name: receiver?.name || receiver?.tradingName || receiver?.holderName || null,
             tradingName: receiver?.tradingName || null,
-            cpfCnpj: receiver?.cpfCnpj || null,
+            cpfCnpj: receiver?.cpfCnpj || receiver?.document || null,
             ispb: receiver?.ispb || null,
-            ispbName: receiver?.ispbName || null,
+            ispbName: receiver?.ispbName || receiver?.institutionName || receiver?.financialInstitution?.name || null,
             accountType: receiver?.accountType || null,
         },
     };

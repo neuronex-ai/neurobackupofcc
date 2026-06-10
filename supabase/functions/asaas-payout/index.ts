@@ -17,6 +17,7 @@ import {
     cents,
     detectPixKeyType,
     isExpired,
+    normalizeExternalPixKeyLookup,
     normalizePixKeyForProvider,
     normalizeTransferStatus,
     outgoingResponse,
@@ -160,20 +161,21 @@ Deno.serve(async (req: Request) => {
                     undefined,
                     apiKey,
                 );
-                if (!lookup?.owner?.name || !lookup?.owner?.cpfCnpj || !(lookup?.financialInstitution?.name || lookup?.ispbName)) {
+                const normalizedLookup = normalizeExternalPixKeyLookup(lookup);
+                if (!normalizedLookup.holderName || !normalizedLookup.holderDocument || !normalizedLookup.bankName) {
                     return errorResponse("A instituição não retornou dados suficientes para confirmar esta chave Pix.", 422, {
                         code: "INCOMPLETE_PIX_KEY_DATA",
                     });
                 }
                 destination = {
                     type: "pix_key",
-                    pix_key: lookup.key || pixKey,
-                    pix_key_type: lookup.type || keyType,
-                    bank_code: lookup.financialInstitution?.code || lookup.financialInstitution?.bank?.code || null,
-                    bank_name: lookup.financialInstitution?.name || lookup.ispbName,
-                    holder_name: lookup.owner.name,
-                    holder_document: lookup.owner.cpfCnpj,
-                    summary: `${lookup.owner.name} · ${lookup.financialInstitution?.name || lookup.ispbName}`,
+                    pix_key: normalizedLookup.key || pixKey,
+                    pix_key_type: normalizedLookup.type || keyType,
+                    bank_code: normalizedLookup.bankCode,
+                    bank_name: normalizedLookup.bankName,
+                    holder_name: normalizedLookup.holderName,
+                    holder_document: normalizedLookup.holderDocument,
+                    summary: `${normalizedLookup.holderName} · ${normalizedLookup.bankName}`,
                     validation_source: "asaas_dict",
                     provider_lookup: lookup,
                 };

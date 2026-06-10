@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import { formatDocumentInput, onlyDigits } from "@/lib/financial-input";
 
-const digits = (value: string) => value.replace(/\D/g, "");
+const digits = onlyDigits;
 
 export const BankAccountsView = () => {
     const { account, isLoading, updateAccount, refetch } = useFinancialAccount();
@@ -153,10 +154,10 @@ export const BankAccountsView = () => {
                     <div className="relative z-10 space-y-6">
                         <div className="grid gap-4 sm:grid-cols-2">
                             <Field label="Titular"><Input value={form.holderName} onChange={(e) => setField("holderName", e.target.value)} /></Field>
-                            <Field label="CPF/CNPJ do titular"><Input value={form.cpfCnpj} onChange={(e) => setField("cpfCnpj", e.target.value)} /></Field>
+                            <Field label="CPF/CNPJ do titular"><Input value={form.cpfCnpj} onChange={(e) => setField("cpfCnpj", formatDocumentInput(e.target.value))} /></Field>
                             <Field label="Código do banco"><Input value={form.bankCode} maxLength={3} onChange={(e) => setField("bankCode", digits(e.target.value).slice(0, 3))} /></Field>
-                            <Field label="Agência"><Input value={form.agency} onChange={(e) => setField("agency", digits(e.target.value))} /></Field>
-                            <Field label="Conta"><Input value={form.account} onChange={(e) => setField("account", digits(e.target.value))} /></Field>
+                            <Field label="Agência"><Input value={form.agency} onChange={(e) => setField("agency", digits(e.target.value, 4))} /></Field>
+                            <Field label="Conta"><Input value={form.account} onChange={(e) => setField("account", digits(e.target.value, 12))} /></Field>
                             <Field label="Dígito"><Input value={form.digit} maxLength={1} onChange={(e) => setField("digit", digits(e.target.value).slice(0, 1))} /></Field>
                         </div>
                         <Button

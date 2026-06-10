@@ -56,6 +56,12 @@ export interface CreatePaymentResult {
     platform_fee: number;
     net_amount: number;
     expires_at: string | null;
+    pix_qr_code?: string | null;
+    pix_copy_paste?: string | null;
+    invoice_url?: string | null;
+    bank_slip_url?: string | null;
+    status?: string;
+    amount?: number;
 }
 
 // ─── List Payments ────────────────────────────────

@@ -17,19 +17,12 @@ import {
   type RequestPayoutParams,
   useSecurePayout,
 } from "@/hooks/use-neurofinance-payouts";
+import { formatMoneyInput, formatPixKeyInput, moneyInputToCents, normalizePixKeyInput } from "@/lib/financial-input";
 import { cn, formatCurrency } from "@/lib/utils";
 
 type DestinationMode = "saved_bank" | "pix_key";
 type PayoutStep = "setup" | "review" | "processing" | "success";
 const wait = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-
-const parseMoneyToCents = (value: string) => {
-  const normalized = value.includes(",")
-    ? value.replace(/\./g, "").replace(",", ".")
-    : value;
-  const numeric = Number(normalized);
-  return Number.isFinite(numeric) ? Math.round(numeric * 100) : 0;
-};
 
 const normalizeAccountType = (value?: string | null): "CONTA_CORRENTE" | "CONTA_POUPANCA" =>
   String(value || "").toUpperCase().includes("POUP") ? "CONTA_POUPANCA" : "CONTA_CORRENTE";
@@ -72,10 +65,10 @@ export const BankTransferView = () => {
     };
   }, [account]);
 
-  const amountInCents = parseMoneyToCents(amount);
+  const amountInCents = moneyInputToCents(amount);
   const selectedDestination: RequestPayoutParams["destination"] | null = mode === "saved_bank"
     ? savedBankDestination
-    : { type: "pix_key", pix_key: pixKey.trim(), summary: pixKey.trim() };
+    : { type: "pix_key", pix_key: normalizePixKeyInput(pixKey), summary: pixKey.trim() };
   const canContinue = amountInCents > 0 && Boolean(mode === "saved_bank" ? savedBankDestination : pixKey.trim().length >= 5);
 
   const reset = () => {
@@ -139,7 +132,7 @@ export const BankTransferView = () => {
             <div className="space-y-6">
               <div className="space-y-3">
                 <Label className="ml-1 text-[10px] font-black uppercase tracking-widest">Quanto deseja sacar?</Label>
-                <div className="relative"><span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-light text-zinc-300">R$</span><Input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} className="h-20 rounded-[24px] border-zinc-200 bg-zinc-50 pl-16 pr-6 text-4xl font-black dark:border-white/10 dark:bg-white/[0.02]" placeholder="0,00" /></div>
+                <div className="relative"><span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-light text-zinc-300">R$</span><Input inputMode="decimal" value={amount} onChange={(event) => setAmount(formatMoneyInput(event.target.value))} className="h-20 rounded-[24px] border-zinc-200 bg-zinc-50 pl-16 pr-6 text-4xl font-black dark:border-white/10 dark:bg-white/[0.02]" placeholder="0,00" /></div>
               </div>
               <div className="grid grid-cols-2 gap-2 rounded-[24px] border border-zinc-200/70 bg-white/60 p-1.5 dark:border-white/10 dark:bg-white/[0.02]">
                 {[{ id: "saved_bank" as const, label: "Conta cadastrada", icon: Landmark }, { id: "pix_key" as const, label: "Outra conta por Pix", icon: Send }].map((item) => (
@@ -155,7 +148,7 @@ export const BankTransferView = () => {
                   </div>
                 ) : <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-center text-xs font-semibold text-amber-700 dark:text-amber-300">Cadastre uma conta bancária em Ajustes NeuroFinance.</div>
               ) : (
-                <div className="relative"><KeyRound className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" /><Input value={pixKey} onChange={(event) => setPixKey(event.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" className="h-14 rounded-[20px] pl-11 text-sm font-bold dark:border-white/10 dark:bg-white/[0.035]" /></div>
+                <div className="relative"><KeyRound className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" /><Input value={pixKey} onChange={(event) => setPixKey(formatPixKeyInput(event.target.value))} placeholder="CPF, e-mail, telefone ou chave aleatória" className="h-14 rounded-[20px] pl-11 text-sm font-bold dark:border-white/10 dark:bg-white/[0.035]" /></div>
               )}
             </div>
             <Button onClick={handleConsult} disabled={!canContinue || consult.isPending} className="h-16 w-full rounded-[24px] bg-zinc-900 text-[10px] font-black uppercase tracking-[0.2em] text-white dark:bg-white dark:text-black">

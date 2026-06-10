@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   detectPixKeyType,
   isExpired,
+  normalizeExternalPixKeyLookup,
   normalizePixKeyForProvider,
   normalizePixQrConsultation,
   normalizePixTransactionStatus,
@@ -46,6 +47,22 @@ describe("secure outgoing normalizers", () => {
     expect(detectPixKeyType("12.345.678/0001-01")).toBe("CNPJ");
     expect(detectPixKeyType("b6295ee1-f054-47d1-9e90-ee57b74f60d9")).toBe("EVP");
     expect(normalizePixKeyForProvider("+55 (11) 99999-9999", "PHONE")).toBe("+5511999999999");
+  });
+
+  it("normalizes alternate DICT lookup response shapes", () => {
+    expect(normalizeExternalPixKeyLookup({
+      ownerName: "Titular Exemplo",
+      ownerDocument: "12345678901",
+      institutionName: "Banco Exemplo",
+      addressKey: "12345678901",
+      keyType: "CPF",
+    })).toMatchObject({
+      holderName: "Titular Exemplo",
+      holderDocument: "12345678901",
+      bankName: "Banco Exemplo",
+      key: "12345678901",
+      type: "CPF",
+    });
   });
 
   it("expires frozen consultations after their deadline", () => {

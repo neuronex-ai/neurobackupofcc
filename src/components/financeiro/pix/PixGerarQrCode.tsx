@@ -18,6 +18,7 @@ import {
     RefreshCw,
 } from "lucide-react";
 import { useNeuroFinancePix } from "@/hooks/use-neurofinance-pix";
+import { formatDocumentInput, formatMoneyInput, moneyInputToNumber, onlyDigits } from "@/lib/financial-input";
 import { toast } from "sonner";
 
 export function PixGerarQrCode() {
@@ -31,7 +32,8 @@ export function PixGerarQrCode() {
     const { createCharge } = useNeuroFinancePix();
 
     const handleGenerate = async () => {
-        if (!valor || parseFloat(valor) <= 0) {
+        const numericValue = moneyInputToNumber(valor);
+        if (numericValue <= 0) {
             toast.error("Informe um valor válido.");
             return;
         }
@@ -39,11 +41,11 @@ export function PixGerarQrCode() {
         try {
             const devedor = nomeDevedor.trim() ? {
                 nome: nomeDevedor,
-                ...(cpfDevedor.trim() ? { cpf: cpfDevedor.replace(/\D/g, "") } : {}),
+                ...(cpfDevedor.trim() ? { cpf: onlyDigits(cpfDevedor, 11) } : {}),
             } : undefined;
 
             const result = await createCharge.mutateAsync({
-                valor: parseFloat(valor),
+                valor: numericValue,
                 descricao: descricao || "Cobrança Pix NeuroFinance",
                 expiracao: Math.round((parseInt(expiracao) || 3600) / 60),
                 devedor,
@@ -57,10 +59,10 @@ export function PixGerarQrCode() {
     };
 
     const handleCopyPixCode = () => {
-        const code = generatedCharge?.checkout_url || generatedCharge?.payment_id || "";
+        const code = generatedCharge?.pix_copy_paste || "";
         if (code) {
             navigator.clipboard.writeText(code);
-            toast.success("Link de pagamento copiado!");
+            toast.success("Pix Copia e Cola copiado!");
         }
     };
 
@@ -118,11 +120,9 @@ export function PixGerarQrCode() {
                                 Valor da cobrança (R$)
                             </label>
                             <input
-                                type="number"
-                                step="0.01"
-                                min="0.01"
+                                inputMode="decimal"
                                 value={valor}
-                                onChange={(e) => setValor(e.target.value)}
+                                onChange={(e) => setValor(formatMoneyInput(e.target.value))}
                                 placeholder="0,00"
                                 className="w-full h-16 px-4 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-3xl font-black text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
                             />
@@ -166,7 +166,7 @@ export function PixGerarQrCode() {
                                 />
                                 <input
                                     value={cpfDevedor}
-                                    onChange={(e) => setCpfDevedor(e.target.value)}
+                                    onChange={(e) => setCpfDevedor(formatDocumentInput(e.target.value))}
                                     placeholder="CPF"
                                     className="h-10 px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
                                 />
@@ -222,7 +222,7 @@ export function PixGerarQrCode() {
                             <div className="w-52 h-52 rounded-[32px] bg-white p-4 shadow-2xl flex items-center justify-center mb-6 border border-zinc-100 dark:border-white/5 relative group transition-transform hover:scale-[1.02] duration-500">
                                 {generatedCharge?.pix_qr_code ? (
                                     <img
-                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(generatedCharge.pix_qr_code)}`}
+                                        src={`data:image/png;base64,${generatedCharge.pix_qr_code}`}
                                         alt="PIX QR Code"
                                         className="w-full h-full object-contain"
                                     />
@@ -237,7 +237,7 @@ export function PixGerarQrCode() {
                             </div>
 
                             <div className="text-3xl font-black text-zinc-900 dark:text-white mb-1">
-                                R$ {parseFloat(valor).toFixed(2)}
+                                {moneyInputToNumber(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                             </div>
 
                             {generatedCharge?.payment_id && (
@@ -257,6 +257,7 @@ export function PixGerarQrCode() {
                         <div className="flex gap-3">
                             <button
                                 onClick={handleCopyPixCode}
+                                disabled={!generatedCharge?.pix_copy_paste}
                                 className="flex-1 h-12 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-black font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
                             >
                                 <Copy className="w-3.5 h-3.5" />
