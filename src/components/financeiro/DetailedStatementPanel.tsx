@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { addYears, isAfter, subMonths } from "date-fns";
 import {
     Activity,
@@ -9,6 +9,8 @@ import {
     ArrowUpRight,
     ArrowUpNarrowWide,
     Calendar,
+    ChevronLeft,
+    ChevronRight,
     Eye,
     EyeOff,
     Landmark,
@@ -29,6 +31,7 @@ import {
     countDetailedStatementFilters,
     emptyDetailedStatementFilters,
     filterDetailedStatementTransactions,
+    sortStatementTransactions,
     type DetailedStatementFilters,
     type StatementOriginFilter,
     type StatementPaymentMethodFilter,
@@ -76,6 +79,8 @@ const transferMethodOptions: { id: StatementTransferMethodFilter; label: string 
     { id: "pix", label: "Via Pix" },
 ];
 
+const STATEMENT_PAGE_SIZE = 18;
+
 function toggleFilterValue<T extends string>(values: T[], value: T) {
     return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
@@ -108,18 +113,22 @@ function KpiCard({
     icon: typeof Wallet;
 }) {
     return (
-        <div className="relative min-h-[112px] overflow-hidden rounded-[22px] border border-zinc-200/70 bg-white/75 p-5 shadow-[0_18px_54px_-42px_rgba(0,0,0,0.7)] dark:border-white/[0.07] dark:bg-white/[0.025]">
-            <div className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-400">
-                <Icon className="h-4 w-4" />
+        <div className="group relative min-h-[112px] overflow-hidden rounded-[24px] border border-zinc-200/70 bg-white/78 p-5 shadow-[0_16px_44px_-38px_rgba(24,24,27,0.4)] transition-colors duration-300 hover:border-zinc-300 dark:border-white/[0.055] dark:bg-[#0b0c0e]/88 dark:hover:border-white/15">
+            <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.016] dark:opacity-[0.035]" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/35 to-transparent dark:from-white/[0.025]" />
+            <div className="relative z-10">
+                <div className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-50 text-zinc-400 shadow-sm transition-colors duration-300 group-hover:text-zinc-900 dark:border-white/[0.06] dark:bg-white/[0.035] dark:group-hover:text-white">
+                    <Icon className="h-5 w-5" />
+                </div>
+                <p className="pr-14 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 transition-colors group-hover:text-zinc-900 dark:group-hover:text-white">{label}</p>
+                {isLoading ? (
+                    <Skeleton className="mt-4 h-8 w-32 rounded-lg" />
+                ) : (
+                    <p className="mt-4 text-2xl font-black tracking-tighter text-black tabular-nums dark:text-white">
+                        {hidden ? "R$ ••••••" : formatCurrency(value)}
+                    </p>
+                )}
             </div>
-            <p className="pr-11 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">{label}</p>
-            {isLoading ? (
-                <Skeleton className="mt-5 h-7 w-32 rounded-lg" />
-            ) : (
-                <p className="mt-4 text-xl font-black tracking-tight text-zinc-950 dark:text-white">
-                    {hidden ? "R$ ••••••" : formatCurrency(value)}
-                </p>
-            )}
         </div>
     );
 }
@@ -132,6 +141,7 @@ export function DetailedStatementPanel({
     const [filters, setFilters] = useState<DetailedStatementFilters>(() => emptyDetailedStatementFilters());
     const [sortOrder, setSortOrder] = useState<StatementSortOrder>("desc");
     const [showValues, setShowValues] = useState(true);
+    const [page, setPage] = useState(1);
 
     const queryStart = useMemo(
         () => filters.startDate ? new Date(`${filters.startDate}T00:00:00`) : subMonths(new Date(), 3),
@@ -172,6 +182,24 @@ export function DetailedStatementPanel({
 
         return filterDetailedStatementTransactions(tabTransactions, filters, patients);
     }, [allTransactions, filters, patients, tab]);
+
+    const sortedTransactions = useMemo(
+        () => sortStatementTransactions(filteredTransactions, sortOrder),
+        [filteredTransactions, sortOrder],
+    );
+    const pageCount = Math.max(1, Math.ceil(sortedTransactions.length / STATEMENT_PAGE_SIZE));
+    const paginatedTransactions = useMemo(
+        () => sortedTransactions.slice((page - 1) * STATEMENT_PAGE_SIZE, page * STATEMENT_PAGE_SIZE),
+        [page, sortedTransactions],
+    );
+
+    useEffect(() => {
+        setPage(1);
+    }, [filters, sortOrder, tab]);
+
+    useEffect(() => {
+        setPage((current) => Math.min(current, pageCount));
+    }, [pageCount]);
 
     const activeFilters = countDetailedStatementFilters(filters);
     const isLoading = transactionsQuery.isLoading || statementQuery.isLoading;
@@ -229,22 +257,26 @@ export function DetailedStatementPanel({
                         activeFilters={activeFilters}
                         onClear={() => setFilters(emptyDetailedStatementFilters())}
                         triggerLabel="Filtro"
-                        widthClassName="w-[min(1080px,calc(100vw-56px))]"
+                        presentation="dialog"
+                        title="Filtros do extrato"
+                        description="Combine período, origem, método e pacientes."
+                        widthClassName="w-[min(920px,calc(100vw-32px))]"
                     >
-                        <div className="grid max-h-[68vh] gap-8 overflow-y-auto p-7 custom-scrollbar lg:grid-cols-3">
-                            <div className="space-y-7">
+                        <div className="grid max-h-[72vh] gap-7 overflow-y-auto p-6 custom-scrollbar md:p-8 md:grid-cols-2 lg:grid-cols-3">
+                            <div className="space-y-6">
                                 <FilterDateGroup
                                     title="Período das transações"
                                     start={filters.startDate}
                                     end={filters.endDate}
                                     onStart={(value) => updateFilter("startDate", value)}
                                     onEnd={(value) => updateFilter("endDate", value)}
+                                    compact
                                 />
 
                                 <div>
-                                    <p className="mb-3 text-sm font-black tracking-tight text-zinc-900 dark:text-white">Tipo</p>
+                                    <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">Tipo</p>
                                     <Select value={filters.type} onValueChange={(value) => updateFilter("type", value as DetailedStatementFilters["type"])}>
-                                        <SelectTrigger className="h-11 rounded-[14px] border-zinc-200 bg-white text-xs font-bold dark:border-white/10 dark:bg-white/[0.035]">
+                                        <SelectTrigger className="h-10 rounded-[12px] border-zinc-200 bg-white text-xs font-bold text-zinc-700 shadow-sm dark:border-white/10 dark:bg-white/[0.05] dark:text-white">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -256,53 +288,57 @@ export function DetailedStatementPanel({
                                 </div>
 
                                 <div>
-                                    <p className="mb-3 text-sm font-black tracking-tight text-zinc-900 dark:text-white">Destinatário das saídas</p>
+                                    <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">Destinatário das saídas</p>
                                     <div className="relative">
                                         <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                         <input
                                             value={filters.recipientQuery}
                                             onChange={(event) => updateFilter("recipientQuery", event.target.value)}
                                             placeholder="Nome, conta ou chave Pix"
-                                            className="h-11 w-full rounded-[14px] border border-zinc-200 bg-white pl-10 pr-3 text-xs font-bold text-zinc-800 outline-none placeholder:text-zinc-400 dark:border-white/10 dark:bg-white/[0.035] dark:text-white"
+                                            className="h-10 w-full rounded-[12px] border border-zinc-200 bg-white pl-10 pr-3 text-xs font-bold text-zinc-800 shadow-sm outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:border-white/10 dark:bg-white/[0.05] dark:text-white dark:focus:border-white/20"
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-7">
+                            <div className="space-y-6">
                                 <FilterCheckGroup
                                     title="Método de pagamento / convênio"
                                     options={paymentMethodOptions}
                                     selected={filters.paymentMethods}
                                     onToggle={(value) => updateFilter("paymentMethods", toggleFilterValue(filters.paymentMethods, value))}
                                     twoColumns
+                                    compact
                                 />
                                 <FilterCheckGroup
                                     title="Origem"
                                     options={originOptions}
                                     selected={filters.origins}
                                     onToggle={(value) => updateFilter("origins", toggleFilterValue(filters.origins, value))}
+                                    compact
                                 />
                                 <FilterCheckGroup
                                     title="Método de transferência"
                                     options={transferMethodOptions}
                                     selected={filters.transferMethods}
                                     onToggle={(value) => updateFilter("transferMethods", toggleFilterValue(filters.transferMethods, value))}
+                                    compact
                                 />
-                                <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-zinc-600 dark:text-zinc-300">
-                                    <Checkbox checked={filters.feesOnly} onCheckedChange={(checked) => updateFilter("feesOnly", checked === true)} />
+                                <label className="flex cursor-pointer items-center gap-2.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                                    <Checkbox className="h-4 w-4 rounded-[5px] border-zinc-300 dark:border-white/20" checked={filters.feesOnly} onCheckedChange={(checked) => updateFilter("feesOnly", checked === true)} />
                                     Mostrar somente taxas pagas
                                 </label>
                             </div>
 
                             <div>
-                                <p className="mb-4 text-sm font-black tracking-tight text-zinc-900 dark:text-white">Pacientes</p>
-                                <div className="max-h-[430px] space-y-2 overflow-y-auto rounded-[18px] border border-zinc-200/70 bg-zinc-50/70 p-3 custom-scrollbar dark:border-white/10 dark:bg-white/[0.025]">
+                                <p className="mb-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">Pacientes</p>
+                                <div className="max-h-[310px] space-y-1 overflow-y-auto rounded-[18px] border border-zinc-200 bg-white p-2.5 shadow-sm custom-scrollbar dark:border-white/10 dark:bg-white/[0.035]">
                                     {patients.length === 0 ? (
                                         <p className="px-2 py-5 text-center text-xs font-semibold text-zinc-400">Nenhum paciente disponível.</p>
                                     ) : patients.map((patient) => (
-                                        <label key={patient.id} className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-sm font-semibold text-zinc-600 hover:bg-white dark:text-zinc-300 dark:hover:bg-white/[0.05]">
+                                        <label key={patient.id} className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-white dark:text-zinc-300 dark:hover:bg-white/[0.05]">
                                             <Checkbox
+                                                className="h-4 w-4 rounded-[5px] border-zinc-300 dark:border-white/20"
                                                 checked={filters.patientIds.includes(patient.id)}
                                                 onCheckedChange={() => updateFilter("patientIds", toggleFilterValue(filters.patientIds, patient.id))}
                                             />
@@ -375,12 +411,45 @@ export function DetailedStatementPanel({
                 </div>
 
                 <FinancialStatement
-                    transactions={filteredTransactions}
+                    transactions={paginatedTransactions}
                     isLoading={isLoading}
                     onSelectTransaction={onSelectTransaction}
                     sortOrder={sortOrder}
                     groupByDate
                 />
+
+                {!isLoading && sortedTransactions.length > 0 ? (
+                    <div className="mt-5 flex flex-col gap-3 border-t border-zinc-200/70 px-1 pt-4 text-xs font-semibold text-zinc-500 dark:border-white/[0.07] dark:text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
+                        <span>
+                            Exibindo {paginatedTransactions.length} de {sortedTransactions.length} {sortedTransactions.length === 1 ? "movimentação" : "movimentações"}
+                        </span>
+                        <div className="flex items-center gap-3">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                                disabled={page <= 1}
+                                title="Página anterior"
+                                className="h-9 rounded-full"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <span className="min-w-[54px] text-center text-[10px] font-black uppercase tracking-widest">
+                                {page}/{pageCount}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                                disabled={page >= pageCount}
+                                title="Próxima página"
+                                className="h-9 rounded-full"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                ) : null}
             </div>
         </div>
     );

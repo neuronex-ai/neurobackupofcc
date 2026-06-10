@@ -1,26 +1,66 @@
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { Barcode, CheckCircle2, FileUp, Loader2, QrCode, ReceiptText } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Barcode,
+  CheckCircle2,
+  FileUp,
+  Landmark,
+  Loader2,
+  LockKeyhole,
+  QrCode,
+  ReceiptText,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
+
+import { PixPagarCopiaCola } from "@/components/financeiro/pix/PixPagarCopiaCola";
+import { BillPaymentPinDialog } from "@/components/financeiro/pagamentos/BillPaymentPinDialog";
+import { BillPaymentProcessing } from "@/components/financeiro/pagamentos/BillPaymentProcessing";
+import { BillPaymentReviewCard } from "@/components/financeiro/pagamentos/BillPaymentReviewCard";
+import { BillPaymentSuccess } from "@/components/financeiro/pagamentos/BillPaymentSuccess";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency } from "@/lib/utils";
-import { formatBoletoValue, normalizeBoletoInput } from "@/lib/boleto";
 import { useBoletoReader } from "@/hooks/use-boleto-reader";
-import { useNeurofinanceBillPayments } from "@/hooks/use-neurofinance-bill-payments";
-import { PixPagarCopiaCola } from "@/components/financeiro/pix/PixPagarCopiaCola";
+import {
+  type BillConsultation,
+  type BillExecutionResponse,
+  useNeurofinanceBillPayments,
+} from "@/hooks/use-neurofinance-bill-payments";
+import { formatBoletoValue, normalizeBoletoInput } from "@/lib/boleto";
+import { cn, formatCurrency } from "@/lib/utils";
 
 type Tab = "boleto" | "pix";
+type BillStep = "input" | "review" | "processing" | "success";
+
+const wait = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 export function PagamentosAgendamento() {
   const [tab, setTab] = useState<Tab>("boleto");
+  const [step, setStep] = useState<BillStep>("input");
   const [input, setInput] = useState("");
   const [scheduleDate, setScheduleDate] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [consultation, setConsultation] = useState<BillConsultation | null>(null);
+  const [execution, setExecution] = useState<BillExecutionResponse | null>(null);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+
   const { readFile, isReading } = useBoletoReader();
-  const { simulate, create, list } = useNeurofinanceBillPayments();
+  const { consult, authorize, execute, list } = useNeurofinanceBillPayments();
   const normalized = useMemo(() => normalizeBoletoInput(input), [input]);
-  const bill = simulate.data?.bill;
+
+  const resetFlow = () => {
+    setStep("input");
+    setInput("");
+    setScheduleDate("");
+    setConsultation(null);
+    setExecution(null);
+    setPinOpen(false);
+    setPinError(null);
+    consult.reset();
+    authorize.reset();
+    execute.reset();
+  };
 
   const handleFile = async (file?: File) => {
     if (!file) return;
@@ -30,26 +70,65 @@ export function PagamentosAgendamento() {
       return;
     }
     setInput(value);
-    toast.success("Numeração encontrada. Confira os dados antes de pagar.");
+    toast.success("Numeração encontrada. Agora consulte os dados do boleto.");
   };
 
-  const handleValidate = () => {
+  const handleConsult = async () => {
     if (!normalized.isValid) {
       toast.error("Informe uma linha digitável ou código de barras válido.");
       return;
     }
-    simulate.mutate(input);
+
+    try {
+      const response = await consult.mutateAsync({
+        input,
+        scheduleDate: scheduleDate || undefined,
+      });
+      setConsultation(response.consultation);
+      setStep("review");
+    } catch {
+      // The hook presents the server's friendly validation message.
+    }
   };
 
-  const handlePay = () => {
-    if (!normalized.isValid) return;
-    create.mutate({
-      input,
-      scheduleDate: scheduleDate || undefined,
-      value: typeof bill?.value === "number" ? bill.value : undefined,
-      dueDate: typeof bill?.dueDate === "string" ? bill.dueDate : undefined,
-      description: "Pagamento de boleto pelo NeuroFinance",
-    });
+  const handlePinConfirm = async (pin: string) => {
+    if (!consultation) return;
+    setPinError(null);
+    let wasAuthorized = false;
+
+    try {
+      await authorize.mutateAsync({ consultationId: consultation.id, pin });
+      wasAuthorized = true;
+      setPinOpen(false);
+      setStep("processing");
+
+      const [result] = await Promise.all([
+        execute.mutateAsync(consultation.id),
+        wait(3400),
+      ]);
+
+      setExecution(result);
+      setStep("success");
+      toast.success(result.status === "paid"
+        ? "Pagamento confirmado."
+        : "Pagamento enviado para processamento.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível autorizar o pagamento.";
+      if (!wasAuthorized) {
+        setPinError(message);
+        return;
+      }
+
+      setStep("input");
+      setConsultation(null);
+      setExecution(null);
+    }
+  };
+
+  const selectTab = (nextTab: Tab) => {
+    setTab(nextTab);
+    setPinOpen(false);
+    setPinError(null);
   };
 
   return (
@@ -61,7 +140,8 @@ export function PagamentosAgendamento() {
         ].map((item) => (
           <button
             key={item.id}
-            onClick={() => setTab(item.id as Tab)}
+            type="button"
+            onClick={() => selectTab(item.id as Tab)}
             className={cn(
               "flex h-10 items-center gap-2 rounded-[16px] px-5 text-[10px] font-black uppercase tracking-[0.13em] transition-all",
               tab === item.id
@@ -78,131 +158,181 @@ export function PagamentosAgendamento() {
       {tab === "pix" ? (
         <PixPagarCopiaCola />
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
-          <section className="rounded-[28px] border border-zinc-200/70 bg-white/72 p-6 shadow-[0_24px_70px_-55px_rgba(0,0,0,0.35)] backdrop-blur-3xl dark:border-white/[0.08] dark:bg-[#0b0b0d]/76">
-            <div className="mb-6">
-              <h3 className="text-lg font-black text-zinc-950 dark:text-white">Pague boletos com o saldo da conta</h3>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                Arraste o arquivo, anexe um PDF/imagem ou digite a linha do boleto.
-              </p>
-            </div>
+        <>
+          <AnimatePresence mode="wait">
+            {step === "input" && (
+              <motion.div
+                key="input"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]"
+              >
+                <section className="rounded-[28px] border border-zinc-200/70 bg-white/72 p-6 shadow-[0_24px_70px_-55px_rgba(0,0,0,0.35)] backdrop-blur-3xl dark:border-white/[0.08] dark:bg-[#0b0b0d]/76">
+                  <div className="mb-6">
+                    <p className="text-[9px] font-black uppercase tracking-[0.24em] text-zinc-400">Etapa 1 de 2</p>
+                    <h3 className="mt-2 text-lg font-black text-zinc-950 dark:text-white">Consulte o boleto antes de pagar</h3>
+                    <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                      Arraste o arquivo, anexe um PDF/imagem ou digite a linha do boleto.
+                    </p>
+                  </div>
 
-            <label
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragging(true);
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(event) => {
-                event.preventDefault();
-                setDragging(false);
-                handleFile(event.dataTransfer.files?.[0]);
-              }}
-              className={cn(
-                "flex min-h-[170px] cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed p-8 text-center transition-all",
-                dragging
-                  ? "border-zinc-950 bg-zinc-950/[0.03] dark:border-white dark:bg-white/[0.06]"
-                  : "border-zinc-300 bg-zinc-50/70 hover:bg-zinc-100/70 dark:border-white/12 dark:bg-white/[0.025] dark:hover:bg-white/[0.045]",
-              )}
-            >
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={(event) => handleFile(event.target.files?.[0])}
-              />
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] bg-white text-zinc-950 shadow-sm dark:bg-white/[0.08] dark:text-white">
-                {isReading ? <Loader2 className="h-6 w-6 animate-spin" /> : <FileUp className="h-6 w-6" />}
-              </div>
-              <p className="text-sm font-bold text-zinc-900 dark:text-white">
-                {isReading ? "Lendo arquivo..." : "Adicionar ou arrastar boleto"}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Imagem nítida ou PDF com a linha digitável.</p>
-            </label>
+                  <label
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setDragging(true);
+                    }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      setDragging(false);
+                      handleFile(event.dataTransfer.files?.[0]);
+                    }}
+                    className={cn(
+                      "flex min-h-[170px] cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed p-8 text-center transition-all",
+                      dragging
+                        ? "border-zinc-950 bg-zinc-950/[0.03] dark:border-white dark:bg-white/[0.06]"
+                        : "border-zinc-300 bg-zinc-50/70 hover:bg-zinc-100/70 dark:border-white/12 dark:bg-white/[0.025] dark:hover:bg-white/[0.045]",
+                    )}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(event) => handleFile(event.target.files?.[0])}
+                    />
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] bg-white text-zinc-950 shadow-sm dark:bg-white/[0.08] dark:text-white">
+                      {isReading ? <Loader2 className="h-6 w-6 animate-spin" /> : <FileUp className="h-6 w-6" />}
+                    </div>
+                    <p className="text-sm font-bold text-zinc-900 dark:text-white">
+                      {isReading ? "Lendo arquivo..." : "Adicionar ou arrastar boleto"}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Imagem nítida ou PDF com a linha digitável.</p>
+                  </label>
 
-            <div className="mt-5 space-y-3">
-              <Input
-                value={formatBoletoValue(input)}
-                onChange={(event) => setInput(event.target.value)}
-                placeholder="Digite aqui a linha digitável"
-                className="h-13 rounded-[18px] border-zinc-200 bg-white/80 px-5 text-sm dark:border-white/10 dark:bg-white/[0.04]"
-              />
-              <div className="grid gap-3 md:grid-cols-[1fr_180px]">
-                <Input
-                  value={scheduleDate}
-                  onChange={(event) => setScheduleDate(event.target.value)}
-                  type="date"
-                  className="h-12 rounded-[16px] border-zinc-200 bg-white/80 px-4 dark:border-white/10 dark:bg-white/[0.04]"
-                />
-                <Button
-                  onClick={handleValidate}
-                  disabled={!normalized.isValid || simulate.isPending}
-                  className="h-12 rounded-[16px] bg-zinc-950 text-[10px] font-black uppercase tracking-[0.16em] text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950"
-                >
-                  {simulate.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ReceiptText className="mr-2 h-4 w-4" />}
-                  Validar
-                </Button>
-              </div>
-            </div>
-          </section>
-
-          <aside className="rounded-[28px] border border-zinc-200/70 bg-white/72 p-6 shadow-sm backdrop-blur-3xl dark:border-white/[0.08] dark:bg-white/[0.035]">
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-400">Revisão</p>
-            {bill ? (
-              <div className="mt-5 space-y-5">
-                <div className="rounded-[22px] border border-zinc-200/70 bg-zinc-50/80 p-5 dark:border-white/10 dark:bg-black/20">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-500" />
-                    <div>
-                      <p className="font-black text-zinc-950 dark:text-white">{String(bill.beneficiaryName || "Beneficiário confirmado")}</p>
-                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{String(bill.bankName || bill.bank || "Banco informado na validação")}</p>
+                  <div className="mt-5 space-y-3">
+                    <Input
+                      value={formatBoletoValue(input)}
+                      onChange={(event) => setInput(event.target.value)}
+                      placeholder="Digite aqui a linha digitável"
+                      className="h-13 rounded-[18px] border-zinc-200 bg-white/80 px-5 text-sm dark:border-white/10 dark:bg-white/[0.04]"
+                    />
+                    <div className="grid gap-3 md:grid-cols-[1fr_180px]">
+                      <div>
+                        <Input
+                          value={scheduleDate}
+                          onChange={(event) => setScheduleDate(event.target.value)}
+                          type="date"
+                          aria-label="Data do pagamento"
+                          className="h-12 rounded-[16px] border-zinc-200 bg-white/80 px-4 dark:border-white/10 dark:bg-white/[0.04]"
+                        />
+                        <p className="mt-1.5 px-1 text-[9px] font-semibold text-zinc-400">
+                          Opcional. Sem data, o pagamento seguirá o vencimento.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleConsult}
+                        disabled={!normalized.isValid || consult.isPending}
+                        className="h-12 rounded-[16px] bg-zinc-950 text-[10px] font-black uppercase tracking-[0.16em] text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950"
+                      >
+                        {consult.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ReceiptText className="mr-2 h-4 w-4" />}
+                        Consultar
+                      </Button>
                     </div>
                   </div>
-                </div>
-                <dl className="space-y-3 text-sm">
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-zinc-500">Valor</dt>
-                    <dd className="font-black text-zinc-950 dark:text-white">{formatCurrency(Number(bill.value || 0))}</dd>
+                </section>
+
+                <aside className="rounded-[28px] border border-zinc-200/70 bg-white/72 p-6 shadow-sm backdrop-blur-3xl dark:border-white/[0.08] dark:bg-white/[0.035]">
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-400">Pagamento protegido</p>
+                  <div className="mt-6 space-y-3">
+                    {[
+                      { icon: Landmark, title: "Consulta bancária", text: "Conferimos beneficiário, instituição, valor e vencimento." },
+                      { icon: LockKeyhole, title: "Confirmação por PIN", text: "O boleto só será enviado após sua assinatura digital." },
+                      { icon: ShieldCheck, title: "Dados congelados", text: "A efetivação usa exatamente os dados que você revisou." },
+                    ].map((item, index) => (
+                      <div key={item.title} className="flex gap-4 rounded-[20px] border border-zinc-200/60 bg-zinc-50/65 p-4 dark:border-white/[0.06] dark:bg-black/20">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-white text-zinc-700 shadow-sm dark:bg-white/[0.06] dark:text-zinc-200">
+                          <item.icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-[8px] font-black uppercase tracking-[0.18em] text-zinc-400">0{index + 1}</p>
+                          <p className="mt-1 text-xs font-black text-zinc-950 dark:text-white">{item.title}</p>
+                          <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">{item.text}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-zinc-500">Vencimento</dt>
-                    <dd className="font-bold text-zinc-800 dark:text-zinc-200">{String(bill.dueDate || "Informado na confirmação")}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className="text-zinc-500">Pagamento</dt>
-                    <dd className="font-bold text-zinc-800 dark:text-zinc-200">{scheduleDate || "Hoje"}</dd>
-                  </div>
-                </dl>
-                <Button
-                  onClick={handlePay}
-                  disabled={create.isPending}
-                  className="h-13 w-full rounded-[18px] bg-zinc-950 text-[10px] font-black uppercase tracking-[0.18em] text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950"
-                >
-                  {create.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Pagar com saldo
-                </Button>
-              </div>
-            ) : (
-              <div className="mt-10 flex min-h-[250px] flex-col items-center justify-center text-center">
-                <ReceiptText className="mb-4 h-10 w-10 text-zinc-300 dark:text-zinc-700" />
-                <p className="text-sm font-black text-zinc-900 dark:text-white">Valide um boleto para revisar.</p>
-                <p className="mt-2 max-w-xs text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                  Só liberamos o pagamento depois de conferir os dados encontrados.
-                </p>
-              </div>
+                </aside>
+              </motion.div>
             )}
-          </aside>
-        </div>
+
+            {step === "review" && consultation && (
+              <motion.div key="review" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                <BillPaymentReviewCard
+                  consultation={consultation}
+                  onBack={() => {
+                    setStep("input");
+                    setConsultation(null);
+                  }}
+                  onConfirm={() => {
+                    setPinError(null);
+                    setPinOpen(true);
+                  }}
+                />
+              </motion.div>
+            )}
+
+            {step === "processing" && (
+              <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <BillPaymentProcessing />
+              </motion.div>
+            )}
+
+            {step === "success" && consultation && execution && (
+              <motion.div key="success" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
+                <BillPaymentSuccess consultation={consultation} execution={execution} onNewPayment={resetFlow} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {consultation && (
+            <BillPaymentPinDialog
+              open={pinOpen}
+              onOpenChange={(open) => {
+                setPinOpen(open);
+                if (!open) setPinError(null);
+              }}
+              onConfirm={handlePinConfirm}
+              beneficiaryName={consultation.beneficiaryName}
+              value={consultation.value}
+              isLoading={authorize.isPending}
+              errorMessage={pinError}
+            />
+          )}
+        </>
       )}
 
-      {tab === "boleto" && list.data?.length ? (
+      {tab === "boleto" && step !== "processing" && list.data?.length ? (
         <div className="rounded-[24px] border border-zinc-200/70 bg-white/50 p-5 dark:border-white/10 dark:bg-white/[0.025]">
           <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Últimos boletos</p>
           <div className="space-y-2">
             {list.data.slice(0, 4).map((item) => (
-              <motion.div key={item.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between rounded-[18px] bg-white/75 px-4 py-3 text-sm dark:bg-white/[0.04]">
-                <span className="font-bold text-zinc-900 dark:text-white">{item.beneficiary_name || "Boleto registrado"}</span>
-                <span className="text-xs font-black uppercase tracking-wider text-zinc-400">{item.status}</span>
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-between gap-4 rounded-[18px] bg-white/75 px-4 py-3 text-sm dark:bg-white/[0.04]"
+              >
+                <div className="min-w-0">
+                  <span className="block truncate font-bold text-zinc-900 dark:text-white">{item.beneficiary_name || "Boleto registrado"}</span>
+                  <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                    {formatCurrency(Number(item.amount || 0) / 100)}
+                  </span>
+                </div>
+                <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-[8px] font-black uppercase tracking-wider text-zinc-500 dark:bg-white/5">
+                  {item.status}
+                </span>
               </motion.div>
             ))}
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { ElementType } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -75,7 +75,6 @@ const FINANCE_NAV: NavItem[] = [
         label: "Area Pix",
         icon: BadgeCent,
         subItems: [
-            { id: 'pix', label: 'Painel Pix', icon: BadgeCent, description: 'Resumo da area Pix' },
             { id: 'pix-pagar', label: 'Pagar Pix', icon: QrCode, tag: 'Gratis', description: 'Cole um Pix copia e cola e pague pela conta NeuroFinance' },
             { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Gratis', description: 'Crie um QR Code para receber na hora' },
             { id: 'pix-receber', label: 'Pix recebidos', icon: ArrowDownLeft, tag: 'Gratis', description: 'Veja o que entrou por Pix' },
@@ -86,10 +85,10 @@ const FINANCE_NAV: NavItem[] = [
     },
     {
         id: 'statement-root',
-        label: "Extrato Detalhado",
+        label: "Extrato",
         icon: FileText,
         subItems: [
-            { id: 'extrato', label: 'Extrato Detalhado', icon: FileText },
+            { id: 'extrato', label: 'Extrato', icon: FileText },
         ],
     },
     {
@@ -163,15 +162,6 @@ const FINANCE_NAV: NavItem[] = [
         ],
     },
     {
-        id: 'bank-settings-root',
-        label: "Ajustes NeuroFinance",
-        icon: Landmark,
-        subItems: [
-            { id: 'contas-bancarias', label: 'Conta bancária', icon: Landmark },
-            { id: 'saude-conta', label: 'Saúde da conta', icon: ShieldCheck },
-        ],
-    },
-    {
         id: 'fiscal-root',
         label: "NFS-e",
         icon: FileText,
@@ -187,6 +177,15 @@ const FINANCE_NAV: NavItem[] = [
         icon: Receipt,
         subItems: [
             { id: 'tarifas', label: 'Custos e prazos', icon: Receipt },
+        ],
+    },
+    {
+        id: 'bank-settings-root',
+        label: "Ajustes",
+        icon: Landmark,
+        subItems: [
+            { id: 'contas-bancarias', label: 'Conta bancária', icon: Landmark },
+            { id: 'saude-conta', label: 'Saúde da conta', icon: ShieldCheck },
         ],
     },
 ];
@@ -210,7 +209,10 @@ const DesktopFinanceiro = () => {
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
     const [expandedGroups, setExpandedGroups] = useState<string[]>(['account-balance-root']);
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+    const [showSidebarDetails, setShowSidebarDetails] = useState(false);
     const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'wizard'>('welcome');
+    const sidebarIntentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const sidebarDetailsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const allTransactions = useMemo(() => {
         const merged = [...(transactions || [])];
@@ -255,6 +257,27 @@ const DesktopFinanceiro = () => {
             setExpandedGroups((current) => current.includes(group.id) ? current : [group.id]);
         }
     }, [activeView]);
+
+    useEffect(() => () => {
+        if (sidebarIntentTimer.current) clearTimeout(sidebarIntentTimer.current);
+        if (sidebarDetailsTimer.current) clearTimeout(sidebarDetailsTimer.current);
+    }, []);
+
+    useEffect(() => {
+        if (sidebarDetailsTimer.current) clearTimeout(sidebarDetailsTimer.current);
+        sidebarDetailsTimer.current = setTimeout(
+            () => setShowSidebarDetails(isSidebarExpanded),
+            isSidebarExpanded ? 35 : 170,
+        );
+    }, [isSidebarExpanded]);
+
+    const setSidebarExpandedWithIntent = (expanded: boolean) => {
+        if (sidebarIntentTimer.current) clearTimeout(sidebarIntentTimer.current);
+        sidebarIntentTimer.current = setTimeout(
+            () => setIsSidebarExpanded(expanded),
+            expanded ? 55 : 130,
+        );
+    };
 
     const handleGroupClick = (group: NavItem) => {
         if (!isSidebarExpanded) {
@@ -378,17 +401,22 @@ const DesktopFinanceiro = () => {
                 <motion.nav
                     initial={{ opacity: 0, x: -18 }}
                     animate={{ opacity: 1, x: 0, width: isSidebarExpanded ? 302 : 88 }}
-                    transition={{ type: "spring", stiffness: 260, damping: 32, mass: 0.72 }}
-                    onMouseEnter={() => setIsSidebarExpanded(true)}
-                    onMouseLeave={() => setIsSidebarExpanded(false)}
+                    transition={{
+                        width: { type: "spring", stiffness: 420, damping: 42, mass: 0.58 },
+                        opacity: { duration: 0.18 },
+                        x: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+                    }}
+                    onMouseEnter={() => setSidebarExpandedWithIntent(true)}
+                    onMouseLeave={() => setSidebarExpandedWithIntent(false)}
+                    style={{ willChange: "width, transform" }}
                     className="relative z-30 hidden shrink-0 lg:flex"
                 >
-                    <div className="sticky top-10 flex max-h-[calc(100vh-5rem)] w-full flex-col overflow-hidden rounded-[30px] border border-zinc-200/75 bg-white/80 p-3 shadow-[0_24px_74px_-54px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-black/[0.025] backdrop-blur-3xl dark:border-white/[0.075] dark:bg-[#070708]/80 dark:shadow-[0_28px_86px_-58px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.055)] dark:ring-white/[0.035]">
+                    <div className="sticky top-10 flex max-h-[calc(100vh-5rem)] w-full flex-col overflow-hidden rounded-[30px] border border-zinc-200/75 bg-white/85 p-3 shadow-[0_24px_74px_-54px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-black/[0.025] backdrop-blur-xl dark:border-white/[0.075] dark:bg-[#070708]/85 dark:shadow-[0_28px_86px_-58px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.055)] dark:ring-white/[0.035]">
                         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.55),transparent_28%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.55),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(0,0,0,.04),transparent_42%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,.055),transparent_30%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.075),transparent_38%)]" />
                         <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.04]" />
                         <div className={cn(
-                            "relative z-10 flex flex-col gap-2 overflow-y-auto overflow-x-hidden custom-scrollbar",
-                            isSidebarExpanded ? "pr-1" : "items-center pr-0"
+                            "relative z-10 flex flex-col gap-2 overflow-y-auto overflow-x-hidden no-scrollbar",
+                            showSidebarDetails ? "pr-1" : "items-center pr-0"
                         )}>
                             {FINANCE_NAV.map((group) => {
                                 const isGroupExpanded = expandedGroups.includes(group.id);
@@ -400,8 +428,8 @@ const DesktopFinanceiro = () => {
                                             onClick={() => handleGroupClick(group)}
                                             title={group.label}
                                             className={cn(
-                                                "group relative flex h-12 items-center rounded-2xl transition-all duration-300 ease-out",
-                                                isSidebarExpanded ? "w-full gap-3 px-3" : "w-14 justify-center px-0",
+                                                "group relative flex h-12 items-center rounded-2xl transition-colors duration-200 ease-out",
+                                                showSidebarDetails ? "w-full gap-3 px-3" : "w-14 justify-center px-0",
                                                 hasActiveSub
                                                     ? "bg-zinc-950 text-white shadow-[0_16px_38px_-26px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950"
                                                     : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-950/[0.045] dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.055]"
@@ -415,12 +443,12 @@ const DesktopFinanceiro = () => {
                                             </div>
 
                                             <AnimatePresence initial={false}>
-                                                {isSidebarExpanded ? (
+                                                {showSidebarDetails ? (
                                                     <motion.div
-                                                        initial={{ opacity: 0, x: -8, width: 0 }}
-                                                        animate={{ opacity: 1, x: 0, width: "auto" }}
-                                                        exit={{ opacity: 0, x: -8, width: 0 }}
-                                                        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                                                        initial={{ opacity: 0, x: -5 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, x: -4 }}
+                                                        transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }}
                                                         className="flex min-w-0 flex-1 items-center justify-between overflow-hidden"
                                                     >
                                                         <span className="truncate text-[10px] font-black uppercase tracking-[0.15em]">
@@ -436,12 +464,12 @@ const DesktopFinanceiro = () => {
                                         </button>
 
                                         <AnimatePresence>
-                                            {isSidebarExpanded && isGroupExpanded && group.subItems && (
+                                            {showSidebarDetails && isGroupExpanded && group.subItems && (
                                                 <motion.div
                                                     initial={{ height: 0, opacity: 0 }}
                                                     animate={{ height: "auto", opacity: 1 }}
                                                     exit={{ height: 0, opacity: 0 }}
-                                                    transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+                                                    transition={{ duration: showSidebarDetails ? 0.22 : 0.08, ease: [0.22, 1, 0.36, 1] }}
                                                     className="overflow-hidden flex flex-col gap-1 px-1 pb-1"
                                                 >
                                                     {group.subItems.map((sub) => {
@@ -473,7 +501,7 @@ const DesktopFinanceiro = () => {
                                                                             initial={{ height: 0, opacity: 0 }}
                                                                             animate={{ height: "auto", opacity: 1 }}
                                                                             exit={{ height: 0, opacity: 0 }}
-                                                                            transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                                                                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                                                                             className="overflow-hidden pl-7 pr-1"
                                                                         >
                                                                             <div className="flex flex-col gap-1 border-l border-zinc-200/70 pl-3 dark:border-white/10">

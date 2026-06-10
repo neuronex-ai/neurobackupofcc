@@ -221,7 +221,7 @@ export function FinancialDashboard({
             return (
                 <motion.div {...motionProps} key="extrato" className="px-6 py-6">
                     <div className="mx-auto max-w-7xl space-y-6">
-                        <SectionHeader icon={FileText} title="Extrato detalhado" subtitle="Histórico unificado NeuroFinance e manual" onBack={handleGoBack} />
+                        <SectionHeader icon={FileText} title="Extrato" subtitle="Histórico unificado NeuroFinance e manual" onBack={handleGoBack} />
                         <DetailedStatementPanel
                             tab={extratoTab}
                             onTabChange={setExtratoTab}
@@ -238,19 +238,19 @@ export function FinancialDashboard({
         case "pix":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={BadgeCent} title="Área Pix" subtitle="Tudo que você faz com Pix" onBack={handleGoBack} /><ContentWrapper><PixReceber /></ContentWrapper></motion.div>;
         case "pix-pagar":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={QrCode} title="Pagar Pix" subtitle="Cole o Pix e pague" onBack={() => setActiveView("pix")} /><ContentWrapper><PixPagarCopiaCola /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={QrCode} title="Pagar Pix" subtitle="Cole o Pix e pague" onBack={() => setActiveView("pix-receber")} /><ContentWrapper><PixPagarCopiaCola /></ContentWrapper></motion.div>;
         case "pix-transferir":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Send} title="Transferir" subtitle="Envie para uma chave Pix" onBack={() => setActiveView("pix")} /><ContentWrapper><PixTransferir /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Send} title="Transferir" subtitle="Envie para uma chave Pix" onBack={() => setActiveView("pix-receber")} /><ContentWrapper><PixTransferir /></ContentWrapper></motion.div>;
         case "pix-qrcode":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={QrCode} title="QR Code" subtitle="Gere um Pix para receber" onBack={() => setActiveView("pix")} /><ContentWrapper><PixGerarQrCode /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={QrCode} title="QR Code" subtitle="Gere um Pix para receber" onBack={() => setActiveView("pix-receber")} /><ContentWrapper><PixGerarQrCode /></ContentWrapper></motion.div>;
         case "pix-receber":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={ArrowDownLeft} title="Receber" subtitle="Acompanhe o que entrou" onBack={() => setActiveView("pix")} /><ContentWrapper><PixReceber /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={ArrowDownLeft} title="Receber" subtitle="Acompanhe o que entrou" onBack={handleGoBack} /><ContentWrapper><PixReceber /></ContentWrapper></motion.div>;
         case "pix-chaves":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Key} title="Chaves Pix" subtitle="Suas chaves para receber" onBack={() => setActiveView("pix")} /><ContentWrapper><PixChaves /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Key} title="Chaves Pix" subtitle="Suas chaves para receber" onBack={() => setActiveView("pix-receber")} /><ContentWrapper><PixChaves /></ContentWrapper></motion.div>;
         case "pix-salarios":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Users} title="Salários" subtitle="Pix em lote para sua equipe" onBack={() => setActiveView("pix")} /><ContentWrapper><PixSalarios /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Users} title="Salários" subtitle="Pix em lote para sua equipe" onBack={() => setActiveView("pix-receber")} /><ContentWrapper><PixSalarios /></ContentWrapper></motion.div>;
         case "pix-limites":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={ShieldCheck} title="Limites" subtitle="Segurança da conta" onBack={() => setActiveView("pix")} /><ContentWrapper><PixLimites /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={ShieldCheck} title="Limites" subtitle="Segurança da conta" onBack={() => setActiveView("pix-receber")} /><ContentWrapper><PixLimites /></ContentWrapper></motion.div>;
         case "transferencias":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Send} title="Saque" subtitle="Envie fundos para sua conta" onBack={handleGoBack} /><ContentWrapper><BankTransferView /></ContentWrapper></motion.div>;
         case "pagamentos":
@@ -266,7 +266,7 @@ export function FinancialDashboard({
         case "pagamentos-grupos":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={FolderOpen} title="Pagamentos em lote" subtitle="Organize várias contas de uma vez" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosGrupos /></ContentWrapper></motion.div>;
         case "contas-bancarias":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Landmark} title="Ajustes NeuroFinance" subtitle="Conta bancária" onBack={handleGoBack} /><ContentWrapper><BankAccountsView /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Landmark} title="Ajustes" subtitle="Conta bancária" onBack={handleGoBack} /><ContentWrapper><BankAccountsView /></ContentWrapper></motion.div>;
         case "saude-conta":
             return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={ShieldCheck} title="Saúde da conta" subtitle="Status documental e análise cadastral" onBack={handleGoBack} /><AsaasAccountStatusTimeline /></motion.div>;
         case "fluxo-caixa":

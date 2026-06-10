@@ -270,7 +270,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
 
             <MiniActionBlock
                 icon={Banknote}
-                label="Extrato Detalhado"
+                label="Extrato"
                 onClick={() => onNavigate?.('extrato')}
             />
 

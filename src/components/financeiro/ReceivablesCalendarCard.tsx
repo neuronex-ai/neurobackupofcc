@@ -21,7 +21,6 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
-  Clock3,
   Loader2,
   Receipt,
   Sparkles,
@@ -57,15 +56,21 @@ const SOURCE_LABELS: Record<ReceivableSource, string> = {
 };
 
 const SOURCE_STYLES: Record<ReceivableSource, string> = {
-  neurofinance: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  agenda: "border-cyan-500/20 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-  manual: "border-violet-500/20 bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  neurofinance: "border-emerald-500/20 bg-emerald-500/[0.055] text-zinc-700 dark:text-zinc-200",
+  agenda: "border-cyan-500/20 bg-cyan-500/[0.055] text-zinc-700 dark:text-zinc-200",
+  manual: "border-violet-500/20 bg-violet-500/[0.055] text-zinc-700 dark:text-zinc-200",
 };
 
 const SOURCE_DOTS: Record<ReceivableSource, string> = {
   neurofinance: "bg-emerald-500",
   agenda: "bg-cyan-400",
   manual: "bg-violet-500",
+};
+
+const SOURCE_CELL_ACCENTS: Record<ReceivableSource, string> = {
+  neurofinance: "border-l-emerald-500/70",
+  agenda: "border-l-cyan-400/70",
+  manual: "border-l-violet-500/70",
 };
 
 const STATUS_LABELS: Record<ReceivableStatus, string> = {
@@ -79,13 +84,23 @@ const STATUS_LABELS: Record<ReceivableStatus, string> = {
 };
 
 const STATUS_STYLES: Record<ReceivableStatus, string> = {
-  planned: "border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300",
-  pending: "border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  processing: "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  confirmed: "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  paid: "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  overdue: "border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300",
-  cancelled: "border-zinc-500/20 bg-zinc-500/10 text-zinc-600 dark:text-zinc-300",
+  planned: "border-sky-500/20 bg-white text-zinc-600 dark:bg-white/[0.035] dark:text-zinc-300",
+  pending: "border-amber-500/25 bg-white text-zinc-700 dark:bg-white/[0.035] dark:text-zinc-200",
+  processing: "border-blue-500/20 bg-white text-zinc-600 dark:bg-white/[0.035] dark:text-zinc-300",
+  confirmed: "border-blue-500/20 bg-white text-zinc-600 dark:bg-white/[0.035] dark:text-zinc-300",
+  paid: "border-emerald-500/25 bg-white text-zinc-700 dark:bg-white/[0.035] dark:text-zinc-200",
+  overdue: "border-red-500/25 bg-white text-zinc-700 dark:bg-white/[0.035] dark:text-zinc-200",
+  cancelled: "border-zinc-300 bg-white text-zinc-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400",
+};
+
+const STATUS_DOTS: Record<ReceivableStatus, string> = {
+  planned: "bg-sky-400",
+  pending: "bg-amber-400",
+  processing: "bg-blue-500",
+  confirmed: "bg-blue-500",
+  paid: "bg-emerald-500",
+  overdue: "bg-red-500",
+  cancelled: "bg-zinc-400",
 };
 
 const currency = (value: number) =>
@@ -340,13 +355,14 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
             </div>
 
             {selectedBounds && (
-              <div className="mt-6 overflow-hidden rounded-[32px] border border-zinc-200/70 bg-white dark:border-white/[0.06] dark:bg-black/20">
-                <div className="flex flex-col gap-4 border-b border-zinc-100 p-5 dark:border-white/5 md:flex-row md:items-center md:justify-between">
+              <div className="relative mt-6 overflow-hidden rounded-[32px] border border-zinc-200/70 bg-white/80 shadow-[0_20px_54px_-42px_rgba(24,24,27,0.35)] dark:border-white/[0.06] dark:bg-[#0b0c0e]/88">
+                <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.032]" />
+                <div className="relative z-10 flex flex-col gap-4 border-b border-zinc-100 bg-zinc-50/45 p-5 dark:border-white/5 dark:bg-white/[0.015] md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-400">Recebimentos no período</p>
                     <div className="mt-1 flex flex-wrap items-baseline gap-3">
                       <h3 className="text-base font-black text-zinc-950 dark:text-white">{selectedPeriodLabel}</h3>
-                      <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black text-zinc-700 dark:bg-white/5 dark:text-zinc-200">
+                      <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-black text-zinc-700 shadow-sm dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-200">
                         Total: {currency(selectedTotal)}
                       </span>
                     </div>
@@ -367,8 +383,8 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                     <p className="mt-3 text-xs font-black uppercase tracking-widest text-zinc-500">Nenhum recebimento neste período</p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
+                  <Table className="relative z-10">
+                    <TableHeader className="bg-zinc-50/55 dark:bg-white/[0.012]">
                       <TableRow className="border-zinc-100 hover:bg-transparent dark:border-white/5">
                         <TableHead className="text-[9px] font-black uppercase tracking-widest">Origem</TableHead>
                         <TableHead className="text-[9px] font-black uppercase tracking-widest">Paciente</TableHead>
@@ -380,13 +396,13 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                     </TableHeader>
                     <TableBody>
                       {filteredItems.map((item) => (
-                        <TableRow key={item.id} className="border-zinc-100 dark:border-white/5">
-                          <TableCell>
+                        <TableRow key={item.id} className="group/receivable border-zinc-100 transition-colors hover:bg-zinc-50/75 dark:border-white/5 dark:hover:bg-white/[0.025]">
+                          <TableCell className={cn("border-l-2 py-4", SOURCE_CELL_ACCENTS[item.source])}>
                             <span className={cn(
-                              "inline-flex rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-widest",
+                              "inline-flex items-center rounded-full border px-2.5 py-1.5 text-[8px] font-black uppercase tracking-widest shadow-sm",
                               SOURCE_STYLES[item.source],
                             )}>
-                              <i className={cn("mr-1.5 h-1.5 w-1.5 rounded-full", SOURCE_DOTS[item.source])} />
+                              <i className={cn("mr-1.5 h-1.5 w-1.5 rounded-full ring-2 ring-white dark:ring-zinc-900", SOURCE_DOTS[item.source])} />
                               {SOURCE_LABELS[item.source]}
                             </span>
                           </TableCell>
@@ -407,10 +423,13 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                                 disabled={updateEntry.isPending}
                               >
                                 <SelectTrigger className={cn(
-                                  "h-9 w-36 rounded-full border px-3 text-[9px] font-black uppercase tracking-wider",
+                                  "h-9 w-36 rounded-full border px-3 text-[9px] font-black uppercase tracking-wider shadow-sm",
                                   STATUS_STYLES[item.status],
                                 )}>
-                                  <SelectValue />
+                                  <span className="flex min-w-0 items-center gap-2">
+                                    <i className={cn("h-1.5 w-1.5 shrink-0 rounded-full", STATUS_DOTS[item.status])} />
+                                    <SelectValue />
+                                  </span>
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="planned">Planejado</SelectItem>
@@ -422,10 +441,10 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                               </Select>
                             ) : (
                               <span className={cn(
-                                "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-[8px] font-black uppercase tracking-widest",
+                                "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[8px] font-black uppercase tracking-widest shadow-sm",
                                 STATUS_STYLES[item.status],
                               )}>
-                                <Clock3 className="h-3 w-3" />
+                                <i className={cn("h-1.5 w-1.5 rounded-full", STATUS_DOTS[item.status])} />
                                 {STATUS_LABELS[item.status]}
                               </span>
                             )}
@@ -433,7 +452,7 @@ export function ReceivablesCalendarCard({ onOpenFutureStatement }: ReceivablesCa
                           <TableCell className="text-xs font-bold text-zinc-500">
                             {format(parseISO(item.date), "dd/MM/yyyy")}
                           </TableCell>
-                          <TableCell className="text-right text-sm font-black text-zinc-950 dark:text-white">
+                          <TableCell className="text-right text-sm font-black tabular-nums text-zinc-950 dark:text-white">
                             {currency(item.amount)}
                           </TableCell>
                         </TableRow>
