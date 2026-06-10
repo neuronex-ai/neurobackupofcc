@@ -124,7 +124,7 @@ const FINANCE_NAV: NavItem[] = [
         subItems: [
             { id: 'pagamentos-boletos', label: 'Pagar boletos', icon: Barcode, description: 'Digite, arraste imagem ou anexe PDF' },
             { id: 'pagamentos-pix', label: 'Pagar Pix', icon: QrCode, description: 'Pague com Pix copia e cola' },
-            { id: 'pagamentos-agendados', label: 'Pagamentos Agendados', icon: CalendarClock, tag: 'Em breve', description: 'Acompanhe pagamentos programados pela conta NeuroFinance' },
+            { id: 'pagamentos-agendados', label: 'Pagamentos Agendados', icon: CalendarClock, description: 'Acompanhe pagamentos programados e comprovantes' },
         ],
     },
     {

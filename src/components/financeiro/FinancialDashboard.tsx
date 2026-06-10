@@ -46,6 +46,7 @@ import { PixSalarios } from "@/components/financeiro/pix/PixSalarios";
 import { PixLimites } from "@/components/financeiro/pix/PixLimites";
 import { PagamentosAgendamento } from "@/components/financeiro/pagamentos/PagamentosAgendamento";
 import { PagamentosGrupos } from "@/components/financeiro/pagamentos/PagamentosGrupos";
+import { ScheduledBillPayments } from "@/components/financeiro/pagamentos/ScheduledBillPayments";
 import { AsaasRegulatoryFooter } from "@/components/financeiro/AsaasRegulatoryFooter";
 import { FiscalConfigPanel } from "@/components/settings/FiscalConfigPanel";
 import { NeuroFinanceTariffs } from "@/components/financeiro/NeuroFinanceTariffs";
@@ -260,7 +261,7 @@ export function FinancialDashboard({
         case "pagamentos-pix":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={QrCode} title="Pagar Pix" subtitle="Use o saldo da conta para pagar" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PixPagarCopiaCola /></ContentWrapper></motion.div>;
         case "pagamentos-agendados":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={CalendarClock} title="Pagamentos Agendados" subtitle="Programações da conta NeuroFinance" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><CapabilityNotice icon={CalendarClock} title="Em breve" description="A integração com os pagamentos agendados da Asaas será disponibilizada nesta área." /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={CalendarClock} title="Pagamentos Agendados" subtitle="Programações e histórico da conta NeuroFinance" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><ScheduledBillPayments /></ContentWrapper></motion.div>;
         case "pagamentos-agendar":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Calendar} title="Pagar contas" subtitle="Boletos e Pix de fornecedores" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosAgendamento /></ContentWrapper></motion.div>;
         case "pagamentos-grupos":
