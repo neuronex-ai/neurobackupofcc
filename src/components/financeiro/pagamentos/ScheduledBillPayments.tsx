@@ -109,7 +109,7 @@ export function ScheduledBillPayments() {
   const { list } = useNeurofinanceBillPayments();
   const [selected, setSelected] = useState<BillPaymentRecord | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const records = list.data || [];
+  const records = useMemo(() => list.data || [], [list.data]);
 
   const summary = useMemo(() => ({
     scheduled: records.filter((item) => item.status === "scheduled").length,

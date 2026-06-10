@@ -197,7 +197,7 @@ function inferProviderObjectType(body: any) {
     return 'unknown';
 }
 
-async function findPaymentByProviderId(paymentId: string, columns = '*') {
+async function findPaymentByProviderId(paymentId: string, columns = '*'): Promise<any> {
     const { data, error } = await supabaseAdmin
         .from('nb_payments')
         .select(columns)
@@ -217,7 +217,7 @@ async function findPaymentByProviderId(paymentId: string, columns = '*') {
     return fallback.data;
 }
 
-async function findPayoutByProviderId(transferId: string, columns = '*') {
+async function findPayoutByProviderId(transferId: string, columns = '*'): Promise<any> {
     const { data, error } = await supabaseAdmin
         .from('nb_payouts')
         .select(columns)
