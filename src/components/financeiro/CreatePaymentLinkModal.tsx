@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { usePatients } from "@/hooks/use-patients";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import { formatMoneyInput, moneyInputToCents } from "@/lib/financial-input";
 
 interface CreatePaymentLinkModalProps {
     open: boolean;
@@ -46,7 +47,7 @@ export const CreatePaymentLinkModal = ({ open, onOpenChange }: CreatePaymentLink
     };
 
     const handleCreateLink = async () => {
-        if (!amount || parseFloat(amount.replace(',', '.')) <= 5) {
+        if (moneyInputToCents(amount) < 500) {
             return toast.error("O valor mínimo para cobrança é R$ 5,00");
         }
         if (selectedMethods.length === 0) {
@@ -58,7 +59,7 @@ export const CreatePaymentLinkModal = ({ open, onOpenChange }: CreatePaymentLink
 
         setLoading(true);
         try {
-            const cleanAmount = Math.round(parseFloat(amount.replace(',', '.')) * 100);
+            const cleanAmount = moneyInputToCents(amount);
 
             const { data, error } = await supabase.functions.invoke('asaas-create-payment', {
                 body: {
@@ -182,7 +183,7 @@ export const CreatePaymentLinkModal = ({ open, onOpenChange }: CreatePaymentLink
                             <input
                                 type="text"
                                 value={amount}
-                                onChange={(e) => setAmount(e.target.value.replace(/[^0-9,.]/g, ''))}
+                                onChange={(e) => setAmount(formatMoneyInput(e.target.value))}
                                 placeholder="0,00"
                                 className="w-full h-24 bg-white/[0.02] border-none text-5xl font-black text-white placeholder:text-zinc-800 text-right px-8 rounded-[24px] focus:ring-2 focus:ring-white/10 transition-all outline-none"
                             />

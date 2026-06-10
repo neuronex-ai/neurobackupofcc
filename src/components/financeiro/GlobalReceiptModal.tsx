@@ -8,6 +8,7 @@ import { ptBR } from "date-fns/locale";
 import { CreditCard, DollarSign, FileText, Printer, User } from "lucide-react";
 import { useRef, useState } from "react";
 import { BrandInvoiceTemplate } from "./BrandInvoiceTemplate";
+import { formatDocumentInput, formatMoneyInput, moneyInputToNumber } from "@/lib/financial-input";
 
 interface GlobalReceiptModalProps {
     children?: React.ReactNode;
@@ -43,7 +44,7 @@ export const GlobalReceiptModal = ({ children }: GlobalReceiptModalProps) => {
     const professionalName = profile ? `${profile.first_name} ${profile.last_name}` : "Psicólogo Responsável";
     const professionalRegistry = profile?.crp ? `CRP: ${profile.crp}` : "";
     const locationCity = profile?.address ? profile.address.split('-').pop()?.trim() : "São Paulo, SP";
-    const numericAmount = parseFloat(amount) || 0;
+    const numericAmount = moneyInputToNumber(amount);
     const dateStr = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
     // Botão Padrão se não for passado children
@@ -84,14 +85,14 @@ export const GlobalReceiptModal = ({ children }: GlobalReceiptModalProps) => {
                             <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider ml-1">CPF (Opcional)</label>
                             <div className="relative">
                                 <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input placeholder="000.000.000-00" value={cpf} onChange={e => setCpf(e.target.value)} className="pl-9 bg-black/20 border-white/10 h-11 rounded-xl focus-visible:ring-primary/20 text-white" />
+                                <Input placeholder="000.000.000-00" value={cpf} onChange={e => setCpf(formatDocumentInput(e.target.value))} className="pl-9 bg-black/20 border-white/10 h-11 rounded-xl focus-visible:ring-primary/20 text-white" />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider ml-1">Valor</label>
                             <div className="relative">
                                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input type="number" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} className="pl-9 bg-black/20 border-white/10 h-11 rounded-xl focus-visible:ring-primary/20 text-white font-bold" />
+                                <Input inputMode="decimal" placeholder="0,00" value={amount} onChange={e => setAmount(formatMoneyInput(e.target.value))} className="pl-9 bg-black/20 border-white/10 h-11 rounded-xl focus-visible:ring-primary/20 text-white font-bold" />
                             </div>
                         </div>
                         <div className="space-y-2">

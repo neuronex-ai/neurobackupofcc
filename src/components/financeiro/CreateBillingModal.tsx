@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { formatMoneyInput, moneyInputToNumber } from "@/lib/financial-input";
 
 const billingSchema = z.object({
     patient_id: z.string().min(1, "Selecione um paciente"),
@@ -139,9 +140,11 @@ export const CreateBillingModal = ({ open, onOpenChange, patients }: Props) => {
                                     <DollarSign className="w-3 h-3" /> Valor (R$)
                                 </label>
                                 <input 
-                                    type="number"
-                                    step="0.01"
-                                    {...register("amount", { valueAsNumber: true })}
+                                    inputMode="decimal"
+                                    {...register("amount", {
+                                        setValueAs: moneyInputToNumber,
+                                        onChange: (event) => { event.target.value = formatMoneyInput(event.target.value); },
+                                    })}
                                     className="w-full h-14 px-5 rounded-2xl bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-sm font-bold focus:ring-2 focus:ring-zinc-900 transition-all"
                                     placeholder="0,00"
                                 />
