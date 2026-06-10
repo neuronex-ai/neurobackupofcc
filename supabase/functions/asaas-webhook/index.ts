@@ -765,6 +765,29 @@ async function handleBillEvent(bill: any, event: string) {
     console.log(`[asaas-webhook] Bill synchronized (${event}): ${record.id}`);
 }
 
+async function updateSecureOutgoingTransfer(transfer: any, values: Record<string, unknown>) {
+    const { data: request, error: findError } = await supabaseAdmin
+        .from('neurofinance_outgoing_requests')
+        .select('id, provider_payload')
+        .eq('provider_operation_id', transfer.id)
+        .maybeSingle();
+    if (findError) throw findError;
+    if (!request) return;
+
+    const { error } = await supabaseAdmin
+        .from('neurofinance_outgoing_requests')
+        .update({
+            ...values,
+            provider_payload: {
+                ...(request.provider_payload || {}),
+                latestWebhook: transfer,
+            },
+            updated_at: new Date().toISOString(),
+        })
+        .eq('id', request.id);
+    if (error) throw error;
+}
+
 async function handleTransferPending(transfer: any) {
     if (!transfer?.id) return;
 
@@ -781,9 +804,17 @@ async function handleTransferPending(transfer: any) {
             status: 'in_transit',
             provider_status: String(transfer.status || 'PENDING').toUpperCase(),
             provider_payout_id: transfer.id,
+            receipt_url: transfer.transactionReceiptUrl || null,
+            provider_payload: transfer,
             updated_at: new Date().toISOString(),
         })
         .eq('id', payout.id);
+
+    await updateSecureOutgoingTransfer(transfer, {
+        status: 'in_transit',
+        provider_status: String(transfer.status || 'PENDING').toUpperCase(),
+        receipt_url: transfer.transactionReceiptUrl || null,
+    });
 
     await touchFinancialAccountEvent(payout.financial_account_id, 'TRANSFER_PENDING');
 }
@@ -806,11 +837,20 @@ async function handleTransferDone(transfer: any) {
             fee_amount: transfer.transferFee != null
                 ? Math.round(Number(transfer.transferFee || 0) * 100)
                 : Number(payout.fee_amount || 0),
+            receipt_url: transfer.transactionReceiptUrl || payout.receipt_url || null,
+            provider_payload: transfer,
             reconciliation_status: 'reconciled',
             reconciled_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         })
         .eq('id', payout.id);
+
+    await updateSecureOutgoingTransfer(transfer, {
+        status: 'paid',
+        provider_status: 'DONE',
+        receipt_url: transfer.transactionReceiptUrl || payout.receipt_url || null,
+        completed_at: transfer.effectiveDate || transfer.confirmedDate || new Date().toISOString(),
+    });
 
     await upsertAccountMovement({
         userId: payout.user_id,
@@ -862,9 +902,17 @@ async function handleTransferFailed(transfer: any, event: string) {
             status,
             provider_status: event === 'TRANSFER_CANCELLED' ? 'CANCELLED' : 'FAILED',
             provider_payout_id: transfer.id,
+            provider_payload: transfer,
+            error_message: transfer.failReason || transfer.refusalReason || null,
             updated_at: new Date().toISOString(),
         })
         .eq('id', payout.id);
+
+    await updateSecureOutgoingTransfer(transfer, {
+        status,
+        provider_status: event === 'TRANSFER_CANCELLED' ? 'CANCELLED' : 'FAILED',
+        error_message: transfer.failReason || transfer.refusalReason || null,
+    });
 
     await touchFinancialAccountEvent(payout.financial_account_id, event);
 

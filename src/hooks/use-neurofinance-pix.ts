@@ -163,7 +163,7 @@ export function useNeuroFinancePix() {
     };
 
     // ─── Send PIX (Pix Out / Transfer) ──────────────────────
-    const sendPix = useMutation<any, Error, { valor: number; pixKey: string; descricao?: string; type?: 'transfer' | 'pay' }>({
+    const sendPix = useMutation<Record<string, unknown>, Error, { valor: number; pixKey: string; descricao?: string; type?: 'transfer' | 'pay' }>({
         mutationFn: async (params) => {
             const amountCentavos = Math.round(params.valor * 100);
 
@@ -184,18 +184,6 @@ export function useNeuroFinancePix() {
         },
     });
 
-    const payQrCode = useMutation<any, Error, { payload: string; valor?: number }>({
-        mutationFn: async ({ payload, valor }) => {
-            return invokeNeurofinanceFunction('asaas-pix', { action: 'pay_qr_code', payload, value: valor }, "transfer");
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-payments'] });
-            queryClient.invalidateQueries({ queryKey: ['neurofinance-overview'] });
-            toast.success('Pagamento Pix enviado para processamento.');
-        },
-        onError: (error) => toast.error(getUserFacingErrorMessage(error, "transfer")),
-    });
-
     return {
         // Cobranças imediatas
         createCharge,
@@ -204,7 +192,6 @@ export function useNeuroFinancePix() {
 
         // Transferências (Saída)
         sendPix,
-        payQrCode,
 
         // Cobranças com vencimento
         createCobVencimento,

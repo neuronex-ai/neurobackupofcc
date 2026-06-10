@@ -1,248 +1,232 @@
-/**
- * ─── PixPagarCopiaCola — Pagar Pix Copia e Cola ─────────────────
- * Allows users to paste a PIX copy-paste code and process payment.
- * Connected to NeuroFinance / Asaas BaaS API.
- * ─────────────────────────────────────────────────────────────────
- */
-
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-    QrCode,
-    ClipboardPaste,
-    Send,
-    Loader2,
-    CheckCircle2,
-    AlertTriangle,
-    Eye,
-    EyeOff,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ClipboardPaste, Landmark, Loader2, LockKeyhole, QrCode, ReceiptText, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
-import { useNeuroFinancePix } from "@/hooks/use-neurofinance-pix";
-import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+
+import { SecureOperationPinDialog } from "@/components/financeiro/secure/SecureOperationPinDialog";
+import { SecureOperationProcessing } from "@/components/financeiro/secure/SecureOperationProcessing";
+import { SecureOperationSuccess } from "@/components/financeiro/secure/SecureOperationSuccess";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  type PixPaymentConsultation,
+  type PixPaymentExecution,
+  useNeurofinancePixPayment,
+} from "@/hooks/use-neurofinance-pix-payment";
+import { cn, formatCurrency } from "@/lib/utils";
+
+type PixStep = "input" | "review" | "processing" | "success";
+const wait = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+function moneyToNumber(value: string) {
+  const normalized = (value.includes(",") ? value.replace(/\./g, "").replace(",", ".") : value)
+    .replace(/[^\d.]/g, "");
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function moneyInput(value: number) {
+  return value > 0 ? value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+}
+
+function maskDocument(value?: string | null) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length === 11) return `***.${digits.slice(3, 6)}.${digits.slice(6, 9)}-**`;
+  if (digits.length === 14) return `**.${digits.slice(2, 5)}.${digits.slice(5, 8)}/****-${digits.slice(-2)}`;
+  return value || "Não informado";
+}
 
 export function PixPagarCopiaCola() {
-    const [pixCode, setPixCode] = useState("");
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [decodedInfo, setDecodedInfo] = useState<any>(null);
-    const [showValue, setShowValue] = useState(true);
-    const [step, setStep] = useState<"input" | "confirm" | "success">("input");
-    const { payQrCode } = useNeuroFinancePix();
+  const [step, setStep] = useState<PixStep>("input");
+  const [pixCode, setPixCode] = useState("");
+  const [value, setValue] = useState("");
+  const [consultation, setConsultation] = useState<PixPaymentConsultation | null>(null);
+  const [execution, setExecution] = useState<PixPaymentExecution | null>(null);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const { consult, authorize, execute, receipt } = useNeurofinancePixPayment();
 
-    const handlePaste = async () => {
-        try {
-            const text = await navigator.clipboard.readText();
-            setPixCode(text);
-            toast.success("Código colado com sucesso!");
-        } catch {
-            toast.error("Não foi possível acessar a área de transferência.");
-        }
-    };
+  const selectedValue = useMemo(
+    () => consultation?.canChangeValue ? moneyToNumber(value) : Number(consultation?.amount || 0),
+    [consultation, value],
+  );
+  const canConfirm = Boolean(
+    consultation &&
+    selectedValue > 0 &&
+    (consultation.availableBalance == null || consultation.availableBalance >= selectedValue),
+  );
 
-    const handleDecodeAndPay = async () => {
-        if (!pixCode.trim()) {
-            toast.error("Cole o código PIX Copia e Cola.");
-            return;
-        }
+  const reset = () => {
+    setStep("input");
+    setPixCode("");
+    setValue("");
+    setConsultation(null);
+    setExecution(null);
+    setPinOpen(false);
+    setPinError(null);
+    consult.reset();
+    authorize.reset();
+    execute.reset();
+  };
 
-        setIsProcessing(true);
-        try {
-            setDecodedInfo({
-                payload: pixCode.trim(),
-                identificador: pixCode.trim().slice(-32),
-            });
-            setStep("confirm");
-        } catch (error: any) {
-            console.error("[PixPagarCopiaCola] Falha ao ler o código Pix", error);
-            toast.error(getUserFacingErrorMessage(error, "payment"));
-        } finally {
-            setIsProcessing(false);
-        }
-    };
+  const handlePaste = async () => {
+    try {
+      setPixCode(await navigator.clipboard.readText());
+      toast.success("Código Pix colado.");
+    } catch {
+      toast.error("Não foi possível acessar a área de transferência.");
+    }
+  };
 
-    const handleConfirmPayment = async () => {
-        if (!decodedInfo) return;
+  const handleConsult = async () => {
+    if (!pixCode.trim()) return toast.error("Cole o código Pix Copia e Cola.");
+    try {
+      const response = await consult.mutateAsync({ payload: pixCode.trim() });
+      setConsultation(response.consultation);
+      setValue(moneyInput(response.consultation.amount));
+      setStep("review");
+    } catch {
+      // The hook shows the provider validation message.
+    }
+  };
 
-        setIsProcessing(true);
-        try {
-            await payQrCode.mutateAsync({ payload: decodedInfo.payload });
+  const handlePinConfirm = async (pin: string) => {
+    if (!consultation) return;
+    setPinError(null);
+    let authorized = false;
+    try {
+      const authorization = await authorize.mutateAsync({ requestId: consultation.id, pin, value: selectedValue });
+      authorized = true;
+      setConsultation(authorization.consultation);
+      setPinOpen(false);
+      setStep("processing");
+      const [result] = await Promise.all([execute.mutateAsync(consultation.id), wait(3400)]);
+      setExecution(result);
+      setStep("success");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível autorizar este Pix.";
+      if (!authorized) {
+        setPinError(message);
+        return;
+      }
+      setStep("review");
+    }
+  };
 
-            setStep("success");
-            toast.success("Pagamento Pix processado com sucesso!");
-        } catch (error: any) {
-            // Error handled by mutation onError
-        } finally {
-            setIsProcessing(false);
-        }
-    };
+  return (
+    <div className="space-y-6">
+      <AnimatePresence mode="wait">
+        {step === "input" && (
+          <motion.div key="input" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+            <section className="rounded-[28px] border border-zinc-200/70 bg-white/72 p-6 backdrop-blur-3xl dark:border-white/[0.08] dark:bg-[#0b0b0d]/76">
+              <p className="text-[9px] font-black uppercase tracking-[0.24em] text-zinc-400">Etapa 1 de 2</p>
+              <h3 className="mt-2 text-lg font-black text-zinc-950 dark:text-white">Consulte o Pix antes de pagar</h3>
+              <p className="mt-1 text-sm text-zinc-500">O pagamento só será enviado depois da revisão e do seu PIN.</p>
+              <div className="relative mt-6">
+                <textarea
+                  value={pixCode}
+                  onChange={(event) => setPixCode(event.target.value)}
+                  placeholder="00020126580014br.gov.bcb.pix..."
+                  className="h-44 w-full resize-none rounded-[24px] border border-zinc-200 bg-zinc-50/70 p-5 font-mono text-sm outline-none transition focus:border-zinc-400 dark:border-white/10 dark:bg-white/[0.025]"
+                />
+                <Button type="button" onClick={handlePaste} size="sm" className="absolute right-3 top-3 rounded-full">
+                  <ClipboardPaste className="mr-2 h-4 w-4" /> Colar
+                </Button>
+              </div>
+              <Button type="button" onClick={handleConsult} disabled={!pixCode.trim() || consult.isPending} className="mt-4 h-13 w-full rounded-[18px] bg-zinc-950 text-[10px] font-black uppercase tracking-widest text-white dark:bg-white dark:text-zinc-950">
+                {consult.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ReceiptText className="mr-2 h-4 w-4" />}
+                Consultar dados do Pix
+              </Button>
+            </section>
+            <aside className="rounded-[28px] border border-zinc-200/70 bg-white/72 p-6 dark:border-white/[0.08] dark:bg-white/[0.035]">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-zinc-400">Pagamento protegido</p>
+              <div className="mt-6 space-y-3">
+                {[
+                  { icon: QrCode, title: "Decodificação Asaas", text: "Validamos recebedor, instituição, valor e validade diretamente na Asaas." },
+                  { icon: LockKeyhole, title: "Confirmação por PIN", text: "O Pix só será enviado depois da sua assinatura digital." },
+                  { icon: ShieldCheck, title: "Dados congelados", text: "A efetivação usa exatamente o Pix e o valor que você revisou." },
+                ].map((item, index) => (
+                  <div key={item.title} className="flex gap-4 rounded-[20px] border border-zinc-200/60 bg-zinc-50/65 p-4 dark:border-white/[0.06] dark:bg-black/20">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-[13px] bg-white dark:bg-white/[0.06]"><item.icon className="h-4 w-4" /></div>
+                    <div><p className="text-[8px] font-black uppercase tracking-widest text-zinc-400">0{index + 1}</p><p className="mt-1 text-xs font-black">{item.title}</p><p className="mt-1 text-[10px] leading-relaxed text-zinc-500">{item.text}</p></div>
+                  </div>
+                ))}
+              </div>
+            </aside>
+          </motion.div>
+        )}
 
-    const handleReset = () => {
-        setPixCode("");
-        setDecodedInfo(null);
-        setStep("input");
-    };
-
-    return (
-        <div className="space-y-6">
-            {/* Header Card */}
-            <div className="p-6 rounded-[28px] bg-zinc-900 dark:bg-white border border-zinc-800 dark:border-zinc-200">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-white/10 dark:bg-black/5 text-white dark:text-zinc-900 flex items-center justify-center shadow-lg">
-                        <QrCode className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h3 className="text-sm font-black uppercase tracking-tight text-white dark:text-zinc-900">
-                            Pagar Pix Copia e Cola
-                        </h3>
-                        <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mt-0.5">
-                            Cole o código e pague instantaneamente • Grátis
-                        </p>
-                    </div>
-                    <div className="ml-auto px-3 py-1 rounded-full bg-white/10 dark:bg-black/5 text-[8px] font-black uppercase tracking-widest text-white dark:text-zinc-900">
-                        Produção
-                    </div>
-                </div>
+        {step === "review" && consultation && (
+          <motion.section key="review" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mx-auto max-w-4xl overflow-hidden rounded-[32px] border border-zinc-200/70 bg-white/75 dark:border-white/[0.08] dark:bg-[#09090b]/80">
+            <div className="border-b border-zinc-100 p-7 dark:border-white/5">
+              <p className="text-[9px] font-black uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">Pix localizado</p>
+              <h3 className="mt-2 text-xl font-black">Confira antes de pagar</h3>
+              <p className="mt-1 text-xs text-zinc-500">Dados consultados diretamente na Asaas e congelados após o PIN.</p>
             </div>
+            <div className="p-7">
+              <div className="rounded-[26px] bg-white p-6 text-zinc-950 shadow-2xl">
+                <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-500">Valor total:</p>
+                {consultation.canChangeValue ? (
+                  <div className="relative mt-3">
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-3xl font-light text-zinc-400">R$</span>
+                    <Input value={value} onChange={(event) => setValue(event.target.value)} inputMode="decimal" placeholder="0,00" className="h-16 border-0 bg-transparent pl-12 text-5xl font-black tracking-[-0.05em] shadow-none focus-visible:ring-0" />
+                    <p className="mt-2 text-xs text-zinc-500">O recebedor permite definir o valor deste Pix.</p>
+                  </div>
+                ) : <p className="mt-3 text-5xl font-black tracking-[-0.05em]">{formatCurrency(consultation.amount)}</p>}
+              </div>
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                {[
+                  { icon: UserRound, label: "Recebedor", value: consultation.receiverName || "Não informado", detail: maskDocument(consultation.receiverDocument) },
+                  { icon: Landmark, label: "Instituição", value: consultation.institutionName || "Instituição Pix", detail: consultation.institutionIspb ? `ISPB ${consultation.institutionIspb}` : "Validada pela Asaas" },
+                  { icon: QrCode, label: "Tipo do Pix", value: consultation.qrType || "QR Code Pix", detail: consultation.description || "Pagamento instantâneo" },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-4 rounded-[22px] border border-zinc-200/70 bg-zinc-50/70 p-4 dark:border-white/[0.07] dark:bg-white/[0.025]">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-[15px] bg-white dark:bg-white/[0.06]"><item.icon className="h-4 w-4" /></div>
+                    <div className="min-w-0"><p className="text-[8px] font-black uppercase tracking-widest text-zinc-400">{item.label}</p><p className="mt-1 truncate text-sm font-black">{item.value}</p><p className="mt-0.5 text-[10px] text-zinc-500">{item.detail}</p></div>
+                  </div>
+                ))}
+              </div>
+              <p className={cn("mt-6 text-xs font-light", canConfirm ? "text-zinc-500 dark:text-white" : "text-red-500")}>
+                Saldo atual confirmado: {consultation.availableBalance == null ? "indisponível" : formatCurrency(consultation.availableBalance)}. O Pix será enviado instantaneamente após a confirmação com seu PIN.
+              </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-[0.75fr_1.25fr]">
+                <Button variant="ghost" onClick={() => { setStep("input"); setConsultation(null); }} className="h-13 rounded-[18px] text-[10px] font-black uppercase tracking-widest">Corrigir código</Button>
+                <Button disabled={!canConfirm} onClick={() => { setPinError(null); setPinOpen(true); }} className="h-13 rounded-[18px] bg-zinc-950 text-[10px] font-black uppercase tracking-widest text-white dark:bg-white dark:text-zinc-950">Confirmar pagamento</Button>
+              </div>
+            </div>
+          </motion.section>
+        )}
 
-            <AnimatePresence mode="wait">
-                {step === "input" && (
-                    <motion.div
-                        key="input"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="space-y-4"
-                    >
-                        {/* Input Area */}
-                        <div className="p-6 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06] backdrop-blur-xl">
-                            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 mb-3 block">
-                                Cole o código Pix Copia e Cola
-                            </label>
-                            <div className="relative">
-                                <textarea
-                                    value={pixCode}
-                                    onChange={(e) => setPixCode(e.target.value)}
-                                    placeholder="00020126580014br.gov.bcb.pix..."
-                                    className="w-full h-32 p-4 rounded-2xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-sm font-mono text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30 transition-all"
-                                />
-                                <button
-                                    onClick={handlePaste}
-                                    className="absolute top-3 right-3 px-3 py-1.5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-black text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 hover:opacity-90 transition-opacity"
-                                >
-                                    <ClipboardPaste className="w-3 h-3" />
-                                    Colar
-                                </button>
-                            </div>
-                        </div>
+        {step === "processing" && <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }}><SecureOperationProcessing /></motion.div>}
 
-                        {/* Submit */}
-                        <button
-                            onClick={handleDecodeAndPay}
-                            disabled={isProcessing || !pixCode.trim()}
-                            className={cn(
-                                "w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300",
-                                pixCode.trim()
-                                    ? "bg-zinc-900 dark:bg-white text-white dark:text-black hover:opacity-90 shadow-2xl"
-                                    : "bg-zinc-100 dark:bg-white/5 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
-                            )}
-                        >
-                            {isProcessing ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <>
-                                    <Send className="w-4 h-4" />
-                                    Processar Pagamento
-                                </>
-                            )}
-                        </button>
-                    </motion.div>
-                )}
+        {step === "success" && consultation && execution && (
+          <motion.div key="success" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}>
+            <SecureOperationSuccess
+              title={execution.status === "paid" ? "Pix confirmado" : "Pix enviado com segurança"}
+              description={execution.status === "paid" ? "A instituição confirmou o pagamento Pix." : "A solicitação foi recebida e acompanha a confirmação bancária."}
+              amount={consultation.amount}
+              recipient={consultation.receiverName || consultation.destinationSummary}
+              status={execution.status}
+              receiptUrl={execution.receiptUrl}
+              newActionLabel="Pagar outro Pix"
+              onNewAction={reset}
+              onRefreshReceipt={async () => (await receipt.mutateAsync(consultation.id)).receiptUrl}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                {step === "confirm" && decodedInfo && (
-                    <motion.div
-                        key="confirm"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="space-y-4"
-                    >
-                        <div className="p-6 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06] backdrop-blur-xl space-y-5">
-                            <div className="flex items-center justify-between">
-                                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">
-                                    Confirme os dados do pagamento
-                                </p>
-                                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                            </div>
-
-                            <div className="space-y-3">
-                                {[
-                                    { label: "Operação", value: "Pagamento via QR Code Pix" },
-                                    { label: "Processamento", value: "Asaas API v3" },
-                                    { label: "Identificador", value: decodedInfo.identificador },
-                                ].map((item) => (
-                                    <div key={item.label} className="flex items-center justify-between py-2 border-b border-zinc-100 dark:border-white/5 last:border-0">
-                                        <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">{item.label}</span>
-                                        <span className="text-xs font-bold text-zinc-900 dark:text-white">{item.value}</span>
-                                    </div>
-                                ))}
-                                <div className="flex items-center justify-between py-3 bg-zinc-50 dark:bg-white/[0.03] rounded-xl px-4 -mx-1">
-                                    <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Valor</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-lg font-black text-zinc-900 dark:text-white">
-                                            {showValue ? "Definido no QR Code" : "Oculto"}
-                                        </span>
-                                        <button onClick={() => setShowValue(!showValue)} className="text-zinc-400 hover:text-zinc-600 transition-colors">
-                                            {showValue ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={handleReset}
-                                className="flex-1 h-12 rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 font-black text-[10px] uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-white/10 transition-all"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleConfirmPayment}
-                                disabled={isProcessing}
-                                className="flex-[2] h-12 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg"
-                            >
-                                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmar Pagamento"}
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
-
-                {step === "success" && (
-                    <motion.div
-                        key="success"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="flex flex-col items-center justify-center py-12 text-center"
-                    >
-                        <div className="w-20 h-20 rounded-full bg-zinc-100 dark:bg-white/10 flex items-center justify-center mb-6">
-                            <CheckCircle2 className="w-10 h-10 text-zinc-900 dark:text-white" />
-                        </div>
-                        <h3 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
-                            Pagamento Realizado
-                        </h3>
-                        <p className="text-sm text-zinc-500 mt-2 max-w-sm">
-                            Seu pagamento PIX foi enviado com sucesso para processamento.
-                        </p>
-                        <button
-                            onClick={handleReset}
-                            className="mt-8 px-8 h-12 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-black font-black text-[10px] uppercase tracking-wider hover:opacity-90 transition-opacity"
-                        >
-                            Novo Pagamento
-                        </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
+      {consultation && (
+        <SecureOperationPinDialog
+          open={pinOpen}
+          onOpenChange={(open) => { setPinOpen(open); if (!open) setPinError(null); }}
+          onConfirm={handlePinConfirm}
+          recipient={consultation.receiverName}
+          value={selectedValue}
+          isLoading={authorize.isPending}
+          errorMessage={pinError}
+        />
+      )}
+    </div>
+  );
 }

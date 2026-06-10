@@ -110,6 +110,54 @@ export const supabaseAdmin = createClient(
     }
 );
 
+export async function saveProviderPayout(values: Record<string, unknown>) {
+    const provider = String(values.provider || "asaas");
+    const providerPayoutId = String(values.provider_payout_id || "");
+    if (!providerPayoutId) throw new Error("Provider payout ID is required.");
+
+    const findExisting = () => supabaseAdmin
+        .from("nb_payouts")
+        .select("id")
+        .eq("provider", provider)
+        .eq("provider_payout_id", providerPayoutId)
+        .maybeSingle();
+
+    const { data: existing, error: findError } = await findExisting();
+    if (findError) throw findError;
+
+    if (existing?.id) {
+        const { data, error } = await supabaseAdmin
+            .from("nb_payouts")
+            .update(values)
+            .eq("id", existing.id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    }
+
+    const { data, error } = await supabaseAdmin
+        .from("nb_payouts")
+        .insert(values)
+        .select()
+        .single();
+    if (!error) return data;
+    if (String(error.code || "") !== "23505") throw error;
+
+    const { data: raced, error: racedError } = await findExisting();
+    if (racedError) throw racedError;
+    if (!raced?.id) throw error;
+
+    const { data: updated, error: updateError } = await supabaseAdmin
+        .from("nb_payouts")
+        .update(values)
+        .eq("id", raced.id)
+        .select()
+        .single();
+    if (updateError) throw updateError;
+    return updated;
+}
+
 // ─────────────────────────────────────────────────────────────
 // CORS + responses
 // ─────────────────────────────────────────────────────────────
@@ -861,7 +909,9 @@ export async function createAsaasTransfer(
         };
         operationType: "PIX" | "TED" | "INTERNAL";
         pixAddressKey?: string;
+        pixAddressKeyType?: "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "EVP";
         description?: string;
+        externalReference?: string;
     }
 ): Promise<AsaasTransferResponse> {
     return asaasRequest<AsaasTransferResponse>(

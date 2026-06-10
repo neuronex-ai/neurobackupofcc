@@ -123,7 +123,6 @@ const FINANCE_NAV: NavItem[] = [
         icon: Receipt,
         subItems: [
             { id: 'pagamentos-boletos', label: 'Pagar boletos', icon: Barcode, description: 'Digite, arraste imagem ou anexe PDF' },
-            { id: 'pagamentos-pix', label: 'Pagar Pix', icon: QrCode, description: 'Pague com Pix copia e cola' },
             { id: 'pagamentos-agendados', label: 'Pagamentos Agendados', icon: CalendarClock, description: 'Acompanhe pagamentos programados e comprovantes' },
         ],
     },
@@ -217,7 +216,7 @@ const DesktopFinanceiro = () => {
     const allTransactions = useMemo(() => {
         const merged = [...(transactions || [])];
         if (nbStatement) {
-            nbStatement.forEach(nb => {
+            nbStatement.forEach((nb: Transaction) => {
                 if (!merged.find(m => m.id === nb.id || m.external_reference === nb.id)) {
                     merged.push(nb);
                 }

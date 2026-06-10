@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { toast } from "sonner";
 import { toUserFacingError } from "@/lib/user-facing-error";
+import { invokeEdgeFunction } from "@/lib/invoke-edge-function";
 
 export interface NeuroFinancePayout {
     id: string;
@@ -43,6 +44,48 @@ export interface RequestPayoutParams {
     };
 }
 
+export interface PayoutDestination extends Record<string, unknown> {
+    type?: "saved_bank" | "pix_key";
+    pix_key?: string;
+    pix_key_type?: string;
+    bank_code?: string;
+    bank_name?: string;
+    agency?: string;
+    account?: string;
+    account_digit?: string;
+    account_type?: string;
+    holder_name?: string;
+    holder_document?: string;
+    summary?: string;
+    validation_source?: string;
+}
+
+export interface PayoutConsultation {
+    id: string;
+    kind: "payout_pix" | "payout_bank";
+    status: string;
+    amount: number;
+    fee: number;
+    availableBalance: number | null;
+    destinationSummary: string;
+    destination: PayoutDestination;
+    destinationType: "saved_bank" | "pix_key";
+    expiresAt: string;
+    providerOperationId?: string | null;
+    providerStatus?: string | null;
+    receiptUrl?: string | null;
+    payoutId?: string | null;
+}
+
+export interface PayoutExecution {
+    success: boolean;
+    request: PayoutConsultation;
+    transfer: Record<string, unknown>;
+    status?: string;
+    receiptUrl?: string | null;
+    idempotent?: boolean;
+}
+
 export const useNeuroFinancePayouts = (limit = 30) => {
     const { user } = useAuth();
 
@@ -55,6 +98,7 @@ export const useNeuroFinancePayouts = (limit = 30) => {
                 .from("nb_payouts")
                 .select("*")
                 .eq("user_id", user.id)
+                .neq("operation_type", "pix_qr_payment")
                 .order("created_at", { ascending: false })
                 .limit(limit);
 
@@ -66,28 +110,52 @@ export const useNeuroFinancePayouts = (limit = 30) => {
     });
 };
 
-export const useRequestPayout = () => {
+export const useSecurePayout = () => {
     const queryClient = useQueryClient();
 
-    return useMutation<{ success: boolean; payout_id: string; amount: number }, Error, RequestPayoutParams>({
-        mutationFn: async (params) => {
-            const response = await supabase.functions.invoke("asaas-payout", {
-                body: params,
-            });
-
-            if (response.error) throw new Error(response.error.message);
-            if (response.data?.error) throw new Error(response.data.error);
-            return response.data;
+    const consult = useMutation({
+        mutationFn: (params: RequestPayoutParams) =>
+            invokeEdgeFunction<{ success: boolean; consultation: PayoutConsultation }>("asaas-payout", {
+                action: "consult",
+                ...params,
+            }),
+        onError: (error: Error) => {
+            const friendlyError = toUserFacingError(error, "transfer");
+            toast.error(friendlyError.title, { description: error.message || friendlyError.message });
         },
-        onSuccess: (data) => {
+    });
+
+    const authorize = useMutation({
+        mutationFn: ({ requestId, pin }: { requestId: string; pin: string }) =>
+            invokeEdgeFunction<{ success: boolean; consultation: PayoutConsultation }>("asaas-payout", {
+                action: "authorize",
+                requestId,
+                pin,
+            }),
+    });
+
+    const execute = useMutation({
+        mutationFn: (requestId: string) =>
+            invokeEdgeFunction<PayoutExecution>("asaas-payout", { action: "execute", requestId }),
+        onSuccess: (data: PayoutExecution) => {
             queryClient.invalidateQueries({ queryKey: ["NeuroFinance-payouts"] });
             queryClient.invalidateQueries({ queryKey: ["neurofinance-overview"] });
             queryClient.invalidateQueries({ queryKey: ["neurofinance-statement"] });
-            toast.success(`Saque de R$ ${(data.amount / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} solicitado.`);
+            toast.success(`Saque de R$ ${data.request.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} solicitado.`);
         },
         onError: (error) => {
             const friendlyError = toUserFacingError(error, "transfer");
-            toast.error(friendlyError.title, { description: friendlyError.message });
+            toast.error(friendlyError.title, { description: error.message || friendlyError.message });
         },
     });
+
+    const receipt = useMutation({
+        mutationFn: (requestId: string) =>
+            invokeEdgeFunction<{ success: boolean; receiptUrl: string; status: string }>("asaas-payout", {
+                action: "receipt",
+                requestId,
+            }),
+    });
+
+    return { consult, authorize, execute, receipt };
 };

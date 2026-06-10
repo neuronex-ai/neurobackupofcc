@@ -6,7 +6,6 @@ import {
     getFinancialAccount,
     getFinancialAccountAsaasApiKey,
     jsonResponse,
-    recordBaasOperation,
     supabaseAdmin,
 } from "../_shared/asaas-client.ts";
 
@@ -66,12 +65,9 @@ Deno.serve(async (req: Request) => {
         }
 
         if (action === "pay_qr_code") {
-            if (!body.payload) return errorResponse("Cole o código Pix para continuar.", 400, { code: "PIX_PAYLOAD_REQUIRED" });
-            const requestBody: Record<string, unknown> = { qrCode: { payload: body.payload } };
-            if (Number(body.value) > 0) requestBody.value = Number(body.value);
-            const result = await asaasRequest("/pix/qrCodes/pay", "POST", requestBody, apiKey);
-            await recordBaasOperation(user.id, account.id, "pix_qr_payment", result as Record<string, unknown>, { amount: Number(body.value) || undefined });
-            return jsonResponse({ success: true, payment: result });
+            return errorResponse("Consulte e confirme os dados do Pix com seu PIN antes de pagar.", 400, {
+                code: "PIX_CONSULTATION_REQUIRED",
+            });
         }
 
         return errorResponse("Esta ação Pix ainda não está disponível.", 400, { code: "UNSUPPORTED_PIX_ACTION" });

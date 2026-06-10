@@ -20,7 +20,6 @@ import {
     Barcode,
     FolderOpen,
     Activity,
-    LayoutList,
     Repeat,
     WalletCards,
     PlusCircle,
@@ -72,7 +71,6 @@ export type FinanceView =
     | "transferencias"
     | "pagamentos"
     | "pagamentos-boletos"
-    | "pagamentos-pix"
     | "pagamentos-agendados"
     | "pagamentos-agendar"
     | "pagamentos-grupos"
@@ -148,6 +146,35 @@ const ContentWrapper = ({ children }: { children: ReactNode }) => (
     </div>
 );
 
+const PaymentRouteSwitcher = ({
+    active,
+    onSelect,
+}: {
+    active: "boleto" | "pix";
+    onSelect: (route: "pagamentos-boletos" | "pix-pagar") => void;
+}) => (
+    <div className="flex rounded-[18px] border border-zinc-200/70 bg-white/70 p-1 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04]">
+        {[
+            { id: "boleto" as const, route: "pagamentos-boletos" as const, label: "Pagar boleto", icon: Barcode },
+            { id: "pix" as const, route: "pix-pagar" as const, label: "Pagar Pix", icon: QrCode },
+        ].map((item) => (
+            <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelect(item.route)}
+                className={`flex h-9 items-center gap-2 rounded-[13px] px-4 text-[9px] font-black uppercase tracking-[0.12em] transition-all ${
+                    active === item.id
+                        ? "bg-zinc-950 text-white shadow-md dark:bg-white dark:text-zinc-950"
+                        : "text-zinc-500 hover:text-zinc-950 dark:hover:text-white"
+                }`}
+            >
+                <item.icon className="h-3.5 w-3.5" />
+                {item.label}
+            </button>
+        ))}
+    </div>
+);
+
 const CapabilityNotice = ({ icon: Icon, title, description }: { icon: ElementType<{ className?: string }>; title: string; description: string }) => (
     <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50/50 px-8 text-center dark:border-white/10 dark:bg-white/[0.015]">
         <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
@@ -184,10 +211,6 @@ export function FinancialDashboard({
     motionProps,
     extratoTab,
     setExtratoTab,
-    realizedTransactions,
-    futureTransactions,
-    subscriptionTransactions,
-    isNbStatementLoading,
 }: FinancialDashboardProps) {
     const handleGoBack = () => {
         setActiveView("conta-digital");
@@ -240,7 +263,7 @@ export function FinancialDashboard({
         case "pix":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={BadgeCent} title="Área Pix" subtitle="Tudo que você faz com Pix" onBack={handleGoBack} /><ContentWrapper><PixReceber /></ContentWrapper></motion.div>;
         case "pix-pagar":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={QrCode} title="Pagar Pix" subtitle="Cole o Pix e pague" onBack={() => setActiveView("pix-receber")} /><ContentWrapper><PixPagarCopiaCola /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={QrCode} title="Pagar Pix" subtitle="Cole o Pix e pague" action={<PaymentRouteSwitcher active="pix" onSelect={setActiveView} />} onBack={() => setActiveView("pix-receber")} /><ContentWrapper><PixPagarCopiaCola /></ContentWrapper></motion.div>;
         case "pix-transferir":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Send} title="Transferir" subtitle="Envie para uma chave Pix" onBack={() => setActiveView("pix-receber")} /><ContentWrapper><PixTransferir /></ContentWrapper></motion.div>;
         case "pix-qrcode":
@@ -256,11 +279,9 @@ export function FinancialDashboard({
         case "transferencias":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Send} title="Saque" subtitle="Envie fundos para sua conta" onBack={handleGoBack} /><ContentWrapper><BankTransferView /></ContentWrapper></motion.div>;
         case "pagamentos":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Receipt} title="Pagamentos" subtitle="Pague boletos e Pix" onBack={handleGoBack} /><ContentWrapper><PagamentosAgendamento /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Receipt} title="Pagamentos" subtitle="Pague boletos e Pix" action={<PaymentRouteSwitcher active="boleto" onSelect={setActiveView} />} onBack={handleGoBack} /><ContentWrapper><PagamentosAgendamento /></ContentWrapper></motion.div>;
         case "pagamentos-boletos":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Barcode} title="Pagar boletos" subtitle="Linha digitável, imagem ou PDF" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosAgendamento /></ContentWrapper></motion.div>;
-        case "pagamentos-pix":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={QrCode} title="Pagar Pix" subtitle="Use o saldo da conta para pagar" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PixPagarCopiaCola /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Barcode} title="Pagar boletos" subtitle="Linha digitável, imagem ou PDF" action={<PaymentRouteSwitcher active="boleto" onSelect={setActiveView} />} onBack={() => setActiveView("pagamentos")} /><ContentWrapper><PagamentosAgendamento /></ContentWrapper></motion.div>;
         case "pagamentos-agendados":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={CalendarClock} title="Pagamentos Agendados" subtitle="Programações e histórico da conta NeuroFinance" onBack={() => setActiveView("pagamentos")} /><ContentWrapper><ScheduledBillPayments /></ContentWrapper></motion.div>;
         case "pagamentos-agendar":

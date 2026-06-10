@@ -1,19 +1,15 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Barcode,
-  CheckCircle2,
   FileUp,
   Landmark,
   Loader2,
   LockKeyhole,
-  QrCode,
   ReceiptText,
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { PixPagarCopiaCola } from "@/components/financeiro/pix/PixPagarCopiaCola";
 import { BillPaymentPinDialog } from "@/components/financeiro/pagamentos/BillPaymentPinDialog";
 import { BillPaymentProcessing } from "@/components/financeiro/pagamentos/BillPaymentProcessing";
 import { BillPaymentReviewCard } from "@/components/financeiro/pagamentos/BillPaymentReviewCard";
@@ -25,18 +21,17 @@ import {
   type BillConsultation,
   type BillExecutionResponse,
   type BillPaymentMode,
+  type BillPaymentRecord,
   useNeurofinanceBillPayments,
 } from "@/hooks/use-neurofinance-bill-payments";
 import { formatBoletoValue, normalizeBoletoInput } from "@/lib/boleto";
 import { cn, formatCurrency } from "@/lib/utils";
 
-type Tab = "boleto" | "pix";
 type BillStep = "input" | "review" | "processing" | "success";
 
 const wait = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 export function PagamentosAgendamento() {
-  const [tab, setTab] = useState<Tab>("boleto");
   const [step, setStep] = useState<BillStep>("input");
   const [input, setInput] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -138,42 +133,9 @@ export function PagamentosAgendamento() {
     }
   };
 
-  const selectTab = (nextTab: Tab) => {
-    setTab(nextTab);
-    setPinOpen(false);
-    setPinError(null);
-    setDecision(null);
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex w-fit rounded-[22px] border border-zinc-200/70 bg-white/70 p-1.5 shadow-sm backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.04]">
-        {[
-          { id: "boleto", label: "Pagar boleto", icon: Barcode },
-          { id: "pix", label: "Pagar Pix", icon: QrCode },
-        ].map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => selectTab(item.id as Tab)}
-            className={cn(
-              "flex h-10 items-center gap-2 rounded-[16px] px-5 text-[10px] font-black uppercase tracking-[0.13em] transition-all",
-              tab === item.id
-                ? "bg-zinc-950 text-white shadow-lg dark:bg-white dark:text-zinc-950"
-                : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:hover:bg-white/8 dark:hover:text-white",
-            )}
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "pix" ? (
-        <PixPagarCopiaCola />
-      ) : (
-        <>
-          <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait">
             {step === "input" && (
               <motion.div
                 key="input"
@@ -296,31 +258,29 @@ export function PagamentosAgendamento() {
                 <BillPaymentSuccess consultation={consultation} execution={execution} onNewPayment={resetFlow} />
               </motion.div>
             )}
-          </AnimatePresence>
+      </AnimatePresence>
 
-          {consultation && (
-            <BillPaymentPinDialog
-              open={pinOpen}
-              onOpenChange={(open) => {
-                setPinOpen(open);
-                if (!open) setPinError(null);
-              }}
-              onConfirm={handlePinConfirm}
-              beneficiaryName={consultation.beneficiaryName}
-              value={consultation.value}
-              paymentMode={decision?.paymentMode}
-              isLoading={authorize.isPending}
-              errorMessage={pinError}
-            />
-          )}
-        </>
+      {consultation && (
+        <BillPaymentPinDialog
+          open={pinOpen}
+          onOpenChange={(open) => {
+            setPinOpen(open);
+            if (!open) setPinError(null);
+          }}
+          onConfirm={handlePinConfirm}
+          beneficiaryName={consultation.beneficiaryName}
+          value={consultation.value}
+          paymentMode={decision?.paymentMode}
+          isLoading={authorize.isPending}
+          errorMessage={pinError}
+        />
       )}
 
-      {tab === "boleto" && step !== "processing" && list.data?.length ? (
+      {step !== "processing" && list.data?.length ? (
         <div className="rounded-[24px] border border-zinc-200/70 bg-white/50 p-5 dark:border-white/10 dark:bg-white/[0.025]">
           <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Últimos boletos</p>
           <div className="space-y-2">
-            {list.data.slice(0, 4).map((item) => (
+            {list.data.slice(0, 4).map((item: BillPaymentRecord) => (
               <motion.div
                 key={item.id}
                 initial={{ opacity: 0, y: 6 }}

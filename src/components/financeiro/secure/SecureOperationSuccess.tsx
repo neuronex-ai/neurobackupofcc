@@ -1,0 +1,84 @@
+import { CheckCircle2, ExternalLink, FileCheck2, Printer } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils";
+
+interface SecureOperationSuccessProps {
+  title: string;
+  description: string;
+  amount: number;
+  recipient: string;
+  status?: string;
+  receiptUrl?: string | null;
+  newActionLabel: string;
+  onNewAction: () => void;
+  onRefreshReceipt?: () => Promise<string | null>;
+}
+
+function escapeReceiptHtml(value?: string | null) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+export function SecureOperationSuccess({
+  title,
+  description,
+  amount,
+  recipient,
+  status,
+  receiptUrl,
+  newActionLabel,
+  onNewAction,
+  onRefreshReceipt,
+}: SecureOperationSuccessProps) {
+  const openReceipt = async () => {
+    let refreshed = receiptUrl;
+    if (!refreshed && onRefreshReceipt) {
+      try {
+        refreshed = await onRefreshReceipt();
+      } catch {
+        refreshed = null;
+      }
+    }
+    if (refreshed) {
+      window.open(refreshed, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const receiptWindow = window.open("", "_blank", "noopener,noreferrer,width=760,height=900");
+    if (!receiptWindow) return;
+    const safeTitle = escapeReceiptHtml(title);
+    const safeAmount = escapeReceiptHtml(formatCurrency(amount));
+    const safeRecipient = escapeReceiptHtml(recipient);
+    const safeStatus = escapeReceiptHtml(status || "Enviado");
+    const safeDate = escapeReceiptHtml(new Date().toLocaleString("pt-BR"));
+    receiptWindow.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comprovante NeuroFinance</title><style>body{padding:48px;background:#f4f4f5;color:#18181b;font-family:Arial}main{max-width:620px;margin:auto;background:#fff;padding:42px;border-radius:24px}.value{font-size:42px;font-weight:900}.row{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid #e4e4e7}</style></head><body><main><p>NeuroFinance · Comprovante de solicitação</p><h1>${safeTitle}</h1><p class="value">${safeAmount}</p><div class="row"><span>Destino</span><strong>${safeRecipient}</strong></div><div class="row"><span>Status</span><strong>${safeStatus}</strong></div><div class="row"><span>Solicitado em</span><strong>${safeDate}</strong></div><p>A liquidação definitiva depende da confirmação bancária.</p></main><script>window.onload=()=>window.print()</script></body></html>`);
+    receiptWindow.document.close();
+  };
+
+  return (
+    <section className="mx-auto max-w-3xl overflow-hidden rounded-[36px] border border-zinc-200/70 bg-white/80 p-7 text-center shadow-[0_40px_100px_-55px_rgba(0,0,0,0.55)] backdrop-blur-3xl dark:border-white/[0.08] dark:bg-white/[0.025] md:p-12">
+      <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[32px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-11 w-11" /></div>
+      <p className="mt-7 text-[9px] font-black uppercase tracking-[0.28em] text-emerald-600 dark:text-emerald-400">Solicitação protegida</p>
+      <h3 className="mt-3 text-2xl font-black tracking-tight text-zinc-950 dark:text-white md:text-3xl">{title}</h3>
+      <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-zinc-500">{description}</p>
+      <div className="mx-auto mt-8 max-w-xl rounded-[28px] bg-zinc-950 p-6 text-left text-white shadow-2xl dark:bg-white dark:text-zinc-950">
+        <p className="text-[9px] font-black uppercase tracking-[0.24em] opacity-45">Valor enviado</p>
+        <p className="mt-2 text-4xl font-black tracking-[-0.05em]">{formatCurrency(amount)}</p>
+        <p className="mt-5 border-t border-white/10 pt-4 text-xs font-bold dark:border-black/10">{recipient}</p>
+      </div>
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+        <Button type="button" variant="outline" onClick={openReceipt} className="h-13 rounded-[18px] text-[9px] font-black uppercase tracking-widest">
+          {receiptUrl ? <ExternalLink className="mr-2 h-4 w-4" /> : <Printer className="mr-2 h-4 w-4" />} Abrir/Gerar comprovante
+        </Button>
+        <Button type="button" onClick={onNewAction} className="h-13 rounded-[18px] bg-zinc-950 text-[9px] font-black uppercase tracking-widest text-white dark:bg-white dark:text-zinc-950">
+          <FileCheck2 className="mr-2 h-4 w-4" /> {newActionLabel}
+        </Button>
+      </div>
+    </section>
+  );
+}

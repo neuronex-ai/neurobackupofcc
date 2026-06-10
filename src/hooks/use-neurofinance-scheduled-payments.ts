@@ -191,17 +191,18 @@ export function useNeuroFinanceScheduledPayments() {
             const results = [];
             for (const item of items) {
                 const isPix = item.product_type === 'PIX';
-                const response = await supabase.functions.invoke(isPix ? 'asaas-pix' : 'asaas-bill-payment', {
-                    body: isPix
-                        ? { action: 'pay_qr_code', payload: item.content, value: item.amount }
-                        : {
-                            action: 'create',
-                            identificationField: item.content,
-                            scheduleDate: item.transaction_date,
-                            description: item.description,
-                            value: item.amount,
-                            externalReference: `${groupId}:${item.id}`,
-                        },
+                if (isPix) {
+                    throw new Error('Pagamentos Pix em lote exigem revisão individual e PIN financeiro.');
+                }
+                const response = await supabase.functions.invoke('asaas-bill-payment', {
+                    body: {
+                        action: 'create',
+                        identificationField: item.content,
+                        scheduleDate: item.transaction_date,
+                        description: item.description,
+                        value: item.amount,
+                        externalReference: `${groupId}:${item.id}`,
+                    },
                 });
                 if (response.error) throw new Error(response.error.message);
                 if (response.data?.error) throw new Error(response.data.error);
