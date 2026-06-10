@@ -3,6 +3,7 @@ import {
     corsHeaders,
     corsResponse,
     errorResponse,
+    ensureAsaasOperationalWebhook,
     getAsaasBalance,
     getAuthenticatedUser,
     getFinancialAccount,
@@ -25,6 +26,7 @@ import {
 import { verifyFinancialPin } from "../_shared/financial-pin.ts";
 
 const CONSULTATION_TTL_MS = 10 * 60 * 1000;
+const webhookCheckedAccounts = new Set<string>();
 
 function cents(value: unknown) {
     return Math.round(Number(value || 0) * 100);
@@ -113,6 +115,16 @@ async function availableBalanceForReview(financialAccountId: string, apiKey: str
     }
 }
 
+async function ensureBillWebhook(financialAccountId: string, apiKey: string) {
+    if (webhookCheckedAccounts.has(financialAccountId)) return;
+    try {
+        await ensureAsaasOperationalWebhook(apiKey);
+        webhookCheckedAccounts.add(financialAccountId);
+    } catch (error) {
+        console.warn("[asaas-bill-payment] Could not reconcile operational webhook:", error);
+    }
+}
+
 async function findConsultation(userId: string, consultationId: string) {
     const { data, error } = await supabaseAdmin
         .from("neurofinance_bill_payments")
@@ -187,6 +199,7 @@ Deno.serve(async (req: Request) => {
         }
 
         if (action === "consult" || action === "simulate") {
+            await ensureBillWebhook(account.id, apiKey);
             const input = billInput(body);
             if (!input.identificationField && !input.barCode) {
                 return errorResponse("Informe a linha digitável ou o código de barras do boleto.", 400, {
@@ -364,7 +377,7 @@ Deno.serve(async (req: Request) => {
                 return errorResponse("Esta consulta de boleto não foi encontrada.", 404, { code: "CONSULTATION_NOT_FOUND" });
             }
 
-            if (["processing", "paid"].includes(record.status) && record.provider_bill_id) {
+            if (["scheduled", "processing", "paid"].includes(record.status) && record.provider_bill_id) {
                 return jsonResponse({
                     success: true,
                     bill: record.provider_payload?.execution || record.provider_payload,

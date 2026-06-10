@@ -35,7 +35,17 @@ set
     can_be_cancelled,
     (provider_payload #>> '{execution,canBeCancelled}')::boolean,
     (provider_payload ->> 'canBeCancelled')::boolean
-  )
+  ),
+  status = case
+    when coalesce(
+      provider_status,
+      provider_payload #>> '{execution,status}',
+      provider_payload ->> 'status'
+    ) in ('PENDING', 'CREATED')
+      and scheduled_date > (now() at time zone 'America/Sao_Paulo')::date
+      then 'scheduled'
+    else status
+  end
 where provider_bill_id is not null;
 
 create index if not exists idx_neurofinance_bill_payments_user_schedule

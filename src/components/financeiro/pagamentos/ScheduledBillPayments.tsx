@@ -204,7 +204,7 @@ export function ScheduledBillPayments() {
                     {status.label}
                   </span>
                   <p className="text-right text-sm font-black text-zinc-950 dark:text-white">
-                    {formatCurrency(Number(record.amount || 0) / 100)}
+                    {formatCurrency((Number(record.amount || 0) + Number(record.fee_amount || 0)) / 100)}
                   </p>
                 </button>
               );
@@ -242,6 +242,7 @@ function BillPaymentDetailsDialog({
   const discount = Number(bankSlip.discountValue || execution.discount || 0);
   const interest = Number(bankSlip.interestValue || execution.interest || 0);
   const fine = Number(bankSlip.fineValue || execution.fine || 0);
+  const fee = Number(record.fee_amount || 0) / 100;
 
   return (
     <Dialog open={Boolean(record)} onOpenChange={onOpenChange}>
@@ -266,7 +267,9 @@ function BillPaymentDetailsDialog({
           <div className="flex flex-col justify-between gap-4 rounded-[26px] bg-zinc-950 p-6 text-white dark:bg-white dark:text-zinc-950 sm:flex-row sm:items-end">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-45">Valor total</p>
-              <p className="mt-2 text-3xl font-black">{formatCurrency(Number(record.amount || 0) / 100)}</p>
+              <p className="mt-2 text-3xl font-black">
+                {formatCurrency((Number(record.amount || 0) + Number(record.fee_amount || 0)) / 100)}
+              </p>
             </div>
             <span className={cn(
               "w-fit rounded-full border px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em]",
@@ -289,11 +292,12 @@ function BillPaymentDetailsDialog({
 
           <div>
             <p className="mb-3 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400">Valores informados</p>
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-5">
               <DetailItem label="Original" value={formatCurrency(originalValue)} />
               <DetailItem label="Desconto" value={formatCurrency(discount)} />
               <DetailItem label="Juros" value={formatCurrency(interest)} />
               <DetailItem label="Multa" value={formatCurrency(fine)} />
+              <DetailItem label="Taxa" value={formatCurrency(fee)} />
             </div>
           </div>
 

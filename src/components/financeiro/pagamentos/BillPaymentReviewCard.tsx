@@ -4,12 +4,10 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
-  Info,
   Landmark,
   LockKeyhole,
   ReceiptText,
   UserRound,
-  Wallet,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -52,6 +50,17 @@ function tomorrowIso() {
   ].join("-");
 }
 
+function todayIso() {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 export function BillPaymentReviewCard({
   consultation,
   onBack,
@@ -59,14 +68,22 @@ export function BillPaymentReviewCard({
 }: BillPaymentReviewCardProps) {
   const { data: tariffs } = useNeuroFinanceTariffs();
   const tariff = tariffs?.find((item) => item.code === "bill_payment");
-  const initialMode = consultation.recommendedMode || (consultation.canSchedule ? "scheduled" : "now");
+  const requiredBalance = Number.isFinite(consultation.requiredBalance)
+    ? consultation.requiredBalance
+    : consultation.value + consultation.fee;
+  const canPayNow = consultation.canPayNow ??
+    (consultation.availableBalance != null && consultation.availableBalance >= requiredBalance);
+  const canSchedule = consultation.canSchedule ??
+    Boolean(consultation.dueDate && consultation.dueDate > todayIso());
+  const defaultScheduleDate = consultation.defaultScheduleDate || consultation.dueDate || "";
+  const initialMode = consultation.recommendedMode || (canPayNow ? "now" : canSchedule ? "scheduled" : "now");
   const [paymentMode, setPaymentMode] = useState<BillPaymentMode>(initialMode);
-  const [scheduleDate, setScheduleDate] = useState(consultation.defaultScheduleDate || "");
+  const [scheduleDate, setScheduleDate] = useState(defaultScheduleDate);
 
   useEffect(() => {
-    setPaymentMode(consultation.recommendedMode || (consultation.canSchedule ? "scheduled" : "now"));
-    setScheduleDate(consultation.defaultScheduleDate || "");
-  }, [consultation]);
+    setPaymentMode(consultation.recommendedMode || (canPayNow ? "now" : canSchedule ? "scheduled" : "now"));
+    setScheduleDate(defaultScheduleDate);
+  }, [canPayNow, canSchedule, consultation.recommendedMode, defaultScheduleDate]);
 
   const minimumFutureScheduleDate = useMemo(() => {
     const tomorrow = tomorrowIso();
@@ -75,11 +92,9 @@ export function BillPaymentReviewCard({
       : tomorrow;
   }, [consultation.minimumScheduleDate]);
 
-  const hasBalance = consultation.availableBalance != null &&
-    consultation.availableBalance >= consultation.requiredBalance;
   const canContinue = paymentMode === "now"
-    ? consultation.canPayNow
-    : consultation.canSchedule && Boolean(scheduleDate);
+    ? canPayNow
+    : canSchedule && Boolean(scheduleDate);
 
   const rows = [
     {
@@ -135,36 +150,9 @@ export function BillPaymentReviewCard({
       </div>
 
       <div className="p-6 md:p-8">
-        <div className="grid gap-3 md:grid-cols-[1.25fr_0.75fr]">
-          <div className="rounded-[26px] bg-zinc-950 p-6 text-white shadow-2xl dark:bg-white dark:text-zinc-950">
-            <p className="text-[9px] font-black uppercase tracking-[0.25em] opacity-50">Total necessário</p>
-            <p className="mt-3 text-4xl font-black tracking-[-0.05em]">{formatCurrency(consultation.requiredBalance)}</p>
-            <p className="mt-2 text-[10px] font-bold uppercase tracking-wider opacity-50">
-              Boleto {formatCurrency(consultation.value)}
-              {consultation.fee > 0 ? ` + taxa ${formatCurrency(consultation.fee)}` : " · sem taxa"}
-            </p>
-          </div>
-          <div className={cn(
-            "rounded-[26px] border p-6",
-            hasBalance
-              ? "border-emerald-500/20 bg-emerald-500/[0.06]"
-              : "border-amber-500/20 bg-amber-500/[0.07]",
-          )}>
-            <div className="flex items-center gap-2 text-zinc-500">
-              <Wallet className="h-4 w-4" />
-              <p className="text-[9px] font-black uppercase tracking-[0.2em]">Saldo disponível</p>
-            </div>
-            <p className="mt-3 text-2xl font-black text-zinc-950 dark:text-white">
-              {consultation.availableBalance == null
-                ? "Em atualização"
-                : formatCurrency(consultation.availableBalance)}
-            </p>
-            {!hasBalance && consultation.balanceShortfall > 0 && (
-              <p className="mt-2 text-[10px] font-bold text-amber-700 dark:text-amber-300">
-                Faltam {formatCurrency(consultation.balanceShortfall)}. O boleto deverá ser agendado.
-              </p>
-            )}
-          </div>
+        <div className="rounded-[26px] bg-white p-6 text-zinc-950 shadow-2xl">
+          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-500">Valor total:</p>
+          <p className="mt-3 text-5xl font-black tracking-[-0.05em]">{formatCurrency(consultation.value)}</p>
         </div>
 
         <div className="mt-6 grid gap-3 md:grid-cols-3">
@@ -192,7 +180,7 @@ export function BillPaymentReviewCard({
           <div className="grid gap-3 md:grid-cols-2">
             <button
               type="button"
-              disabled={!consultation.canPayNow}
+              disabled={!canPayNow}
               onClick={() => setPaymentMode("now")}
               className={cn(
                 "rounded-[22px] border p-5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-45",
@@ -204,16 +192,18 @@ export function BillPaymentReviewCard({
               <Clock3 className="h-5 w-5" />
               <p className="mt-4 text-sm font-black">Pagar agora</p>
               <p className={cn(
-                "mt-1 text-[10px] leading-relaxed",
+                "mt-1 text-[11px] leading-relaxed",
                 paymentMode === "now" ? "opacity-65" : "text-zinc-500",
               )}>
-                Usa o saldo disponível e solicita o processamento na primeira janela operacional.
+                Saldo atual: {consultation.availableBalance == null
+                  ? "atualizando..."
+                  : formatCurrency(consultation.availableBalance)}
               </p>
             </button>
 
             <button
               type="button"
-              disabled={!consultation.canSchedule}
+              disabled={!canSchedule}
               onClick={() => setPaymentMode("scheduled")}
               className={cn(
                 "rounded-[22px] border p-5 text-left transition-all disabled:cursor-not-allowed disabled:opacity-45",
@@ -233,7 +223,7 @@ export function BillPaymentReviewCard({
             </button>
           </div>
 
-          {paymentMode === "scheduled" && consultation.canSchedule && (
+          {paymentMode === "scheduled" && canSchedule && (
             <div className="mt-3 rounded-[20px] border border-zinc-200/70 bg-zinc-50/70 p-4 dark:border-white/[0.07] dark:bg-white/[0.025]">
               <label className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400" htmlFor="bill-schedule-date">
                 Data do pagamento
@@ -251,14 +241,11 @@ export function BillPaymentReviewCard({
           )}
         </div>
 
-        <div className="mt-6 flex items-start gap-3 rounded-[18px] border border-blue-500/15 bg-blue-500/[0.06] px-4 py-3 text-[10px] font-semibold leading-relaxed text-blue-900 dark:text-blue-200">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>
-            {consultation.fee > 0
-              ? `Taxa desta operação: ${formatCurrency(consultation.fee)}.`
-              : `${tariff?.price_label || "Pagamento sem tarifa"}.`} Após a aprovação, o boleto é processado na data escolhida. Solicitações para hoje após 14h seguem no próximo dia útil, e a confirmação bancária pode ocorrer no mesmo dia ou no próximo dia útil.
-          </p>
-        </div>
+        <p className="mt-6 text-[11px] font-light leading-relaxed text-zinc-600 dark:text-white">
+          {consultation.fee > 0
+            ? `Taxa desta operação: ${formatCurrency(consultation.fee)}.`
+            : `${tariff?.price_label || "Pagamento sem tarifa"}.`} Após a aprovação, o boleto é processado na data escolhida. Solicitações para hoje após 14h seguem no próximo dia útil, e a confirmação bancária pode ocorrer no mesmo dia ou no próximo dia útil.
+        </p>
 
         <div className="mt-3 flex items-center gap-2 rounded-[18px] border border-amber-500/15 bg-amber-500/[0.07] px-4 py-3 text-[10px] font-bold text-amber-800 dark:text-amber-200">
           <LockKeyhole className="h-4 w-4 shrink-0" />

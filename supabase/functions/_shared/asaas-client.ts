@@ -365,6 +365,13 @@ export const ASAAS_OPERATIONAL_WEBHOOK_EVENTS = [
     "TRANSFER_DONE",
     "TRANSFER_FAILED",
     "TRANSFER_CANCELLED",
+    "BILL_CREATED",
+    "BILL_PENDING",
+    "BILL_BANK_PROCESSING",
+    "BILL_PAID",
+    "BILL_CANCELLED",
+    "BILL_FAILED",
+    "BILL_REFUNDED",
     "RECEIVABLE_ANTICIPATION_PENDING",
     "RECEIVABLE_ANTICIPATION_SCHEDULED",
     "RECEIVABLE_ANTICIPATION_CREDITED",
@@ -388,6 +395,49 @@ function buildDefaultWebhookConfig() {
         apiVersion: 3,
         ...(ASAAS_WEBHOOK_TOKEN ? { authToken: ASAAS_WEBHOOK_TOKEN } : {}),
         events: ASAAS_OPERATIONAL_WEBHOOK_EVENTS,
+    };
+}
+
+export async function ensureAsaasOperationalWebhook(apiKey: string) {
+    const config = buildDefaultWebhookConfig();
+    if (!config) return { configured: false, reason: "missing_webhook_url" };
+
+    const result = await asaasRequest<{ data?: Array<Record<string, any>> }>(
+        "/webhooks?limit=100&offset=0",
+        "GET",
+        undefined,
+        apiKey,
+    );
+    const existing = (result.data || []).find((webhook) => webhook.url === config.url);
+    const missingEvents = existing
+        ? config.events.filter((event) => !Array.isArray(existing.events) || !existing.events.includes(event))
+        : config.events;
+
+    if (existing && missingEvents.length === 0 && existing.enabled !== false) {
+        return { configured: true, updated: false, webhookId: existing.id };
+    }
+
+    const payload = existing
+        ? {
+            name: config.name,
+            url: config.url,
+            sendType: config.sendType,
+            enabled: true,
+            ...(ASAAS_WEBHOOK_TOKEN ? { authToken: ASAAS_WEBHOOK_TOKEN } : {}),
+            events: config.events,
+        }
+        : config;
+    const webhook = await asaasRequest<Record<string, unknown>>(
+        existing ? `/webhooks/${existing.id}` : "/webhooks",
+        existing ? "PUT" : "POST",
+        payload,
+        apiKey,
+    );
+
+    return {
+        configured: true,
+        updated: Boolean(existing),
+        webhookId: (webhook as any)?.id || existing?.id || null,
     };
 }
 
