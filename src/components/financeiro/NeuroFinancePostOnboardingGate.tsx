@@ -1,49 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
 import { NeuroFinancePostOnboardingWizard } from "@/components/financeiro/NeuroFinancePostOnboardingWizard";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { useFinancialPinStatus } from "@/hooks/use-financial-pin-status";
 import { useIsMobile } from "@/hooks/use-mobile";
-
-function getCompletionKey(accountId?: string | null) {
-  return accountId ? `neurofinance-post-onboarding-completed:${accountId}` : null;
-}
+import { supabase } from "@/integrations/supabase/client";
 
 export function NeuroFinancePostOnboardingGate() {
   const location = useLocation();
   const isMobile = useIsMobile();
   const isNeuroFinanceRoute = location.pathname.startsWith("/financeiro/neurofinance");
-  const { account, isConnected, isLoading, needsInitialOnboarding } = useFinancialAccount();
+  const { account, isConnected, isLoading, needsInitialOnboarding, refetch } = useFinancialAccount();
   const pinStatus = useFinancialPinStatus(Boolean(isNeuroFinanceRoute && isConnected));
-  const completionKey = useMemo(() => getCompletionKey(account?.id), [account?.id]);
-  const [isCompleted, setIsCompleted] = useState(true);
+  const postOnboarding = account?.metadata?.neurofinance_post_onboarding;
+  const isCompletedInAccount = Boolean(postOnboarding?.completed || postOnboarding?.completed_at);
 
   useEffect(() => {
-    if (!completionKey) {
-      setIsCompleted(true);
-      return;
-    }
+    if (!isNeuroFinanceRoute || !account?.id || isCompletedInAccount || !pinStatus.data?.isConfigured) return;
 
-    try {
-      setIsCompleted(window.localStorage.getItem(completionKey) === "true");
-    } catch {
-      setIsCompleted(false);
-    }
-  }, [completionKey]);
-
-  useEffect(() => {
-    if (!completionKey || !pinStatus.data?.isConfigured) return;
-
-    try {
-      window.localStorage.setItem(completionKey, "true");
-    } catch {
-      // Ignore storage errors and unblock the panel in this session.
-    }
-    setIsCompleted(true);
-  }, [completionKey, pinStatus.data?.isConfigured]);
+    supabase.functions
+      .invoke("neurofinance-post-onboarding", { body: { action: "complete" } })
+      .then(() => refetch())
+      .catch((error) => {
+        console.warn("[NeuroFinancePostOnboardingGate] Não foi possível registrar conclusão automática.", error);
+      });
+  }, [account?.id, isCompletedInAccount, isNeuroFinanceRoute, pinStatus.data?.isConfigured, refetch]);
 
   const shouldOpen = Boolean(
     !isMobile &&
@@ -53,20 +37,12 @@ export function NeuroFinancePostOnboardingGate() {
     isConnected &&
     !needsInitialOnboarding &&
     account?.id &&
-    !pinStatus.data?.isConfigured &&
-    !isCompleted
+    !isCompletedInAccount &&
+    !pinStatus.data?.isConfigured
   );
 
-  const handleComplete = () => {
-    if (completionKey) {
-      try {
-        window.localStorage.setItem(completionKey, "true");
-      } catch {
-        // Ignore storage errors and keep the session unblocked.
-      }
-    }
-    setIsCompleted(true);
-    pinStatus.refetch?.();
+  const handleComplete = async () => {
+    await Promise.allSettled([refetch(), pinStatus.refetch?.()]);
   };
 
   return (
