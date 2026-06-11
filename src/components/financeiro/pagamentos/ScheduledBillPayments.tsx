@@ -67,6 +67,27 @@ const STATUS_COPY: Record<string, {
   },
 };
 
+const BANK_STATUS_COPY: Record<string, string> = {
+  PENDING: "Pendente",
+  SCHEDULED: "Agendado",
+  AWAITING_BALANCE: "Aguardando saldo",
+  BANK_PROCESSING: "Processamento bancário",
+  PROCESSING: "Processando",
+  PAID: "Pago",
+  DONE: "Concluído",
+  CONFIRMED: "Confirmado",
+  FAILED: "Falhou",
+  CANCELLED: "Cancelado",
+  CANCELED: "Cancelado",
+  REFUNDED: "Estornado",
+  scheduled: "Agendado",
+  processing: "Processando",
+  paid: "Pago",
+  failed: "Falhou",
+  cancelled: "Cancelado",
+  refunded: "Estornado",
+};
+
 function formatDate(value?: string | null, withTime = false) {
   if (!value) return "Não informado";
   const date = value.length === 10
@@ -86,6 +107,17 @@ function formatDocument(value?: string | null) {
     return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
   }
   return value || "Não informado";
+}
+
+function formatBankStatus(record: BillPaymentRecord) {
+  const raw = String(record.provider_status || record.status || "").trim();
+  if (!raw) return "Não informado";
+  const direct = BANK_STATUS_COPY[raw] || BANK_STATUS_COPY[raw.toUpperCase()] || STATUS_COPY[raw.toLowerCase()]?.label;
+  if (direct) return direct;
+  return raw
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }
 
 function providerDetails(record: BillPaymentRecord) {
@@ -174,38 +206,20 @@ export function ScheduledBillPayments() {
               const status = STATUS_COPY[record.status] || STATUS_COPY.processing;
               const StatusIcon = status.icon;
               return (
-                <button
-                  key={record.id}
-                  type="button"
-                  onClick={() => setSelected(record)}
-                  className="grid w-full gap-4 px-6 py-5 text-left transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.025] md:grid-cols-[minmax(0,1.3fr)_160px_150px_140px] md:items-center"
-                >
+                <button key={record.id} type="button" onClick={() => setSelected(record)} className="grid w-full gap-4 px-6 py-5 text-left transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.025] md:grid-cols-[minmax(0,1.3fr)_160px_150px_140px] md:items-center">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-zinc-950 dark:text-white">
-                      {record.beneficiary_name || "Beneficiário não informado"}
-                    </p>
-                    <p className="mt-1 truncate text-[9px] font-bold uppercase tracking-[0.13em] text-zinc-400">
-                      {record.bank_name || (record.bank_code ? `Banco ${record.bank_code}` : "Instituição não informada")}
-                    </p>
+                    <p className="truncate text-sm font-black text-zinc-950 dark:text-white">{record.beneficiary_name || "Beneficiário não informado"}</p>
+                    <p className="mt-1 truncate text-[9px] font-bold uppercase tracking-[0.13em] text-zinc-400">{record.bank_name || (record.bank_code ? `Banco ${record.bank_code}` : "Instituição não informada")}</p>
                   </div>
                   <div>
-                    <p className="text-[8px] font-black uppercase tracking-[0.16em] text-zinc-400">
-                      {record.payment_mode === "scheduled" ? "Agendado para" : "Solicitado em"}
-                    </p>
-                    <p className="mt-1 text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                      {formatDate(record.scheduled_date || record.created_at)}
-                    </p>
+                    <p className="text-[8px] font-black uppercase tracking-[0.16em] text-zinc-400">{record.payment_mode === "scheduled" ? "Agendado para" : "Solicitado em"}</p>
+                    <p className="mt-1 text-xs font-bold text-zinc-800 dark:text-zinc-200">{formatDate(record.scheduled_date || record.created_at)}</p>
                   </div>
-                  <span className={cn(
-                    "flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em]",
-                    status.className,
-                  )}>
+                  <span className={cn("flex w-fit items-center gap-1.5 rounded-full border px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em]", status.className)}>
                     <StatusIcon className="h-3 w-3" />
                     {status.label}
                   </span>
-                  <p className="text-right text-sm font-black text-zinc-950 dark:text-white">
-                    {formatCurrency((Number(record.amount || 0) + Number(record.fee_amount || 0)) / 100)}
-                  </p>
+                  <p className="text-right text-sm font-black text-zinc-950 dark:text-white">{formatCurrency((Number(record.amount || 0) + Number(record.fee_amount || 0)) / 100)}</p>
                 </button>
               );
             })}
@@ -213,12 +227,7 @@ export function ScheduledBillPayments() {
         )}
       </section>
 
-      <BillPaymentDetailsDialog
-        record={selected}
-        downloading={downloadingId === selected?.id}
-        onDownload={handleDownload}
-        onOpenChange={(open) => !open && setSelected(null)}
-      />
+      <BillPaymentDetailsDialog record={selected} downloading={downloadingId === selected?.id} onDownload={handleDownload} onOpenChange={(open) => !open && setSelected(null)} />
     </div>
   );
 }
@@ -253,12 +262,8 @@ export function BillPaymentDetailsDialog({
               <FileText className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-black text-zinc-950 dark:text-white">
-                Detalhes do boleto
-              </DialogTitle>
-              <DialogDescription className="mt-1">
-                Dados consultados, escolha de pagamento e retorno bancário.
-              </DialogDescription>
+              <DialogTitle className="text-xl font-black text-zinc-950 dark:text-white">Detalhes do boleto</DialogTitle>
+              <DialogDescription className="mt-1">Dados consultados, escolha de pagamento e retorno bancário.</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -267,16 +272,9 @@ export function BillPaymentDetailsDialog({
           <div className="flex flex-col justify-between gap-4 rounded-[26px] bg-zinc-950 p-6 text-white dark:bg-white dark:text-zinc-950 sm:flex-row sm:items-end">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-45">Valor total</p>
-              <p className="mt-2 text-3xl font-black">
-                {formatCurrency((Number(record.amount || 0) + Number(record.fee_amount || 0)) / 100)}
-              </p>
+              <p className="mt-2 text-3xl font-black">{formatCurrency((Number(record.amount || 0) + Number(record.fee_amount || 0)) / 100)}</p>
             </div>
-            <span className={cn(
-              "w-fit rounded-full border px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em]",
-              status.className,
-            )}>
-              {status.label}
-            </span>
+            <span className={cn("w-fit rounded-full border px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em]", status.className)}>{status.label}</span>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -287,7 +285,7 @@ export function BillPaymentDetailsDialog({
             <DetailItem label="Vencimento" value={formatDate(record.due_date)} />
             <DetailItem label="Data programada" value={formatDate(record.scheduled_date)} />
             <DetailItem label="Forma escolhida" value={record.payment_mode === "scheduled" ? "Pagamento agendado" : "Pagamento imediato"} />
-            <DetailItem label="Status bancário" value={record.provider_status || record.status} />
+            <DetailItem label="Status bancário" value={formatBankStatus(record)} />
           </div>
 
           <div>
@@ -306,8 +304,6 @@ export function BillPaymentDetailsDialog({
             <div className="grid gap-3">
               <DetailItem label="Linha digitável" value={formatBoletoValue(record.identification_field || "") || "Não informada"} />
               <div className="grid gap-3 sm:grid-cols-2">
-                <DetailItem label="ID Asaas" value={record.provider_bill_id || "Não informado"} />
-                <DetailItem label="Referência NeuroFinance" value={record.external_reference} />
                 <DetailItem label="Autorizado com PIN" value={formatDate(record.authorized_at, true)} />
                 <DetailItem label="Enviado à instituição" value={formatDate(record.submitted_at, true)} />
                 <DetailItem label="Data do pagamento" value={formatDate(record.payment_date || record.paid_at)} />
@@ -316,29 +312,14 @@ export function BillPaymentDetailsDialog({
             </div>
           </div>
 
-          {record.error_message && (
-            <div className="rounded-[18px] border border-red-500/20 bg-red-500/[0.07] p-4 text-xs font-semibold text-red-700 dark:text-red-300">
-              {record.error_message}
-            </div>
-          )}
+          {record.error_message && <div className="rounded-[18px] border border-red-500/20 bg-red-500/[0.07] p-4 text-xs font-semibold text-red-700 dark:text-red-300">{record.error_message}</div>}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!record.receipt_url}
-              onClick={() => record.receipt_url && window.open(record.receipt_url, "_blank", "noopener,noreferrer")}
-              className="h-12 rounded-[17px] text-[9px] font-black uppercase tracking-widest"
-            >
+            <Button type="button" variant="outline" disabled={!record.receipt_url} onClick={() => record.receipt_url && window.open(record.receipt_url, "_blank", "noopener,noreferrer")} className="h-12 rounded-[17px] text-[9px] font-black uppercase tracking-widest">
               <ExternalLink className="mr-2 h-4 w-4" />
               Abrir comprovante
             </Button>
-            <Button
-              type="button"
-              disabled={!record.receipt_url || downloading}
-              onClick={() => onDownload(record)}
-              className="h-12 rounded-[17px] bg-zinc-950 text-[9px] font-black uppercase tracking-widest text-white dark:bg-white dark:text-zinc-950"
-            >
+            <Button type="button" disabled={!record.receipt_url || downloading} onClick={() => onDownload(record)} className="h-12 rounded-[17px] bg-zinc-950 text-[9px] font-black uppercase tracking-widest text-white dark:bg-white dark:text-zinc-950">
               {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
               Baixar comprovante
             </Button>
