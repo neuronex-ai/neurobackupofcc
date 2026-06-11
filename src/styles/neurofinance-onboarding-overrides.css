@@ -1,0 +1,67 @@
+/* NeuroFinance onboarding welcome — final viewport/polish overrides.
+   Keeps the premium split layout while avoiding visual cracking, top crowding and overlap. */
+
+.relative.h-screen.w-screen.overflow-hidden > .premium-noise {
+  opacity: 0.01 !important;
+}
+
+.dark .relative.h-screen.w-screen.overflow-hidden > .premium-noise {
+  opacity: 0.024 !important;
+}
+
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] {
+  padding-top: 74px !important;
+  padding-bottom: 18px !important;
+  gap: 1rem !important;
+}
+
+@media (min-width: 768px) {
+  .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] {
+    padding-top: 78px !important;
+    padding-bottom: 24px !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] {
+    padding-top: 82px !important;
+  }
+}
+
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside,
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > main {
+  min-height: 0 !important;
+  max-height: calc(100vh - 106px) !important;
+  box-shadow: 0 28px 92px -72px rgba(0, 0, 0, 0.72) !important;
+}
+
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside > div:first-child,
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > main > div:first-child {
+  opacity: 0.66 !important;
+}
+
+.dark .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside > div:first-child,
+.dark .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > main > div:first-child {
+  opacity: 0.52 !important;
+}
+
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] h1 {
+  font-size: clamp(2.35rem, 4.15vw, 4.7rem) !important;
+  line-height: 0.92 !important;
+}
+
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] h2 {
+  font-size: clamp(2.05rem, 3vw, 3.75rem) !important;
+  line-height: 0.94 !important;
+}
+
+@media (max-height: 760px) {
+  .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] {
+    padding-top: 64px !important;
+    padding-bottom: 12px !important;
+  }
+
+  .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] h1 {
+    font-size: clamp(2.15rem, 3.8vw, 4.05rem) !important;
+  }
+}
