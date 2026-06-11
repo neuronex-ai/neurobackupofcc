@@ -151,24 +151,18 @@ export async function executeBillPayment(consultationId: string) {
 }
 
 export async function downloadBillReceipt(record: BillPaymentRecord) {
-  const { data, error } = await supabase.functions.invoke("asaas-bill-payment", {
-    body: { action: "receipt", consultationId: record.id },
-  });
-  if (error) {
-    throw new Error((await extractEdgeMessage(error)) || "Não foi possível baixar o comprovante.");
-  }
-  if (!(data instanceof Blob)) {
-    throw new Error("O comprovante retornou em um formato inesperado.");
+  if (!record.receipt_url) {
+    throw new Error("O comprovante deste boleto ainda não está disponível.");
   }
 
-  const url = URL.createObjectURL(data);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `comprovante-boleto-${record.id}.${data.type.includes("pdf") ? "pdf" : "html"}`;
-  document.body.appendChild(anchor);
+  const anchor = window.document.createElement("a");
+  anchor.href = record.receipt_url;
+  anchor.download = `comprovante-boleto-${record.id}.pdf`;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  window.document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  URL.revokeObjectURL(url);
 }
 
 export function useNeurofinanceBillPayments() {
