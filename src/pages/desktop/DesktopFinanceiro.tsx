@@ -72,15 +72,15 @@ const FINANCE_NAV: NavItem[] = [
     },
     {
         id: 'pix-root',
-        label: "Area Pix",
+        label: "Área Pix",
         icon: BadgeCent,
         subItems: [
-            { id: 'pix-pagar', label: 'Pagar Pix', icon: QrCode, tag: 'Gratis', description: 'Cole um Pix copia e cola e pague pela conta NeuroFinance' },
-            { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Gratis', description: 'Crie um QR Code para receber na hora' },
-            { id: 'pix-receber', label: 'Pix recebidos', icon: ArrowDownLeft, tag: 'Gratis', description: 'Veja o que entrou por Pix' },
+            { id: 'pix-pagar', label: 'Pagar Pix', icon: QrCode, tag: 'Grátis', description: 'Cole um Pix copia e cola e pague pela conta NeuroFinance' },
+            { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Grátis', description: 'Crie um QR Code para receber na hora' },
+            { id: 'pix-receber', label: 'Pix recebidos', icon: ArrowDownLeft, tag: 'Grátis', description: 'Veja o que entrou por Pix' },
             { id: 'pix-chaves', label: 'Minhas chaves', icon: Key, description: 'Cadastre e gerencie suas chaves Pix' },
-            { id: 'pix-salarios', label: 'Pagar salarios', icon: Users, tag: 'Gratis', description: 'Envie Pix em lote para sua equipe' },
-            { id: 'pix-limites', label: 'Limites do Pix', icon: ShieldCheck, tag: 'No App', description: 'Ajuste limites de seguranca da conta' },
+            { id: 'pix-salarios', label: 'Pagar salários', icon: Users, tag: 'Grátis', description: 'Envie Pix em lote para sua equipe' },
+            { id: 'pix-limites', label: 'Limites do Pix', icon: ShieldCheck, tag: 'No App', description: 'Ajuste limites de segurança da conta' },
         ],
     },
     {
@@ -93,12 +93,12 @@ const FINANCE_NAV: NavItem[] = [
     },
     {
         id: 'cobrancas-root',
-        label: "Cobrancas",
+        label: "Cobranças",
         icon: WalletCards,
         subItems: [
-            { id: 'cobrancas-historia', label: 'Todas as cobrancas', icon: History },
+            { id: 'cobrancas-historia', label: 'Todas as cobranças', icon: History },
             { id: 'cobrancas-simulador', label: 'Simulador de vendas', icon: BadgeCent },
-            { id: 'cobrancas-config', label: 'Regras automaticas', icon: Settings },
+            { id: 'cobrancas-config', label: 'Regras automáticas', icon: Settings },
         ],
     },
     {
@@ -114,7 +114,7 @@ const FINANCE_NAV: NavItem[] = [
         label: "Despesas",
         icon: ArrowDownLeft,
         subItems: [
-            { id: 'despesas', label: 'Saidas Confirmadas', icon: ArrowDownLeft },
+            { id: 'despesas', label: 'Saídas Confirmadas', icon: ArrowDownLeft },
         ],
     },
     {
@@ -128,20 +128,20 @@ const FINANCE_NAV: NavItem[] = [
     },
     {
         id: 'antecipacoes-root',
-        label: "Antecipacao",
+        label: "Antecipação",
         icon: TrendingUp,
         subItems: [
-            { id: 'antecipacoes-lista', label: 'Minhas antecipacoes', icon: History },
+            { id: 'antecipacoes-lista', label: 'Minhas antecipações', icon: History },
             { id: 'antecipacoes-solicitar', label: 'Antecipar recebimento', icon: TrendingUp },
-            { id: 'antecipacoes-automatica', label: 'Antecipacao automatica', icon: Repeat },
+            { id: 'antecipacoes-automatica', label: 'Antecipação automática', icon: Repeat },
         ],
     },
     {
         id: 'transfers-root',
-        label: "Transferencias",
+        label: "Transferências",
         icon: Send,
         subItems: [
-            { id: 'pix-transferir', label: 'Transferir via Pix', icon: Send, tag: 'Gratis', description: 'Envie dinheiro para uma chave Pix' },
+            { id: 'pix-transferir', label: 'Transferir via Pix', icon: Send, tag: 'Grátis', description: 'Envie dinheiro para uma chave Pix' },
         ],
     },
     {

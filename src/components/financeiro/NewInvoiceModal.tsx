@@ -11,6 +11,7 @@ import {
   Check,
   Copy,
   CreditCard,
+  Info,
   Loader2,
   QrCode,
   Share2,
@@ -35,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { toUserFacingError } from "@/lib/user-facing-error";
 import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 const NewInvoiceSchema = z.object({
   patientId: z.string().min(1, { message: "Selecione um paciente." }),
@@ -60,6 +62,8 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
   const { mutate: generateInvoice, isPending: isCreating } = useGenerateInvoice();
   const { simulate } = useNeurofinanceSimulator();
   const { isConnected: isAccountReady } = useFinancialAccount();
+  const navigate = useNavigate();
+  const [showPatientTooltip, setShowPatientTooltip] = useState(false);
 
   const form = useForm<NewInvoiceFormValues>({
     resolver: zodResolver(NewInvoiceSchema),
@@ -457,7 +461,53 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
                 name="patientId"
                 render={({ field }) => (
                   <FormItem className="space-y-4">
-                    <FormLabel className="ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Paciente</FormLabel>
+                    <FormLabel className="ml-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                      Paciente
+                      <div className="relative inline-block">
+                        <button
+                          type="button"
+                          onMouseEnter={() => setShowPatientTooltip(true)}
+                          onMouseLeave={() => setShowPatientTooltip(false)}
+                          onClick={(e) => { e.preventDefault(); setShowPatientTooltip(!showPatientTooltip); }}
+                          className="inline-flex items-center justify-center rounded-full p-0.5 text-zinc-400 transition-colors hover:text-zinc-600 dark:hover:text-zinc-200"
+                          aria-label="Informações sobre vínculo de paciente"
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                        <AnimatePresence>
+                          {showPatientTooltip && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: 4, scale: 0.97 }}
+                              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                              className="absolute left-1/2 top-[calc(100%+8px)] z-[300] w-80 -translate-x-1/2 rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-white/10 dark:bg-zinc-900"
+                            >
+                              <p className="text-[11px] font-semibold leading-relaxed text-zinc-600 normal-case tracking-normal dark:text-zinc-300">
+                                Só é possível vincular pelo NeuroFinance quando o paciente cadastrado tem seu CPF registrado no sistema.
+                              </p>
+                              <p className="mt-2 text-[11px] font-semibold leading-relaxed text-zinc-600 normal-case tracking-normal dark:text-zinc-300">
+                                Envio por e-mail e WhatsApp também requerem essas informações cadastradas no prontuário do paciente.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleOpenChange(false);
+                                  navigate("/pacientes");
+                                }}
+                                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-700 transition-all hover:bg-zinc-200 active:scale-95 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15"
+                              >
+                                <UserIcon className="h-3.5 w-3.5" />
+                                Ir para Pacientes
+                              </button>
+                              <div className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-l border-t border-zinc-200 bg-white dark:border-white/10 dark:bg-zinc-900" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger className="h-16 rounded-[24px] border-zinc-200 bg-white px-7 text-sm font-bold text-zinc-900 shadow-sm focus:ring-0 dark:border-white/10 dark:bg-white/5 dark:text-white">

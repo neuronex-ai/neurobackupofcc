@@ -94,7 +94,7 @@ const NeuroFinanceRoute = () => {
                 <LockedFeatureScreen
                     feature="advanced_finance"
                     title="NeuroFinance"
-                    description="Conta bancaria NeuroFinance com saldo real, cobrancas PIX/Boleto/Cartao, transferencias, saques, antecipacao e extrato transacional. Disponivel a partir do plano Professional."
+                    description="Conta bancária NeuroFinance com saldo real, cobranças PIX/Boleto/Cartão, transferências, saques, antecipação e extrato transacional. Disponível a partir do plano Professional."
                 />
             }
         >
@@ -193,27 +193,27 @@ const FinanceiroPortal = () => {
                     className="mb-10 max-w-3xl text-center md:mb-14"
                 >
                     <p className="mb-5 text-[10px] font-black uppercase tracking-[0.42em] text-muted-foreground/50">
-                        Modulo financeiro
+                        Módulo financeiro
                     </p>
                     <h1 className="whitespace-nowrap text-3xl font-bold leading-tight tracking-[-0.05em] text-foreground sm:text-4xl md:text-7xl">
                         Escolha o seu <span className="font-medium italic text-foreground/30">Fluxo</span>
                     </h1>
                     <p className="mx-auto mt-5 max-w-2xl text-sm font-medium leading-relaxed text-muted-foreground md:text-lg">
-                        Separe a gestao interna do consultorio da conta bancaria real. O dinheiro previsto fica na gestao; o saldo real continua no NeuroFinance.
+                        Separe a gestão interna do consultório da conta bancária real. O dinheiro previsto fica na gestão; o saldo real continua no NeuroFinance.
                     </p>
                 </motion.div>
 
                 <div className="grid w-full grid-cols-1 gap-5 md:grid-cols-2 md:gap-8">
                     <PortalCard
-                        title="Gestao Financeira"
+                        title="Gestão Financeira"
                         eyebrow="Controle gerencial"
-                        description="Controle interno do consultorio ou clinica, para organizar receitas, despesas, inadimplencia, repasses e relatorios sem movimentar dinheiro real."
+                        description="Controle interno do consultório ou clínica, para organizar receitas, despesas, inadimplência, repasses e relatórios sem movimentar dinheiro real."
                         href="/financeiro/gestao"
                         icon={PieChart}
                         highlights={[
-                            "Livre por padrao",
-                            "Sem onboarding bancario",
-                            "Sem criar cobranca ou transacao real",
+                            "Livre por padrão",
+                            "Sem onboarding bancário",
+                            "Sem criar cobrança ou transação real",
                         ]}
                         badge="Gerencial"
                         delay={0.08}
@@ -221,12 +221,12 @@ const FinanceiroPortal = () => {
                     <PortalCard
                         title="NeuroFinance"
                         eyebrow="Banking transacional"
-                        description="Conta bancaria, saldo real, extrato, Pix, boleto, cartao, transferencias, saques, antecipacao, chargebacks e pagamentos."
+                        description="Conta bancária, saldo real, extrato, Pix, boleto, cartão, transferências, saques, antecipação, chargebacks e pagamentos."
                         href="/financeiro/neurofinance"
                         icon={Landmark}
                         highlights={[
                             "Exige plano Professional",
-                            "Mantem onboarding atual",
+                            "Mantém onboarding atual",
                             "Movimenta dinheiro real",
                         ]}
                         badge="Professional"
@@ -267,43 +267,43 @@ interface ManagementNavGroup {
 const MANAGEMENT_NAV: ManagementNavGroup[] = [
     {
         id: "overview-root",
-        label: "Visao Geral",
+        label: "Visão Geral",
         icon: PieChart,
         view: "overview",
     },
     {
         id: "transactions-root",
-        label: "Transacoes",
+        label: "Transações",
         icon: Receipt,
         subItems: [
             { id: "income", label: "Receitas", icon: TrendingUp, description: "Receitas previstas, pendentes e pagas." },
             { id: "expenses", label: "Despesas", icon: TrendingDown, description: "Despesas previstas, pendentes e pagas." },
-            { id: "statement", label: "Extrato", icon: ClipboardList, description: "Extrato gerencial sem transacoes bancarias reais." },
+            { id: "statement", label: "Extrato", icon: ClipboardList, description: "Extrato gerencial sem transações bancárias reais." },
         ],
     },
     {
         id: "charges-root",
-        label: "Cobrancas",
+        label: "Cobranças",
         icon: CreditCard,
         subItems: [
-            { id: "charges-generated", label: "Cobrancas geradas", icon: Receipt, description: "Cobrancas vinculadas a receitas gerenciais." },
-            { id: "client-config", label: "Configuracao por cliente", icon: Settings, description: "Preferencias de cobranca por paciente ou convenio." },
+            { id: "charges-generated", label: "Cobranças geradas", icon: Receipt, description: "Cobranças vinculadas a receitas gerenciais." },
+            { id: "client-config", label: "Configuração por cliente", icon: Settings, description: "Preferências de cobrança por paciente ou convênio." },
         ],
     },
     {
         id: "analytics-root",
-        label: "Gestao & Analise",
+        label: "Gestão & Análise",
         icon: PieChart,
         subItems: [
-            { id: "cash-flow", label: "Fluxo de caixa", icon: BarChart3, description: "Competencia, vencimentos e resultado mensal." },
+            { id: "cash-flow", label: "Fluxo de caixa", icon: BarChart3, description: "Competência, vencimentos e resultado mensal." },
         ],
     },
     {
         id: "repasses-root",
-        label: "Repasses/Convenio",
+        label: "Repasses/Convênio",
         icon: Users,
         subItems: [
-            { id: "repasses-convenio", label: "Repasses de convenio", icon: Users, description: "Conciliacao de sessoes realizadas com convenio." },
+            { id: "repasses-convenio", label: "Repasses de convênio", icon: Users, description: "Conciliação de sessões realizadas com convênio." },
         ],
     },
     {
@@ -311,65 +311,65 @@ const MANAGEMENT_NAV: ManagementNavGroup[] = [
         label: "Nota fiscal",
         icon: FileText,
         subItems: [
-            { id: "invoice-panel", label: "Painel", icon: FileText, description: "Base visual para emissao e acompanhamento fiscal." },
+            { id: "invoice-panel", label: "Painel", icon: FileText, description: "Base visual para emissão e acompanhamento fiscal." },
         ],
     },
 ];
 
 const MANAGEMENT_VIEW_META: Record<ManagementView, { title: string; subtitle: string; icon: LucideIcon; items: string[] }> = {
     overview: {
-        title: "Visao Geral",
-        subtitle: "Indicadores gerenciais do consultorio",
+        title: "Visão Geral",
+        subtitle: "Indicadores gerenciais do consultório",
         icon: PieChart,
         items: [],
     },
     income: {
         title: "Receitas",
-        subtitle: "Entradas internas, externas e conciliaveis",
+        subtitle: "Entradas internas, externas e conciliáveis",
         icon: TrendingUp,
-        items: ["Receitas manuais", "Receitas vinculadas a agenda", "Status planned, pending, paid, overdue e cancelled"],
+        items: ["Receitas manuais", "Receitas vinculadas à agenda", "Status planned, pending, paid, overdue e cancelled"],
     },
     expenses: {
         title: "Despesas",
-        subtitle: "Contas a pagar e custos do consultorio",
+        subtitle: "Contas a pagar e custos do consultório",
         icon: TrendingDown,
-        items: ["Despesas fixas e variaveis", "Recorrencias", "Competencia e vencimento separados"],
+        items: ["Despesas fixas e variáveis", "Recorrências", "Competência e vencimento separados"],
     },
     statement: {
         title: "Extrato",
-        subtitle: "Historico gerencial sem movimentacao bancaria real",
+        subtitle: "Histórico gerencial sem movimentação bancária real",
         icon: ClipboardList,
-        items: ["Lancamentos internos", "Origem do lancamento", "Vinculo opcional com paciente e agenda"],
+        items: ["Lançamentos internos", "Origem do lançamento", "Vínculo opcional com paciente e agenda"],
     },
     "cash-flow": {
         title: "Fluxo de caixa",
-        subtitle: "Resultado previsto por competencia e vencimento",
+        subtitle: "Resultado previsto por competência e vencimento",
         icon: BarChart3,
         items: ["Fluxo mensal", "Previsto versus pago", "Receitas e despesas em atraso"],
     },
     "charges-generated": {
-        title: "Cobrancas geradas",
-        subtitle: "Camada gerencial das cobrancas",
+        title: "Cobranças geradas",
+        subtitle: "Camada gerencial das cobranças",
         icon: Receipt,
-        items: ["Cobrancas NeuroFinance vinculadas", "Cobrancas ainda aguardando pagamento", "Separacao entre criado e recebido"],
+        items: ["Cobranças NeuroFinance vinculadas", "Cobranças ainda aguardando pagamento", "Separação entre criado e recebido"],
     },
     "client-config": {
-        title: "Configuracao por cliente",
-        subtitle: "Preferencias financeiras por paciente ou convenio",
+        title: "Configuração por cliente",
+        subtitle: "Preferências financeiras por paciente ou convênio",
         icon: Settings,
-        items: ["Metodo padrao", "Prazos de vencimento", "Regras de cobranca por perfil"],
+        items: ["Método padrão", "Prazos de vencimento", "Regras de cobrança por perfil"],
     },
     "repasses-convenio": {
-        title: "Repasses/Convenio",
-        subtitle: "Sessoes liberadas, conciliadas e nao conciliadas",
+        title: "Repasses/Convênio",
+        subtitle: "Sessões liberadas, conciliadas e não conciliadas",
         icon: Users,
-        items: ["Conciliacao em lote", "Filtro por convenio", "Alteracao de repasses em massa"],
+        items: ["Conciliação em lote", "Filtro por convênio", "Alteração de repasses em massa"],
     },
     "invoice-panel": {
         title: "Painel fiscal",
         subtitle: "Base visual para notas fiscais",
         icon: FileText,
-        items: ["Notas emitidas", "Notas pendentes", "Vinculo com receita gerencial"],
+        items: ["Notas emitidas", "Notas pendentes", "Vínculo com receita gerencial"],
     },
 };
 
@@ -393,7 +393,7 @@ interface ExpenseRow {
     property: string;
     due: string;
     amount: string;
-    status: "Pago" | "Nao pago";
+    status: "Pago" | "Não pago";
 }
 
 interface IncomeRow {
@@ -401,7 +401,7 @@ interface IncomeRow {
     description: string;
     due: string;
     amount: string;
-    status: "Pago" | "Nao pago";
+    status: "Pago" | "Não pago";
     origin: string;
 }
 
@@ -429,7 +429,7 @@ interface AgreementRepassRow {
     agreement: string;
     releaseDate: string;
     transferDate: string;
-    status: "Conciliado" | "Nao conciliado";
+    status: "Conciliado" | "Não conciliado";
     amount: string;
 }
 
@@ -440,11 +440,11 @@ interface CashFlowTableRow {
 }
 
 const financeFormCategories = {
-    income: ["Cobranca Avulsa", "Comissao", "Deposito", "Mensalidade", "Receitas nao categorizadas", "Rendimentos"],
-    expense: ["13 salario", "Adiantamento", "Agua", "Ajuste de caixa", "Alimentacao", "Aluguel"],
+    income: ["Cobrança Avulsa", "Comissão", "Depósito", "Mensalidade", "Receitas não categorizadas", "Rendimentos"],
+    expense: ["13º salário", "Adiantamento", "Água", "Ajuste de caixa", "Alimentação", "Aluguel"],
 };
 
-const paymentMethods = ["Pix", "Boleto", "Cartao", "Dinheiro", "Transferencia externa", "Convenio", "Outro"];
+const paymentMethods = ["Pix", "Boleto", "Cartão", "Dinheiro", "Transferência externa", "Convênio", "Outro"];
 
 const moneyFormatter = (value: number) =>
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -452,7 +452,7 @@ const moneyFormatter = (value: number) =>
 const fullMonthNames = [
     "Janeiro",
     "Fevereiro",
-    "Marco",
+    "Março",
     "Abril",
     "Maio",
     "Junho",
@@ -491,16 +491,16 @@ const entryCategoryLabel = (entry: FinancialEntry) => {
 const entryClientLabel = (entry: FinancialEntry) => {
     const clientName = entry.metadata?.client;
     if (entry.patients?.name) return entry.patients.name;
-    return typeof clientName === "string" && clientName ? clientName : "Paciente nao vinculado";
+    return typeof clientName === "string" && clientName ? clientName : "Paciente não vinculado";
 };
 
-const entryStatusLabel = (entry: FinancialEntry): "Pago" | "Nao pago" =>
-    entry.status === "paid" ? "Pago" : "Nao pago";
+const entryStatusLabel = (entry: FinancialEntry): "Pago" | "Não pago" =>
+    entry.status === "paid" ? "Pago" : "Não pago";
 
 const entryOriginLabel = (entry: FinancialEntry) => {
     if (entry.origin === "neurofinance") return "NeuroFinance";
     if (entry.origin === "appointment") return "Agenda";
-    if (entry.origin === "convenio") return "Convenio";
+    if (entry.origin === "convenio") return "Convênio";
     if (entry.origin === "package") return "Pacote";
     return "Manual";
 };
@@ -515,10 +515,10 @@ const isOverdueIncomeEntry = (entry: FinancialEntry) => {
 const paymentMethodLabel = (method: FinancialEntryPaymentMethod) => {
     if (method === "pix") return "Pix";
     if (method === "boleto") return "Boleto";
-    if (method === "card") return "Cartao";
+    if (method === "card") return "Cartão";
     if (method === "cash") return "Dinheiro";
-    if (method === "external_transfer") return "Transferencia";
-    if (method === "convenio") return "Convenio";
+    if (method === "external_transfer") return "Transferência";
+    if (method === "convenio") return "Convênio";
     if (method === "manual") return "Manual";
     return "Outro";
 };
@@ -531,7 +531,7 @@ const manualChargeStatusLabel = (entry: FinancialEntry) => {
 };
 
 const agreementStatusLabel = (entry: FinancialEntry): AgreementRepassRow["status"] =>
-    entry.status === "paid" ? "Conciliado" : "Nao conciliado";
+    entry.status === "paid" ? "Conciliado" : "Não conciliado";
 
 const parseMoneyInput = (value: string) => {
     const normalized = value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
@@ -550,10 +550,10 @@ const paymentMethodFromLabel = (value: string): FinancialEntryPaymentMethod => {
     const normalized = value.toLowerCase();
     if (normalized.includes("pix")) return "pix";
     if (normalized.includes("boleto")) return "boleto";
-    if (normalized.includes("cartao")) return "card";
+    if (normalized.includes("cartao") || normalized.includes("cartão")) return "card";
     if (normalized.includes("dinheiro")) return "cash";
-    if (normalized.includes("transferencia")) return "external_transfer";
-    if (normalized.includes("convenio")) return "convenio";
+    if (normalized.includes("transferencia") || normalized.includes("transferência")) return "external_transfer";
+    if (normalized.includes("convenio") || normalized.includes("convênio")) return "convenio";
     return "manual";
 };
 
@@ -747,7 +747,7 @@ const TogglePill = ({ active, onClick }: { active: boolean; onClick: () => void 
                     : "translate-x-7 bg-zinc-400 text-white dark:bg-zinc-600"
             )}
         >
-            {active ? "Sim" : "Nao"}
+            {active ? "Sim" : "Não"}
         </span>
     </button>
 );
@@ -1125,16 +1125,16 @@ const ManualChargeModal = ({ open, onClose }: { open: boolean; onClose: () => vo
                         <InputShell placeholder="R$ 0,00" className="w-full" value={amount} onChange={setAmount} />
                     </div>
                     <div>
-                        <FormLabel>Tipo de cobranca</FormLabel>
-                        <SelectShell className="w-full" options={["-- Selecione --", "Pix", "Boleto", "Cartao"]} value={chargeType} onChange={setChargeType} />
+                        <FormLabel>Tipo de cobrança</FormLabel>
+                        <SelectShell className="w-full" options={["-- Selecione --", "Pix", "Boleto", "Cartão"]} value={chargeType} onChange={setChargeType} />
                     </div>
                 </div>
                 <div>
-                    <FormLabel required>Descricao</FormLabel>
+                    <FormLabel required>Descrição</FormLabel>
                     <InputShell placeholder="Digite aqui" className="w-full md:w-1/2" value={description} onChange={setDescription} />
                 </div>
                 <div className="rounded-[28px] border border-dashed border-zinc-200 bg-zinc-50/70 p-6 text-center text-sm font-bold leading-relaxed text-zinc-500 dark:border-white/10 dark:bg-white/[0.025] dark:text-zinc-400">
-                    Esta acao cria uma receita pendente na Gestao Financeira. Ela nao cria cobranca bancaria Asaas nem movimentacao NeuroFinance.
+                    Esta ação cria uma receita pendente na Gestão Financeira. Ela não cria cobrança bancária Asaas nem movimentação NeuroFinance.
                 </div>
             </div>
         </PremiumModal>
@@ -1959,24 +1959,24 @@ const ManualChargesView = ({
     setOpenMenu: (menu: ManagementOptionsMenu) => void;
 }) => (
     <motion.div {...motionProps} key="manual-charges-view" className="space-y-6 px-6 py-6">
-        <ManagementSectionHeader icon={Receipt} title="Cobrancas geradas" subtitle="Cobrancas manuais da Gestao Financeira" />
+        <ManagementSectionHeader icon={Receipt} title="Cobranças geradas" subtitle="Cobranças manuais da Gestão Financeira" />
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex h-11 min-w-[280px] items-center gap-3 rounded-2xl border border-zinc-200 bg-white/70 px-4 dark:border-white/10 dark:bg-white/[0.035]">
                 <Search className="h-4 w-4 text-zinc-400" />
-                <span className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Buscar cobranca</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Buscar cobrança</span>
             </div>
             <div className="flex gap-3">
                 <button onClick={onManualCharge} className="inline-flex h-11 items-center gap-3 rounded-2xl bg-zinc-950 px-5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-xl transition-opacity hover:opacity-90 dark:bg-white dark:text-zinc-950">
                     <Plus className="h-4 w-4" />
-                    Nova cobranca
+                    Nova cobrança
                 </button>
                 <OptionsDropdown
                     id="charges"
                     openMenu={openMenu}
                     setOpenMenu={setOpenMenu}
                     items={[
-                        { label: "Exportar relatorio em PDF", icon: FileText, onClick: () => undefined },
-                        { label: "Exportar relatorio em Excel", icon: Download, onClick: () => undefined },
+                        { label: "Exportar relatório em PDF", icon: FileText, onClick: () => undefined },
+                        { label: "Exportar relatório em Excel", icon: Download, onClick: () => undefined },
                     ]}
                 />
             </div>
@@ -2158,7 +2158,7 @@ const AgreementRepassesView = ({
         const matchesSituation =
             situationFilter === "Situacao: Todas" ||
             (situationFilter === "Conciliados" && row.status === "Conciliado") ||
-            (situationFilter === "Nao conciliados" && row.status === "Nao conciliado");
+            (situationFilter === "Não conciliados" && row.status === "Não conciliado");
         const matchesAgreement = agreementFilter === "Convenio: Todos" || row.agreement === agreementFilter;
         return matchesSituation && matchesAgreement;
     }), [agreementFilter, rows, situationFilter]);
