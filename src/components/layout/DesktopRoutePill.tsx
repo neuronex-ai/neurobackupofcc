@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, CircleDot } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -115,12 +115,8 @@ export function DesktopRoutePill() {
     <div className="pointer-events-none fixed left-5 top-7 z-[59] hidden max-w-[min(44vw,720px)] xl:block">
       <nav
         aria-label="Localização atual"
-        className="pointer-events-auto flex min-h-11 max-w-full items-center gap-1 overflow-hidden rounded-[26px] border border-zinc-200/75 bg-white/72 px-2.5 py-2 shadow-[0_24px_70px_-48px_rgba(24,24,27,0.50),inset_0_1px_0_rgba(255,255,255,0.82)] ring-1 ring-white/50 backdrop-blur-3xl dark:border-white/[0.085] dark:bg-[#070708]/70 dark:shadow-[0_30px_84px_-54px_rgba(0,0,0,0.98),inset_0_1px_0_rgba(255,255,255,0.055)] dark:ring-white/[0.035]"
+        className="pointer-events-auto flex min-h-11 max-w-full items-center gap-1 overflow-hidden rounded-[26px] border border-zinc-200/75 bg-white/72 px-3 py-2 shadow-[0_24px_70px_-48px_rgba(24,24,27,0.50),inset_0_1px_0_rgba(255,255,255,0.82)] ring-1 ring-white/50 backdrop-blur-3xl dark:border-white/[0.085] dark:bg-[#070708]/70 dark:shadow-[0_30px_84px_-54px_rgba(0,0,0,0.98),inset_0_1px_0_rgba(255,255,255,0.055)] dark:ring-white/[0.035]"
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[14px] bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950">
-          <CircleDot className="h-3.5 w-3.5" />
-        </span>
-
         <div className="flex min-w-0 items-center gap-1 overflow-hidden">
           {segments.map((segment, index) => {
             const isLast = index === segments.length - 1;
