@@ -18,6 +18,7 @@ import { ElectronTitleBar } from "@/components/electron/ElectronTitleBar";
 import { ElectronUpdateManager } from "@/components/electron/ElectronUpdateManager";
 import { useEffect, lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import "@/styles/neurofinance-onboarding-overrides.css";
 
 // [SWARM] Auditado pelo Agente 2 — Todos os imports estão em uso.
 
