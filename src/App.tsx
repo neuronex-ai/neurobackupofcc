@@ -12,7 +12,6 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 import { TourProvider } from "@/components/onboarding/TourContext";
 import { CookieConsent } from "@/components/landing/CookieConsent";
 import { ScrollToTop } from "@/components/layout/ScrollToTop";
-import { DesktopRoutePill } from "@/components/layout/DesktopRoutePill";
 import { NeuroFinancePostOnboardingGate } from "@/components/financeiro/NeuroFinancePostOnboardingGate";
 import { isElectron } from "@/lib/electron";
 import { ElectronTitleBar } from "@/components/electron/ElectronTitleBar";
@@ -165,7 +164,6 @@ function App() {
                       {electronMode && <ElectronBodyOffset />}
                       {electronMode && <ElectronUpdateManager />}
 
-                      <DesktopRoutePill />
                       <NeuroFinancePostOnboardingGate />
 
                       {/* Synapse Global Shell — Desktop only (browser + Electron), gated by SynapseProvider.isVisible */}
