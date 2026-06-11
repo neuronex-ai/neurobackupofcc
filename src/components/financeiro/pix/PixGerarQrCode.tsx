@@ -60,11 +60,19 @@ export function PixGerarQrCode() {
     const selectedPatientDocument = getPatientDocument(selectedPatient);
     const selectedPatientDocumentDigits = onlyDigits(selectedPatientDocument, 14);
     const selectedPatientMissingDocument = Boolean(selectedPatient && !selectedPatientDocumentDigits);
+    const payerName = nomeDevedor.trim();
+    const payerDocumentDigits = onlyDigits(cpfDevedor, 14);
+    const hasValidPayerDocument = [11, 14].includes(payerDocumentDigits.length);
+    const canSubmit = Boolean(valor) && Boolean(payerName) && hasValidPayerDocument && !selectedPatientMissingDocument && !createCharge.isPending;
 
     const handlePatientSelect = (patientId: string) => {
         setSelectedPatientId(patientId);
 
-        if (!patientId) return;
+        if (!patientId) {
+            setNomeDevedor("");
+            setCpfDevedor("");
+            return;
+        }
 
         const patient = patients.find((item) => item.id === patientId);
         if (!patient) return;
@@ -80,15 +88,12 @@ export function PixGerarQrCode() {
             return;
         }
 
-        const payerName = nomeDevedor.trim();
-        const payerDocument = onlyDigits(cpfDevedor, 14);
-
         if (!payerName) {
             toast.error("Informe o nome do pagador.");
             return;
         }
 
-        if (![11, 14].includes(payerDocument.length)) {
+        if (!hasValidPayerDocument) {
             toast.error("Informe um CPF ou CNPJ válido para o pagador.");
             return;
         }
@@ -101,7 +106,7 @@ export function PixGerarQrCode() {
         try {
             const devedor = {
                 nome: payerName,
-                ...(payerDocument.length > 11 ? { cnpj: payerDocument } : { cpf: payerDocument }),
+                ...(payerDocumentDigits.length > 11 ? { cnpj: payerDocumentDigits } : { cpf: payerDocumentDigits }),
             };
 
             const result = await createCharge.mutateAsync({
@@ -146,7 +151,6 @@ export function PixGerarQrCode() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="p-6 rounded-[28px] bg-zinc-900 dark:bg-white border border-zinc-800 dark:border-zinc-200">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-white/10 dark:bg-black/5 text-white dark:text-zinc-900 flex items-center justify-center shadow-lg">
@@ -175,7 +179,6 @@ export function PixGerarQrCode() {
                         exit={{ opacity: 0, y: -10 }}
                         className="space-y-4"
                     >
-                        {/* Valor */}
                         <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
                             <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
                                 <DollarSign className="w-3 h-3 inline mr-1.5 -mt-0.5" />
@@ -190,7 +193,6 @@ export function PixGerarQrCode() {
                             />
                         </div>
 
-                        {/* Expiração */}
                         <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
                             <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
                                 Validade do QR Code
@@ -213,7 +215,6 @@ export function PixGerarQrCode() {
                             </div>
                         </div>
 
-                        {/* Pagador */}
                         <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06] space-y-4">
                             <div>
                                 <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
@@ -314,7 +315,6 @@ export function PixGerarQrCode() {
                             </div>
                         </div>
 
-                        {/* Descrição */}
                         <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
                             <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
                                 <FileText className="w-3 h-3 inline mr-1.5 -mt-0.5" />
@@ -328,13 +328,12 @@ export function PixGerarQrCode() {
                             />
                         </div>
 
-                        {/* Generate */}
                         <button
                             onClick={handleGenerate}
-                            disabled={createCharge.isPending || !valor}
+                            disabled={!canSubmit}
                             className={cn(
                                 "w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300",
-                                valor
+                                canSubmit
                                     ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 shadow-2xl"
                                     : "bg-zinc-100 dark:bg-white/5 text-zinc-400 cursor-not-allowed"
                             )}
@@ -358,7 +357,6 @@ export function PixGerarQrCode() {
                         animate={{ opacity: 1, scale: 1 }}
                         className="space-y-5"
                     >
-                        {/* QR Code Display */}
                         <div className="p-8 rounded-[28px] bg-white dark:bg-white/[0.03] border border-zinc-200/50 dark:border-white/[0.06] flex flex-col items-center text-center">
                             <div className="w-52 h-52 rounded-[32px] bg-white p-4 shadow-2xl flex items-center justify-center mb-6 border border-zinc-100 dark:border-white/5 relative group transition-transform hover:scale-[1.02] duration-500">
                                 {generatedCharge?.pix_qr_code ? (
@@ -394,7 +392,6 @@ export function PixGerarQrCode() {
                             )}
                         </div>
 
-                        {/* Copy & Actions */}
                         <div className="flex gap-3">
                             <button
                                 onClick={handleCopyPixCode}
