@@ -1,7 +1,7 @@
 /**
  * ─── PixGerarQrCode — Gerar QR Code Pix ─────────────────────────
- * Generates a PIX QR Code (immediate charge) via NeuroFinance / Asaas.
- * Uses asaas-create-payment Edge Function.
+ * Generates a PIX QR Code for receiving payments via NeuroFinance / Asaas.
+ * Uses asaas-pix-static-qrcode Edge Function.
  * ─────────────────────────────────────────────────────────────────
  */
 
@@ -14,22 +14,19 @@ import {
     Copy,
     DollarSign,
     FileText,
-    User,
     RefreshCw,
 } from "lucide-react";
 import { useNeuroFinancePix } from "@/hooks/use-neurofinance-pix";
-import { formatDocumentInput, formatMoneyInput, moneyInputToNumber, onlyDigits } from "@/lib/financial-input";
+import { formatMoneyInput, moneyInputToNumber } from "@/lib/financial-input";
 import { toast } from "sonner";
 
 export function PixGerarQrCode() {
     const [valor, setValor] = useState("");
     const [descricao, setDescricao] = useState("");
-    const [nomeDevedor, setNomeDevedor] = useState("");
-    const [cpfDevedor, setCpfDevedor] = useState("");
     const [expiracao, setExpiracao] = useState("3600");
     const [generatedCharge, setGeneratedCharge] = useState<any>(null);
     const [step, setStep] = useState<"form" | "result">("form");
-    const { createCharge } = useNeuroFinancePix();
+    const { createStaticQrCode } = useNeuroFinancePix();
 
     const handleGenerate = async () => {
         const numericValue = moneyInputToNumber(valor);
@@ -39,16 +36,11 @@ export function PixGerarQrCode() {
         }
 
         try {
-            const devedor = nomeDevedor.trim() ? {
-                nome: nomeDevedor,
-                ...(cpfDevedor.trim() ? { cpf: onlyDigits(cpfDevedor, 11) } : {}),
-            } : undefined;
-
-            const result = await createCharge.mutateAsync({
+            const result = await createStaticQrCode.mutateAsync({
                 valor: numericValue,
-                descricao: descricao || "Cobrança Pix NeuroFinance",
+                descricao: descricao || "Recebimento Pix NeuroFinance",
                 expiracao: Math.round((parseInt(expiracao) || 3600) / 60),
-                devedor,
+                allowsMultiplePayments: false,
             });
 
             setGeneratedCharge(result);
@@ -69,8 +61,6 @@ export function PixGerarQrCode() {
     const handleReset = () => {
         setValor("");
         setDescricao("");
-        setNomeDevedor("");
-        setCpfDevedor("");
         setGeneratedCharge(null);
         setStep("form");
     };
@@ -117,7 +107,7 @@ export function PixGerarQrCode() {
                         <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
                             <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
                                 <DollarSign className="w-3 h-3 inline mr-1.5 -mt-0.5" />
-                                Valor da cobrança (R$)
+                                Valor do QR Code (R$)
                             </label>
                             <input
                                 inputMode="decimal"
@@ -151,28 +141,6 @@ export function PixGerarQrCode() {
                             </div>
                         </div>
 
-                        {/* Devedor (optional) */}
-                        <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
-                            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
-                                <User className="w-3 h-3 inline mr-1.5 -mt-0.5" />
-                                Identificar pagador (Opcional)
-                            </label>
-                            <div className="grid grid-cols-2 gap-3">
-                                <input
-                                    value={nomeDevedor}
-                                    onChange={(e) => setNomeDevedor(e.target.value)}
-                                    placeholder="Nome completo"
-                                    className="h-10 px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
-                                />
-                                <input
-                                    value={cpfDevedor}
-                                    onChange={(e) => setCpfDevedor(formatDocumentInput(e.target.value))}
-                                    placeholder="CPF"
-                                    className="h-10 px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
-                                />
-                            </div>
-                        </div>
-
                         {/* Descrição */}
                         <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
                             <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
@@ -190,7 +158,7 @@ export function PixGerarQrCode() {
                         {/* Generate */}
                         <button
                             onClick={handleGenerate}
-                            disabled={createCharge.isPending || !valor}
+                            disabled={createStaticQrCode.isPending || !valor}
                             className={cn(
                                 "w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300",
                                 valor
@@ -198,7 +166,7 @@ export function PixGerarQrCode() {
                                     : "bg-zinc-100 dark:bg-white/5 text-zinc-400 cursor-not-allowed"
                             )}
                         >
-                            {createCharge.isPending ? (
+                            {createStaticQrCode.isPending ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                                 <>
@@ -240,9 +208,9 @@ export function PixGerarQrCode() {
                                 {moneyInputToNumber(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                             </div>
 
-                            {generatedCharge?.payment_id && (
+                            {generatedCharge?.qrcode_id && (
                                 <p className="text-[9px] font-mono text-zinc-400 mt-2">
-                                    ID: {generatedCharge.payment_id}
+                                    ID: {generatedCharge.qrcode_id}
                                 </p>
                             )}
 
