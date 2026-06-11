@@ -99,7 +99,9 @@ export function DesktopRoutePill() {
     [location.pathname, financeContext],
   );
 
-  if (isMobile || segments.length === 0 || location.pathname.startsWith("/auth")) return null;
+  const visibleSegments = segments.length > 3 ? segments.slice(Math.max(segments.length - 3, 0)) : segments;
+
+  if (isMobile || visibleSegments.length === 0 || location.pathname.startsWith("/auth")) return null;
 
   const handleSegmentClick = (segment: RouteSegment) => {
     if (!segment.href) return;
@@ -112,14 +114,14 @@ export function DesktopRoutePill() {
   };
 
   return (
-    <div className="pointer-events-none fixed left-5 top-7 z-[59] hidden max-w-[min(44vw,720px)] xl:block">
+    <div className="pointer-events-none fixed left-5 top-7 z-[59] hidden max-w-[min(37vw,560px)] xl:block">
       <nav
         aria-label="Localização atual"
         className="pointer-events-auto flex min-h-11 max-w-full items-center gap-1 overflow-hidden rounded-[26px] border border-zinc-200/75 bg-white/72 px-3 py-2 shadow-[0_24px_70px_-48px_rgba(24,24,27,0.50),inset_0_1px_0_rgba(255,255,255,0.82)] ring-1 ring-white/50 backdrop-blur-3xl dark:border-white/[0.085] dark:bg-[#070708]/70 dark:shadow-[0_30px_84px_-54px_rgba(0,0,0,0.98),inset_0_1px_0_rgba(255,255,255,0.055)] dark:ring-white/[0.035]"
       >
         <div className="flex min-w-0 items-center gap-1 overflow-hidden">
-          {segments.map((segment, index) => {
-            const isLast = index === segments.length - 1;
+          {visibleSegments.map((segment, index) => {
+            const isLast = index === visibleSegments.length - 1;
             const isClickable = Boolean(segment.href) && !isLast;
 
             return (
@@ -131,8 +133,8 @@ export function DesktopRoutePill() {
                   className={cn(
                     "min-w-0 truncate rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] transition-all",
                     isLast
-                      ? "max-w-[220px] text-zinc-950 dark:text-white"
-                      : "max-w-[180px] text-zinc-500 hover:bg-zinc-950/[0.055] hover:text-zinc-950 dark:text-zinc-500 dark:hover:bg-white/[0.07] dark:hover:text-white",
+                      ? "max-w-[190px] text-zinc-950 dark:text-white"
+                      : "max-w-[150px] text-zinc-500 hover:bg-zinc-950/[0.055] hover:text-zinc-950 dark:text-zinc-500 dark:hover:bg-white/[0.07] dark:hover:text-white",
                     !isClickable && !isLast && "cursor-default",
                   )}
                 >
