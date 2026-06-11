@@ -65,3 +65,65 @@
     font-size: clamp(2.15rem, 3.8vw, 4.05rem) !important;
   }
 }
+
+/* Rendering stability for the subsequent onboarding steps.
+   Chromium/Electron can create tiled/composited rectangles when large semi-transparent
+   gradients, remote noise SVGs, backdrop-filter and animated 3D transforms overlap. */
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] {
+  background: #080808 !important;
+  contain: paint;
+  isolation: isolate;
+}
+
+.light div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] {
+  background: #ffffff !important;
+}
+
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] *,
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] *::before,
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] .premium-noise,
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] [style*="feTurbulence"] {
+  display: none !important;
+}
+
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] [class*="bg-radial-gradient"],
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] [class*="pulsing-gradient-surface"] {
+  display: none !important;
+}
+
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] > div:first-of-type {
+  background: #0a0a0b !important;
+}
+
+.light div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] > div:first-of-type {
+  background: #f6f6f7 !important;
+}
+
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] > div:first-of-type::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255,255,255,0.035), transparent 42%, rgba(255,255,255,0.02));
+}
+
+.light div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] > div:first-of-type::before {
+  background: linear-gradient(135deg, rgba(0,0,0,0.035), transparent 42%, rgba(0,0,0,0.018));
+}
+
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] .gpu-accelerated,
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] .will-change-transform {
+  transform: none !important;
+  backface-visibility: visible !important;
+  perspective: none !important;
+  will-change: auto !important;
+}
+
+div[class*="relative isolate w-full flex min-h-0 flex-col"][class*="lg:flex-row"] [class*="shadow-premium"] {
+  box-shadow: 0 24px 72px -46px rgba(0, 0, 0, 0.78) !important;
+}
