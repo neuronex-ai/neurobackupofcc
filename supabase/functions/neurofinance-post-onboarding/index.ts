@@ -8,7 +8,7 @@ import {
 } from "../_shared/asaas-client.ts";
 
 type DestinationBody = {
-  action?: "complete" | "get";
+  action?: "complete" | "get" | "save_destination";
   bank?: {
     holderName?: string;
     cpfCnpj?: string;
@@ -94,6 +94,7 @@ Deno.serve(async (req: Request) => {
     const bank = normalizedBank(body.bank);
     const pix = normalizedPix(body.pix);
     const now = new Date().toISOString();
+    const shouldComplete = body.action !== "save_destination";
 
     const nextDestinations = {
       ...destinations,
@@ -106,13 +107,15 @@ Deno.serve(async (req: Request) => {
       metadata: {
         ...metadata,
         destinations: nextDestinations,
-        neurofinance_post_onboarding: {
-          ...(metadata.neurofinance_post_onboarding || {}),
-          completed: true,
-          completed_at: now,
-          destination_configured_at: bank || pix ? now : metadata.neurofinance_post_onboarding?.destination_configured_at || null,
-          version: 1,
-        },
+        ...(shouldComplete ? {
+          neurofinance_post_onboarding: {
+            ...(metadata.neurofinance_post_onboarding || {}),
+            completed: true,
+            completed_at: now,
+            destination_configured_at: bank || pix ? now : metadata.neurofinance_post_onboarding?.destination_configured_at || null,
+            version: 1,
+          },
+        } : {}),
       },
       updated_at: now,
     };
