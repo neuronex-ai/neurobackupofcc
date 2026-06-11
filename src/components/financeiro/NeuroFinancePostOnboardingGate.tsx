@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
-import { NeuroFinancePostOnboardingWizard } from "@/components/financeiro/NeuroFinancePostOnboardingWizard";
+import { NeuroFinanceWelcomeWizard } from "@/components/financeiro/NeuroFinanceWelcomeWizard";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { useFinancialPinStatus } from "@/hooks/use-financial-pin-status";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -46,7 +46,7 @@ export function NeuroFinancePostOnboardingGate() {
   };
 
   return (
-    <NeuroFinancePostOnboardingWizard
+    <NeuroFinanceWelcomeWizard
       open={shouldOpen}
       pinAlreadyConfigured={Boolean(pinStatus.data?.isConfigured)}
       onComplete={handleComplete}
