@@ -9,6 +9,8 @@ import { useFinancialPinStatus } from "@/hooks/use-financial-pin-status";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 
+const POST_ONBOARDING_ROLLOUT_AT = new Date("2026-06-11T00:00:00.000Z").getTime();
+
 export function NeuroFinancePostOnboardingGate() {
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -17,9 +19,22 @@ export function NeuroFinancePostOnboardingGate() {
   const pinStatus = useFinancialPinStatus(Boolean(isNeuroFinanceRoute && isConnected));
   const postOnboarding = account?.metadata?.neurofinance_post_onboarding;
   const isCompletedInAccount = Boolean(postOnboarding?.completed || postOnboarding?.completed_at);
+  const accountCreatedAt = account?.created_at ? new Date(account.created_at).getTime() : null;
+  const isLegacyAccount = Boolean(
+    account?.id &&
+    accountCreatedAt &&
+    accountCreatedAt < POST_ONBOARDING_ROLLOUT_AT &&
+    (account?.tos_accepted_at || account?.onboarding_completed_at || account?.onboarding_payload)
+  );
+  const shouldMarkAsComplete = Boolean(
+    isNeuroFinanceRoute &&
+    account?.id &&
+    !isCompletedInAccount &&
+    (pinStatus.data?.isConfigured || isLegacyAccount)
+  );
 
   useEffect(() => {
-    if (!isNeuroFinanceRoute || !account?.id || isCompletedInAccount || !pinStatus.data?.isConfigured) return;
+    if (!shouldMarkAsComplete) return;
 
     supabase.functions
       .invoke("neurofinance-post-onboarding", { body: { action: "complete" } })
@@ -27,7 +42,7 @@ export function NeuroFinancePostOnboardingGate() {
       .catch((error) => {
         console.warn("[NeuroFinancePostOnboardingGate] Não foi possível registrar conclusão automática.", error);
       });
-  }, [account?.id, isCompletedInAccount, isNeuroFinanceRoute, pinStatus.data?.isConfigured, refetch]);
+  }, [refetch, shouldMarkAsComplete]);
 
   const shouldOpen = Boolean(
     !isMobile &&
@@ -37,6 +52,7 @@ export function NeuroFinancePostOnboardingGate() {
     isConnected &&
     !needsInitialOnboarding &&
     account?.id &&
+    !isLegacyAccount &&
     !isCompletedInAccount &&
     !pinStatus.data?.isConfigured
   );
