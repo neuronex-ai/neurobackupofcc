@@ -2,6 +2,12 @@
  * use-NeuroFinance-pix.ts
  *
  * Provides PIX-specific payment operations via NeuroFinance API.
+ * This is a convenience layer over the unified use-NeuroFinance-payments.
+ *
+ * Exports:
+ *   - useNeuroFinancePix: Core PIX operations (create charge, list, etc.)
+ *   - usePixCobList: Convenience hook to list PIX charges
+ *   - usePixRecebidos: Convenience hook to list received PIX
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,33 +16,34 @@ import { useAuth } from "@/components/auth/SessionContextProvider";
 import { toast } from "sonner";
 import type { NeuroFinancePayment, CreatePaymentResult } from "./use-neurofinance-payments";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
+import { invokeNeurofinanceFunction } from "@/lib/neurofinance-edge";
+
+// ─── Types ────────────────────────────────────────────────────────
 
 export interface CreatePixChargeParams {
+    /** Valor em reais (ex: 150.00) */
     valor: number;
+    /** Expiração em minutos (default: 60) */
     expiracao?: number;
+    /** Descrição para o pagador */
     descricao?: string;
+    /** Dados do pagador */
     devedor?: {
         cpf?: string;
         cnpj?: string;
         nome: string;
     };
+    /** Informações adicionais */
     infoAdicionais?: Array<{ nome: string; valor: string }>;
+    /** Patient ID for linking */
     patientId?: string;
+    /** Appointment ID for linking */
     appointmentId?: string;
-}
-
-export interface CreatePixStaticQrCodeParams {
-    valor: number;
-    expiracao?: number;
-    descricao?: string;
-    addressKey?: string;
-    allowsMultiplePayments?: boolean;
-    externalReference?: string;
 }
 
 export interface CreatePixCobVencimentoParams {
     valor: number;
-    dataDeVencimento: string;
+    dataDeVencimento: string; // YYYY-MM-DD
     validadeAposVencimento?: number;
     descricao?: string;
     devedor: {
@@ -47,17 +54,22 @@ export interface CreatePixCobVencimentoParams {
     patientId?: string;
 }
 
+// Re-export for compatibility
 export type PixCharge = NeuroFinancePayment;
 export type PixRecebido = NeuroFinancePayment;
+
+// ─── PIX Operations Hook ──────────────────────────────────────────
 
 export function useNeuroFinancePix() {
     const queryClient = useQueryClient();
 
+    // ─── Create PIX charge via NeuroFinance API ────────────────
     const createCharge = useMutation<CreatePaymentResult, Error, CreatePixChargeParams>({
         mutationFn: async (params) => {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Não autenticado');
 
+            // Convert from reais to centavos
             const amountCentavos = Math.round(params.valor * 100);
 
             const response = await supabase.functions.invoke('asaas-create-payment', {
@@ -88,33 +100,7 @@ export function useNeuroFinancePix() {
         },
     });
 
-    const createStaticQrCode = useMutation<any, Error, CreatePixStaticQrCodeParams>({
-        mutationFn: async (params) => {
-            const response = await supabase.functions.invoke('asaas-pix-static-qrcode', {
-                body: {
-                    value: params.valor,
-                    description: params.descricao || 'Recebimento Pix NeuroFinance',
-                    expirationSeconds: (params.expiracao || 60) * 60,
-                    format: 'ALL',
-                    allowsMultiplePayments: params.allowsMultiplePayments ?? false,
-                    addressKey: params.addressKey || undefined,
-                    externalReference: params.externalReference || undefined,
-                },
-            });
-
-            if (response.error) throw new Error(response.error.message);
-            if (response.data?.error) throw new Error(response.data.error);
-            return response.data;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['NeuroFinance-pix-keys'] });
-            toast.success('QR Code Pix gerado com sucesso!');
-        },
-        onError: (error) => {
-            toast.error(getUserFacingErrorMessage(error, "payment"));
-        },
-    });
-
+    // ─── Create PIX charge with due date ─────────────────────
     const createCobVencimento = useMutation<CreatePaymentResult, Error, CreatePixCobVencimentoParams>({
         mutationFn: async (params) => {
             const amountCentavos = Math.round(params.valor * 100);
@@ -124,8 +110,9 @@ export function useNeuroFinancePix() {
                     amount: amountCentavos,
                     description: params.descricao || 'Cobrança PIX com vencimento',
                     patient_id: params.patientId || null,
-                    payment_methods: ['pix', 'boleto'],
+                    payment_methods: ['pix', 'boleto'], // Boleto supports due dates natively
                     customer_name: params.devedor?.nome || undefined,
+                    // Calculate minutes until due date
                     expires_in_minutes: Math.max(
                         60,
                         Math.floor((new Date(params.dataDeVencimento).getTime() - Date.now()) / 60000)
@@ -147,6 +134,7 @@ export function useNeuroFinancePix() {
         },
     });
 
+    // ─── List PIX charges ────────────────────────────────────
     const listCharges = async (): Promise<{ charges: NeuroFinancePayment[] }> => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('Não autenticado');
@@ -163,6 +151,7 @@ export function useNeuroFinancePix() {
         return { charges: (data || []) as NeuroFinancePayment[] };
     };
 
+    // ─── Query a single charge ───────────────────────────────
     const queryCharge = async (paymentId: string): Promise<NeuroFinancePayment | null> => {
         const { data, error } = await supabase
             .from('nb_payments')
@@ -175,13 +164,17 @@ export function useNeuroFinancePix() {
     };
 
     return {
+        // Cobranças imediatas
         createCharge,
-        createStaticQrCode,
         queryCharge,
         listCharges,
+
+        // Cobranças com vencimento
         createCobVencimento,
     };
 }
+
+// ─── Convenience Hooks for Lists ──────────────────────────────────
 
 export function usePixKeys() {
     const queryClient = useQueryClient();
@@ -234,6 +227,9 @@ export function usePixKeys() {
     return { ...query, createKey, deleteKey };
 }
 
+/**
+ * Hook to list PIX charges.
+ */
 export function usePixCobList() {
     const { user } = useAuth();
 
@@ -259,6 +255,9 @@ export function usePixCobList() {
     });
 }
 
+/**
+ * Hook to list received PIX payments.
+ */
 export function usePixRecebidos() {
     const { user } = useAuth();
 
