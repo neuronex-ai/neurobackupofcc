@@ -74,6 +74,11 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/asaas-payment-link/index.ts"
 
+[functions.asaas-checkout-branding]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/asaas-checkout-branding/index.ts"
+
 [functions.asaas-refund]
 enabled = true
 verify_jwt = true
