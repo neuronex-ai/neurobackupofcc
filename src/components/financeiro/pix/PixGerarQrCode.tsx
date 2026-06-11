@@ -1,11 +1,11 @@
 /**
  * ─── PixGerarQrCode — Gerar QR Code Pix ─────────────────────────
- * Generates a PIX QR Code for receiving payments via NeuroFinance / Asaas.
- * Uses asaas-pix-static-qrcode Edge Function.
+ * Generates a PIX QR Code (immediate charge) via NeuroFinance / Asaas.
+ * Uses asaas-create-payment Edge Function.
  * ─────────────────────────────────────────────────────────────────
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,33 +14,99 @@ import {
     Copy,
     DollarSign,
     FileText,
+    User,
     RefreshCw,
+    Plus,
+    AlertCircle,
+    ExternalLink,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useNeuroFinancePix } from "@/hooks/use-neurofinance-pix";
-import { formatMoneyInput, moneyInputToNumber } from "@/lib/financial-input";
+import { usePatients } from "@/hooks/use-patients";
+import { NewPatientModal } from "@/components/patients/NewPatientModal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatDocumentInput, formatMoneyInput, moneyInputToNumber, onlyDigits } from "@/lib/financial-input";
 import { toast } from "sonner";
 
 export function PixGerarQrCode() {
     const [valor, setValor] = useState("");
     const [descricao, setDescricao] = useState("");
+    const [nomeDevedor, setNomeDevedor] = useState("");
+    const [cpfDevedor, setCpfDevedor] = useState("");
+    const [selectedPatientId, setSelectedPatientId] = useState("manual");
     const [expiracao, setExpiracao] = useState("3600");
     const [generatedCharge, setGeneratedCharge] = useState<any>(null);
     const [step, setStep] = useState<"form" | "result">("form");
-    const { createStaticQrCode } = useNeuroFinancePix();
+    const [submitAttempted, setSubmitAttempted] = useState(false);
+    const { createCharge } = useNeuroFinancePix();
+    const { data: patients = [], isLoading: isLoadingPatients } = usePatients();
+    const navigate = useNavigate();
+
+    const selectedPatient = useMemo(
+        () => patients.find((patient) => patient.id === selectedPatientId),
+        [patients, selectedPatientId]
+    );
+
+    const selectedPatientPayer = useMemo(() => {
+        if (!selectedPatient) return null;
+
+        const usesExternalPayer = selectedPatient.payer_type === "other";
+        const payerName = usesExternalPayer
+            ? selectedPatient.payer_name || selectedPatient.name
+            : selectedPatient.name;
+        const payerDocument = onlyDigits(
+            (usesExternalPayer ? selectedPatient.payer_cpf : selectedPatient.cpf) ||
+            selectedPatient.cpf ||
+            selectedPatient.payer_cpf ||
+            "",
+            14
+        );
+
+        return {
+            name: payerName,
+            document: payerDocument,
+        };
+    }, [selectedPatient]);
+
+    const manualName = nomeDevedor.trim();
+    const manualDocument = onlyDigits(cpfDevedor, 14);
+    const hasSelectedPatient = Boolean(selectedPatient);
+    const selectedPatientMissingDocument = Boolean(selectedPatient && !selectedPatientPayer?.document);
+    const missingManualName = !hasSelectedPatient && !manualName;
+    const missingManualDocument = !hasSelectedPatient && !manualDocument;
+    const canGenerate = Boolean(valor) && !createCharge.isPending && (
+        hasSelectedPatient
+            ? Boolean(selectedPatientPayer?.document)
+            : Boolean(manualName && manualDocument)
+    );
 
     const handleGenerate = async () => {
+        setSubmitAttempted(true);
+
         const numericValue = moneyInputToNumber(valor);
         if (numericValue <= 0) {
             toast.error("Informe um valor válido.");
             return;
         }
 
+        const payerName = selectedPatientPayer?.name || manualName;
+        const payerDocument = selectedPatientPayer?.document || manualDocument;
+
+        if (!payerName || !payerDocument) {
+            toast.error("Informe o nome e CPF/CNPJ do pagador para gerar o QR Code.");
+            return;
+        }
+
         try {
-            const result = await createStaticQrCode.mutateAsync({
+            const result = await createCharge.mutateAsync({
                 valor: numericValue,
-                descricao: descricao || "Recebimento Pix NeuroFinance",
+                descricao: descricao || "Cobrança Pix NeuroFinance",
                 expiracao: Math.round((parseInt(expiracao) || 3600) / 60),
-                allowsMultiplePayments: false,
+                patientId: selectedPatient?.id,
+                devedor: {
+                    nome: payerName,
+                    ...(payerDocument.length > 11 ? { cnpj: payerDocument } : { cpf: payerDocument }),
+                },
             });
 
             setGeneratedCharge(result);
@@ -61,6 +127,10 @@ export function PixGerarQrCode() {
     const handleReset = () => {
         setValor("");
         setDescricao("");
+        setNomeDevedor("");
+        setCpfDevedor("");
+        setSelectedPatientId("manual");
+        setSubmitAttempted(false);
         setGeneratedCharge(null);
         setStep("form");
     };
@@ -71,6 +141,12 @@ export function PixGerarQrCode() {
         { value: "7200", label: "2 horas" },
         { value: "86400", label: "24 horas" },
     ];
+
+    const requiredPill = (
+        <span className="rounded-full border border-zinc-200/60 bg-zinc-100/70 px-2 py-0.5 text-[7px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-500">
+            Obrigatório
+        </span>
+    );
 
     return (
         <div className="space-y-6">
@@ -107,7 +183,7 @@ export function PixGerarQrCode() {
                         <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
                             <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
                                 <DollarSign className="w-3 h-3 inline mr-1.5 -mt-0.5" />
-                                Valor do QR Code (R$)
+                                Valor da cobrança (R$)
                             </label>
                             <input
                                 inputMode="decimal"
@@ -141,6 +217,105 @@ export function PixGerarQrCode() {
                             </div>
                         </div>
 
+                        {/* Pagador */}
+                        <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06] space-y-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 block">
+                                    <User className="w-3 h-3 inline mr-1.5 -mt-0.5" />
+                                    Pagador
+                                </label>
+                                <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-600">
+                                    Selecione paciente ou preencha manualmente
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-[minmax(0,1fr)_48px] gap-3">
+                                <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
+                                    <SelectTrigger className="h-11 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border-zinc-200 dark:border-white/10 text-xs font-bold text-zinc-700 dark:text-zinc-200 focus:ring-zinc-900/20 dark:focus:ring-white/20">
+                                        <SelectValue placeholder={isLoadingPatients ? "Carregando pacientes..." : "Selecionar paciente cadastrado"} />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-2xl border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-zinc-950/95 text-zinc-900 dark:text-zinc-100">
+                                        <SelectItem value="manual" className="rounded-xl text-xs font-bold">
+                                            Preenchimento manual
+                                        </SelectItem>
+                                        {patients.map((patient) => (
+                                            <SelectItem key={patient.id} value={patient.id} className="rounded-xl text-xs font-bold">
+                                                {patient.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <NewPatientModal>
+                                    <button
+                                        type="button"
+                                        title="Adicionar novo paciente"
+                                        className="h-11 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center shadow-lg hover:opacity-90 transition-all active:scale-95"
+                                    >
+                                        <Plus className="w-4 h-4 stroke-[3]" />
+                                    </button>
+                                </NewPatientModal>
+                            </div>
+
+                            {selectedPatient && !selectedPatientMissingDocument && (
+                                <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/[0.04] px-4 py-3 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                                    Usando os dados fiscais cadastrados em {selectedPatient.name}.
+                                </div>
+                            )}
+
+                            {selectedPatientMissingDocument && (
+                                <div className="rounded-2xl border border-amber-500/15 bg-amber-500/[0.06] px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div className="flex items-start gap-2 text-[10px] font-bold leading-relaxed text-amber-700 dark:text-amber-300">
+                                        <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                                        <span>Para gerar a cobrança, este paciente precisa ter CPF ou CNPJ cadastrado no prontuário.</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(`/pacientes/${selectedPatient.id}?edit=1`)}
+                                        className="h-8 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-[8px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        Editar prontuário
+                                        <ExternalLink className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            )}
+
+                            {!selectedPatient && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2 px-1">
+                                            <span className="text-[8px] font-black uppercase tracking-[0.18em] text-zinc-400">Nome completo</span>
+                                            {requiredPill}
+                                        </div>
+                                        <input
+                                            value={nomeDevedor}
+                                            onChange={(e) => setNomeDevedor(e.target.value)}
+                                            placeholder="Nome completo"
+                                            className={cn(
+                                                "h-10 w-full px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30",
+                                                submitAttempted && missingManualName && "border-amber-400/50 dark:border-amber-400/40"
+                                            )}
+                                        />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2 px-1">
+                                            <span className="text-[8px] font-black uppercase tracking-[0.18em] text-zinc-400">CPF/CNPJ</span>
+                                            {requiredPill}
+                                        </div>
+                                        <input
+                                            value={cpfDevedor}
+                                            onChange={(e) => setCpfDevedor(formatDocumentInput(e.target.value))}
+                                            placeholder="CPF ou CNPJ"
+                                            className={cn(
+                                                "h-10 w-full px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30",
+                                                submitAttempted && missingManualDocument && "border-amber-400/50 dark:border-amber-400/40"
+                                            )}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {/* Descrição */}
                         <div className="p-5 rounded-[24px] bg-white/60 dark:bg-white/[0.02] border border-zinc-200/50 dark:border-white/[0.06]">
                             <label className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 block">
@@ -158,15 +333,15 @@ export function PixGerarQrCode() {
                         {/* Generate */}
                         <button
                             onClick={handleGenerate}
-                            disabled={createStaticQrCode.isPending || !valor}
+                            disabled={!canGenerate}
                             className={cn(
                                 "w-full h-14 rounded-2xl font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300",
-                                valor
+                                canGenerate
                                     ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:opacity-90 shadow-2xl"
                                     : "bg-zinc-100 dark:bg-white/5 text-zinc-400 cursor-not-allowed"
                             )}
                         >
-                            {createStaticQrCode.isPending ? (
+                            {createCharge.isPending ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
                                 <>
@@ -208,9 +383,9 @@ export function PixGerarQrCode() {
                                 {moneyInputToNumber(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                             </div>
 
-                            {generatedCharge?.qrcode_id && (
+                            {generatedCharge?.payment_id && (
                                 <p className="text-[9px] font-mono text-zinc-400 mt-2">
-                                    ID: {generatedCharge.qrcode_id}
+                                    ID: {generatedCharge.payment_id}
                                 </p>
                             )}
 
