@@ -179,18 +179,56 @@ const DesktopFinanceiro = () => {
 
     if (!showMainDashboard) {
         return (
-            <div className="h-screen w-screen bg-background overflow-hidden relative font-sans">
-                <div className="absolute inset-0 pointer-events-none z-0"><div className="absolute top-[-15%] left-[-10%] w-[900px] h-[700px] bg-foreground/[0.02] blur-[200px] rounded-full" /><div className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[500px] bg-foreground/[0.015] blur-[160px] rounded-full" /></div>
+            <div className="relative h-screen w-screen overflow-hidden bg-zinc-50 font-sans text-zinc-950 dark:bg-[#020204] dark:text-white">
+                <div className="premium-noise pointer-events-none absolute inset-0 z-0 opacity-[0.035] dark:opacity-[0.07]" />
+                <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_12%_16%,rgba(255,255,255,.94),transparent_34%),radial-gradient(circle_at_82%_88%,rgba(0,0,0,.05),transparent_34%)] dark:bg-[radial-gradient(circle_at_16%_18%,rgba(255,255,255,.12),transparent_30%),radial-gradient(circle_at_82%_80%,rgba(255,255,255,.065),transparent_32%)]" />
+                <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-px w-[80vw] -translate-x-1/2 bg-gradient-to-r from-transparent via-zinc-950/15 to-transparent dark:via-white/16" />
+
                 <AnimatePresence mode="wait">
                     {onboardingStep === 'welcome' ? (
-                        <motion.div key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="relative z-10 flex flex-col items-center justify-center h-full px-6">
-                            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }} className="flex flex-col items-center text-center max-w-lg">
-                                <div className="w-20 h-20 rounded-[24px] bg-foreground text-background flex items-center justify-center mb-8 shadow-2xl"><Sparkles className="w-9 h-9" /></div>
-                                <h1 className="text-4xl md:text-5xl font-black tracking-[-0.04em] text-foreground mb-4 uppercase">Bem-vindo ao NeuroFinance</h1>
-                                <p className="text-base text-muted-foreground font-medium leading-relaxed max-w-md mb-10">Sua conta bancária integrada.{isConnected ? " Sua conta já foi criada! Finalize as pendências para liberar todas as funções." : " Ative sua conta digital para emitir faturas profissionais e receber via PIX ou Cartão."}</p>
-                                <button onClick={() => setOnboardingStep('wizard')} className="h-16 px-12 rounded-2xl bg-foreground text-background font-black text-[11px] uppercase tracking-[0.3em] shadow-xl hover:opacity-90 transition-all active:scale-[0.98] flex items-center gap-3">{isConnected ? "Concluir Onboarding" : "Começar agora"}<ArrowRight className="w-5 h-5" /></button>
-                            </motion.div>
-                            <div className="absolute bottom-8 left-0 right-0 flex justify-center"><AsaasRegulatoryFooter /></div>
+                        <motion.div key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.985 }} className="relative z-10 grid h-full w-full p-4 md:p-6 lg:grid-cols-[0.86fr_1.14fr]">
+                            <motion.aside initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }} className="relative hidden overflow-hidden rounded-[38px] border border-zinc-200/80 bg-white/82 p-8 shadow-[0_34px_110px_-70px_rgba(0,0,0,0.78)] backdrop-blur-3xl dark:border-white/[0.075] dark:bg-white/[0.035] lg:flex lg:flex-col lg:justify-between">
+                                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.72),transparent_34%),radial-gradient(circle_at_0%_0%,rgba(0,0,0,.05),transparent_38%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,.065),transparent_34%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.08),transparent_42%)]" />
+                                <div className="relative z-10 flex items-center gap-3">
+                                    <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-zinc-950 text-white shadow-2xl dark:bg-white dark:text-zinc-950"><Landmark className="h-5 w-5" /></div>
+                                    <div><p className="text-[8px] font-black uppercase tracking-[0.32em] text-zinc-400">NeuroNex</p><p className="text-sm font-black uppercase tracking-[0.22em]">NeuroFinance</p></div>
+                                </div>
+                                <div className="relative z-10 max-w-md space-y-6">
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-4 py-2 text-[8px] font-black uppercase tracking-[0.22em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.055] dark:text-zinc-300"><ShieldCheck className="h-3.5 w-3.5" /> Ambiente seguro</div>
+                                    <h2 className="text-[clamp(2.7rem,4.6vw,5.4rem)] font-black leading-[0.88] tracking-[-0.075em]">Banking para sua clínica.</h2>
+                                    <p className="max-w-sm text-sm font-medium leading-relaxed text-zinc-500 dark:text-zinc-400">Receba consultas, organize cobranças e acompanhe repasses em uma experiência financeira feita para psicólogos.</p>
+                                </div>
+                                <div className="relative z-10 grid grid-cols-2 gap-3">
+                                    {["Pix", "Cartão", "Boletos", "Saques"].map((item) => <div key={item} className="rounded-2xl border border-zinc-200/75 bg-zinc-50/70 px-4 py-3 text-[9px] font-black uppercase tracking-[0.18em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300">{item}</div>)}
+                                </div>
+                            </motion.aside>
+
+                            <motion.main initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08, duration: 0.58, ease: [0.22, 1, 0.36, 1] }} className="relative flex min-h-0 flex-col overflow-hidden rounded-[38px] border border-zinc-200/80 bg-zinc-950 p-6 text-white shadow-[0_40px_130px_-76px_rgba(0,0,0,0.92)] dark:border-white/[0.08] dark:bg-[#070708]/88 md:p-10">
+                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_32%_16%,rgba(255,255,255,.16),transparent_36%),radial-gradient(circle_at_90%_82%,rgba(255,255,255,.08),transparent_34%)]" />
+                                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/22 to-transparent" />
+                                <div className="relative z-10 flex items-center justify-between gap-4">
+                                    <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.045] px-4 py-2 text-[9px] font-black uppercase tracking-[0.22em] text-white/58"><Sparkles className="h-3.5 w-3.5 text-white" /> Início protegido</div>
+                                    <div className="hidden items-center gap-2 md:flex">{[1, 2, 3].map((step, index) => <div key={step} className={cn("h-2 rounded-full transition-all", index === 0 ? "w-8 bg-white" : "w-2 bg-white/18")} />)}</div>
+                                </div>
+
+                                <div className="relative z-10 flex min-h-0 flex-1 flex-col justify-center py-8">
+                                    <p className="mb-4 text-[10px] font-black uppercase tracking-[0.34em] text-white/38">Conta financeira para psicólogos</p>
+                                    <h1 className="max-w-3xl text-[clamp(3rem,6.3vw,6.8rem)] font-black leading-[0.88] tracking-[-0.08em]">Comece a receber com o NeuroFinance.</h1>
+                                    <p className="mt-6 max-w-2xl text-sm font-medium leading-relaxed text-white/54 md:text-base">{isConnected ? "Sua conta já foi criada. Revise as pendências para liberar todos os recursos com segurança." : "Crie sua conta, envie os dados necessários e comece a emitir cobranças profissionais por Pix, cartão e boleto."}</p>
+                                    <div className="mt-8 grid gap-3 md:grid-cols-3">
+                                        {["Receba com Pix e cartão", "Acompanhe saúde da conta", "Proteja saques com PIN"].map((item) => <div key={item} className="rounded-[22px] border border-white/10 bg-white/[0.045] p-4 text-[9px] font-black uppercase leading-relaxed tracking-[0.14em] text-white/54">{item}</div>)}
+                                    </div>
+                                </div>
+
+                                <div className="relative z-10 flex shrink-0 flex-col gap-4 border-t border-white/10 pt-5 md:flex-row md:items-center md:justify-between">
+                                    <div className="max-w-md text-[10px] font-medium leading-relaxed text-white/38">O processo é guiado, seguro e leva poucos minutos. Você poderá acompanhar a análise em Saúde da Conta.</div>
+                                    <button onClick={() => setOnboardingStep('wizard')} className="group flex h-14 items-center justify-center gap-3 rounded-2xl bg-white px-7 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-950 shadow-[0_22px_60px_-34px_rgba(255,255,255,0.8)] transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]">
+                                        {isConnected ? "Finalizar cadastro" : "Começar agora"}
+                                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                                    </button>
+                                </div>
+                                <div className="relative z-10 mt-5 flex justify-center opacity-70"><AsaasRegulatoryFooter /></div>
+                            </motion.main>
                         </motion.div>
                     ) : (
                         <motion.div key="wizard" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="relative z-10 h-full w-full">
