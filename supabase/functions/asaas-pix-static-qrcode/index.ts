@@ -2,8 +2,10 @@
  * asaas-pix-static-qrcode
  *
  * Create and delete static PIX QR Codes using the psychologist sub-account.
+ * If addressKey is omitted, the function uses the first active Pix key found
+ * in the authenticated user's Asaas sub-account.
  *
- * - POST: create static QR code
+ * - POST: create static QR code for receiving Pix payments
  * - DELETE: delete static QR code by id
  */
 import {
@@ -12,24 +14,90 @@ import {
   errorResponse,
   getAuthenticatedUser,
   getFinancialAccount,
+  getFinancialAccountAsaasApiKey,
   asaasRequest,
 } from "../_shared/asaas-client.ts";
 
 type CreateStaticQrBody = {
-  addressKey: string;
+  addressKey?: string;
   description?: string;
-  value?: number;
+  value?: number | string;
   format?: "ALL" | "IMAGE" | "PAYLOAD";
   expirationDate?: string; // date-time
-  expirationSeconds?: number;
+  expirationSeconds?: number | string;
   allowsMultiplePayments?: boolean;
   externalReference?: string;
 };
 
+type NormalizedPixKey = {
+  addressKey: string;
+  status: string;
+  active: boolean;
+  raw: Record<string, unknown>;
+};
+
 function getSubAccountApiKey(financialAccount: any) {
-  const key = financialAccount?.metadata?.asaas_api_key;
+  const key =
+    getFinancialAccountAsaasApiKey(financialAccount) ||
+    financialAccount?.metadata?.asaas_api_key?.trim?.();
   if (!key) throw new Error("Conta financeira não configurada.");
   return key as string;
+}
+
+function normalizePixKey(raw: any): NormalizedPixKey | null {
+  const addressKey = String(
+    raw?.id || raw?.addressKey || raw?.pixAddressKey || raw?.key || ""
+  ).trim();
+
+  if (!addressKey) return null;
+
+  const status = String(
+    raw?.status || (raw?.active === false ? "INACTIVE" : "ACTIVE")
+  ).toUpperCase();
+
+  return {
+    addressKey,
+    status,
+    active: raw?.active !== false && !["INACTIVE", "DELETED", "DISABLED", "CANCELLED"].includes(status),
+    raw,
+  };
+}
+
+async function resolveAddressKey(subApiKey: string, requestedKey?: string) {
+  const explicitKey = String(requestedKey || "").trim();
+  if (explicitKey) return explicitKey;
+
+  const result = await asaasRequest<{ data?: Array<Record<string, unknown>> }>(
+    "/pix/addressKeys?limit=100&offset=0",
+    "GET",
+    undefined,
+    subApiKey
+  );
+
+  const keys = (Array.isArray(result?.data) ? result.data : [])
+    .map(normalizePixKey)
+    .filter(Boolean) as NormalizedPixKey[];
+
+  const selected = keys.find((key) => key.active) || keys[0];
+  return selected?.addressKey || "";
+}
+
+function toPositiveNumber(value: unknown) {
+  const numberValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : undefined;
+}
+
+function readString(payload: any, ...paths: string[][]) {
+  for (const path of paths) {
+    const value = path.reduce((acc, key) => acc?.[key], payload);
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function stripBase64Prefix(value: string | null) {
+  if (!value) return null;
+  return value.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, "");
 }
 
 Deno.serve(async (req: Request) => {
@@ -43,28 +111,69 @@ Deno.serve(async (req: Request) => {
 
     if (req.method === "POST") {
       const body = (await req.json().catch(() => ({}))) as Partial<CreateStaticQrBody>;
-      if (!body?.addressKey) return errorResponse("Informe a chave Pix (addressKey).", 400);
+      const addressKey = await resolveAddressKey(subApiKey, body.addressKey);
+      if (!addressKey) {
+        return errorResponse("Nenhuma chave Pix ativa encontrada para gerar o QR Code.", 400, {
+          code: "PIX_KEY_NOT_FOUND",
+        });
+      }
+
+      const value = toPositiveNumber(body.value);
+      const expirationSeconds = toPositiveNumber(body.expirationSeconds);
 
       const payload: Record<string, unknown> = {
-        addressKey: body.addressKey,
+        addressKey,
         description: body.description || undefined,
-        value: body.value !== undefined ? body.value : undefined,
+        value,
         format: body.format || "ALL",
         expirationDate: body.expirationDate || undefined,
-        expirationSeconds: body.expirationSeconds || undefined,
+        expirationSeconds: expirationSeconds ? Math.round(expirationSeconds) : undefined,
         allowsMultiplePayments:
-          body.allowsMultiplePayments !== undefined ? body.allowsMultiplePayments : true,
+          body.allowsMultiplePayments !== undefined ? body.allowsMultiplePayments : false,
         externalReference: body.externalReference || undefined,
       };
 
-      const created = await asaasRequest(
+      const created = await asaasRequest<Record<string, unknown>>(
         `/pix/qrCodes/static`,
         "POST",
         payload,
         subApiKey
       );
 
-      return jsonResponse(created);
+      const pixQrCode = stripBase64Prefix(
+        readString(
+          created,
+          ["encodedImage"],
+          ["encoded_image"],
+          ["image"],
+          ["qrCode", "encodedImage"],
+          ["qrCode", "encoded_image"],
+          ["qrCode", "image"]
+        )
+      );
+      const pixCopyPaste = readString(
+        created,
+        ["payload"],
+        ["copyPaste"],
+        ["copy_paste"],
+        ["pixCopyPaste"],
+        ["qrCode", "payload"],
+        ["qrCode", "copyPaste"],
+        ["qrCode", "copy_paste"]
+      );
+      const qrcodeId = readString(created, ["id"], ["qrCodeId"], ["qrCode", "id"]);
+
+      return jsonResponse({
+        success: true,
+        qrcode_id: qrcodeId,
+        status: "available",
+        amount: value || null,
+        pix_qr_code: pixQrCode,
+        pix_copy_paste: pixCopyPaste,
+        address_key: addressKey,
+        provider: "asaas",
+        raw: created,
+      });
     }
 
     if (req.method === "DELETE") {
@@ -84,7 +193,6 @@ Deno.serve(async (req: Request) => {
     return errorResponse("Método não suportado.", 405);
   } catch (error: any) {
     console.error("asaas-pix-static-qrcode error:", error);
-    return errorResponse(error?.message || "Internal error", 500);
+    return errorResponse(error?.message || "Internal error", error?.status || 500);
   }
 });
-
