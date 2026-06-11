@@ -134,6 +134,11 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/financial-pin/index.ts"
 
+[functions.neurofinance-post-onboarding]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/neurofinance-post-onboarding/index.ts"
+
 
 [functions.gemini-text-chat]
 enabled = true
