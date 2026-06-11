@@ -23,6 +23,7 @@ import { useNeuroFinancePix } from "@/hooks/use-neurofinance-pix";
 import { usePatients } from "@/hooks/use-patients";
 import { NewPatientModal } from "@/components/patients/NewPatientModal";
 import { EditPatientModal } from "@/components/patients/EditPatientModal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDocumentInput, formatMoneyInput, moneyInputToNumber, onlyDigits } from "@/lib/financial-input";
 import { toast } from "sonner";
 import type { Patient } from "@/types";
@@ -66,9 +67,10 @@ export function PixGerarQrCode() {
     const canSubmit = Boolean(valor) && Boolean(payerName) && hasValidPayerDocument && !selectedPatientMissingDocument && !createCharge.isPending;
 
     const handlePatientSelect = (patientId: string) => {
-        setSelectedPatientId(patientId);
+        const isManual = patientId === "manual";
+        setSelectedPatientId(isManual ? "" : patientId);
 
-        if (!patientId) {
+        if (isManual) {
             setNomeDevedor("");
             setCpfDevedor("");
             return;
@@ -222,20 +224,25 @@ export function PixGerarQrCode() {
                                     Paciente cadastrado ou pagador externo
                                 </label>
                                 <div className="grid grid-cols-[1fr_auto] gap-3">
-                                    <select
-                                        value={selectedPatientId}
-                                        onChange={(event) => handlePatientSelect(event.target.value)}
-                                        className="h-10 px-3 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/10 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900/30 dark:focus:ring-white/30"
-                                    >
-                                        <option value="">
-                                            {patientsLoading ? "Carregando pacientes..." : "Preencher manualmente / pessoa externa"}
-                                        </option>
-                                        {patients.map((patient) => (
-                                            <option key={patient.id} value={patient.id}>
-                                                {patient.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <Select value={selectedPatientId || "manual"} onValueChange={handlePatientSelect}>
+                                        <SelectTrigger className="h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-left text-xs font-bold text-zinc-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] ring-0 transition-all hover:bg-white focus:ring-2 focus:ring-zinc-900/20 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] dark:hover:bg-white/[0.06] dark:focus:ring-white/20">
+                                            <SelectValue placeholder={patientsLoading ? "Carregando pacientes..." : "Preencher manualmente / pessoa externa"} />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[9999] overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/95 p-1 text-zinc-950 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-[#09090b]/95 dark:text-zinc-100">
+                                            <SelectItem value="manual" className="rounded-xl px-3 py-2 text-xs font-bold text-zinc-500 focus:bg-zinc-100 focus:text-zinc-950 dark:text-zinc-400 dark:focus:bg-white/10 dark:focus:text-white">
+                                                Preencher manualmente / pessoa externa
+                                            </SelectItem>
+                                            {patients.map((patient) => (
+                                                <SelectItem
+                                                    key={patient.id}
+                                                    value={patient.id}
+                                                    className="rounded-xl px-3 py-2 text-xs font-bold text-zinc-700 focus:bg-zinc-100 focus:text-zinc-950 dark:text-zinc-200 dark:focus:bg-white/10 dark:focus:text-white"
+                                                >
+                                                    {patient.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
 
                                     <NewPatientModal>
                                         <button
