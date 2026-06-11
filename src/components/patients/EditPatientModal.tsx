@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { UserCog } from "lucide-react";
 import { Patient } from "@/types";
 import { EditPatientForm } from "./EditPatientForm";
@@ -9,16 +9,27 @@ import { cn } from "@/lib/utils";
 interface EditPatientModalProps {
   patient: Patient;
   children: React.ReactNode;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export const EditPatientModal = ({ patient, children }: EditPatientModalProps) => {
-  const [open, setOpen] = useState(false);
+export const EditPatientModal = ({ patient, children, defaultOpen = false, onOpenChange }: EditPatientModalProps) => {
+  const [open, setOpen] = useState(defaultOpen);
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    onOpenChange?.(nextOpen);
+  };
 
   return (
     <ResponsiveModal
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={handleOpenChange}
       trigger={children}
       className="sm:max-w-[550px] border border-border/20 bg-popover/80 dark:bg-popover/40 backdrop-blur-[40px] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9)] rounded-[48px] overflow-hidden p-0"
       drawerClassName="bg-white dark:bg-[#080809]"
@@ -53,7 +64,7 @@ export const EditPatientModal = ({ patient, children }: EditPatientModalProps) =
           </div>
           
           <div className={cn("flex-1", isMobile ? "px-1" : "")}>
-            <EditPatientForm patient={patient} onSuccess={() => setOpen(false)} />
+            <EditPatientForm patient={patient} onSuccess={() => handleOpenChange(false)} />
           </div>
         </div>
       </div>
