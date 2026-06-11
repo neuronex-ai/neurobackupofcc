@@ -34,13 +34,26 @@ export function NeuroFinancePostOnboardingGate() {
     }
   }, [completionKey]);
 
+  useEffect(() => {
+    if (!completionKey || !pinStatus.data?.isConfigured) return;
+
+    try {
+      window.localStorage.setItem(completionKey, "true");
+    } catch {
+      // Ignore storage errors and unblock the panel in this session.
+    }
+    setIsCompleted(true);
+  }, [completionKey, pinStatus.data?.isConfigured]);
+
   const shouldOpen = Boolean(
     !isMobile &&
     isNeuroFinanceRoute &&
     !isLoading &&
+    !pinStatus.isLoading &&
     isConnected &&
     !needsInitialOnboarding &&
     account?.id &&
+    !pinStatus.data?.isConfigured &&
     !isCompleted
   );
 
