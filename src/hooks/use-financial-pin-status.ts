@@ -15,14 +15,14 @@ export function useFinancialPinStatus(enabled = true) {
 
       const { data, error } = await supabase
         .from("user_financial_settings")
-        .select("pin_updated_at")
+        .select("id, pin_updated_at")
         .eq("user_id", userId)
         .maybeSingle();
 
       if (error) throw error;
 
       return {
-        isConfigured: Boolean(data?.pin_updated_at),
+        isConfigured: Boolean(data?.id || data?.pin_updated_at),
         pinUpdatedAt: data?.pin_updated_at || null,
       };
     },
