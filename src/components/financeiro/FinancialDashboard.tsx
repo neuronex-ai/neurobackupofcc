@@ -56,9 +56,18 @@ import { SalesSimulator } from "@/components/financeiro/cobrancas/SalesSimulator
 import { ChargebacksPanel } from "@/components/financeiro/cobrancas/ChargebacksPanel";
 import { AsaasAccountStatusTimeline } from "@/components/financeiro/AsaasAccountStatusTimeline";
 import { DetailedStatementPanel } from "@/components/financeiro/DetailedStatementPanel";
+import { FinancialManagementDashboard } from "@/components/financeiro/management/FinancialManagementDashboard";
 import type { Transaction } from "@/types";
 
 export type FinanceView =
+    | "gestao-visao-geral"
+    | "gestao-fluxo-caixa"
+    | "gestao-receitas"
+    | "gestao-despesas"
+    | "gestao-cobrancas"
+    | "gestao-inadimplencia"
+    | "gestao-planejamento"
+    | "gestao-relatorios"
     | "conta-digital"
     | "pix"
     | "pix-pagar"
@@ -211,9 +220,12 @@ export function FinancialDashboard({
     motionProps,
     extratoTab,
     setExtratoTab,
+    realizedTransactions,
+    futureTransactions,
+    subscriptionTransactions,
 }: FinancialDashboardProps) {
     const handleGoBack = () => {
-        setActiveView("conta-digital");
+        setActiveView("gestao-visao-geral");
         setSelectedTransaction(null);
     };
 
@@ -226,11 +238,33 @@ export function FinancialDashboard({
     }
 
     switch (activeView) {
+        case "gestao-visao-geral":
+        case "gestao-fluxo-caixa":
+        case "gestao-receitas":
+        case "gestao-despesas":
+        case "gestao-cobrancas":
+        case "gestao-inadimplencia":
+        case "gestao-planejamento":
+        case "gestao-relatorios":
+            return (
+                <motion.div {...motionProps} key={activeView}>
+                    <FinancialManagementDashboard
+                        activeView={activeView}
+                        setActiveView={setActiveView}
+                        allTransactions={allTransactions}
+                        realizedTransactions={realizedTransactions}
+                        futureTransactions={futureTransactions}
+                        subscriptionTransactions={subscriptionTransactions}
+                        isLoadingTransactions={isLoadingTransactions}
+                        setSelectedTransaction={setSelectedTransaction}
+                    />
+                </motion.div>
+            );
+
         case "conta-digital":
             return (
                 <motion.div {...motionProps} key="conta-digital" className="space-y-6 px-6 py-6">
                     <NeuroNexBankPanel transactions={allTransactions} isLoadingTransactions={isLoadingTransactions} onNavigate={setActiveView} />
-
                     <ReceivablesCalendarCard
                         onOpenFutureStatement={() => {
                             setExtratoTab("futuro");
