@@ -4,7 +4,6 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { EcosystemShowcase } from "@/components/landing/EcosystemShowcase";
 import { VideoHero } from "@/components/landing/VideoHero";
-import { Manifesto } from "@/components/landing/Manifesto";
 import { WaitlistSection } from "@/components/landing/WaitlistSection";
 import { DesktopAppCTA } from "@/components/landing/DesktopAppCTA";
 import { Footer } from "@/components/landing/Footer";
@@ -21,7 +20,6 @@ const DesktopIndex = () => {
                 <Hero />
                 <EcosystemShowcase />
                 <VideoHero />
-                <Manifesto />
                 <WaitlistSection />
                 <DesktopAppCTA />
             </main>
