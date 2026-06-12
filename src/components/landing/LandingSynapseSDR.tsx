@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Send, X, Sparkles, RotateCcw, MessageSquare } from "lucide-react";
+import { Send, X, Sparkles, RotateCcw } from "lucide-react";
 import { VoiceSpiral } from "@/components/ai-chat/VoiceSpiral";
 import { SDRMessage, useLandingSynapse } from "@/hooks/use-landing-synapse";
 import { WaitlistModal } from "./WaitlistModal";
@@ -62,7 +62,6 @@ export const LandingSynapseSDR = ({ sdr }: LandingSynapseSDRProps) => {
     isOpen,
     shouldOpenWaitlist,
     closeChat,
-    toggleChat,
     sendMessage,
     resetChat,
     consumeWaitlistTrigger,
@@ -107,32 +106,6 @@ export const LandingSynapseSDR = ({ sdr }: LandingSynapseSDRProps) => {
 
   return (
     <>
-      {/* Floating Action Button */}
-      <AnimatePresence>
-        {!isOpen && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0, y: 20 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            onClick={toggleChat}
-            className={cn(
-              "fixed bottom-6 right-6 z-[9999] w-16 h-16 rounded-full",
-              "bg-zinc-950 dark:bg-white shadow-[0_8px_30px_-5px_rgba(0,0,0,0.3)] dark:shadow-[0_8px_30px_-5px_rgba(255,255,255,0.15)]",
-              "flex items-center justify-center",
-              "hover:scale-110 active:scale-95 transition-transform duration-300",
-              "group"
-            )}
-          >
-            <div className="relative w-full h-full flex items-center justify-center">
-              <MessageSquare className="w-6 h-6 text-white dark:text-zinc-950 group-hover:scale-110 transition-transform" />
-              {/* Pulse Ring */}
-              <div className="absolute inset-0 rounded-full border-2 border-primary/40 animate-ping opacity-30" />
-            </div>
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       {/* Chat Panel */}
       <AnimatePresence>
         {isOpen && (
@@ -223,56 +196,29 @@ export const LandingSynapseSDR = ({ sdr }: LandingSynapseSDRProps) => {
             </div>
 
             {/* Input Area */}
-            <div className="shrink-0 p-4 border-t border-zinc-100 dark:border-white/[0.06]">
-              <form onSubmit={handleSubmit} className="flex items-center gap-2">
-                <div className="flex-1 relative">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    placeholder="Digite sua mensagem..."
-                    disabled={isLoading}
-                    className={cn(
-                      "w-full h-11 px-4 rounded-xl",
-                      "bg-zinc-100 dark:bg-white/[0.04]",
-                      "border border-zinc-200 dark:border-white/[0.08]",
-                      "text-[13px] text-zinc-800 dark:text-zinc-200 font-medium",
-                      "placeholder:text-zinc-400 dark:placeholder:text-white/30",
-                      "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30",
-                      "transition-all duration-200",
-                      "disabled:opacity-50"
-                    )}
-                    maxLength={500}
-                  />
-                </div>
+            <form onSubmit={handleSubmit} className="p-4 border-t border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.02]">
+              <div className="relative flex items-center gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Digite sua mensagem..."
+                  className="flex-1 h-12 px-4 rounded-2xl bg-white dark:bg-white/[0.05] border border-zinc-200 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+                />
                 <button
                   type="submit"
-                  disabled={isLoading || !inputValue.trim()}
-                  className={cn(
-                    "w-11 h-11 rounded-xl shrink-0 flex items-center justify-center transition-all duration-300",
-                    inputValue.trim() && !isLoading
-                      ? "bg-primary text-white shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
-                      : "bg-zinc-100 dark:bg-white/5 text-zinc-300 dark:text-white/20 cursor-not-allowed"
-                  )}
+                  disabled={!inputValue.trim() || isLoading}
+                  className="w-12 h-12 rounded-2xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-transform shadow-lg"
                 >
                   <Send className="w-4 h-4" />
                 </button>
-              </form>
-
-              {/* Powered By */}
-              <div className="flex items-center justify-center gap-1.5 mt-3 opacity-40">
-                <Sparkles className="w-3 h-3" />
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-white/30">
-                  Powered by NeuroNex AI
-                </span>
               </div>
-            </div>
+            </form>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Waitlist Modal */}
       <WaitlistModal open={waitlistOpen} onOpenChange={setWaitlistOpen} />
     </>
   );
