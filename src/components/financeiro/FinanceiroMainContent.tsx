@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
@@ -67,16 +67,8 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
     isAccountMissing,
   } = useFinancialAccount();
 
-  const didDefaultToManagement = useRef(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [selectedRequirement, setSelectedRequirement] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!didDefaultToManagement.current && props.activeView === "conta-digital") {
-      didDefaultToManagement.current = true;
-      props.setActiveView("gestao-visao-geral");
-    }
-  }, [props]);
 
   useEffect(() => {
     const routeContext = FINANCE_ROUTE_LABELS[props.activeView] || {
