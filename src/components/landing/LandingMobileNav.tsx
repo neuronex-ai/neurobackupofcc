@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Layers, PieChart, Menu, X, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Menu, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useTheme } from "@/hooks/use-theme";
 
 export const LandingMobileNav = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { theme } = useTheme();
 
@@ -39,12 +39,23 @@ export const LandingMobileNav = () => {
         prefetchPages();
     }, []);
 
+    const handleAnchorClick = (target: string) => {
+        setIsMenuOpen(false);
+        const scrollToTarget = () => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (location.pathname !== "/") {
+            navigate(`/#${target}`);
+            setTimeout(scrollToTarget, 180);
+            return;
+        }
+        requestAnimationFrame(scrollToTarget);
+    };
+
     const extendedNavItems = [
-        { label: "Início", path: "/" },
-        { label: "Sistema", path: "/funcionalidades" },
-        { label: "NeuroFinance", path: "/neurofinance" },
-        { label: "Sobre a NeuroNex", path: "/public/about" },
-        { label: "Contato e Suporte", path: "/public/contact" },
+        { label: "Início", type: "route", path: "/" },
+        { label: "Diferenciais", type: "anchor", target: "diferenciais" },
+        { label: "Produto", type: "anchor", target: "produto" },
+        { label: "Planos", type: "anchor", target: "waitlist" },
+        { label: "Segurança", type: "anchor", target: "seguranca" },
     ];
 
     return (
@@ -53,20 +64,21 @@ export const LandingMobileNav = () => {
             <motion.header
                 initial={{ y: -20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="fixed top-0 left-0 right-0 z-[100] md:hidden px-6 py-5 flex items-center justify-between bg-transparent"
+                className="fixed left-0 right-0 top-0 z-[100] flex items-center justify-between bg-transparent px-5 py-5 md:hidden"
             >
-                <Link to="/" className="flex items-center gap-2.5">
-                    <img src={faviconSrc} className="w-8 h-8 object-contain" alt="NeuroNex" />
-                    <span className="text-[12px] font-black tracking-[0.35em] uppercase opacity-50">NeuroNex</span>
+                <Link to="/" className="flex items-center gap-2.5 rounded-2xl border border-border/20 bg-background/55 px-3 py-2 shadow-[0_18px_50px_-38px_rgba(0,0,0,0.7)] backdrop-blur-xl dark:border-white/10 dark:bg-black/25">
+                    <img src={faviconSrc} className="h-7 w-7 object-contain" alt="NeuroNex" />
+                    <span className="text-[11px] font-black uppercase tracking-[0.32em] opacity-60">NeuroNex</span>
                 </Link>
 
                 <div className="flex items-center gap-2">
                     <ThemeToggle />
                     <button
                         onClick={() => setIsMenuOpen(true)}
-                        className="w-10 h-10 rounded-xl bg-foreground/[0.03] border border-border/10 flex items-center justify-center text-foreground active:scale-95 transition-all"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/20 bg-background/55 text-foreground shadow-[0_18px_50px_-38px_rgba(0,0,0,0.7)] backdrop-blur-xl transition-all active:scale-95 dark:border-white/10 dark:bg-black/25"
+                        aria-label="Abrir menu"
                     >
-                        <Menu className="w-5 h-5" />
+                        <Menu className="h-5 w-5" />
                     </button>
                 </div>
             </motion.header>
@@ -75,31 +87,35 @@ export const LandingMobileNav = () => {
             <AnimatePresence>
                 {isMenuOpen && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
+                        initial={{ opacity: 0, scale: 0.97 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
+                        exit={{ opacity: 0, scale: 0.97 }}
                         transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                        className="fixed inset-0 z-[110] bg-background md:hidden flex flex-col overflow-y-auto"
+                        className="fixed inset-0 z-[110] flex flex-col overflow-y-auto bg-background md:hidden"
                     >
-                        <div className="absolute inset-0 premium-noise opacity-[0.03] pointer-events-none" />
+                        <div className="pointer-events-none absolute inset-0">
+                            <div className="absolute left-1/2 top-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-foreground/[0.045] blur-[110px] dark:bg-white/[0.055]" />
+                            <div className="absolute inset-0 premium-noise opacity-[0.025]" />
+                        </div>
 
-                        <div className="flex items-center justify-between p-6 pb-2 relative z-10 border-b border-border/5">
+                        <div className="relative z-10 flex items-center justify-between border-b border-border/10 p-5 pb-3 dark:border-white/10">
                             <div className="flex items-center gap-2.5">
-                                <img src={faviconSrc} className="w-6 h-6 object-contain" alt="NeuroNex" />
-                                <span className="text-[12px] font-black tracking-[0.3em] uppercase opacity-40">NeuroNex</span>
+                                <img src={faviconSrc} className="h-7 w-7 object-contain" alt="NeuroNex" />
+                                <span className="text-[11px] font-black uppercase tracking-[0.32em] opacity-55">NeuroNex</span>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3">
                                 <ThemeToggle />
                                 <button
                                     onClick={() => setIsMenuOpen(false)}
-                                    className="w-10 h-10 rounded-full bg-foreground/[0.03] border border-border/10 flex items-center justify-center text-foreground hover:bg-foreground/[0.05] active:scale-95 transition-all"
+                                    className="flex h-10 w-10 items-center justify-center rounded-full border border-border/20 bg-foreground/[0.035] text-foreground transition-all hover:bg-foreground/[0.05] active:scale-95 dark:border-white/10 dark:bg-white/[0.045]"
+                                    aria-label="Fechar menu"
                                 >
-                                    <X className="w-5 h-5" />
+                                    <X className="h-5 w-5" />
                                 </button>
                             </div>
                         </div>
 
-                        <div className="flex-1 p-8 flex flex-col justify-center gap-8 relative z-10">
+                        <div className="relative z-10 flex flex-1 flex-col justify-center gap-6 p-8">
                             {extendedNavItems.map((item, i) => (
                                 <motion.div
                                     key={item.label}
@@ -107,28 +123,40 @@ export const LandingMobileNav = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.05 + 0.1, duration: 0.4 }}
                                 >
-                                    <Link
-                                        to={item.path}
-                                        onClick={() => setIsMenuOpen(false)}
-                                        className={cn(
-                                            "text-3xl font-bold tracking-tight transition-all block",
-                                            location.pathname === item.path ? "text-primary" : "text-foreground/80 hover:text-foreground hover:translate-x-2"
-                                        )}
-                                    >
-                                        {item.label}
-                                    </Link>
+                                    {item.type === "anchor" ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAnchorClick(item.target!)}
+                                            className="block text-left text-4xl font-black leading-none tracking-[-0.055em] text-foreground/82 transition-all hover:text-foreground active:scale-[0.98]"
+                                        >
+                                            {item.label}
+                                        </button>
+                                    ) : (
+                                        <Link
+                                            to={item.path!}
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className="block text-4xl font-black leading-none tracking-[-0.055em] text-foreground/82 transition-all hover:text-foreground active:scale-[0.98]"
+                                        >
+                                            {item.label}
+                                        </Link>
+                                    )}
                                 </motion.div>
                             ))}
                         </div>
 
-                        <div className="p-8 pb-32 mt-auto border-t border-border/5 relative z-10 space-y-4">
-                            <Link to="/auth" onClick={() => setIsMenuOpen(false)}>
-                                <Button className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-[0.1em] text-[11px] shadow-premium active:scale-95 transition-all">
-                                    Entrar no NeuroNex <ArrowRight className="w-4 h-4 ml-2" />
+                        <div className="relative z-10 mt-auto space-y-4 border-t border-border/10 p-8 pb-10 dark:border-white/10">
+                            <Link to="/create-account" onClick={() => setIsMenuOpen(false)}>
+                                <Button className="h-14 w-full rounded-2xl bg-foreground text-[10px] font-black uppercase tracking-[0.22em] text-background shadow-premium transition-all active:scale-95">
+                                    Começar grátis <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             </Link>
-                            <p className="text-[10px] text-center text-muted-foreground/30 font-mono text-balance uppercase mt-4">
-                                Construído com exclusividade para a neuropsicologia moderna
+                            <Link to="/auth" onClick={() => setIsMenuOpen(false)}>
+                                <Button variant="ghost" className="h-14 w-full rounded-2xl border border-border/30 bg-foreground/[0.035] text-[10px] font-black uppercase tracking-[0.22em] text-foreground/72 transition-all active:scale-95 dark:border-white/10 dark:bg-white/[0.045]">
+                                    Entrar no NeuroNex
+                                </Button>
+                            </Link>
+                            <p className="mt-4 text-center text-[10px] font-medium leading-relaxed text-muted-foreground/40">
+                                Sistema operacional financeiro, clínico e inteligente para psicólogos.
                             </p>
                         </div>
                     </motion.div>
