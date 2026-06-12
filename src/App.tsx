@@ -23,8 +23,7 @@ import "@/styles/neurofinance-onboarding-overrides.css";
 // [SWARM] Auditado pelo Agente 2 — Todos os imports estão em uso.
 
 // Pages
-// Lazy Loaded Public Page (Landing) - REMOVED FOR LEAN MVP
-// const Index = lazy(() => import("@/pages/Index"));
+const Index = lazy(() => import("@/pages/Index"));
 
 import AuthPage from "./pages/auth/AuthPage";
 import EmailConfirmedPage from "./pages/auth/EmailConfirmedPage";
@@ -91,7 +90,7 @@ const SharedRoutes = () => {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* ─── Root Route ─────────────────────────────────── */}
-        <Route path="/" element={<Navigate to="/auth" replace />} />
+        <Route path="/" element={<Index />} />
 
         {/* ─── Auth Routes ────────────────────────────────── */}
         <Route path="/auth" element={<AuthPage />} />
