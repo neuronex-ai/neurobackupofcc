@@ -36,8 +36,8 @@ export const Navbar = () => {
   };
 
   const navItems = [
-    { id: '/funcionalidades', label: 'Funcionalidades' },
-    { id: 'ecosystem', label: 'Ecossistema' },
+    { id: 'diferenciais', label: 'Diferenciais' },
+    { id: 'produto', label: 'Produto' },
     { id: 'waitlist', label: 'Planos' },
   ];
 
