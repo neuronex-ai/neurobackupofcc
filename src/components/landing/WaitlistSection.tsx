@@ -1,108 +1,168 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkles, Star, ArrowRight, Zap, Heart } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Building2, CheckCircle2, Sparkles, Star, Zap } from "lucide-react";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { Button } from "@/components/ui/button";
-import { WaitlistModal } from "./WaitlistModal";
+import { cn } from "@/lib/utils";
+
+const plans = [
+    {
+        name: "Gratuito",
+        eyebrow: "Comece agora",
+        price: "R$ 0",
+        period: "/mês",
+        description: "Para psicólogos que querem organizar a rotina clínica com uma base simples, segura e elegante.",
+        icon: Star,
+        cta: "Criar conta grátis",
+        href: "/create-account",
+        featured: false,
+        highlights: [
+            "Agenda e visão inicial da clínica",
+            "Cadastro de pacientes",
+            "Experiência NeuroNex essencial",
+        ],
+    },
+    {
+        name: "Profissional",
+        eyebrow: "Pré-lançamento",
+        price: "R$ 140,00",
+        period: "/mês",
+        description: "Para quem quer operar a clínica com automação, recursos avançados e Synapse no WhatsApp.",
+        icon: Zap,
+        cta: "Testar 7 dias grátis",
+        href: "/create-account?plan=professional",
+        featured: true,
+        highlights: [
+            "7 dias grátis para validar na prática",
+            "Synapse no WhatsApp incluso",
+            "Recursos profissionais em preço de pré-lançamento",
+        ],
+    },
+    {
+        name: "Enterprise",
+        eyebrow: "Sob medida",
+        price: "Personalizado",
+        period: "",
+        description: "Para clínicas, equipes e operações que precisam de uma estrutura personalizada e suporte dedicado.",
+        icon: Building2,
+        cta: "Contatar suporte",
+        href: "/help",
+        featured: false,
+        highlights: [
+            "Estrutura adaptada à operação",
+            "Configuração assistida",
+            "Suporte para expansão da equipe",
+        ],
+    },
+];
 
 export const WaitlistSection = () => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
     return (
-        <section id="waitlist" className="py-24 md:py-40 px-6 relative overflow-hidden bg-background">
-            {/* Ultra-Premium Textures & Layers */}
+        <section id="waitlist" className="relative overflow-hidden bg-background px-6 py-24 md:py-36">
             <div className="absolute inset-0 pointer-events-none">
-                {/* Granular Texture Layers */}
-                <div className="absolute inset-0 premium-noise opacity-[0.04] mix-blend-overlay" />
-                <div className="absolute inset-0 opacity-[0.02] mix-blend-soft-light bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
-
-                {/* Cinematic Light Pools */}
-                <div className="absolute top-[10%] left-[15%] w-[800px] h-[600px] bg-foreground/[0.04] blur-[180px] rounded-full animate-float-slow mix-blend-soft-light" />
-                <div className="absolute bottom-[10%] right-[15%] w-[600px] h-[500px] bg-foreground/[0.03] blur-[150px] rounded-full animate-pulse-slow mix-blend-soft-light" />
-
-                {/* Gradient Depth */}
+                <div className="absolute inset-0 premium-noise opacity-[0.025] mix-blend-overlay" />
+                <div className="absolute left-[12%] top-[8%] h-[620px] w-[820px] rounded-full bg-foreground/[0.03] blur-[170px]" />
+                <div className="absolute bottom-[6%] right-[10%] h-[520px] w-[620px] rounded-full bg-foreground/[0.025] blur-[150px]" />
                 <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background" />
             </div>
 
-            <div className="max-w-[1240px] mx-auto relative z-10">
-                <div className="flex flex-col items-center justify-center text-center">
-                    {/* Badge */}
+            <div className="relative z-10 mx-auto max-w-[1240px]">
+                <div className="mx-auto mb-14 max-w-4xl text-center md:mb-20">
                     <FadeIn delay={0.1}>
-                        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-border/20 bg-foreground/[0.03] backdrop-blur-md mb-10 relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/[0.05] to-transparent -translate-x-full group-hover:animate-shimmer" />
-                            <Sparkles className="w-3.5 h-3.5 text-foreground/40" />
-                            <span className="text-[10px] uppercase tracking-[0.25em] font-black text-foreground/40">
-                                Lançamento Exclusivo 2026
+                        <div className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-border/20 bg-foreground/[0.03] px-4 py-1.5 backdrop-blur-md">
+                            <Sparkles className="h-3.5 w-3.5 text-foreground/40" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-foreground/40">
+                                Planos NeuroNex
                             </span>
                         </div>
                     </FadeIn>
 
                     <FadeIn delay={0.2}>
-                        <h2 className="text-5xl md:text-8xl font-bold tracking-[-0.05em] leading-[0.85] mb-12">
-                            A Nova Era da <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-b from-foreground via-foreground/90 to-foreground/30">
-                                Neuropsicologia.
+                        <h2 className="text-5xl font-bold leading-[0.88] tracking-[-0.055em] md:text-8xl">
+                            Escolha o plano para a <br />
+                            <span className="bg-gradient-to-b from-foreground via-foreground/90 to-foreground/30 bg-clip-text text-transparent">
+                                sua clínica.
                             </span>
                         </h2>
                     </FadeIn>
 
                     <FadeIn delay={0.3}>
-                        <p className="text-xl md:text-2xl text-muted-foreground/50 font-medium max-w-3xl mx-auto mb-16 leading-tight tracking-tight">
-                            Estamos refinando a experiência final. As vagas para os <span className="text-foreground">Primeiros Parceiros</span> são limitadas e garantem benefícios vitalícios na plataforma.
+                        <p className="mx-auto mt-8 max-w-3xl text-base font-medium leading-relaxed text-muted-foreground/60 md:text-xl">
+                            Comece com o essencial, evolua para o profissional com preço de pré-lançamento ou fale com suporte para uma estrutura personalizada.
                         </p>
                     </FadeIn>
+                </div>
 
-                    <FadeIn delay={0.4}>
-                        <div className="flex flex-col items-center gap-8">
-                            <Button
-                                onClick={() => setIsModalOpen(true)}
-                                className="group relative h-20 px-12 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-all duration-700 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.6)] hover:-translate-y-1 active:scale-95 text-base font-black uppercase tracking-[0.25em]"
-                            >
-                                <span className="relative z-10 flex items-center gap-4">
-                                    Entrar na Lista de Espera
-                                    <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-                                </span>
-                                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                                <div className="absolute inset-0 rounded-full border border-white/10 pointer-events-none" />
-                            </Button>
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+                    {plans.map((plan, index) => {
+                        const Icon = plan.icon;
+                        return (
+                            <FadeIn key={plan.name} delay={0.18 + index * 0.08}>
+                                <article
+                                    className={cn(
+                                        "group relative flex h-full min-h-[520px] flex-col overflow-hidden rounded-[34px] border p-6 shadow-premium transition-all duration-500 hover:-translate-y-1 md:rounded-[42px] md:p-8",
+                                        plan.featured
+                                            ? "border-foreground/20 bg-foreground text-background shadow-[0_38px_120px_-72px_rgba(0,0,0,0.85)]"
+                                            : "border-border/15 bg-card/70 backdrop-blur-xl hover:border-border/30 hover:bg-card"
+                                    )}
+                                >
+                                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_0%,rgba(255,255,255,0.14),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.055),transparent_32%)] opacity-70" />
 
-                            {/* Trust Elements with Refined Textures */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mt-8 md:mt-24">
-                                <div className="flex flex-col items-center gap-6 group">
-                                    <div className="w-16 h-16 rounded-[24px] bg-foreground/[0.03] border border-border/10 flex items-center justify-center transition-all duration-500 group-hover:bg-foreground group-hover:text-background border-t-white/10 shadow-premium group-hover:scale-110">
-                                        <Star className="w-6 h-6" />
+                                    <div className="relative z-10 flex items-start justify-between gap-5">
+                                        <div className={cn(
+                                            "flex h-14 w-14 items-center justify-center rounded-[20px] border transition-transform duration-500 group-hover:scale-105",
+                                            plan.featured
+                                                ? "border-background/15 bg-background text-foreground"
+                                                : "border-border/15 bg-foreground/[0.045] text-foreground"
+                                        )}>
+                                            <Icon className="h-6 w-6" strokeWidth={1.7} />
+                                        </div>
+                                        <span className={cn(
+                                            "rounded-full border px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.22em]",
+                                            plan.featured
+                                                ? "border-background/15 bg-background/10 text-background/70"
+                                                : "border-border/15 bg-foreground/[0.035] text-muted-foreground"
+                                        )}>
+                                            {plan.eyebrow}
+                                        </span>
                                     </div>
-                                    <div className="space-y-2">
-                                        <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-foreground/80">Selo Fundador</h4>
-                                        <p className="text-[10px] text-muted-foreground/40 font-bold uppercase tracking-tighter max-w-[180px] leading-relaxed">Badge exclusivo de Primeiros Parceiros no perfil.</p>
+
+                                    <div className="relative z-10 mt-9 flex-1">
+                                        <h3 className={cn("text-3xl font-black tracking-[-0.045em]", plan.featured ? "text-background" : "text-foreground")}>{plan.name}</h3>
+                                        <div className="mt-5 flex items-end gap-2">
+                                            <span className={cn("text-4xl font-black tracking-[-0.06em] md:text-5xl", plan.featured ? "text-background" : "text-foreground")}>{plan.price}</span>
+                                            {plan.period ? <span className={cn("pb-1 text-sm font-bold", plan.featured ? "text-background/45" : "text-muted-foreground/50")}>{plan.period}</span> : null}
+                                        </div>
+                                        <p className={cn("mt-5 text-sm font-medium leading-relaxed", plan.featured ? "text-background/58" : "text-muted-foreground/58")}>{plan.description}</p>
+
+                                        <div className="mt-8 space-y-3">
+                                            {plan.highlights.map((item) => (
+                                                <div key={item} className={cn("flex items-start gap-3 text-sm font-bold leading-relaxed", plan.featured ? "text-background/70" : "text-muted-foreground/70")}>
+                                                    <CheckCircle2 className={cn("mt-0.5 h-4 w-4 shrink-0", plan.featured ? "text-background" : "text-foreground/45")} />
+                                                    <span>{item}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex flex-col items-center gap-6 group">
-                                    <div className="w-16 h-16 rounded-[24px] bg-foreground/[0.03] border border-border/10 flex items-center justify-center transition-all duration-500 group-hover:bg-foreground group-hover:text-background border-t-white/10 shadow-premium group-hover:scale-110">
-                                        <Zap className="w-6 h-6" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-foreground/80">Acesso Beta</h4>
-                                        <p className="text-[10px] text-muted-foreground/40 font-bold uppercase tracking-tighter max-w-[180px] leading-relaxed">Privilégio de testar novas IAs antes do mercado.</p>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-center gap-6 group">
-                                    <div className="w-16 h-16 rounded-[24px] bg-foreground/[0.03] border border-border/10 flex items-center justify-center transition-all duration-500 group-hover:bg-foreground group-hover:text-background border-t-white/10 shadow-premium group-hover:scale-110">
-                                        <Heart className="w-6 h-6" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h4 className="text-[12px] font-black uppercase tracking-[0.2em] text-foreground/80">Condições Alpha</h4>
-                                        <p className="text-[10px] text-muted-foreground/40 font-bold uppercase tracking-tighter max-w-[180px] leading-relaxed">Descontos permanentes em todos os módulos futuros.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </FadeIn>
+
+                                    <Button asChild className={cn(
+                                        "relative z-10 mt-9 h-14 rounded-2xl text-[10px] font-black uppercase tracking-[0.22em] transition-all duration-500 active:scale-[0.98]",
+                                        plan.featured
+                                            ? "bg-background text-foreground hover:bg-background/90"
+                                            : "bg-foreground text-background hover:bg-foreground/90"
+                                    )}>
+                                        <Link to={plan.href} className="flex items-center justify-center gap-3">
+                                            {plan.cta}
+                                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                                        </Link>
+                                    </Button>
+                                </article>
+                            </FadeIn>
+                        );
+                    })}
                 </div>
             </div>
-
-            <WaitlistModal open={isModalOpen} onOpenChange={setIsModalOpen} />
         </section>
     );
 };
