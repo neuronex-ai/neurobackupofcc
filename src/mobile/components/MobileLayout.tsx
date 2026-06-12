@@ -5,9 +5,9 @@ import { useDashboardAlerts } from "@/hooks/use-dashboard-alerts";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { Bell } from "lucide-react";
+import { ArrowLeft, Bell } from "lucide-react";
 import { ReactNode, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { MobileBottomNav } from "./MobileBottomNav";
 
@@ -21,16 +21,32 @@ interface MobileLayoutProps {
 export const MobileLayout = ({ children, className, showBottomNav = true }: MobileLayoutProps) => {
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const { theme } = useTheme();
+    const navigate = useNavigate();
+    const isOnboardingShell = !showBottomNav;
 
     const { data: alerts } = useDashboardAlerts();
     const hasAlerts = alerts && alerts.length > 0;
 
     return (
-        <div className="h-screen w-full text-foreground relative overflow-hidden selection:bg-foreground/20 font-sans antialiased bg-background flex flex-col">
+        <div className={cn(
+            "h-screen w-full text-foreground relative overflow-hidden selection:bg-foreground/20 font-sans antialiased bg-background flex flex-col",
+            isOnboardingShell && "neurofinance-mobile-onboarding-shell"
+        )}>
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay" />
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-foreground/[0.02] rounded-full blur-[120px]" />
             </div>
+
+            {isOnboardingShell && (
+                <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="fixed left-4 top-4 z-[150] flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-white shadow-[0_18px_50px_-36px_rgba(0,0,0,0.95)] transition-all active:scale-95"
+                    aria-label="Voltar"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                </button>
+            )}
 
             {showBottomNav && (
                 <motion.div
