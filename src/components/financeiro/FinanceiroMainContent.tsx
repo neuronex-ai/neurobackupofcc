@@ -11,44 +11,52 @@ import { OnboardingPendingNotice } from "./OnboardingPendingNotice";
 export type { FinanceView };
 
 const FINANCE_ROUTE_LABELS: Partial<Record<FinanceView, { groupLabel: string; viewLabel: string }>> = {
-  "conta-digital": { groupLabel: "Conta e Saldo", viewLabel: "Conta e Saldo" },
-  "pix": { groupLabel: "Área Pix", viewLabel: "Área Pix" },
-  "pix-pagar": { groupLabel: "Área Pix", viewLabel: "Pagar Pix" },
-  "pix-transferir": { groupLabel: "Transferências", viewLabel: "Transferir via Pix" },
-  "pix-qrcode": { groupLabel: "Área Pix", viewLabel: "Gerar QR Code" },
-  "pix-receber": { groupLabel: "Área Pix", viewLabel: "Pix recebidos" },
-  "pix-chaves": { groupLabel: "Área Pix", viewLabel: "Minhas chaves" },
-  "pix-salarios": { groupLabel: "Área Pix", viewLabel: "Pagar salários" },
-  "pix-limites": { groupLabel: "Área Pix", viewLabel: "Limites do Pix" },
-  "transferencias": { groupLabel: "Saques", viewLabel: "Sacar fundos" },
-  "contas-bancarias": { groupLabel: "Saques", viewLabel: "Conta Bancária e Pix" },
-  "pagamentos": { groupLabel: "Pagamentos", viewLabel: "Pagamentos" },
-  "pagamentos-boletos": { groupLabel: "Pagamentos", viewLabel: "Pagar boletos" },
-  "pagamentos-agendados": { groupLabel: "Pagamentos", viewLabel: "Pagamentos Agendados" },
-  "pagamentos-agendar": { groupLabel: "Pagamentos", viewLabel: "Agendar pagamento" },
-  "pagamentos-grupos": { groupLabel: "Pagamentos", viewLabel: "Grupos de pagamento" },
-  "saude-conta": { groupLabel: "Ajustes", viewLabel: "Saúde da conta" },
-  "extrato": { groupLabel: "Extrato", viewLabel: "Extrato" },
-  "fluxo-caixa": { groupLabel: "Extrato", viewLabel: "Fluxo de caixa" },
-  "receitas": { groupLabel: "Receitas", viewLabel: "Entradas Confirmadas" },
-  "despesas": { groupLabel: "Despesas", viewLabel: "Saídas Confirmadas" },
-  "cobrancas-historia": { groupLabel: "Cobranças", viewLabel: "Todas as cobranças" },
-  "cobrancas-config": { groupLabel: "Cobranças", viewLabel: "Regras automáticas" },
-  "cobrancas-simulador": { groupLabel: "Cobranças", viewLabel: "Simulador de vendas" },
-  "cobrancas-chargebacks": { groupLabel: "Chargebacks", viewLabel: "Chargebacks" },
-  "antecipacoes": { groupLabel: "Antecipação", viewLabel: "Antecipação" },
-  "antecipacoes-lista": { groupLabel: "Antecipação", viewLabel: "Minhas antecipações" },
-  "antecipacoes-solicitar": { groupLabel: "Antecipação", viewLabel: "Antecipar recebimento" },
-  "antecipacoes-automatica": { groupLabel: "Antecipação", viewLabel: "Antecipação automática" },
-  "antecipacoes-simulador": { groupLabel: "Antecipação", viewLabel: "Simulador" },
-  "antecipacoes-historico": { groupLabel: "Antecipação", viewLabel: "Histórico" },
-  "fiscal-dados": { groupLabel: "NFS-e", viewLabel: "Dados Fiscais" },
-  "fiscal-nova": { groupLabel: "NFS-e", viewLabel: "Emitir nova nota fiscal" },
-  "fiscal-lista": { groupLabel: "NFS-e", viewLabel: "Minhas Notas Fiscais" },
-  "repasses-convenio": { groupLabel: "Repasses", viewLabel: "Convênios" },
-  "repasses-profissional": { groupLabel: "Repasses", viewLabel: "Profissionais" },
-  "repasses-salas": { groupLabel: "Repasses", viewLabel: "Salas" },
-  "tarifas": { groupLabel: "Tarifas", viewLabel: "Custos e prazos" },
+  "gestao-visao-geral": { groupLabel: "Gestão Financeira", viewLabel: "Visão Geral" },
+  "gestao-fluxo-caixa": { groupLabel: "Gestão Financeira", viewLabel: "Fluxo de Caixa" },
+  "gestao-receitas": { groupLabel: "Gestão Financeira", viewLabel: "Receitas" },
+  "gestao-despesas": { groupLabel: "Gestão Financeira", viewLabel: "Despesas" },
+  "gestao-cobrancas": { groupLabel: "Gestão Financeira", viewLabel: "Cobranças" },
+  "gestao-inadimplencia": { groupLabel: "Gestão Financeira", viewLabel: "Pacientes & Inadimplência" },
+  "gestao-planejamento": { groupLabel: "Gestão Financeira", viewLabel: "Planejamento" },
+  "gestao-relatorios": { groupLabel: "Gestão Financeira", viewLabel: "Relatórios" },
+  "conta-digital": { groupLabel: "NeuroFinance", viewLabel: "Conta e Saldo" },
+  "pix": { groupLabel: "NeuroFinance", viewLabel: "Área Pix" },
+  "pix-pagar": { groupLabel: "NeuroFinance", viewLabel: "Pagar Pix" },
+  "pix-transferir": { groupLabel: "NeuroFinance", viewLabel: "Transferir via Pix" },
+  "pix-qrcode": { groupLabel: "NeuroFinance", viewLabel: "Gerar QR Code" },
+  "pix-receber": { groupLabel: "NeuroFinance", viewLabel: "Pix recebidos" },
+  "pix-chaves": { groupLabel: "NeuroFinance", viewLabel: "Minhas chaves" },
+  "pix-salarios": { groupLabel: "NeuroFinance", viewLabel: "Pagar salários" },
+  "pix-limites": { groupLabel: "NeuroFinance", viewLabel: "Limites do Pix" },
+  "transferencias": { groupLabel: "NeuroFinance", viewLabel: "Sacar fundos" },
+  "contas-bancarias": { groupLabel: "NeuroFinance", viewLabel: "Conta Bancária e Pix" },
+  "pagamentos": { groupLabel: "NeuroFinance", viewLabel: "Pagamentos" },
+  "pagamentos-boletos": { groupLabel: "NeuroFinance", viewLabel: "Pagar boletos" },
+  "pagamentos-agendados": { groupLabel: "NeuroFinance", viewLabel: "Pagamentos Agendados" },
+  "pagamentos-agendar": { groupLabel: "NeuroFinance", viewLabel: "Agendar pagamento" },
+  "pagamentos-grupos": { groupLabel: "NeuroFinance", viewLabel: "Grupos de pagamento" },
+  "saude-conta": { groupLabel: "NeuroFinance", viewLabel: "Saúde da conta" },
+  "extrato": { groupLabel: "NeuroFinance", viewLabel: "Extrato da conta" },
+  "fluxo-caixa": { groupLabel: "NeuroFinance", viewLabel: "Fluxo de caixa" },
+  "receitas": { groupLabel: "NeuroFinance", viewLabel: "Entradas Confirmadas" },
+  "despesas": { groupLabel: "NeuroFinance", viewLabel: "Saídas Confirmadas" },
+  "cobrancas-historia": { groupLabel: "NeuroFinance", viewLabel: "Todas as cobranças" },
+  "cobrancas-config": { groupLabel: "NeuroFinance", viewLabel: "Regras automáticas" },
+  "cobrancas-simulador": { groupLabel: "NeuroFinance", viewLabel: "Simulador de vendas" },
+  "cobrancas-chargebacks": { groupLabel: "NeuroFinance", viewLabel: "Chargebacks" },
+  "antecipacoes": { groupLabel: "NeuroFinance", viewLabel: "Antecipação" },
+  "antecipacoes-lista": { groupLabel: "NeuroFinance", viewLabel: "Minhas antecipações" },
+  "antecipacoes-solicitar": { groupLabel: "NeuroFinance", viewLabel: "Antecipar recebimento" },
+  "antecipacoes-automatica": { groupLabel: "NeuroFinance", viewLabel: "Antecipação automática" },
+  "antecipacoes-simulador": { groupLabel: "NeuroFinance", viewLabel: "Simulador" },
+  "antecipacoes-historico": { groupLabel: "NeuroFinance", viewLabel: "Histórico" },
+  "fiscal-dados": { groupLabel: "NeuroFinance", viewLabel: "Dados Fiscais" },
+  "fiscal-nova": { groupLabel: "NeuroFinance", viewLabel: "Emitir nova nota fiscal" },
+  "fiscal-lista": { groupLabel: "NeuroFinance", viewLabel: "Minhas Notas Fiscais" },
+  "repasses-convenio": { groupLabel: "NeuroFinance", viewLabel: "Convênios" },
+  "repasses-profissional": { groupLabel: "NeuroFinance", viewLabel: "Profissionais" },
+  "repasses-salas": { groupLabel: "NeuroFinance", viewLabel: "Salas" },
+  "tarifas": { groupLabel: "NeuroFinance", viewLabel: "Custos e prazos" },
 };
 
 export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
@@ -64,8 +72,8 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
 
   useEffect(() => {
     const routeContext = FINANCE_ROUTE_LABELS[props.activeView] || {
-      groupLabel: "NeuroFinance",
-      viewLabel: "Conta e Saldo",
+      groupLabel: "Gestão Financeira",
+      viewLabel: "Visão Geral",
     };
 
     window.dispatchEvent(new CustomEvent("neuronex:finance-route-context", { detail: routeContext }));
@@ -83,9 +91,6 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
 
   const handleOpenOnboarding = () => {
     if (needsInitialOnboarding) {
-      // O onboarding inicial é tratado pelo componente pai DesktopFinanceiro.
-      // Mantemos este fallback para cobrir mudanças de estado em tempo real.
-      window.location.reload();
       return;
     }
 
