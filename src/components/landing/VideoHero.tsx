@@ -1,4 +1,4 @@
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { TextReveal } from "@/components/animations/TextReveal";
@@ -10,93 +10,78 @@ export const VideoHero = () => {
         offset: ["start end", "center center"]
     });
 
-    // Efeito de emergência do vídeo
-    const scale = useTransform(scrollYProgress, [0.3, 1], [0.9, 1]);
-    const opacity = useTransform(scrollYProgress, [0.3, 0.8], [0, 1]);
-    const rotateX = useTransform(scrollYProgress, [0.3, 1], [10, 0]);
-    
-    // Brilho que corre pela borda (Tópico 3: Reflexos Dinâmicos)
-    const shineX = useTransform(scrollYProgress, [0, 1], ["-100%", "200%"]);
+    // Mantém a mesma entrada do vídeo, mas suaviza a interpolação para evitar stutter no scroll.
+    const scaleRaw = useTransform(scrollYProgress, [0.18, 1], [0.92, 1]);
+    const opacityRaw = useTransform(scrollYProgress, [0.16, 0.72], [0, 1]);
+    const rotateXRaw = useTransform(scrollYProgress, [0.18, 1], [8, 0]);
+    const shineXRaw = useTransform(scrollYProgress, [0, 1], ["-100%", "200%"]);
 
-    const logos = [
-        { name: "MedTech", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" },
-        { name: "HealthAI", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original-wordmark.svg" },
-        { name: "NeuroData", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/apple/apple-original.svg" },
-        { name: "ClinicOS", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/microsoft/microsoft-original.svg" },
-        { name: "PsychCloud", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/digitalocean/digitalocean-original.svg" }
-    ];
+    const scale = useSpring(scaleRaw, { stiffness: 110, damping: 28, mass: 0.35 });
+    const opacity = useSpring(opacityRaw, { stiffness: 120, damping: 30, mass: 0.35 });
+    const rotateX = useSpring(rotateXRaw, { stiffness: 110, damping: 28, mass: 0.35 });
+    const shineX = useSpring(shineXRaw, { stiffness: 90, damping: 26, mass: 0.4 });
 
     return (
-        <section ref={containerRef} className="w-full py-24 md:py-32 flex flex-col items-center justify-center overflow-hidden">
-            <div className="container max-w-6xl px-4 mb-16 text-center">
+        <section ref={containerRef} className="flex w-full flex-col items-center justify-center overflow-hidden px-4 py-20 md:py-24">
+            <div className="container mb-10 max-w-6xl text-center md:mb-12">
                 <FadeIn delay={0.2}>
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary mb-4 block">Manifesto</span>
+                    <span className="mb-4 block text-[10px] font-black uppercase tracking-[0.4em] text-primary">Manifesto</span>
                 </FadeIn>
                 
                 <div className="mb-6">
                     <TextReveal 
                         stagger={0.05} 
-                        className="text-3xl md:text-5xl font-bold tracking-tight text-foreground leading-tight"
+                        className="text-3xl font-bold leading-tight tracking-tight text-foreground md:text-5xl"
                     >
                         A Nova Fronteira do Cuidado.
                     </TextReveal>
                 </div>
 
                 <FadeIn delay={0.6}>
-                    <p className="text-base md:text-lg text-muted-foreground/70 max-w-2xl mx-auto leading-relaxed font-medium">
+                    <p className="mx-auto max-w-2xl text-base font-medium leading-relaxed text-muted-foreground/70 md:text-lg">
                         Assista e descubra como a simbiose entre inteligência artificial e neurociência 
                         está redefinindo o padrão de excelência para psicólogos de elite.
                     </p>
                 </FadeIn>
             </div>
 
-            <div className="w-full max-w-6xl mx-auto px-4 perspective-[2000px] mb-20">
+            <div className="mx-auto mb-6 w-full max-w-6xl perspective-[2000px] md:mb-10">
                 <motion.div
                     style={{
                         scale,
                         opacity,
                         rotateX,
+                        transformStyle: "preserve-3d",
+                        willChange: "transform, opacity",
                     }}
-                    className="relative group"
+                    className="relative transform-gpu group"
                 >
                     {/* Borda Liquid Glass com Brilho Dinâmico */}
-                    <div className="absolute -inset-[1px] bg-gradient-to-tr from-primary/30 via-primary/5 to-primary/30 rounded-[2.5rem] blur-[0.5px] opacity-40 overflow-hidden">
+                    <div className="absolute -inset-[1px] overflow-hidden rounded-[2rem] bg-gradient-to-tr from-primary/30 via-primary/5 to-primary/30 opacity-35 blur-[0.5px] md:rounded-[2.5rem]">
                          <motion.div 
-                            style={{ x: shineX }}
-                            className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+                            style={{ x: shineX, willChange: "transform" }}
+                            className="absolute inset-0 h-full w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                          />
                     </div>
                     
-                    <div className="relative rounded-[2.5rem] overflow-hidden bg-black/40 backdrop-blur-3xl border border-white/10 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] aspect-video">
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none z-10" />
+                    <div className="relative aspect-video overflow-hidden rounded-[2rem] border border-white/10 bg-black/40 shadow-[0_34px_90px_-34px_rgba(0,0,0,0.6)] md:rounded-[2.5rem]">
+                        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-br from-white/5 via-transparent to-transparent" />
                         
                         <iframe
                             src="https://www.youtube.com/embed/vk6cw0bkut8?autoplay=0&controls=1&rel=0&modestbranding=1&showinfo=0&mute=0"
                             title="NeuroNex Presentation"
-                            className="w-full h-full border-0"
+                            className="h-full w-full border-0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             allowFullScreen
                         />
                     </div>
 
                     <motion.div 
-                        style={{ opacity: scrollYProgress }}
-                        className="absolute -inset-10 bg-primary/5 blur-[120px] -z-10 rounded-full" 
+                        style={{ opacity }}
+                        className="absolute -inset-8 -z-10 rounded-full bg-primary/5 blur-[90px]" 
                     />
                 </motion.div>
             </div>
-
-            {/* Tópico 5: Seção de Marcas/Trust */}
-            <FadeIn delay={1} className="w-full max-w-4xl px-4 mt-8 opacity-30 grayscale hover:opacity-100 transition-all duration-700">
-                <div className="flex flex-wrap items-center justify-center gap-12 md:gap-20">
-                    {logos.map((logo, i) => (
-                        <div key={i} className="flex items-center gap-2 group cursor-default">
-                             <img src={logo.icon} alt={logo.name} className="h-6 w-auto opacity-50 group-hover:opacity-100 transition-opacity" />
-                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40 group-hover:text-foreground transition-colors">{logo.name}</span>
-                        </div>
-                    ))}
-                </div>
-            </FadeIn>
         </section>
     );
 };
