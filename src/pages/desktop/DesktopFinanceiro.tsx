@@ -60,11 +60,28 @@ interface NavItem {
     id: string;
     label: string;
     icon: ElementType<{ className?: string }>;
+    sectionLabel?: string;
     subItems?: NavSubItem[];
 }
 
 const FINANCE_NAV: NavItem[] = [
-    { id: 'account-balance-root', label: "Conta e Saldo", icon: CreditCard, subItems: [{ id: 'conta-digital', label: 'Conta e Saldo', icon: CreditCard }] },
+    {
+        id: 'management-root',
+        sectionLabel: 'Gestão Financeira',
+        label: "Gestão",
+        icon: Landmark,
+        subItems: [
+            { id: 'gestao-visao-geral', label: 'Visão Geral', icon: Landmark, description: 'Resultado, previsão, recebíveis e pendências do consultório' },
+            { id: 'gestao-fluxo-caixa', label: 'Fluxo de Caixa', icon: TrendingUp, description: 'Realizado, previsto, projetado e cenários' },
+            { id: 'gestao-receitas', label: 'Receitas', icon: ArrowUpRight, description: 'Entradas confirmadas, ticket médio e fontes de receita' },
+            { id: 'gestao-despesas', label: 'Despesas', icon: ArrowDownLeft, description: 'Custos fixos, variáveis e categorias' },
+            { id: 'gestao-cobrancas', label: 'Cobranças', icon: WalletCards, description: 'Cobranças abertas, vencidas e recorrentes' },
+            { id: 'gestao-inadimplencia', label: 'Inadimplência', icon: Users, description: 'Pacientes, valores em aberto e atrasos' },
+            { id: 'gestao-planejamento', label: 'Planejamento', icon: Sparkles, description: 'Metas, ponto de equilíbrio e previsibilidade' },
+            { id: 'gestao-relatorios', label: 'Relatórios', icon: FileText, description: 'DRE simplificada, fluxo e resumo para contador' },
+        ],
+    },
+    { id: 'account-balance-root', sectionLabel: 'NeuroFinance', label: "Conta e Saldo", icon: CreditCard, subItems: [{ id: 'conta-digital', label: 'Conta e Saldo', icon: CreditCard }] },
     {
         id: 'pix-root',
         label: "Área Pix",
@@ -78,10 +95,8 @@ const FINANCE_NAV: NavItem[] = [
             { id: 'pix-limites', label: 'Limites do Pix', icon: ShieldCheck, tag: 'No App', description: 'Ajuste limites de segurança da conta' },
         ],
     },
-    { id: 'statement-root', label: "Extrato", icon: FileText, subItems: [{ id: 'extrato', label: 'Extrato', icon: FileText }] },
-    { id: 'cobrancas-root', label: "Cobranças", icon: WalletCards, subItems: [{ id: 'cobrancas-historia', label: 'Todas as cobranças', icon: History }, { id: 'cobrancas-simulador', label: 'Simulador de vendas', icon: BadgeCent }, { id: 'cobrancas-config', label: 'Regras automáticas', icon: Settings }] },
-    { id: 'receitas-root', label: "Receitas", icon: ArrowUpRight, subItems: [{ id: 'receitas', label: 'Entradas Confirmadas', icon: ArrowUpRight }] },
-    { id: 'despesas-root', label: "Despesas", icon: ArrowDownLeft, subItems: [{ id: 'despesas', label: 'Saídas Confirmadas', icon: ArrowDownLeft }] },
+    { id: 'statement-root', label: "Extrato da conta", icon: FileText, subItems: [{ id: 'extrato', label: 'Extrato da conta', icon: FileText }] },
+    { id: 'cobrancas-root', label: "Cobranças bancárias", icon: WalletCards, subItems: [{ id: 'cobrancas-historia', label: 'Todas as cobranças', icon: History }, { id: 'cobrancas-simulador', label: 'Simulador de vendas', icon: BadgeCent }, { id: 'cobrancas-config', label: 'Regras automáticas', icon: Settings }] },
     { id: 'pagamentos-root', label: "Pagamentos", icon: Receipt, subItems: [{ id: 'pagamentos-boletos', label: 'Pagar boletos', icon: Barcode, description: 'Digite, arraste imagem ou anexe PDF' }, { id: 'pagamentos-agendados', label: 'Pagamentos Agendados', icon: CalendarClock, description: 'Acompanhe pagamentos programados e comprovantes' }] },
     { id: 'antecipacoes-root', label: "Antecipação", icon: TrendingUp, subItems: [{ id: 'antecipacoes-lista', label: 'Minhas antecipações', icon: History }, { id: 'antecipacoes-solicitar', label: 'Antecipar recebimento', icon: TrendingUp }, { id: 'antecipacoes-automatica', label: 'Antecipação automática', icon: Repeat }] },
     { id: 'transfers-root', label: "Transferências", icon: Send, subItems: [{ id: 'pix-transferir', label: 'Transferir via Pix', icon: Send, tag: 'Grátis', description: 'Envie dinheiro para uma chave Pix' }] },
@@ -108,10 +123,10 @@ const DesktopFinanceiro = () => {
     const { data: nbFutureDetails, isLoading: isNbFutureLoading } = useNeuroFinanceBalanceDetails("futuro");
     const { isLoading: isLoadingSettings } = useFinancialSettings();
 
-    const [activeView, setActiveView] = useState<FinanceView>('conta-digital');
+    const [activeView, setActiveView] = useState<FinanceView>('gestao-visao-geral');
     const [extratoTab, setExtratoTab] = useState<'realizado' | 'futuro' | 'assinaturas'>('realizado');
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-    const [expandedGroups, setExpandedGroups] = useState<string[]>(['account-balance-root']);
+    const [expandedGroups, setExpandedGroups] = useState<string[]>(['management-root']);
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
     const [showSidebarDetails, setShowSidebarDetails] = useState(false);
     const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'wizard'>('welcome');
@@ -263,7 +278,7 @@ const DesktopFinanceiro = () => {
         <div className="min-h-screen w-full flex flex-col font-sans relative bg-background text-foreground selection:bg-primary/20 pt-10">
             <div className="pointer-events-none fixed inset-0 z-0 premium-noise opacity-[0.025] mix-blend-overlay dark:opacity-[0.05]" />
             <div className="flex-1 w-full max-w-[2200px] mx-auto px-6 md:px-8 lg:px-12 xl:px-16 relative z-10 flex gap-6 pb-12">
-                <motion.nav initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0, width: isSidebarExpanded ? 302 : 88 }} transition={{ width: { type: "spring", stiffness: 420, damping: 42, mass: 0.58 }, opacity: { duration: 0.18 }, x: { duration: 0.24, ease: [0.22, 1, 0.36, 1] } }} onMouseEnter={() => setSidebarExpandedWithIntent(true)} onMouseLeave={() => setSidebarExpandedWithIntent(false)} style={{ willChange: "width, transform" }} className="relative z-30 hidden shrink-0 lg:flex">
+                <motion.nav initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0, width: isSidebarExpanded ? 318 : 88 }} transition={{ width: { type: "spring", stiffness: 420, damping: 42, mass: 0.58 }, opacity: { duration: 0.18 }, x: { duration: 0.24, ease: [0.22, 1, 0.36, 1] } }} onMouseEnter={() => setSidebarExpandedWithIntent(true)} onMouseLeave={() => setSidebarExpandedWithIntent(false)} style={{ willChange: "width, transform" }} className="relative z-30 hidden shrink-0 lg:flex">
                     <div className="sticky top-10 flex max-h-[calc(100vh-5rem)] w-full flex-col overflow-hidden rounded-[30px] border border-zinc-200/75 bg-white/85 p-3 shadow-[0_24px_74px_-54px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-black/[0.025] backdrop-blur-xl dark:border-white/[0.075] dark:bg-[#070708]/85 dark:shadow-[0_28px_86px_-58px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.055)] dark:ring-white/[0.035]">
                         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.55),transparent_28%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.55),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(0,0,0,.04),transparent_42%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,.055),transparent_30%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.075),transparent_38%)]" />
                         <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.04]" />
@@ -273,6 +288,11 @@ const DesktopFinanceiro = () => {
                                 const hasActiveSub = group.subItems?.some(s => s.id === activeView || s.subItems?.some(ss => ss.id === activeView));
                                 return (
                                     <div key={group.id} className="flex flex-col gap-1 rounded-[22px]">
+                                        {group.sectionLabel && (
+                                            <div className={cn("transition-all", showSidebarDetails ? "px-3 pb-1 pt-3 text-[8px] font-black uppercase tracking-[0.22em] text-zinc-400 dark:text-zinc-600" : "mx-auto my-2 h-px w-8 rounded-full bg-zinc-200 dark:bg-white/10")}>
+                                                {showSidebarDetails ? group.sectionLabel : null}
+                                            </div>
+                                        )}
                                         <button onClick={() => handleGroupClick(group)} title={group.label} className={cn("group relative flex h-12 items-center rounded-2xl transition-colors duration-200 ease-out", showSidebarDetails ? "w-full gap-3 px-3" : "w-14 justify-center px-0", hasActiveSub ? "bg-zinc-950 text-white shadow-[0_16px_38px_-26px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950" : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-950/[0.045] dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.055]")}>
                                             <div className={cn("w-9 h-9 shrink-0 flex items-center justify-center rounded-xl transition-all", hasActiveSub ? "bg-white/14 dark:bg-black/10" : "bg-white/55 dark:bg-white/[0.035] border border-black/[0.035] dark:border-white/[0.055]")}><group.icon className="w-5 h-5" /></div>
                                             <AnimatePresence initial={false}>{showSidebarDetails ? <motion.div initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -4 }} transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }} className="flex min-w-0 flex-1 items-center justify-between overflow-hidden"><span className="truncate text-[10px] font-black uppercase tracking-[0.15em]">{group.label}</span><ChevronRight className={cn("w-3.5 h-3.5 opacity-55 transition-transform duration-300", isGroupExpanded && "rotate-90")} /></motion.div> : null}</AnimatePresence>
