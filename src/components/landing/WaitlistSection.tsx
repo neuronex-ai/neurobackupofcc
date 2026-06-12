@@ -8,35 +8,42 @@ import { cn } from "@/lib/utils";
 
 const plans = [
     {
-        name: "Gratuito",
-        eyebrow: "Comece agora",
+        name: "Essential",
+        eyebrow: "Founder incluso",
         price: "R$ 0",
         period: "/mês",
-        description: "Para psicólogos que querem organizar a rotina clínica com uma base simples, segura e elegante.",
+        description: "Para começar com uma operação clínica organizada, portal do paciente e inteligência essencial.",
         icon: Star,
         cta: "Criar conta grátis",
-        href: "/create-account",
+        href: "/create-account?plan=essential",
         featured: false,
         highlights: [
-            "Agenda e visão inicial da clínica",
-            "Cadastro de pacientes",
-            "Experiência NeuroNex essencial",
+            "Selo Founder + benefícios VIP de pré-lançamento",
+            "Gestão do consultório completa",
+            "Acesso limitado ao Synapse de texto",
+            "Teleconsulta HD com transcrição e resumo por IA",
+            "Portal do Paciente + diário e rastreio de humor",
+            "Relatórios completos da rotina clínica",
         ],
     },
     {
         name: "Profissional",
-        eyebrow: "Pré-lançamento",
+        eyebrow: "7 dias grátis",
         price: "R$ 140,00",
         period: "/mês",
-        description: "Para quem quer operar a clínica com automação, recursos avançados e Synapse no WhatsApp.",
+        description: "Para psicólogos que querem automação, voz, finanças integradas e operação de ponta a ponta.",
         icon: Zap,
-        cta: "Testar 7 dias grátis",
+        cta: "Testar grátis",
         href: "/create-account?plan=professional",
         featured: true,
         highlights: [
-            "7 dias grátis para validar na prática",
+            "Selo Founder + benefícios VIP de pré-lançamento",
+            "Synapse texto e voz com limites maiores",
             "Synapse no WhatsApp incluso",
-            "Recursos profissionais em preço de pré-lançamento",
+            "NeuroBox com biblioteca de IAs NeuroNex",
+            "Gestão Financeira + NeuroFinance",
+            "NFS-e no automático e rotinas de cobrança",
+            "Tudo do Essential, com mais automação",
         ],
     },
     {
@@ -44,22 +51,24 @@ const plans = [
         eyebrow: "Sob medida",
         price: "Personalizado",
         period: "",
-        description: "Para clínicas, equipes e operações que precisam de uma estrutura personalizada e suporte dedicado.",
+        description: "Para clínicas, equipes e operações que precisam de estrutura personalizada e suporte dedicado.",
         icon: Building2,
         cta: "Contatar suporte",
         href: "/help",
         featured: false,
         highlights: [
-            "Estrutura adaptada à operação",
-            "Configuração assistida",
-            "Suporte para expansão da equipe",
+            "Implantação personalizada para clínicas e equipes",
+            "Multi-profissionais, permissões e operação assistida",
+            "Relatórios consolidados e fluxos dedicados",
+            "Treinamento e configuração inicial assistida",
+            "Condições comerciais para volume e expansão",
         ],
     },
 ];
 
 export const WaitlistSection = () => {
     return (
-        <section id="waitlist" className="relative overflow-hidden bg-background px-6 py-24 md:py-36">
+        <section id="waitlist" className="relative overflow-hidden bg-background px-6 py-20 md:py-28">
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute inset-0 premium-noise opacity-[0.025] mix-blend-overlay" />
                 <div className="absolute left-[12%] top-[8%] h-[620px] w-[820px] rounded-full bg-foreground/[0.03] blur-[170px]" />
@@ -68,7 +77,7 @@ export const WaitlistSection = () => {
             </div>
 
             <div className="relative z-10 mx-auto max-w-[1240px]">
-                <div className="mx-auto mb-14 max-w-4xl text-center md:mb-20">
+                <div className="mx-auto mb-12 max-w-5xl text-center md:mb-16">
                     <FadeIn delay={0.1}>
                         <div className="mb-8 inline-flex items-center gap-2.5 rounded-full border border-border/20 bg-foreground/[0.03] px-4 py-1.5 backdrop-blur-md">
                             <Sparkles className="h-3.5 w-3.5 text-foreground/40" />
@@ -79,10 +88,10 @@ export const WaitlistSection = () => {
                     </FadeIn>
 
                     <FadeIn delay={0.2}>
-                        <h2 className="text-5xl font-bold leading-[0.88] tracking-[-0.055em] md:text-8xl">
-                            Escolha o plano para a <br />
+                        <h2 className="mx-auto max-w-5xl text-5xl font-bold leading-[0.9] tracking-[-0.055em] md:text-7xl lg:text-8xl">
+                            Escolha o plano <br />
                             <span className="bg-gradient-to-b from-foreground via-foreground/90 to-foreground/30 bg-clip-text text-transparent">
-                                sua clínica.
+                                ideal para a sua clínica.
                             </span>
                         </h2>
                     </FadeIn>
@@ -101,7 +110,7 @@ export const WaitlistSection = () => {
                             <FadeIn key={plan.name} delay={0.18 + index * 0.08}>
                                 <article
                                     className={cn(
-                                        "group relative flex h-full min-h-[520px] flex-col overflow-hidden rounded-[34px] border p-6 shadow-premium transition-all duration-500 hover:-translate-y-1 md:rounded-[42px] md:p-8",
+                                        "group relative flex h-full min-h-[560px] flex-col overflow-hidden rounded-[34px] border p-6 shadow-premium transition-all duration-500 hover:-translate-y-1 md:rounded-[42px] md:p-8",
                                         plan.featured
                                             ? "border-foreground/20 bg-foreground text-background shadow-[0_38px_120px_-72px_rgba(0,0,0,0.85)]"
                                             : "border-border/15 bg-card/70 backdrop-blur-xl hover:border-border/30 hover:bg-card"
