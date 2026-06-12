@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import type { ElementType } from "react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -22,6 +23,7 @@ import {
     CreditCard,
     ArrowDownLeft,
     ArrowUpRight,
+    ArrowLeft,
     ChevronRight,
     ArrowRight,
     Sparkles,
@@ -99,6 +101,7 @@ const FINANCE_NAV: NavItem[] = [
 ];
 
 const DesktopFinanceiro = () => {
+    const navigate = useNavigate();
     const { syncAccount, isLoading: isLoadingConnect, refetch: refetchStatus, isConnected, needsInitialOnboarding } = useFinancialAccount();
     const { data: transactions, isLoading: isLoadingTransactions } = useTransactions(subMonths(new Date(), 3));
     const { data: nbStatement, isLoading: isNbStatementLoading } = useNeuroFinanceStatement(subDays(new Date(), 30), new Date());
@@ -173,13 +176,29 @@ const DesktopFinanceiro = () => {
     const showMainDashboard = isConnected || !needsInitialOnboarding;
     const motionProps = { initial: { opacity: 0, x: 20, filter: "blur(10px)" }, animate: { opacity: 1, x: 0, filter: "blur(0px)" }, exit: { opacity: 0, x: -20, filter: "blur(10px)" }, transition: { duration: 0.4, ease: [0.23, 1, 0.32, 1] as const } };
 
+    useEffect(() => {
+        document.body.classList.toggle("neurofinance-onboarding-active", !showMainDashboard);
+        return () => document.body.classList.remove("neurofinance-onboarding-active");
+    }, [showMainDashboard]);
+
+    const handleOnboardingBack = () => {
+        if (onboardingStep === 'wizard') {
+            setOnboardingStep('welcome');
+            return;
+        }
+        navigate('/financeiro');
+    };
+
     if (isLoadingConnect || isLoadingSettings) {
         return <div className="h-screen w-screen flex flex-col justify-center items-center font-sans bg-zinc-50 dark:bg-zinc-950"><Loader2 className="h-10 w-10 animate-spin text-zinc-300 dark:text-zinc-700" /></div>;
     }
 
     if (!showMainDashboard) {
         return (
-            <div className="relative h-screen w-screen overflow-hidden bg-zinc-50 font-sans text-zinc-950 dark:bg-[#020204] dark:text-white">
+            <div className="neurofinance-onboarding-screen relative h-screen w-screen overflow-hidden bg-zinc-50 font-sans text-zinc-950 dark:bg-[#020204] dark:text-white">
+                <button type="button" onClick={handleOnboardingBack} className="fixed left-4 top-4 z-[260] flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-white shadow-[0_18px_50px_-36px_rgba(0,0,0,0.95)] transition-all hover:bg-white/[0.12] active:scale-95 dark:border-white/10 dark:bg-white/[0.07] md:left-6 md:top-6" aria-label="Voltar">
+                    <ArrowLeft className="h-4 w-4" />
+                </button>
                 <div className="premium-noise pointer-events-none absolute inset-0 z-0 opacity-[0.018] dark:opacity-[0.04]" />
                 <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_12%_16%,rgba(255,255,255,.7),transparent_30%),radial-gradient(circle_at_82%_88%,rgba(0,0,0,.035),transparent_34%)] dark:bg-[radial-gradient(circle_at_16%_18%,rgba(255,255,255,.08),transparent_30%),radial-gradient(circle_at_82%_80%,rgba(255,255,255,.04),transparent_32%)]" />
                 <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-px w-[72vw] -translate-x-1/2 bg-gradient-to-r from-transparent via-zinc-950/10 to-transparent dark:via-white/12" />
