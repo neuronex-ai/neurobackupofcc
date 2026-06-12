@@ -8,14 +8,16 @@ import { Footer } from "@/components/landing/Footer";
 import { LandingSynapseSDR } from "@/components/landing/LandingSynapseSDR";
 import { useLandingSynapse } from "@/hooks/use-landing-synapse";
 import {
+    LandingRealFinanceFiscalSection,
+    LandingRealProductShowcase,
+    LandingRealSynapseSection,
+} from "@/components/landing/LandingProductScreenshots";
+import {
     LandingDifferentiatorTable,
     LandingFinalCTASection,
-    LandingFinanceFiscalSection,
     LandingOperatingSystemSection,
     LandingPlanComparisonSection,
     LandingProblemSection,
-    LandingProductShowcase,
-    LandingSynapseSection,
     LandingTrustAndFAQSection,
 } from "@/components/landing/StrategicLandingSections";
 
@@ -29,10 +31,10 @@ const DesktopIndex = () => {
                 <Hero />
                 <LandingProblemSection />
                 <LandingDifferentiatorTable />
-                <LandingProductShowcase />
+                <LandingRealProductShowcase />
                 <LandingOperatingSystemSection />
-                <LandingSynapseSection />
-                <LandingFinanceFiscalSection />
+                <LandingRealSynapseSection />
+                <LandingRealFinanceFiscalSection />
                 <WaitlistSection />
                 <LandingPlanComparisonSection />
                 <LandingTrustAndFAQSection />
