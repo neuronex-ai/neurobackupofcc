@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import type { ElementType } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -23,9 +23,7 @@ import {
     CreditCard,
     ArrowDownLeft,
     ArrowUpRight,
-    ArrowLeft,
     ChevronRight,
-    ArrowRight,
     Sparkles,
     History,
     Repeat,
@@ -42,8 +40,6 @@ import { useNeuroFinanceStatement } from "@/hooks/use-neurofinance-statement";
 import { useNeuroFinanceBalanceDetails } from "@/hooks/use-neurofinance-balance-details";
 import { subMonths, subDays, isAfter } from "date-fns";
 
-import { CustomOnboardingFlow } from "@/components/financeiro/CustomOnboardingFlow";
-import { AsaasRegulatoryFooter } from "@/components/financeiro/AsaasRegulatoryFooter";
 import { FinanceiroMainContent, FinanceView } from "@/components/financeiro/FinanceiroMainContent";
 import { Transaction } from "@/types";
 
@@ -63,6 +59,8 @@ interface NavItem {
     sectionLabel?: string;
     subItems?: NavSubItem[];
 }
+
+const BANKING_QUERY_KEYS = ["onboarding", "payment"];
 
 const FINANCE_NAV: NavItem[] = [
     {
@@ -115,21 +113,26 @@ const FINANCE_NAV: NavItem[] = [
     { id: 'bank-settings-root', label: "Ajustes", icon: Settings, subItems: [{ id: 'saude-conta', label: 'Saúde da conta', icon: ShieldCheck }] },
 ];
 
+const getInitialFinanceView = (pathname: string, search: string): FinanceView => {
+    const searchParams = new URLSearchParams(search);
+    const shouldOpenNeuroFinance = pathname.includes('/neurofinance') || BANKING_QUERY_KEYS.some((key) => searchParams.has(key));
+    return shouldOpenNeuroFinance ? 'conta-digital' : 'gestao-visao-geral';
+};
+
 const DesktopFinanceiro = () => {
-    const navigate = useNavigate();
-    const { syncAccount, isLoading: isLoadingConnect, refetch: refetchStatus, isConnected, needsInitialOnboarding } = useFinancialAccount();
+    const location = useLocation();
+    const { isLoading: isLoadingConnect } = useFinancialAccount();
     const { data: transactions, isLoading: isLoadingTransactions } = useTransactions(subMonths(new Date(), 3));
     const { data: nbStatement, isLoading: isNbStatementLoading } = useNeuroFinanceStatement(subDays(new Date(), 30), new Date());
     const { data: nbFutureDetails, isLoading: isNbFutureLoading } = useNeuroFinanceBalanceDetails("futuro");
     const { isLoading: isLoadingSettings } = useFinancialSettings();
 
-    const [activeView, setActiveView] = useState<FinanceView>('gestao-visao-geral');
+    const [activeView, setActiveView] = useState<FinanceView>(() => getInitialFinanceView(location.pathname, location.search));
     const [extratoTab, setExtratoTab] = useState<'realizado' | 'futuro' | 'assinaturas'>('realizado');
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-    const [expandedGroups, setExpandedGroups] = useState<string[]>(['management-root']);
+    const [expandedGroups, setExpandedGroups] = useState<string[]>([getInitialFinanceView(location.pathname, location.search) === 'conta-digital' ? 'account-balance-root' : 'management-root']);
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
     const [showSidebarDetails, setShowSidebarDetails] = useState(false);
-    const [onboardingStep, setOnboardingStep] = useState<'welcome' | 'wizard'>('welcome');
     const sidebarIntentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const sidebarDetailsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -188,90 +191,10 @@ const DesktopFinanceiro = () => {
         }
     };
 
-    const showMainDashboard = isConnected || !needsInitialOnboarding;
     const motionProps = { initial: { opacity: 0, x: 20, filter: "blur(10px)" }, animate: { opacity: 1, x: 0, filter: "blur(0px)" }, exit: { opacity: 0, x: -20, filter: "blur(10px)" }, transition: { duration: 0.4, ease: [0.23, 1, 0.32, 1] as const } };
-
-    useEffect(() => {
-        document.body.classList.toggle("neurofinance-onboarding-active", !showMainDashboard);
-        return () => document.body.classList.remove("neurofinance-onboarding-active");
-    }, [showMainDashboard]);
-
-    const handleOnboardingBack = () => {
-        if (onboardingStep === 'wizard') {
-            setOnboardingStep('welcome');
-            return;
-        }
-        navigate('/financeiro');
-    };
 
     if (isLoadingConnect || isLoadingSettings) {
         return <div className="h-screen w-screen flex flex-col justify-center items-center font-sans bg-zinc-50 dark:bg-zinc-950"><Loader2 className="h-10 w-10 animate-spin text-zinc-300 dark:text-zinc-700" /></div>;
-    }
-
-    if (!showMainDashboard) {
-        return (
-            <div className="neurofinance-onboarding-screen relative h-screen w-screen overflow-hidden bg-zinc-50 font-sans text-zinc-950 dark:bg-[#020204] dark:text-white">
-                <button type="button" onClick={handleOnboardingBack} className="fixed left-4 top-4 z-[260] flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-white shadow-[0_18px_50px_-36px_rgba(0,0,0,0.95)] transition-all hover:bg-white/[0.12] active:scale-95 dark:border-white/10 dark:bg-white/[0.07] md:left-6 md:top-6" aria-label="Voltar">
-                    <ArrowLeft className="h-4 w-4" />
-                </button>
-                <div className="premium-noise pointer-events-none absolute inset-0 z-0 opacity-[0.018] dark:opacity-[0.04]" />
-                <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_12%_16%,rgba(255,255,255,.7),transparent_30%),radial-gradient(circle_at_82%_88%,rgba(0,0,0,.035),transparent_34%)] dark:bg-[radial-gradient(circle_at_16%_18%,rgba(255,255,255,.08),transparent_30%),radial-gradient(circle_at_82%_80%,rgba(255,255,255,.04),transparent_32%)]" />
-                <div className="pointer-events-none absolute left-1/2 top-0 z-0 h-px w-[72vw] -translate-x-1/2 bg-gradient-to-r from-transparent via-zinc-950/10 to-transparent dark:via-white/12" />
-
-                <AnimatePresence mode="wait">
-                    {onboardingStep === 'welcome' ? (
-                        <motion.div key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.985 }} className="relative z-10 mx-auto grid h-full w-full max-w-[1760px] gap-4 p-4 pt-[92px] md:p-6 md:pt-[102px] lg:grid-cols-[0.84fr_1.16fr]">
-                            <motion.aside initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1] }} className="relative hidden min-h-0 overflow-hidden rounded-[32px] border border-zinc-200/70 bg-white/78 p-6 shadow-[0_28px_90px_-64px_rgba(0,0,0,0.66)] backdrop-blur-3xl dark:border-white/[0.07] dark:bg-white/[0.028] lg:flex lg:flex-col lg:justify-between xl:p-7">
-                                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.46),transparent_32%),radial-gradient(circle_at_0%_0%,rgba(0,0,0,.035),transparent_38%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,.045),transparent_34%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.05),transparent_42%)]" />
-                                <div className="relative z-10 flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-[15px] bg-zinc-950 text-white shadow-xl dark:bg-white dark:text-zinc-950"><Landmark className="h-4.5 w-4.5" /></div>
-                                    <div><p className="text-[7px] font-black uppercase tracking-[0.3em] text-zinc-400">NeuroNex</p><p className="text-[11px] font-black uppercase tracking-[0.22em]">NeuroFinance</p></div>
-                                </div>
-                                <div className="relative z-10 max-w-md space-y-5 py-8">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3.5 py-1.5 text-[7px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.045] dark:text-zinc-300"><ShieldCheck className="h-3.5 w-3.5" /> Ambiente seguro</div>
-                                    <h2 className="max-w-md text-[clamp(2.2rem,3.35vw,4.2rem)] font-black leading-[0.92] tracking-[-0.07em]">Banking para sua clínica.</h2>
-                                    <p className="max-w-sm text-xs font-medium leading-relaxed text-zinc-500 dark:text-zinc-400 xl:text-sm">Receba consultas, organize cobranças e acompanhe repasses em uma experiência financeira feita para psicólogos.</p>
-                                </div>
-                                <div className="relative z-10 grid grid-cols-2 gap-2.5">
-                                    {["Pix", "Cartão", "Boletos", "Saques"].map((item) => <div key={item} className="rounded-[18px] border border-zinc-200/70 bg-zinc-50/60 px-3.5 py-2.5 text-[8px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-300">{item}</div>)}
-                                </div>
-                            </motion.aside>
-
-                            <motion.main initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06, duration: 0.5, ease: [0.22, 1, 0.36, 1] }} className="relative flex min-h-0 flex-col overflow-y-auto overflow-x-hidden rounded-[32px] border border-zinc-200/70 bg-zinc-950 p-5 text-white shadow-[0_34px_110px_-76px_rgba(0,0,0,0.9)] dark:border-white/[0.075] dark:bg-[#070708]/88 md:p-7 xl:p-8">
-                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_32%_16%,rgba(255,255,255,.11),transparent_33%),radial-gradient(circle_at_90%_82%,rgba(255,255,255,.052),transparent_34%)]" />
-                                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/16 to-transparent" />
-                                <div className="relative z-10 flex shrink-0 items-center justify-between gap-4">
-                                    <div className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] text-white/54"><Sparkles className="h-3.5 w-3.5 text-white" /> Início protegido</div>
-                                    <div className="hidden items-center gap-2 md:flex">{[1, 2, 3].map((step, index) => <div key={step} className={cn("h-1.5 rounded-full transition-all", index === 0 ? "w-7 bg-white" : "w-1.5 bg-white/18")} />)}</div>
-                                </div>
-
-                                <div className="relative z-10 flex min-h-0 flex-1 flex-col justify-center py-5 md:py-6">
-                                    <p className="mb-3 text-[8px] font-black uppercase tracking-[0.32em] text-white/36 md:text-[9px]">Conta financeira para psicólogos</p>
-                                    <h1 className="max-w-3xl text-[clamp(2.45rem,4.75vw,5.25rem)] font-black leading-[0.9] tracking-[-0.075em]">Comece a receber com o NeuroFinance.</h1>
-                                    <p className="mt-4 max-w-2xl text-xs font-semibold leading-relaxed text-white/54 md:text-sm">{isConnected ? "Sua conta já foi criada. Revise as pendências para liberar todos os recursos com segurança." : "Crie sua conta, envie os dados necessários e comece a emitir cobranças profissionais por Pix, cartão e boleto."}</p>
-                                    <div className="mt-5 grid gap-2.5 md:grid-cols-3">
-                                        {["Receba com Pix e cartão", "Acompanhe saúde da conta", "Proteja saques com PIN"].map((item) => <div key={item} className="rounded-[18px] border border-white/10 bg-white/[0.038] p-3 text-[8px] font-black uppercase leading-relaxed tracking-[0.12em] text-white/52">{item}</div>)}
-                                    </div>
-                                </div>
-
-                                <div className="relative z-10 flex shrink-0 flex-col gap-3 border-t border-white/10 pt-4 lg:flex-row lg:items-center lg:justify-between">
-                                    <div className="max-w-md text-[9px] font-medium leading-relaxed text-white/36 md:text-[10px]">O processo é guiado, seguro e leva poucos minutos. Você poderá acompanhar a análise em Saúde da Conta.</div>
-                                    <button onClick={() => setOnboardingStep('wizard')} className="group flex h-12 shrink-0 items-center justify-center gap-3 rounded-[18px] bg-white px-6 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-950 shadow-[0_18px_48px_-34px_rgba(255,255,255,0.72)] transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] md:h-13">
-                                        {isConnected ? "Finalizar cadastro" : "Começar agora"}
-                                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                                    </button>
-                                </div>
-                                <div className="relative z-10 mt-4 flex shrink-0 justify-center opacity-55"><AsaasRegulatoryFooter /></div>
-                            </motion.main>
-                        </motion.div>
-                    ) : (
-                        <motion.div key="wizard" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} className="relative z-10 h-full w-full">
-                            <div className="w-full h-full"><CustomOnboardingFlow fullScreen onCancel={() => setOnboardingStep('welcome')} onComplete={async () => { await syncAccount.mutateAsync(); refetchStatus(); }} /></div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-        );
     }
 
     return (
