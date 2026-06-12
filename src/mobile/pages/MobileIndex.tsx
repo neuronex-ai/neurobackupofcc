@@ -192,7 +192,7 @@ const HeroMobile = () => (
 
     <FadeIn delay={0.55}>
       <motion.div animate={{ y: [0, 7, 0] }} transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }} className="relative z-10 mt-12 flex flex-col items-center gap-2 text-foreground/28">
-        <span className="text-[8px] font-black uppercase tracking-[0.38em]">Scroll</span>
+        <span className="text-[8px] font-black uppercase tracking-[0.38em]">Deslize</span>
         <ChevronDown className="h-4 w-4" />
       </motion.div>
     </FadeIn>
