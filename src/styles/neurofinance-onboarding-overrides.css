@@ -1,47 +1,48 @@
-/* NeuroFinance onboarding — viewport/polish overrides.
-   The previous large radial gradients + noise + backdrop filters could render as tiled
-   rectangular artifacts in Chromium/Electron/video capture. These rules keep the premium
-   look, but force deterministic flat surfaces with very subtle static lighting. */
+/* NeuroFinance onboarding — stable premium surfaces.
+   Keeps the welcome screen visually aligned with the post-onboarding wizard while avoiding
+   Chromium/Electron tiling artifacts caused by heavy radial gradients + noise + blur stacks. */
 
-.relative.h-screen.w-screen.overflow-hidden > .premium-noise {
-  opacity: 0 !important;
-  display: none !important;
+.relative.h-screen.w-screen.overflow-hidden {
+  background: #020204 !important;
 }
 
-.dark .relative.h-screen.w-screen.overflow-hidden > .premium-noise {
-  opacity: 0 !important;
-  display: none !important;
+.light .relative.h-screen.w-screen.overflow-hidden {
+  background: #f4f4f5 !important;
 }
 
+.relative.h-screen.w-screen.overflow-hidden > .premium-noise,
+.dark .relative.h-screen.w-screen.overflow-hidden > .premium-noise,
 .relative.h-screen.w-screen.overflow-hidden > .pointer-events-none.absolute.inset-0.z-0,
 .relative.h-screen.w-screen.overflow-hidden > .pointer-events-none.absolute.left-1\/2.top-0.z-0 {
+  opacity: 0 !important;
   display: none !important;
 }
 
 .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] {
-  padding-top: 58px !important;
+  padding-top: 26px !important;
   padding-bottom: 18px !important;
-  gap: 1rem !important;
+  gap: 1.15rem !important;
 }
 
 @media (min-width: 768px) {
   .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] {
-    padding-top: 62px !important;
-    padding-bottom: 22px !important;
+    padding-top: 30px !important;
+    padding-bottom: 24px !important;
   }
 }
 
 @media (min-width: 1280px) {
   .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] {
-    padding-top: 66px !important;
+    padding-top: 34px !important;
   }
 }
 
 .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside,
 .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > main {
   min-height: 0 !important;
-  max-height: calc(100vh - 88px) !important;
-  box-shadow: 0 28px 84px -66px rgba(0, 0, 0, 0.72) !important;
+  max-height: calc(100vh - 58px) !important;
+  border-color: rgba(255, 255, 255, 0.075) !important;
+  box-shadow: 0 30px 92px -70px rgba(0, 0, 0, 0.86) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   transform: translateZ(0);
@@ -49,19 +50,26 @@
 }
 
 .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside {
-  background: #111113 !important;
+  background: #f7f7f8 !important;
+  color: #050507 !important;
+  border-color: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 34px 100px -72px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+}
+
+.dark .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside {
+  background: #fafafa !important;
+  color: #050507 !important;
 }
 
 .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > main {
   background: #070708 !important;
-}
-
-.light .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside {
-  background: #f5f5f6 !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 34px 112px -74px rgba(0, 0, 0, 0.96), inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
 }
 
 .light .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > main {
-  background: #111113 !important;
+  background: #070708 !important;
 }
 
 .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside > .pointer-events-none.absolute.inset-0,
@@ -76,12 +84,48 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.6;
-  background: linear-gradient(135deg, rgba(255,255,255,0.045), transparent 38%, rgba(255,255,255,0.018));
+  border-radius: inherit;
 }
 
-.light .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside::before {
-  background: linear-gradient(135deg, rgba(0,0,0,0.035), transparent 38%, rgba(0,0,0,0.014));
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside::before {
+  opacity: 1;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.48) 34%, rgba(255,255,255,0.18) 100%),
+    linear-gradient(135deg, rgba(0,0,0,0.035), transparent 42%, rgba(0,0,0,0.018));
+}
+
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > main::before {
+  opacity: 1;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018) 34%, transparent 100%),
+    linear-gradient(135deg, rgba(255,255,255,0.035), transparent 42%, rgba(255,255,255,0.014));
+}
+
+/* Force the left panel to behave like the light side of the 3-step wizard. */
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside h2,
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside p,
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside span,
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside div {
+  color: inherit;
+}
+
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside .text-zinc-400,
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside .text-zinc-500,
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside .dark\:text-zinc-300,
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside .dark\:text-zinc-400 {
+  color: rgba(24, 24, 27, 0.58) !important;
+}
+
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside > .relative.z-10.flex.items-center.gap-3 > div:first-child {
+  background: #050507 !important;
+  color: #ffffff !important;
+  box-shadow: 0 20px 56px -34px rgba(0, 0, 0, 0.64) !important;
+}
+
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside .rounded-full,
+.relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside .rounded-\[18px\] {
+  border-color: rgba(24, 24, 27, 0.10) !important;
+  background: rgba(255, 255, 255, 0.64) !important;
 }
 
 .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] h1 {
@@ -96,8 +140,13 @@
 
 @media (max-height: 760px) {
   .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] {
-    padding-top: 52px !important;
-    padding-bottom: 12px !important;
+    padding-top: 18px !important;
+    padding-bottom: 10px !important;
+  }
+
+  .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > aside,
+  .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] > main {
+    max-height: calc(100vh - 34px) !important;
   }
 
   .relative.h-screen.w-screen.overflow-hidden > .relative.z-10.mx-auto.grid.h-full.w-full.max-w-\[1760px\] h1 {
