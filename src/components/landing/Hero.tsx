@@ -9,36 +9,9 @@ import { FadeIn } from "@/components/animations/FadeIn";
 import { TextReveal } from "@/components/animations/TextReveal";
 import { Magnetic } from "@/components/animations/Magnetic";
 import { HeroVisual } from "@/components/landing/HeroVisual";
-import { useEffect } from "react";
-import Lenis from "@studio-freight/lenis";
 
 export const Hero = () => {
     const { scrollY } = useScroll();
-
-    // Tópico 2: Smooth Scroll (Lenis)
-    useEffect(() => {
-        const lenis = new Lenis({
-            duration: 1.2,
-            easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-            orientation: "vertical",
-            gestureOrientation: "vertical",
-            smoothWheel: true,
-            wheelMultiplier: 1,
-            touchMultiplier: 2,
-            infinite: false,
-        });
-
-        function raf(time: number) {
-            lenis.raf(time);
-            requestAnimationFrame(raf);
-        }
-
-        requestAnimationFrame(raf);
-
-        return () => {
-            lenis.destroy();
-        };
-    }, []);
 
     const heroTextY = useTransform(scrollY, [0, 500], [0, 80]);
     const heroOpacity = useTransform(scrollY, [0, 400], [1, 0]);
