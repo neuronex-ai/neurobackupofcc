@@ -1,0 +1,612 @@
+"use client";
+
+import { motion } from "framer-motion";
+import type { ElementType, ReactNode } from "react";
+import { useMemo } from "react";
+import {
+  AlertCircle,
+  ArrowDownLeft,
+  ArrowRight,
+  ArrowUpRight,
+  BarChart3,
+  CalendarClock,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Landmark,
+  LineChart,
+  PieChart,
+  PlusCircle,
+  ReceiptText,
+  Sparkles,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Users,
+  WalletCards,
+} from "lucide-react";
+import { addDays, endOfMonth, format, isAfter, isBefore, isWithinInterval, startOfMonth } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { Transaction } from "@/types";
+import type { FinanceView } from "../FinancialDashboard";
+
+type ManagementProps = {
+  activeView: FinanceView;
+  setActiveView: (view: FinanceView) => void;
+  allTransactions: Transaction[];
+  realizedTransactions: Transaction[];
+  futureTransactions: Transaction[];
+  subscriptionTransactions: Transaction[];
+  isLoadingTransactions: boolean;
+  setSelectedTransaction: (transaction: Transaction | null) => void;
+};
+
+type Metrics = ReturnType<typeof buildFinancialMetrics>;
+
+const currency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 }).format(Number.isFinite(value) ? value : 0);
+
+const shortCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 }).format(Number.isFinite(value) ? value : 0);
+
+const amountOf = (transaction: Transaction) => Math.abs(Number(transaction.amount ?? 0));
+const dateOf = (transaction: Transaction) => new Date(transaction.date || transaction.created_at || Date.now());
+const isIncome = (transaction: Transaction) => transaction.type === "income";
+const isExpense = (transaction: Transaction) => transaction.type === "expense";
+const isPending = (transaction: Transaction) => transaction.status === "pending" || transaction.status === "scheduled";
+const isCompleted = (transaction: Transaction) => transaction.status === "completed" || transaction.status === "paid" || !transaction.status;
+
+const buildFinancialMetrics = (
+  allTransactions: Transaction[],
+  realizedTransactions: Transaction[],
+  futureTransactions: Transaction[],
+  subscriptionTransactions: Transaction[],
+) => {
+  const now = new Date();
+  const monthRange = { start: startOfMonth(now), end: endOfMonth(now) };
+  const upcomingRange = { start: now, end: addDays(now, 30) };
+
+  const currentMonth = allTransactions.filter((transaction) => isWithinInterval(dateOf(transaction), monthRange));
+  const realizedMonth = realizedTransactions.filter((transaction) => isWithinInterval(dateOf(transaction), monthRange));
+  const futureMonth = futureTransactions.filter((transaction) => isWithinInterval(dateOf(transaction), monthRange) || isAfter(dateOf(transaction), now));
+
+  const incomeMonth = realizedMonth.filter(isIncome).reduce((sum, transaction) => sum + amountOf(transaction), 0);
+  const expenseMonth = realizedMonth.filter(isExpense).reduce((sum, transaction) => sum + amountOf(transaction), 0);
+  const resultMonth = incomeMonth - expenseMonth;
+
+  const receivable = [...futureMonth, ...currentMonth]
+    .filter((transaction) => isIncome(transaction) && isPending(transaction))
+    .reduce((sum, transaction) => sum + amountOf(transaction), 0);
+
+  const pendingIncomeTransactions = allTransactions
+    .filter((transaction) => isIncome(transaction) && isPending(transaction))
+    .sort((a, b) => dateOf(a).getTime() - dateOf(b).getTime());
+
+  const overdueIncomeTransactions = pendingIncomeTransactions.filter((transaction) => isBefore(dateOf(transaction), now));
+  const overdueAmount = overdueIncomeTransactions.reduce((sum, transaction) => sum + amountOf(transaction), 0);
+
+  const upcomingIncome = futureTransactions
+    .filter((transaction) => isIncome(transaction) && isWithinInterval(dateOf(transaction), upcomingRange))
+    .reduce((sum, transaction) => sum + amountOf(transaction), 0);
+
+  const upcomingExpenses = futureTransactions
+    .filter((transaction) => isExpense(transaction) && isWithinInterval(dateOf(transaction), upcomingRange))
+    .reduce((sum, transaction) => sum + amountOf(transaction), 0);
+
+  const expenseCategories = realizedMonth.filter(isExpense).reduce<Record<string, number>>((acc, transaction) => {
+    const key = transaction.category || "Sem categoria";
+    acc[key] = (acc[key] || 0) + amountOf(transaction);
+    return acc;
+  }, {});
+
+  const revenueCategories = realizedMonth.filter(isIncome).reduce<Record<string, number>>((acc, transaction) => {
+    const key = transaction.category || "Atendimentos";
+    acc[key] = (acc[key] || 0) + amountOf(transaction);
+    return acc;
+  }, {});
+
+  const fixedExpenses = subscriptionTransactions.filter(isExpense).reduce((sum, transaction) => sum + amountOf(transaction), 0);
+  const averageTicket = realizedMonth.filter(isIncome).length ? incomeMonth / realizedMonth.filter(isIncome).length : 0;
+  const breakEvenSessions = averageTicket > 0 ? Math.ceil(Math.max(expenseMonth || fixedExpenses, 0) / averageTicket) : 0;
+
+  return {
+    incomeMonth,
+    expenseMonth,
+    resultMonth,
+    receivable,
+    overdueAmount,
+    overdueCount: overdueIncomeTransactions.length,
+    pendingIncomeTransactions,
+    overdueIncomeTransactions,
+    upcomingIncome,
+    upcomingExpenses,
+    projectedBalance: resultMonth + upcomingIncome - upcomingExpenses,
+    fixedExpenses,
+    averageTicket,
+    breakEvenSessions,
+    currentMonth,
+    realizedMonth,
+    futureMonth,
+    expenseCategories,
+    revenueCategories,
+    incomeTransactions: allTransactions.filter(isIncome).sort((a, b) => dateOf(b).getTime() - dateOf(a).getTime()),
+    expenseTransactions: allTransactions.filter(isExpense).sort((a, b) => dateOf(b).getTime() - dateOf(a).getTime()),
+  };
+};
+
+const ManagementBadge = ({ children, icon: Icon = Sparkles }: { children: ReactNode; icon?: ElementType<{ className?: string }> }) => (
+  <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200/70 bg-white/75 px-3.5 py-1.5 text-[9px] font-black uppercase tracking-[0.24em] text-zinc-500 backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white/45">
+    <Icon className="h-3.5 w-3.5" />
+    {children}
+  </div>
+);
+
+const ManagementPanel = ({ children, className, delay = 0 }: { children: ReactNode; className?: string; delay?: number }) => (
+  <motion.section
+    initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
+    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+    transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
+    className={cn(
+      "relative overflow-hidden rounded-[34px] border border-zinc-200/70 bg-white/78 shadow-[0_28px_90px_-72px_rgba(24,24,27,0.72)] backdrop-blur-xl dark:border-white/[0.065] dark:bg-[#08090b]/88 dark:shadow-[0_30px_100px_-70px_rgba(0,0,0,0.95)]",
+      className,
+    )}
+  >
+    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.62),transparent_34%,rgba(255,255,255,0.16))] dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.055),transparent_34%,rgba(255,255,255,0.015))]" />
+    <div className="relative z-10">{children}</div>
+  </motion.section>
+);
+
+const SectionTitle = ({ eyebrow, title, description }: { eyebrow: string; title: string; description?: string }) => (
+  <div>
+    <p className="text-[9px] font-black uppercase tracking-[0.28em] text-zinc-400 dark:text-white/32">{eyebrow}</p>
+    <h2 className="mt-1.5 text-2xl font-black tracking-[-0.045em] text-zinc-950 dark:text-white">{title}</h2>
+    {description ? <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-zinc-500 dark:text-white/44">{description}</p> : null}
+  </div>
+);
+
+const MetricCard = ({ icon: Icon, label, value, hint, tone = "default", onClick }: { icon: ElementType<{ className?: string }>; label: string; value: string; hint: string; tone?: "default" | "dark" | "warning" | "success"; onClick?: () => void }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      "group relative min-h-[166px] overflow-hidden rounded-[28px] border p-5 text-left transition-all duration-300 hover:-translate-y-1 active:scale-[0.99]",
+      tone === "dark"
+        ? "border-zinc-950 bg-zinc-950 text-white shadow-[0_28px_90px_-64px_rgba(0,0,0,0.85)] dark:border-white dark:bg-white dark:text-zinc-950"
+        : "border-zinc-200/70 bg-white/78 text-zinc-950 shadow-[0_22px_74px_-62px_rgba(24,24,27,0.5)] dark:border-white/[0.065] dark:bg-white/[0.035] dark:text-white",
+      tone === "warning" && "border-amber-500/25 bg-amber-50/75 dark:border-amber-300/15 dark:bg-amber-300/[0.055]",
+      tone === "success" && "border-emerald-500/20 bg-emerald-50/75 dark:border-emerald-300/15 dark:bg-emerald-300/[0.05]",
+    )}
+  >
+    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_42%)] opacity-70 dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.055),transparent_42%)]" />
+    <div className="relative z-10 flex items-start justify-between gap-4">
+      <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", tone === "dark" ? "bg-white/12 dark:bg-zinc-950/10" : "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950")}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <ArrowRight className="h-4 w-4 opacity-24 transition-transform group-hover:translate-x-1" />
+    </div>
+    <div className="relative z-10 mt-7">
+      <div className="text-3xl font-black tracking-[-0.065em] xl:text-4xl">{value}</div>
+      <div className={cn("mt-2 text-[9px] font-black uppercase tracking-[0.2em]", tone === "dark" ? "opacity-55" : "text-zinc-400 dark:text-white/34")}>{label}</div>
+      <p className={cn("mt-3 text-xs font-semibold leading-relaxed", tone === "dark" ? "opacity-62" : "text-zinc-500 dark:text-white/42")}>{hint}</p>
+    </div>
+  </button>
+);
+
+const EmptyHint = ({ title, description, icon: Icon = Sparkles }: { title: string; description: string; icon?: ElementType<{ className?: string }> }) => (
+  <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[28px] border border-dashed border-zinc-200/80 bg-zinc-50/70 p-8 text-center dark:border-white/10 dark:bg-white/[0.035]">
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"><Icon className="h-6 w-6" /></div>
+    <h3 className="mt-5 text-xl font-black tracking-[-0.04em] text-zinc-950 dark:text-white">{title}</h3>
+    <p className="mt-2 max-w-sm text-sm font-medium leading-relaxed text-zinc-500 dark:text-white/44">{description}</p>
+  </div>
+);
+
+const Hero = ({ metrics, setActiveView }: { metrics: Metrics; setActiveView: (view: FinanceView) => void }) => (
+  <ManagementPanel className="rounded-[42px]" delay={0.04}>
+    <div className="grid gap-10 p-8 md:p-10 xl:grid-cols-[minmax(0,1fr)_430px] xl:p-12">
+      <div>
+        <ManagementBadge icon={Landmark}>Gestão Financeira</ManagementBadge>
+        <p className="mt-10 text-[10px] font-black uppercase tracking-[0.35em] text-zinc-400 dark:text-white/35">{format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}</p>
+        <h1 className="mt-5 max-w-5xl text-[clamp(3rem,5.6vw,6rem)] font-black leading-[0.88] tracking-[-0.075em] text-zinc-950 dark:text-white">
+          Seu consultório em números.
+        </h1>
+        <p className="mt-7 max-w-3xl text-base font-medium leading-relaxed text-zinc-500 dark:text-white/48 md:text-lg">
+          Receitas, despesas, recebíveis, inadimplência e planejamento em uma camada gerencial separada do NeuroFinance.
+        </p>
+        <div className="mt-10 flex flex-wrap gap-3">
+          <Button onClick={() => setActiveView("gestao-receitas")} className="h-14 rounded-2xl bg-zinc-950 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-black dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100">
+            Lançar receita <PlusCircle className="ml-2 h-4 w-4" />
+          </Button>
+          <Button onClick={() => setActiveView("gestao-despesas")} variant="outline" className="h-14 rounded-2xl border-zinc-200/80 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 dark:hover:bg-white/[0.07]">
+            Lançar despesa
+          </Button>
+          <Button onClick={() => setActiveView("gestao-cobrancas")} variant="outline" className="h-14 rounded-2xl border-zinc-200/80 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 dark:hover:bg-white/[0.07]">
+            Cobranças
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-[34px] bg-zinc-950 p-6 text-white shadow-[0_34px_110px_-74px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950">
+        <div className="flex items-center justify-between">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 dark:bg-zinc-950/10">
+            <TrendingUp className="h-5 w-5" />
+          </div>
+          <span className="rounded-full border border-white/10 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] opacity-55 dark:border-zinc-950/10">Resultado</span>
+        </div>
+        <p className="mt-10 text-[9px] font-black uppercase tracking-[0.25em] opacity-45">Resultado do mês</p>
+        <h2 className="mt-3 text-5xl font-black tracking-[-0.075em]">{currency(metrics.resultMonth)}</h2>
+        <p className="mt-4 text-sm font-medium leading-relaxed opacity-62">
+          {metrics.resultMonth >= 0 ? "Seu consultório está positivo neste mês." : "As saídas superaram as entradas confirmadas neste mês."} A previsão considera entradas e saídas futuras já registradas.
+        </p>
+        <Button onClick={() => setActiveView("gestao-fluxo-caixa")} className="mt-8 h-12 w-full rounded-2xl bg-white text-[10px] font-black uppercase tracking-[0.2em] text-zinc-950 hover:bg-white/90 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900">
+          Ver fluxo de caixa <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  </ManagementPanel>
+);
+
+const Radar = ({ metrics, setActiveView }: { metrics: Metrics; setActiveView: (view: FinanceView) => void }) => (
+  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+    <MetricCard icon={TrendingUp} label="Resultado" value={shortCurrency(metrics.resultMonth)} hint="Receitas menos despesas confirmadas" tone="dark" onClick={() => setActiveView("gestao-fluxo-caixa")} />
+    <MetricCard icon={ArrowUpRight} label="Receitas" value={shortCurrency(metrics.incomeMonth)} hint="Entradas confirmadas no mês" tone="success" onClick={() => setActiveView("gestao-receitas")} />
+    <MetricCard icon={ArrowDownLeft} label="Despesas" value={shortCurrency(metrics.expenseMonth)} hint="Saídas confirmadas no mês" onClick={() => setActiveView("gestao-despesas")} />
+    <MetricCard icon={WalletCards} label="A receber" value={shortCurrency(metrics.receivable)} hint="Entradas pendentes e previstas" onClick={() => setActiveView("gestao-cobrancas")} />
+    <MetricCard icon={Users} label="Inadimplência" value={metrics.overdueCount.toString()} hint={`${currency(metrics.overdueAmount)} em atraso`} tone={metrics.overdueCount > 0 ? "warning" : "success"} onClick={() => setActiveView("gestao-inadimplencia")} />
+    <MetricCard icon={LineChart} label="Previsão" value={shortCurrency(metrics.projectedBalance)} hint="Resultado projetado com próximos 30 dias" onClick={() => setActiveView("gestao-planejamento")} />
+  </div>
+);
+
+const MiniBar = ({ label, value, max, tone = "default" }: { label: string; value: number; max: number; tone?: "default" | "positive" | "negative" }) => (
+  <div>
+    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400 dark:text-white/32">
+      <span>{label}</span>
+      <span>{shortCurrency(value)}</span>
+    </div>
+    <div className="h-3 overflow-hidden rounded-full bg-zinc-100 dark:bg-white/[0.055]">
+      <div
+        className={cn("h-full rounded-full bg-zinc-950 dark:bg-white", tone === "positive" && "bg-emerald-500 dark:bg-emerald-300", tone === "negative" && "bg-amber-500 dark:bg-amber-300")}
+        style={{ width: `${Math.min(100, Math.max(4, (Math.abs(value) / Math.max(max, 1)) * 100))}%` }}
+      />
+    </div>
+  </div>
+);
+
+const CashFlowOverview = ({ metrics, setActiveView }: { metrics: Metrics; setActiveView: (view: FinanceView) => void }) => {
+  const max = Math.max(metrics.incomeMonth, metrics.expenseMonth, metrics.upcomingIncome, metrics.upcomingExpenses, 1);
+  const events = [
+    { label: "Entradas previstas", value: metrics.upcomingIncome, icon: ArrowUpRight, tone: "positive" as const },
+    { label: "Saídas previstas", value: metrics.upcomingExpenses, icon: ArrowDownLeft, tone: "negative" as const },
+    { label: "Saldo projetado", value: metrics.projectedBalance, icon: LineChart, tone: metrics.projectedBalance >= 0 ? "positive" as const : "negative" as const },
+  ];
+
+  return (
+    <ManagementPanel className="h-full" delay={0.12}>
+      <div className="p-7 md:p-8">
+        <div className="flex items-start justify-between gap-4">
+          <SectionTitle eyebrow="Fluxo de caixa" title="Realizado, previsto e projetado" description="Uma leitura gerencial do que entrou, saiu e ainda deve acontecer." />
+          <Button onClick={() => setActiveView("gestao-fluxo-caixa")} variant="outline" className="h-11 shrink-0 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.04]">Detalhes</Button>
+        </div>
+        <div className="mt-8 grid gap-5 lg:grid-cols-[1fr_0.8fr]">
+          <div className="space-y-5 rounded-[28px] border border-zinc-200/70 bg-zinc-50/70 p-6 dark:border-white/10 dark:bg-white/[0.035]">
+            <MiniBar label="Receitas confirmadas" value={metrics.incomeMonth} max={max} tone="positive" />
+            <MiniBar label="Despesas confirmadas" value={metrics.expenseMonth} max={max} tone="negative" />
+            <MiniBar label="Entradas previstas" value={metrics.upcomingIncome} max={max} tone="positive" />
+            <MiniBar label="Saídas previstas" value={metrics.upcomingExpenses} max={max} tone="negative" />
+          </div>
+          <div className="space-y-3">
+            {events.map((event) => (
+              <div key={event.label} className="flex items-center gap-4 rounded-[24px] border border-zinc-200/70 bg-zinc-50/70 p-4 dark:border-white/10 dark:bg-white/[0.035]">
+                <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl text-white", event.tone === "positive" ? "bg-emerald-500" : "bg-amber-500")}><event.icon className="h-5 w-5" /></div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-white/32">{event.label}</p>
+                  <p className="mt-1 text-lg font-black tracking-[-0.04em] text-zinc-950 dark:text-white">{currency(event.value)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </ManagementPanel>
+  );
+};
+
+const ActionQueue = ({ metrics, setActiveView }: { metrics: Metrics; setActiveView: (view: FinanceView) => void }) => {
+  const actions = [
+    metrics.overdueCount > 0
+      ? { priority: "Alta", title: "Cobranças vencidas", description: `${metrics.overdueCount} cobrança${metrics.overdueCount > 1 ? "s" : ""} em atraso somando ${currency(metrics.overdueAmount)}.`, icon: AlertCircle, tone: "warning" as const, action: () => setActiveView("gestao-inadimplencia") }
+      : { priority: "OK", title: "Sem atrasos críticos", description: "Não há cobranças pendentes vencidas no radar atual.", icon: CheckCircle2, tone: "success" as const, action: () => setActiveView("gestao-cobrancas") },
+    metrics.upcomingExpenses > 0
+      ? { priority: "Semana", title: "Despesas previstas", description: `${currency(metrics.upcomingExpenses)} em saídas futuras registradas para os próximos dias.`, icon: CalendarClock, tone: "default" as const, action: () => setActiveView("gestao-despesas") }
+      : { priority: "Cadastro", title: "Mapear despesas fixas", description: "Cadastre despesas recorrentes para calcular ponto de equilíbrio e previsão mensal.", icon: ReceiptText, tone: "default" as const, action: () => setActiveView("gestao-despesas") },
+    { priority: "Meta", title: "Planejar faturamento", description: metrics.averageTicket > 0 ? `Ticket médio atual: ${currency(metrics.averageTicket)}. Ponto de equilíbrio estimado: ${metrics.breakEvenSessions} sessões.` : "Defina metas de receita e ticket médio para acompanhar a saúde da clínica.", icon: Target, tone: "dark" as const, action: () => setActiveView("gestao-planejamento") },
+    { priority: "Contador", title: "Preparar relatório", description: "Gere uma leitura mensal de receitas, despesas, pendências e categorias.", icon: FileText, tone: "default" as const, action: () => setActiveView("gestao-relatorios") },
+  ];
+
+  return (
+    <ManagementPanel delay={0.18}>
+      <div className="p-7 md:p-8">
+        <SectionTitle eyebrow="Fila financeira" title="O que precisa de ação" description="Pendências e recomendações para manter a clínica previsível." />
+        <div className="mt-8 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+          {actions.map((item) => (
+            <button
+              key={item.title}
+              type="button"
+              onClick={item.action}
+              className={cn(
+                "group min-h-[210px] rounded-[28px] border p-5 text-left transition-all hover:-translate-y-1 active:scale-[0.99]",
+                item.tone === "dark" ? "border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950" : "border-zinc-200/70 bg-zinc-50/72 text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:text-white",
+                item.tone === "warning" && "border-amber-500/25 bg-amber-50/75 dark:border-amber-300/15 dark:bg-amber-300/[0.055]",
+                item.tone === "success" && "border-emerald-500/20 bg-emerald-50/75 dark:border-emerald-300/15 dark:bg-emerald-300/[0.05]",
+              )}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", item.tone === "dark" ? "bg-white/12 dark:bg-zinc-950/10" : "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950")}><item.icon className="h-5 w-5" /></div>
+                <span className={cn("rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.16em]", item.tone === "dark" ? "border-white/10 opacity-55 dark:border-zinc-950/10" : "border-zinc-200 bg-white/70 text-zinc-400 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/32")}>{item.priority}</span>
+              </div>
+              <h3 className="mt-7 text-lg font-black leading-tight tracking-[-0.035em]">{item.title}</h3>
+              <p className={cn("mt-3 text-sm font-medium leading-relaxed", item.tone === "dark" ? "opacity-62" : "text-zinc-500 dark:text-white/42")}>{item.description}</p>
+              <div className={cn("mt-6 flex items-center text-[9px] font-black uppercase tracking-[0.18em]", item.tone === "dark" ? "opacity-70" : "text-zinc-500 dark:text-white/48")}>Resolver <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" /></div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </ManagementPanel>
+  );
+};
+
+const CategoryList = ({ title, categories, emptyLabel }: { title: string; categories: Record<string, number>; emptyLabel: string }) => {
+  const entries = Object.entries(categories).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const max = Math.max(...entries.map(([, value]) => value), 1);
+
+  return (
+    <ManagementPanel className="h-full" delay={0.2}>
+      <div className="p-7 md:p-8">
+        <SectionTitle eyebrow="Categorias" title={title} description="Onde o dinheiro está concentrado no mês." />
+        <div className="mt-7 space-y-4">
+          {entries.length ? entries.map(([label, value]) => (
+            <div key={label}>
+              <div className="mb-2 flex items-center justify-between gap-4">
+                <span className="truncate text-sm font-black text-zinc-800 dark:text-white/82">{label}</span>
+                <span className="text-sm font-black text-zinc-500 dark:text-white/44">{currency(value)}</span>
+              </div>
+              <div className="h-2.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-white/[0.055]"><div className="h-full rounded-full bg-zinc-950 dark:bg-white" style={{ width: `${Math.max(6, (value / max) * 100)}%` }} /></div>
+            </div>
+          )) : <EmptyHint title={emptyLabel} description="Conforme você lança receitas e despesas categorizadas, esta leitura fica mais inteligente." icon={PieChart} />}
+        </div>
+      </div>
+    </ManagementPanel>
+  );
+};
+
+const TransactionRows = ({ transactions, onSelect, emptyTitle, emptyDescription }: { transactions: Transaction[]; onSelect?: (transaction: Transaction) => void; emptyTitle: string; emptyDescription: string }) => (
+  <div className="space-y-3">
+    {transactions.length ? transactions.slice(0, 10).map((transaction) => (
+      <button key={transaction.id} type="button" onClick={() => onSelect?.(transaction)} className="group grid w-full grid-cols-[1fr_160px_140px_auto] items-center gap-4 rounded-[22px] border border-zinc-200/70 bg-zinc-50/72 p-4 text-left transition-all hover:bg-white dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.055]">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black text-zinc-950 dark:text-white">{transaction.description || transaction.category || "Movimentação financeira"}</p>
+          <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400 dark:text-white/32">{transaction.category || "Sem categoria"}</p>
+        </div>
+        <div className="text-sm font-black text-zinc-950 dark:text-white">{currency(amountOf(transaction))}</div>
+        <div className="text-xs font-bold text-zinc-500 dark:text-white/42">{format(dateOf(transaction), "dd MMM yyyy", { locale: ptBR })}</div>
+        <ArrowRight className="h-4 w-4 text-zinc-300 transition-transform group-hover:translate-x-1 dark:text-white/24" />
+      </button>
+    )) : <EmptyHint title={emptyTitle} description={emptyDescription} icon={ReceiptText} />}
+  </div>
+);
+
+const Overview = (props: ManagementProps & { metrics: Metrics }) => {
+  const { metrics, setActiveView, setSelectedTransaction } = props;
+
+  return (
+    <div className="space-y-6">
+      <Hero metrics={metrics} setActiveView={setActiveView} />
+      <Radar metrics={metrics} setActiveView={setActiveView} />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
+        <CashFlowOverview metrics={metrics} setActiveView={setActiveView} />
+        <CategoryList title="Despesas por categoria" categories={metrics.expenseCategories} emptyLabel="Sem despesas categorizadas" />
+      </div>
+      <ActionQueue metrics={metrics} setActiveView={setActiveView} />
+      <div className="grid gap-6 xl:grid-cols-2">
+        <ManagementPanel>
+          <div className="p-7 md:p-8">
+            <SectionTitle eyebrow="Receitas" title="Entradas recentes" description="Últimas receitas lançadas ou conciliadas." />
+            <div className="mt-7"><TransactionRows transactions={metrics.incomeTransactions} onSelect={setSelectedTransaction} emptyTitle="Sem receitas ainda" emptyDescription="Comece lançando uma receita manual ou gerando uma cobrança." /></div>
+          </div>
+        </ManagementPanel>
+        <ManagementPanel>
+          <div className="p-7 md:p-8">
+            <SectionTitle eyebrow="Pacientes & inadimplência" title="Recebíveis em atenção" description="Cobranças pendentes, vencidas ou sem baixa." />
+            <div className="mt-7"><ReceivablesList metrics={metrics} onSelect={setSelectedTransaction} /></div>
+          </div>
+        </ManagementPanel>
+      </div>
+      <PlanningPanel metrics={metrics} compact setActiveView={setActiveView} />
+    </div>
+  );
+};
+
+const ReceivablesList = ({ metrics, onSelect }: { metrics: Metrics; onSelect?: (transaction: Transaction) => void }) => {
+  const transactions = metrics.pendingIncomeTransactions;
+  if (!transactions.length) return <EmptyHint title="Sem cobranças pendentes" description="As cobranças abertas ou atrasadas aparecerão aqui para acompanhamento gerencial." icon={CheckCircle2} />;
+
+  return (
+    <div className="space-y-3">
+      {transactions.slice(0, 8).map((transaction) => {
+        const overdue = isBefore(dateOf(transaction), new Date());
+        return (
+          <button key={transaction.id} type="button" onClick={() => onSelect?.(transaction)} className={cn("grid w-full grid-cols-[1fr_130px_120px] items-center gap-3 rounded-[22px] border p-4 text-left transition-all hover:bg-white dark:hover:bg-white/[0.055]", overdue ? "border-amber-500/25 bg-amber-50/75 dark:border-amber-300/15 dark:bg-amber-300/[0.055]" : "border-zinc-200/70 bg-zinc-50/72 dark:border-white/10 dark:bg-white/[0.035]") }>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black text-zinc-950 dark:text-white">{transaction.description || "Cobrança pendente"}</p>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400 dark:text-white/32">{overdue ? "Vencida" : "A receber"}</p>
+            </div>
+            <p className="text-sm font-black text-zinc-950 dark:text-white">{currency(amountOf(transaction))}</p>
+            <p className="text-xs font-bold text-zinc-500 dark:text-white/42">{format(dateOf(transaction), "dd MMM", { locale: ptBR })}</p>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+const RevenueExpensePanels = ({ metrics, setSelectedTransaction }: { metrics: Metrics; setSelectedTransaction: (transaction: Transaction | null) => void }) => (
+  <div className="grid gap-6 xl:grid-cols-2">
+    <ManagementPanel>
+      <div className="p-7 md:p-8">
+        <SectionTitle eyebrow="Receitas" title="Receitas gerenciais" description="Entradas confirmadas, fontes de receita e lançamentos recentes." />
+        <div className="mt-8 grid grid-cols-3 gap-3">
+          <MiniStat label="Mês" value={currency(metrics.incomeMonth)} dark />
+          <MiniStat label="Ticket" value={currency(metrics.averageTicket)} />
+          <MiniStat label="A receber" value={currency(metrics.receivable)} />
+        </div>
+        <div className="mt-7"><TransactionRows transactions={metrics.incomeTransactions} onSelect={setSelectedTransaction} emptyTitle="Sem receitas" emptyDescription="As receitas confirmadas e manuais aparecerão nesta lista." /></div>
+      </div>
+    </ManagementPanel>
+    <CategoryList title="Receitas por categoria" categories={metrics.revenueCategories} emptyLabel="Sem receitas categorizadas" />
+  </div>
+);
+
+const ExpensesPanels = ({ metrics, setSelectedTransaction }: { metrics: Metrics; setSelectedTransaction: (transaction: Transaction | null) => void }) => (
+  <div className="grid gap-6 xl:grid-cols-2">
+    <ManagementPanel>
+      <div className="p-7 md:p-8">
+        <SectionTitle eyebrow="Despesas" title="Despesas do consultório" description="Custos fixos, variáveis e recorrências que afetam seu resultado." />
+        <div className="mt-8 grid grid-cols-3 gap-3">
+          <MiniStat label="Mês" value={currency(metrics.expenseMonth)} dark />
+          <MiniStat label="Fixas" value={currency(metrics.fixedExpenses)} />
+          <MiniStat label="Previstas" value={currency(metrics.upcomingExpenses)} />
+        </div>
+        <div className="mt-7"><TransactionRows transactions={metrics.expenseTransactions} onSelect={setSelectedTransaction} emptyTitle="Sem despesas" emptyDescription="Cadastre despesas fixas e variáveis para calcular seu ponto de equilíbrio." /></div>
+      </div>
+    </ManagementPanel>
+    <CategoryList title="Despesas por categoria" categories={metrics.expenseCategories} emptyLabel="Sem despesas categorizadas" />
+  </div>
+);
+
+const MiniStat = ({ label, value, dark = false }: { label: string; value: string; dark?: boolean }) => (
+  <div className={cn("rounded-[24px] border p-4", dark ? "border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950" : "border-zinc-200/70 bg-zinc-50/70 dark:border-white/10 dark:bg-white/[0.035]") }>
+    <p className={cn("text-[8px] font-black uppercase tracking-[0.18em]", dark ? "opacity-45" : "text-zinc-400 dark:text-white/32")}>{label}</p>
+    <p className="mt-3 text-lg font-black tracking-[-0.045em]">{value}</p>
+  </div>
+);
+
+const PlanningPanel = ({ metrics, compact = false, setActiveView }: { metrics: Metrics; compact?: boolean; setActiveView: (view: FinanceView) => void }) => {
+  const monthlyGoal = Math.max(metrics.incomeMonth * 1.2, 12000);
+  const goalProgress = monthlyGoal > 0 ? Math.min(100, (metrics.incomeMonth / monthlyGoal) * 100) : 0;
+  const remaining = Math.max(0, monthlyGoal - metrics.incomeMonth);
+  const sessionsNeeded = metrics.averageTicket > 0 ? Math.ceil(remaining / metrics.averageTicket) : 0;
+
+  return (
+    <ManagementPanel>
+      <div className="p-7 md:p-8">
+        <div className="flex items-start justify-between gap-4">
+          <SectionTitle eyebrow="Planejamento" title="Metas e ponto de equilíbrio" description="Transforme agenda, ticket médio e despesas em previsão de resultado." />
+          {compact ? <Button onClick={() => setActiveView("gestao-planejamento")} variant="outline" className="h-11 shrink-0 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.04]">Abrir</Button> : null}
+        </div>
+        <div className="mt-8 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-[30px] bg-zinc-950 p-6 text-white dark:bg-white dark:text-zinc-950">
+            <p className="text-[9px] font-black uppercase tracking-[0.24em] opacity-45">Meta sugerida</p>
+            <h3 className="mt-3 text-4xl font-black tracking-[-0.065em]">{currency(monthlyGoal)}</h3>
+            <div className="mt-6 h-3 overflow-hidden rounded-full bg-white/10 dark:bg-zinc-950/10"><div className="h-full rounded-full bg-white dark:bg-zinc-950" style={{ width: `${goalProgress}%` }} /></div>
+            <p className="mt-4 text-sm font-medium leading-relaxed opacity-62">Você já atingiu {goalProgress.toFixed(0)}% da meta sugerida para o mês.</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <MiniStat label="Falta" value={currency(remaining)} />
+            <MiniStat label="Sessões" value={sessionsNeeded ? `${sessionsNeeded}` : "—"} />
+            <MiniStat label="Equilíbrio" value={metrics.breakEvenSessions ? `${metrics.breakEvenSessions}` : "—"} />
+          </div>
+        </div>
+      </div>
+    </ManagementPanel>
+  );
+};
+
+const ReportsPanel = ({ metrics }: { metrics: Metrics }) => {
+  const reports = [
+    { title: "DRE simplificada", description: "Receitas, despesas e resultado do mês.", icon: FileText },
+    { title: "Fluxo de caixa", description: "Realizado, previsto e projetado.", icon: LineChart },
+    { title: "Inadimplência", description: "Cobranças vencidas e valores em aberto.", icon: Users },
+    { title: "Contador", description: "Resumo mensal para exportação futura.", icon: ReceiptText },
+  ];
+
+  return (
+    <ManagementPanel>
+      <div className="p-7 md:p-8">
+        <SectionTitle eyebrow="Relatórios" title="Leituras para decisão" description="Relatórios simples, bonitos e preparados para exportações futuras." />
+        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {reports.map((report) => (
+            <article key={report.title} className="rounded-[28px] border border-zinc-200/70 bg-zinc-50/72 p-5 dark:border-white/10 dark:bg-white/[0.035]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"><report.icon className="h-5 w-5" /></div>
+              <h3 className="mt-7 text-lg font-black tracking-[-0.035em] text-zinc-950 dark:text-white">{report.title}</h3>
+              <p className="mt-3 text-sm font-medium leading-relaxed text-zinc-500 dark:text-white/42">{report.description}</p>
+            </article>
+          ))}
+        </div>
+        <div className="mt-6 rounded-[28px] bg-zinc-950 p-6 text-white dark:bg-white dark:text-zinc-950">
+          <p className="text-[9px] font-black uppercase tracking-[0.24em] opacity-45">Resumo do mês</p>
+          <p className="mt-4 text-sm font-medium leading-relaxed opacity-66">Receitas confirmadas de {currency(metrics.incomeMonth)}, despesas de {currency(metrics.expenseMonth)} e resultado parcial de {currency(metrics.resultMonth)}.</p>
+        </div>
+      </div>
+    </ManagementPanel>
+  );
+};
+
+const RouteFrame = ({ eyebrow, title, description, children, setActiveView }: { eyebrow: string; title: string; description: string; children: ReactNode; setActiveView: (view: FinanceView) => void }) => (
+  <div className="space-y-6">
+    <ManagementPanel className="rounded-[38px]">
+      <div className="flex items-center justify-between gap-6 p-8 md:p-10">
+        <div>
+          <ManagementBadge icon={Landmark}>{eyebrow}</ManagementBadge>
+          <h1 className="mt-7 text-5xl font-black leading-[0.9] tracking-[-0.065em] text-zinc-950 dark:text-white">{title}</h1>
+          <p className="mt-5 max-w-3xl text-base font-medium leading-relaxed text-zinc-500 dark:text-white/48">{description}</p>
+        </div>
+        <Button onClick={() => setActiveView("gestao-visao-geral")} variant="outline" className="h-12 shrink-0 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.04]">
+          Visão geral
+        </Button>
+      </div>
+    </ManagementPanel>
+    {children}
+  </div>
+);
+
+export const FinancialManagementDashboard = (props: ManagementProps) => {
+  const metrics = useMemo(
+    () => buildFinancialMetrics(props.allTransactions, props.realizedTransactions, props.futureTransactions, props.subscriptionTransactions),
+    [props.allTransactions, props.futureTransactions, props.realizedTransactions, props.subscriptionTransactions],
+  );
+
+  const common = { metrics, setActiveView: props.setActiveView };
+
+  if (props.isLoadingTransactions) {
+    return (
+      <div className="space-y-6 px-6 py-6">
+        <div className="h-80 animate-pulse rounded-[42px] bg-zinc-100 dark:bg-white/[0.035]" />
+        <div className="grid gap-4 md:grid-cols-3"><div className="h-40 animate-pulse rounded-[28px] bg-zinc-100 dark:bg-white/[0.035]" /><div className="h-40 animate-pulse rounded-[28px] bg-zinc-100 dark:bg-white/[0.035]" /><div className="h-40 animate-pulse rounded-[28px] bg-zinc-100 dark:bg-white/[0.035]" /></div>
+      </div>
+    );
+  }
+
+  switch (props.activeView) {
+    case "gestao-fluxo-caixa":
+      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Fluxo de caixa" description="Realizado, previsto, projetado e cenários para entender a previsibilidade da clínica." setActiveView={props.setActiveView}><CashFlowOverview {...common} /><ActionQueue {...common} /></RouteFrame></div>;
+    case "gestao-receitas":
+      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Receitas" description="Entradas confirmadas, ticket médio, fontes de receita e lançamentos recentes." setActiveView={props.setActiveView}><RevenueExpensePanels metrics={metrics} setSelectedTransaction={props.setSelectedTransaction} /></RouteFrame></div>;
+    case "gestao-despesas":
+      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Despesas" description="Custos fixos, variáveis, recorrências e categorias que afetam o resultado." setActiveView={props.setActiveView}><ExpensesPanels metrics={metrics} setSelectedTransaction={props.setSelectedTransaction} /></RouteFrame></div>;
+    case "gestao-cobrancas":
+      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Cobranças" description="Acompanhe cobranças abertas, a vencer, vencidas e recorrentes de forma gerencial." setActiveView={props.setActiveView}><ManagementPanel><div className="p-7 md:p-8"><SectionTitle eyebrow="Cobranças gerenciais" title="Abertas e pendentes" description="O usuário pensa em quem deve, não no banco por trás da cobrança." /><div className="mt-7"><ReceivablesList metrics={metrics} onSelect={props.setSelectedTransaction} /></div></div></ManagementPanel><ActionQueue {...common} /></RouteFrame></div>;
+    case "gestao-inadimplencia":
+      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Pacientes & Inadimplência" description="Valores em aberto, atrasos e pacientes que precisam de abordagem financeira." setActiveView={props.setActiveView}><ManagementPanel><div className="p-7 md:p-8"><SectionTitle eyebrow="Inadimplência" title="Cobranças vencidas" description="Lista de pendências vencidas ou em risco." /><div className="mt-7"><ReceivablesList metrics={{ ...metrics, pendingIncomeTransactions: metrics.overdueIncomeTransactions } as Metrics} onSelect={props.setSelectedTransaction} /></div></div></ManagementPanel></RouteFrame></div>;
+    case "gestao-planejamento":
+      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Planejamento" description="Metas, ponto de equilíbrio, ticket médio e cenários de crescimento." setActiveView={props.setActiveView}><PlanningPanel {...common} /><ActionQueue {...common} /></RouteFrame></div>;
+    case "gestao-relatorios":
+      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Relatórios" description="DRE simplificada, fluxo, inadimplência e resumo para contador." setActiveView={props.setActiveView}><ReportsPanel metrics={metrics} /></RouteFrame></div>;
+    case "gestao-visao-geral":
+    default:
+      return <div className="px-6 py-6"><Overview {...props} metrics={metrics} /></div>;
+  }
+};
+
+export default FinancialManagementDashboard;
