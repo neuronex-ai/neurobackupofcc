@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, ArrowRight } from "lucide-react";
+import { Home, Layers, PieChart, Menu, X, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -16,11 +16,13 @@ export const LandingMobileNav = () => {
 
     const faviconSrc = theme === "dark" ? "/favicon-light.png" : "/favicon-dark.png";
 
-    // Eagerly prefetch public pages for instant load on mobile - REMOVED FOR LEAN MVP
+    // Eagerly prefetch public pages for instant load on mobile
     useEffect(() => {
         const prefetchPages = () => {
-            const prefetchQueue: Array<() => void> = [
-                // Pages removed
+            const prefetchQueue = [
+                () => import("@/pages/Index"),
+                () => import("@/pages/Funcionalidades"),
+                () => import("@/pages/FinanceLanding"),
             ];
             if ('requestIdleCallback' in window) {
                 // @ts-ignore
@@ -38,7 +40,11 @@ export const LandingMobileNav = () => {
     }, []);
 
     const extendedNavItems = [
-        { label: "Ajuda", path: "/help" },
+        { label: "Início", path: "/" },
+        { label: "Sistema", path: "/funcionalidades" },
+        { label: "NeuroFinance", path: "/neurofinance" },
+        { label: "Sobre a NeuroNex", path: "/public/about" },
+        { label: "Contato e Suporte", path: "/public/contact" },
     ];
 
     return (

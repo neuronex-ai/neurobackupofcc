@@ -142,9 +142,9 @@ export const LandingSynapseSDR = ({ sdr }: LandingSynapseSDRProps) => {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
             className={cn(
-              "fixed bottom-0 right-0 sm:bottom-6 sm:right-6 z-[9999]",
-              "w-full sm:w-[400px] h-[100dvh] sm:h-[600px] max-h-[100dvh] sm:max-h-[85vh]",
-              "rounded-none sm:rounded-[28px] overflow-hidden",
+              "fixed bottom-6 right-6 z-[9999]",
+              "w-[400px] h-[600px] max-h-[85vh]",
+              "rounded-[28px] overflow-hidden",
               "bg-white dark:bg-[#0A0A0C]",
               "border border-zinc-200 dark:border-white/10",
               "shadow-[0_25px_80px_-15px_rgba(0,0,0,0.25)] dark:shadow-[0_25px_80px_-15px_rgba(0,0,0,0.7)]",

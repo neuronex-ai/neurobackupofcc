@@ -5,13 +5,25 @@ import { Logo } from "@/components/ui/Logo";
 
 export const Footer = () => {
   const navigate = useNavigate();
+  const currentYear = new Date().getFullYear();
 
-  const footerLinks: Record<string, Array<{ label: string; path: string }>> = {
+  const footerLinks = {
     produto: [
-      { label: "Central de Ajuda", path: "/help" },
+      { label: "Funcionalidades", path: "/funcionalidades" },
+      { label: "NeuroFinance", path: "/neurofinance" },
+      { label: "Synapse AI", path: "/synapse" },
     ],
-    empresa: [],
-    legal: []
+    empresa: [
+      { label: "Sobre Nós", path: "/sobre" },
+      { label: "Newsletter", path: "/newsletter" },
+      { label: "Central de Ajuda", path: "/help" },
+      { label: "Contato", path: "/contact" },
+    ],
+    legal: [
+      { label: "Termos de Uso", path: "/termos-de-uso" },
+      { label: "Privacidade", path: "/politica-de-privacidade" },
+      { label: "Cookies", path: "/configuracoes-de-cookies" },
+    ]
   };
 
   return (
