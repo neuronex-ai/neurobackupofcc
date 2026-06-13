@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import FinanceLanding from "@/pages/FinanceLanding";
+import SynapseLanding from "@/pages/SynapseLanding";
 
 const articles = [
   { category: "Início", title: "Como começar no NeuroNex", summary: "Configure seu perfil, cadastre pacientes e organize a agenda.", steps: ["Revise seus dados em Ajustes.", "Cadastre os primeiros pacientes.", "Configure sua disponibilidade."] },
@@ -33,6 +34,7 @@ const HelpCenter = () => {
   }, [query]);
 
   if (view === "neurofinance") return <FinanceLanding />;
+  if (view === "synapse") return <SynapseLanding />;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
