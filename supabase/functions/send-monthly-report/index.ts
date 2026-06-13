@@ -85,6 +85,23 @@ serve(async (req) => {
         });
     }
 
+    const { data: reportSettings } = await supabaseService
+      .from('monthly_report_settings')
+      .select('enabled, include_sessions, include_payments, include_notes_summary, email_subject, email_intro')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (reportSettings && !reportSettings.enabled) {
+      return new Response(JSON.stringify({ success: true, message: 'Report not sent because monthly reports are disabled.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      });
+    }
+
+    const includeSessions = reportSettings?.include_sessions ?? true;
+    const includePayments = reportSettings?.include_payments ?? true;
+    const includeNotesSummary = reportSettings?.include_notes_summary ?? false;
+
     const { data: tokenData } = await supabaseService.from('user_google_tokens').select('*').eq('user_id', userId).single();
     let accessToken = tokenData.access_token;
     if (new Date(tokenData.expires_at) < new Date(Date.now() + 60000)) {
