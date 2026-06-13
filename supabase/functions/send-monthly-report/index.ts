@@ -18,6 +18,15 @@ const toUrlSafeBase64 = (str: string) => {
   return toBase64(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
 
+const escapeHtml = (value: string) => {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 async function refreshAccessToken(supabaseService: any, userId: string, refreshToken: string) {
   const tokenUrl = 'https://oauth2.googleapis.com/token';
   const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID');
