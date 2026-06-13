@@ -9,10 +9,8 @@ import {
   type MonthlyReportSettingsModel,
   useMonthlyReportSettings,
 } from '@/hooks/use-monthly-report-settings';
-import { supabase } from '@/integrations/supabase/client';
 import { AlertCircle, BarChart3, FileText, Loader2, Mail, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 
 type BooleanKey = 'include_sessions' | 'include_payments' | 'include_notes_summary';
 
@@ -28,29 +26,12 @@ export const PersistentMonthlyReportSettings = () => {
   const [form, setForm] = useState<Omit<MonthlyReportSettingsModel, 'user_id'>>(
     DEFAULT_MONTHLY_REPORT_SETTINGS,
   );
-  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     if (!settings) return;
     const { user_id: _userId, created_at: _createdAt, updated_at: _updatedAt, ...editable } = settings;
     setForm(editable);
   }, [settings]);
-
-  const testReport = async () => {
-    setTesting(true);
-    try {
-      const { error } = await supabase.functions.invoke('send-monthly-report', {
-        body: { isTest: true },
-      });
-      if (error) throw error;
-      toast.success('Relatório de teste enviado para o e-mail da conta.');
-    } catch (error) {
-      console.error(error);
-      toast.error('Não foi possível enviar o relatório de teste.');
-    } finally {
-      setTesting(false);
-    }
-  };
 
   if (isLoading) {
     return <div className="flex min-h-64 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-muted-foreground" /></div>;
@@ -116,11 +97,9 @@ export const PersistentMonthlyReportSettings = () => {
         <p className="text-[11px] text-muted-foreground">Variáveis disponíveis: <code>{'{{patientName}}'}</code> e <code>{'{{month}}'}</code>.</p>
       </section>
 
-      <div className="flex justify-end">
-        <Button variant="outline" onClick={testReport} disabled={!isConnected || testing} className="rounded-full px-6">
-          {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Enviar teste
-        </Button>
-      </div>
+      <p className="rounded-2xl border border-border/10 bg-muted/30 p-4 text-xs text-muted-foreground">
+        O envio de teste ficará disponível depois da atualização do worker de relatórios. A configuração já é persistida e pode ser revisada sem perda de dados.
+      </p>
     </div>
   );
 };
