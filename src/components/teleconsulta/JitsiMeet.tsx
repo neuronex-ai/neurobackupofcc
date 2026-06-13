@@ -11,7 +11,7 @@ interface JitsiMeetProps {
   mediaSettings?: MediaDeviceChoice | null;
   onMeetingEnd: () => void;
   onTranscriptUpdate?: (entry: { participant: { name: string }, text: string }) => void;
-  onMuteStatusChanged?: (status: { audio?: boolean, video?: boolean }) => void;
+  onMuteStatusChanged?: (status: { audio: boolean, video: boolean }) => void;
   onConferenceJoined?: () => void;
 }
 
@@ -38,6 +38,10 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
 }, ref) => {
   const jitsiContainerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<any>(null);
+  const muteStateRef = useRef({
+    audio: mediaSettings ? !mediaSettings.audioEnabled : false,
+    video: mediaSettings ? !mediaSettings.videoEnabled : false,
+  });
 
   useImperativeHandle(ref, () => ({
     toggleAudio: () => apiRef.current?.executeCommand('toggleAudio'),
@@ -79,8 +83,8 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
           prejoinConfig: {
             enabled: false
           },
-          startWithAudioMuted: mediaSettings ? !mediaSettings.audioEnabled : false,
-          startWithVideoMuted: mediaSettings ? !mediaSettings.videoEnabled : false,
+          startWithAudioMuted: muteStateRef.current.audio,
+          startWithVideoMuted: muteStateRef.current.video,
           requireDisplayName: false,
           skipMeetingPrejoin: true,
           disableDeepLinking: true,
@@ -151,10 +155,12 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
           }
         },
         audioMuteStatusChanged: (data: any) => {
-          if (onMuteStatusChanged) onMuteStatusChanged({ audio: data.muted });
+          muteStateRef.current.audio = Boolean(data.muted);
+          onMuteStatusChanged?.({ ...muteStateRef.current });
         },
         videoMuteStatusChanged: (data: any) => {
-          if (onMuteStatusChanged) onMuteStatusChanged({ video: data.muted });
+          muteStateRef.current.video = Boolean(data.muted);
+          onMuteStatusChanged?.({ ...muteStateRef.current });
         }
       });
     }
