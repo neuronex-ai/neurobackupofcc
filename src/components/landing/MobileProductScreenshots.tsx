@@ -8,8 +8,6 @@ import {
   Check,
   ClipboardList,
   CreditCard,
-  FileCheck2,
-  MessageCircle,
   MonitorPlay,
   Sparkles,
 } from "lucide-react";
@@ -106,18 +104,30 @@ const mobileModules: MobileModule[] = [
 ];
 
 const Badge = ({ children, inverted = false }: { children: ReactNode; inverted?: boolean }) => (
-  <div className={cn(
-    "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[8px] font-black uppercase tracking-[0.22em]",
-    inverted
-      ? "border-background/15 bg-background/[0.08] text-background/62 dark:border-zinc-950/10 dark:bg-zinc-950/[0.05] dark:text-zinc-950/60"
-      : "border-border/40 bg-foreground/[0.035] text-muted-foreground dark:border-white/10 dark:bg-white/[0.045] dark:text-white/46",
-  )}>
+  <div
+    className={cn(
+      "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[8px] font-black uppercase tracking-[0.22em]",
+      inverted
+        ? "border-background/15 bg-background/[0.08] text-background/62 dark:border-zinc-950/10 dark:bg-zinc-950/[0.05] dark:text-zinc-950/60"
+        : "border-border/40 bg-foreground/[0.035] text-muted-foreground dark:border-white/10 dark:bg-white/[0.045] dark:text-white/46",
+    )}
+  >
     <Sparkles className="h-3.5 w-3.5" />
     {children}
   </div>
 );
 
-const Heading = ({ eyebrow, title, description, inverted = false }: { eyebrow: string; title: ReactNode; description: string; inverted?: boolean }) => (
+const Heading = ({
+  eyebrow,
+  title,
+  description,
+  inverted = false,
+}: {
+  eyebrow: string;
+  title: ReactNode;
+  description: string;
+  inverted?: boolean;
+}) => (
   <div className="mx-auto max-w-sm text-center">
     <FadeIn><Badge inverted={inverted}>{eyebrow}</Badge></FadeIn>
     <FadeIn delay={0.08}>
@@ -260,6 +270,11 @@ export const MobileRealSynapseSection = () => (
           </div>
         ))}
       </div>
+      <Link to="/help?view=synapse" className="mt-6 block">
+        <Button className="h-14 w-full rounded-2xl bg-background text-[10px] font-black uppercase tracking-[0.2em] text-foreground hover:bg-background/90 dark:bg-zinc-950 dark:text-white">
+          Conhecer o Synapse <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </Link>
     </div>
   </section>
 );
@@ -302,10 +317,17 @@ export const MobileRealFinanceSection = () => (
     <FadeIn delay={0.2}>
       <div className="mt-5"><LandscapeFrame source={fiscalDesktop} label="Fiscal · NFS-e" /></div>
     </FadeIn>
-    <Link to="/create-account" className="mt-6 block">
-      <Button className="h-14 w-full rounded-2xl bg-foreground text-[10px] font-black uppercase tracking-[0.2em] text-background">
-        Começar grátis <ArrowRight className="ml-2 h-4 w-4" />
-      </Button>
-    </Link>
+    <div className="mt-6 grid gap-3">
+      <Link to="/help?view=neurofinance" className="block">
+        <Button className="h-14 w-full rounded-2xl bg-foreground text-[10px] font-black uppercase tracking-[0.2em] text-background">
+          Conhecer o NeuroFinance <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </Link>
+      <Link to="/create-account" className="block">
+        <Button variant="outline" className="h-14 w-full rounded-2xl text-[10px] font-black uppercase tracking-[0.2em]">
+          Começar grátis
+        </Button>
+      </Link>
+    </div>
   </section>
 );
