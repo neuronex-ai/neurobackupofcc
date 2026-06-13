@@ -1,163 +1,181 @@
-import { Copy, MessageSquare, Send, Mic, MicOff, Video, VideoOff, MonitorUp, MonitorOff, Eye, EyeOff, Phone } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { toast } from "sonner";
+import {
+  Copy,
+  Eye,
+  EyeOff,
+  MessageSquare,
+  Mic,
+  MicOff,
+  MonitorOff,
+  MonitorUp,
+  Pause,
+  Phone,
+  Play,
+  Send,
+  Video,
+  VideoOff,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from 'sonner';
 
 interface SessionControlsProps {
-    isFocusMode: boolean;
-    onToggleFocus: () => void;
-    isProcessing: boolean;
-    onEndSession: () => void;
-    isScreenSharing: boolean;
-    onToggleScreenShare: () => void;
-    isOnline: boolean;
-    isAudioEnabled: boolean;
-    isVideoEnabled: boolean;
-    onToggleAudio: () => void;
-    onToggleVideo: () => void;
-    meetLink?: string;
-    onToggleChat?: () => void;
-    isChatOpen?: boolean; // Novo prop
-    onOpenInvite?: () => void; // Novo prop
+  isFocusMode: boolean;
+  onToggleFocus: () => void;
+  isProcessing: boolean;
+  onEndSession: () => void;
+  isScreenSharing: boolean;
+  onToggleScreenShare: () => void;
+  isOnline: boolean;
+  isAudioEnabled: boolean;
+  isVideoEnabled: boolean;
+  onToggleAudio: () => void;
+  onToggleVideo: () => void;
+  meetLink?: string;
+  onToggleChat?: () => void;
+  isChatOpen?: boolean;
+  onOpenInvite?: () => void;
+  isCaptureEnabled?: boolean;
+  captureStatus?: string;
+  captureDisabled?: boolean;
+  onToggleCapture?: () => void;
 }
 
 export const SessionControls = ({
-    isFocusMode,
-    onToggleFocus,
-    isProcessing,
-    onEndSession,
-    isScreenSharing,
-    onToggleScreenShare,
-    isOnline,
-    isAudioEnabled,
-    isVideoEnabled,
-    onToggleAudio,
-    onToggleVideo,
-    meetLink,
-    onToggleChat,
-    isChatOpen = false,
-    onOpenInvite
+  isFocusMode,
+  onToggleFocus,
+  isProcessing,
+  onEndSession,
+  isScreenSharing,
+  onToggleScreenShare,
+  isOnline,
+  isAudioEnabled,
+  isVideoEnabled,
+  onToggleAudio,
+  onToggleVideo,
+  meetLink,
+  onToggleChat,
+  isChatOpen = false,
+  onOpenInvite,
+  isCaptureEnabled = false,
+  captureStatus = 'Transcrição',
+  captureDisabled = false,
+  onToggleCapture,
 }: SessionControlsProps) => {
+  const handleCopyLink = () => {
+    if (meetLink) {
+      void navigator.clipboard.writeText(meetLink);
+      toast.success('Link copiado para a área de transferência');
+    }
+  };
 
-    const handleCopyLink = () => {
-        if (meetLink) {
-            navigator.clipboard.writeText(meetLink);
-            toast.success("Link copiado para a área de transferência");
-        }
-    };
+  const ControlButton = ({
+    icon: Icon,
+    active,
+    onClick,
+    label,
+    danger = false,
+    secondary = false,
+    disabled = false,
+    className,
+  }: any) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          disabled={disabled}
+          className={cn(
+            'group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full transition-all duration-500 ease-apple',
+            danger
+              ? 'border border-rose-500/20 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20'
+              : secondary
+                ? 'border border-white/10 bg-white/5 text-zinc-600 hover:bg-white/10 hover:text-zinc-900 dark:bg-white/5 dark:text-zinc-400 dark:hover:text-white'
+                : active
+                  ? 'scale-110 bg-zinc-900 text-white shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:bg-white dark:text-black dark:shadow-[0_0_20px_rgba(255,255,255,0.2)]'
+                  : 'border border-white/10 bg-white/10 text-zinc-600 hover:border-white/20 hover:bg-white/20 dark:bg-black/20 dark:text-zinc-400 dark:hover:bg-white/10',
+            disabled && 'cursor-not-allowed opacity-40',
+            className,
+          )}
+        >
+          <Icon className={cn('h-5 w-5 transition-all duration-300', danger ? 'fill-current' : 'stroke-[2]', active && 'scale-90')} />
+          {danger ? <div className="absolute inset-0 bg-rose-500/10 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100" /> : null}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="rounded-full border border-white/20 bg-white/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-900 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-100">
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
 
-    const ControlButton = ({
-        icon: Icon,
-        active,
-        onClick,
-        label,
-        danger = false,
-        secondary = false,
-        className
-    }: any) => (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <button
-                    onClick={onClick}
-                    className={cn(
-                        "group flex items-center justify-center w-12 h-12 rounded-full transition-all duration-500 ease-apple relative overflow-hidden",
-                        danger
-                            ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/20"
-                            : secondary
-                                ? "bg-white/5 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white/10 border border-white/10"
-                                : active
-                                    ? "bg-zinc-900 dark:bg-white text-white dark:text-black shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.2)] scale-110"
-                                    : "bg-white/10 dark:bg-black/20 text-zinc-600 dark:text-zinc-400 hover:bg-white/20 dark:hover:bg-white/10 border border-white/10 hover:border-white/20",
-                        className
-                    )}
-                >
-                    <Icon className={cn("w-5 h-5 transition-all duration-300", danger ? "fill-current" : "stroke-[2]", active && "scale-90")} />
-                    {danger && <div className="absolute inset-0 bg-rose-500/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />}
-                </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="px-3 py-1.5 bg-white/80 dark:bg-zinc-900/80 border border-white/20 dark:border-white/10 text-[10px] uppercase font-bold tracking-widest text-zinc-900 dark:text-zinc-100 backdrop-blur-xl shadow-xl rounded-full">
-                {label}
-            </TooltipContent>
-        </Tooltip>
-    );
+  return (
+    <div className="pointer-events-none mx-auto flex w-full max-w-5xl items-center justify-between px-6">
+      <div
+        className={cn(
+          'flex items-center gap-3 transition-all duration-300',
+          isChatOpen ? 'pointer-events-none -translate-x-5 opacity-0' : 'pointer-events-auto opacity-100',
+        )}
+      >
+        {isOnline ? (
+          <>
+            <ControlButton icon={Copy} secondary onClick={handleCopyLink} label="Copiar link" />
+            <ControlButton icon={MessageSquare} secondary onClick={onToggleChat} label="Chat" />
+            <ControlButton icon={Send} secondary onClick={onOpenInvite} label="Enviar convite" />
+          </>
+        ) : null}
+      </div>
 
-    return (
-        <div className="flex items-center justify-between w-full max-w-5xl mx-auto px-6 pointer-events-none">
-            {/* Left Group - Utilities */}
-            {/* Oculta suavemente se o Chat estiver aberto */}
-            <div className={cn(
-                "flex items-center gap-3 transition-all duration-300",
-                isChatOpen ? "opacity-0 translate-x-[-20px] pointer-events-none" : "opacity-100 pointer-events-auto"
-            )}>
-                {isOnline && (
-                    <>
-                        <ControlButton
-                            icon={Copy}
-                            secondary
-                            onClick={handleCopyLink}
-                            label="Copiar Link"
-                        />
-                        <ControlButton
-                            icon={MessageSquare}
-                            secondary
-                            onClick={onToggleChat}
-                            label="Chat"
-                        />
-                        <ControlButton
-                            icon={Send}
-                            secondary
-                            onClick={onOpenInvite}
-                            label="Enviar Convite"
-                        />
-                    </>
-                )}
-            </div>
+      <div className="pointer-events-auto flex items-center gap-4 rounded-[40px] border border-white/20 bg-white/60 px-8 py-4 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] backdrop-blur-[40px] transition-all duration-500 hover:border-white/30 dark:border-white/10 dark:bg-[#050505]/60 dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] dark:hover:border-white/20">
+        {isOnline ? (
+          <>
+            <ControlButton
+              icon={isAudioEnabled ? Mic : MicOff}
+              active={!isAudioEnabled}
+              onClick={onToggleAudio}
+              label={isAudioEnabled ? 'Mutar' : 'Desmutar'}
+            />
+            <ControlButton
+              icon={isVideoEnabled ? Video : VideoOff}
+              active={!isVideoEnabled}
+              onClick={onToggleVideo}
+              label={isVideoEnabled ? 'Desligar vídeo' : 'Ligar vídeo'}
+            />
+            <ControlButton
+              icon={isScreenSharing ? MonitorOff : MonitorUp}
+              active={isScreenSharing}
+              onClick={onToggleScreenShare}
+              label={isScreenSharing ? 'Parar compartilhamento' : 'Compartilhar tela'}
+            />
+          </>
+        ) : null}
 
-            {/* Center Group - Main Controls */}
-            <div className="flex items-center gap-4 px-8 py-4 rounded-[40px] bg-white/60 dark:bg-[#050505]/60 backdrop-blur-[40px] border border-white/20 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] pointer-events-auto transition-all duration-500 hover:border-white/30 dark:hover:border-white/20">
-                {isOnline && (
-                    <>
-                        <ControlButton
-                            icon={isAudioEnabled ? Mic : MicOff}
-                            active={!isAudioEnabled}
-                            onClick={onToggleAudio}
-                            label={isAudioEnabled ? "Mutar" : "Desmutar"}
-                        />
+        {onToggleCapture ? (
+          <ControlButton
+            icon={isCaptureEnabled ? Pause : Play}
+            active={isCaptureEnabled}
+            onClick={onToggleCapture}
+            disabled={captureDisabled}
+            label={isCaptureEnabled ? 'Pausar transcrição' : captureStatus}
+          />
+        ) : null}
 
-                        <ControlButton
-                            icon={isVideoEnabled ? Video : VideoOff}
-                            active={!isVideoEnabled}
-                            onClick={onToggleVideo}
-                            label={isVideoEnabled ? "Desligar Vídeo" : "Ligar Vídeo"}
-                        />
+        <ControlButton
+          icon={isFocusMode ? EyeOff : Eye}
+          active={isFocusMode}
+          onClick={onToggleFocus}
+          label={isFocusMode ? 'Sair do foco' : 'Modo foco'}
+        />
 
-                        <ControlButton
-                            icon={isScreenSharing ? MonitorOff : MonitorUp}
-                            active={isScreenSharing}
-                            onClick={onToggleScreenShare}
-                            label={isScreenSharing ? "Parar Tela" : "Compartilhar Tela"}
-                        />
-                    </>
-                )}
+        <ControlButton
+          icon={Phone}
+          danger
+          disabled={isProcessing}
+          onClick={onEndSession}
+          label="Encerrar e revisar"
+          className="ml-2 h-14 w-14"
+        />
+      </div>
 
-                <ControlButton
-                    icon={isFocusMode ? EyeOff : Eye}
-                    active={isFocusMode}
-                    onClick={onToggleFocus}
-                    label={isFocusMode ? "Sair do Foco" : "Modo Foco"}
-                />
-
-                <ControlButton
-                    icon={Phone}
-                    danger
-                    onClick={onEndSession}
-                    label="Encerrar"
-                    className={cn("w-14 h-14 ml-2", isProcessing && "opacity-50 cursor-not-allowed")}
-                />
-            </div>
-
-            {/* Right Group - Placeholder for balance/layout */}
-            <div className="w-[144px]" />
-        </div>
-    );
+      <div className="w-[144px]" />
+    </div>
+  );
 };
