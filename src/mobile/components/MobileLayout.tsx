@@ -2,7 +2,7 @@
 
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { useDashboardAlerts } from "@/hooks/use-dashboard-alerts";
+import { useUnreadNotificationCount } from "@/hooks/use-notifications";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -27,12 +27,10 @@ export const MobileLayout = ({
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const { theme } = useTheme();
     const navigate = useNavigate();
+    const { unreadCount } = useUnreadNotificationCount();
 
     const isOnboardingShell = !showBottomNav;
     const navigationVisible = showNav && showBottomNav;
-
-    const { data: alerts } = useDashboardAlerts();
-    const hasAlerts = alerts && alerts.length > 0;
 
     return (
         <div
@@ -83,11 +81,13 @@ export const MobileLayout = ({
                             type="button"
                             onClick={() => setNotificationsOpen(true)}
                             className="relative flex h-11 w-11 items-center justify-center rounded-[14px] border border-foreground/5 bg-foreground/5 shadow-sm backdrop-blur-2xl transition-all duration-300 hover:bg-foreground/10 active:scale-90 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
-                            aria-label="Abrir notificações"
+                            aria-label={`Abrir notificações${unreadCount > 0 ? `, ${unreadCount} não lidas` : ''}`}
                         >
                             <Bell className="h-[18px] w-[18px] text-foreground/70 dark:text-white/70" strokeWidth={1.5} />
-                            {hasAlerts && (
-                                <span className="absolute right-3 top-3 h-2 w-2 animate-pulse rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[8px] font-black text-white shadow-[0_0_10px_rgba(239,68,68,0.45)]">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                </span>
                             )}
                         </button>
                     </div>
