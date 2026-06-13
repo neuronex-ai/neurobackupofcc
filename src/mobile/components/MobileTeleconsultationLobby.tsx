@@ -1,137 +1,140 @@
+"use client";
+
+import { MediaReadinessPanel } from "@/components/teleconsulta/MediaReadinessPanel";
 import { PreJoinActions } from "@/components/teleconsulta/PreJoinActions";
-import { Alert, AlertTitle } from "@/components/ui/alert";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import type { MediaDeviceChoice } from "@/hooks/use-media-readiness";
 import { getInitials } from "@/lib/utils";
 import { Patient } from "@/types";
-import { motion } from "framer-motion";
-import { ArrowLeft, Chrome, Loader2, Play, Video as VideoIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { ArrowLeft, CalendarClock, Loader2, Play, ShieldCheck } from "lucide-react";
+import { useCallback, useState } from "react";
 
 interface MobileTeleconsultationLobbyProps {
-    patientName: string;
-    patient?: Patient | null;
-    appointmentId: string;
-    meetLink: string;
-    therapistName: string;
-    isLoadingToken: boolean;
-    onJoin: () => void;
-    onBack: () => void;
+  patientName: string;
+  patient?: Patient | null;
+  appointmentId: string;
+  appointmentStart?: string;
+  meetLink: string;
+  therapistName: string;
+  isLoadingToken: boolean;
+  onJoin: (selection: MediaDeviceChoice) => void;
+  onBack: () => void;
 }
 
+const emptySelection: MediaDeviceChoice = {
+  audioEnabled: true,
+  videoEnabled: true,
+};
+
 export const MobileTeleconsultationLobby = ({
-    patientName,
-    patient,
-    appointmentId,
-    meetLink,
-    therapistName,
-    isLoadingToken,
-    onJoin,
-    onBack
+  patientName,
+  patient,
+  appointmentId,
+  appointmentStart,
+  meetLink,
+  therapistName,
+  isLoadingToken,
+  onJoin,
+  onBack,
 }: MobileTeleconsultationLobbyProps) => {
-    const [isChrome, setIsChrome] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+  const [selection, setSelection] = useState<MediaDeviceChoice>(emptySelection);
 
-    useEffect(() => {
-        const isChromium = !!(window as any).chrome;
-        setIsChrome(isChromium);
-    }, []);
+  const handleReadinessChange = useCallback((ready: boolean, nextSelection: MediaDeviceChoice) => {
+    setIsReady(ready);
+    setSelection(nextSelection);
+  }, []);
 
-    return (
-        <div className="fixed inset-0 bg-background z-[110] flex flex-col overflow-hidden">
-            {/* Background Decor */}
-            <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-foreground/[0.03] rounded-full blur-[100px] pointer-events-none z-0 opacity-30" />
+  return (
+    <div className="fixed inset-0 z-[110] flex flex-col overflow-hidden bg-background">
+      <div className="pointer-events-none absolute left-1/2 top-[-12rem] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-foreground/[0.05] blur-[120px]" />
 
-            <div className="relative z-10 px-6 pt-10 flex flex-col items-center h-full">
-                {/* Top Navigation */}
-                <div className="w-full flex items-center justify-center mb-8 relative">
-                    <button
-                        onClick={onBack}
-                        className="absolute left-0 rounded-full bg-foreground/[0.04] border border-border/10 text-foreground w-10 h-10 flex items-center justify-center active:scale-90 transition-all z-20"
-                    >
-                        <ArrowLeft className="h-5 w-5" />
-                    </button>
+      <header className="relative z-20 flex items-center justify-between px-5 pb-4 pt-[calc(1rem+env(safe-area-inset-top))]">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/45 bg-card/80 text-foreground shadow-sm backdrop-blur-xl transition active:scale-95 dark:border-white/10 dark:bg-white/[0.04]"
+          aria-label="Voltar"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
 
-                    <div className="text-center">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/80">Sala de Espera</span>
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest">NeuroNex Telemetria</p>
-                    </div>
-                </div>
-
-                {/* Browser Alert */}
-                {!isChrome && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="w-full mb-4"
-                    >
-                        <Alert className="bg-amber-500/10 border-amber-500/20 text-amber-500 rounded-2xl py-2 px-3">
-                            <Chrome className="h-3 w-3" />
-                            <AlertTitle className="text-[9px] font-bold uppercase tracking-wider">Use o Chrome para melhor conexão</AlertTitle>
-                        </Alert>
-                    </motion.div>
-                )}
-
-                {/* Patient Hero */}
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative mb-6"
-                >
-                    <div className="absolute inset-0 bg-foreground/[0.02] blur-[60px] rounded-full animate-pulse" />
-                    <div className="relative w-40 h-40 rounded-full border-[6px] border-background ring-1 ring-border shadow-2xl p-1 bg-card">
-                        <Avatar className="w-full h-full">
-                            <AvatarFallback className="bg-foreground text-background text-4xl font-black">
-                                {getInitials(patientName)}
-                            </AvatarFallback>
-                        </Avatar>
-                    </div>
-                    <div className="absolute bottom-1 right-1">
-                        <div className="bg-blue-500 p-3.5 rounded-2xl border-4 border-background shadow-lg">
-                            <VideoIcon className="w-5 h-5 text-background" />
-                        </div>
-                    </div>
-                </motion.div>
-
-                <div className="text-center space-y-2 mb-8">
-                    <h2 className="text-3xl font-black text-foreground tracking-tighter">Tudo pronto?</h2>
-                    <p className="text-muted-foreground text-sm font-medium">
-                        Paciente: <span className="text-foreground font-bold">{patientName}</span>
-                    </p>
-                </div>
-
-                {/* Main Action */}
-                <div className="w-full max-w-xs space-y-3 mb-6">
-                    {isLoadingToken ? (
-                        <Button disabled className="w-full h-16 rounded-2xl bg-foreground/[0.04] text-muted-foreground border border-border/10">
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            <span className="text-[10px] uppercase tracking-widest">Iniciando...</span>
-                        </Button>
-                    ) : (
-                        <Button
-                            onClick={onJoin}
-                            className="w-full h-16 rounded-2xl bg-foreground text-background hover:bg-foreground/90 font-black text-[12px] uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95 group"
-                        >
-                            <Play className="w-4 h-4 mr-2 fill-current" />
-                            Iniciar Atendimento
-                        </Button>
-                    )}
-                </div>
-
-                {/* Reminder Section - Movido para cima */}
-                <div className="w-full pt-4 border-t border-border/10 px-2 pb-10">
-                    <div className="bg-foreground/[0.02] border border-border/10 rounded-[28px] p-5 text-center">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Enviar link da consulta</p>
-                        <div className="scale-100 origin-top">
-                            <PreJoinActions
-                                appointmentId={appointmentId}
-                                patient={patient}
-                                meetLink={meetLink}
-                                therapistName={therapistName}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div className="text-center">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Pré-entrada</p>
+          <p className="mt-1 text-sm font-black tracking-[-0.02em] text-foreground">Teleconsulta</p>
         </div>
-    );
+
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.08] text-xs font-black text-emerald-600 dark:text-emerald-300">
+          {getInitials(patientName)}
+        </div>
+      </header>
+
+      <div className="relative z-10 flex-1 overflow-y-auto overscroll-y-contain px-5 pb-[calc(8.5rem+env(safe-area-inset-bottom))]">
+        <section className="rounded-[28px] border border-border/40 bg-card/75 p-5 dark:border-white/10 dark:bg-white/[0.03]">
+          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground">Sessão com</p>
+          <h1 className="mt-2 text-2xl font-black tracking-[-0.05em] text-foreground">{patientName}</h1>
+          {appointmentStart ? (
+            <div className="mt-4 flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
+              <CalendarClock className="h-4 w-4" />
+              {format(new Date(appointmentStart), "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+            </div>
+          ) : null}
+        </section>
+
+        <section className="mt-4">
+          <MediaReadinessPanel variant="mobile" onReadinessChange={handleReadinessChange} />
+        </section>
+
+        <section className="mt-4 rounded-[26px] border border-border/40 bg-card/75 p-5 dark:border-white/10 dark:bg-white/[0.03]">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="text-xs font-black text-foreground">Antes de entrar</p>
+              <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-muted-foreground/70">
+                Confirme que o ambiente está reservado e que o paciente foi informado sobre o uso dos recursos da sessão.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-4 rounded-[26px] border border-border/40 bg-card/75 p-5 dark:border-white/10 dark:bg-white/[0.03]">
+          <p className="mb-3 text-[8px] font-black uppercase tracking-[0.18em] text-muted-foreground">Enviar link da consulta</p>
+          <PreJoinActions
+            appointmentId={appointmentId}
+            patient={patient}
+            meetLink={meetLink}
+            therapistName={therapistName}
+          />
+        </section>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/45 bg-background/92 px-5 pb-[calc(0.8rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-2xl dark:border-white/10">
+        <Button
+          type="button"
+          disabled={!isReady || isLoadingToken}
+          onClick={() => onJoin(selection)}
+          className="h-14 w-full rounded-2xl bg-foreground text-[10px] font-black uppercase tracking-[0.19em] text-background shadow-xl disabled:opacity-45"
+        >
+          {isLoadingToken ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Preparando sala
+            </>
+          ) : (
+            <>
+              <Play className="mr-2 h-4 w-4 fill-current" />
+              Entrar na sessão
+            </>
+          )}
+        </Button>
+        {!isReady ? (
+          <p className="mt-2 text-center text-[8px] font-black uppercase tracking-[0.14em] text-muted-foreground/55">
+            Conclua o teste ou desligue o dispositivo indisponível
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
 };
