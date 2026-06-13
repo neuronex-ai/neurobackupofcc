@@ -15,6 +15,7 @@ import SynapseLanding from "@/pages/SynapseLanding";
 import Contact from "@/pages/public/Contact";
 import Legal from "@/pages/legal/Legal";
 import TermosDeUso from "@/pages/legal/TermosDeUso";
+import PoliticaDePrivacidade from "@/pages/legal/PoliticaDePrivacidade";
 
 const articles = [
   { category: "Início", title: "Como começar no NeuroNex", summary: "Configure seu perfil, cadastre pacientes e organize a agenda.", steps: ["Revise seus dados em Ajustes.", "Cadastre os primeiros pacientes.", "Configure sua disponibilidade."] },
@@ -41,6 +42,7 @@ const HelpCenter = () => {
   if (view === "contact") return <Contact />;
   if (view === "legal") return <Legal />;
   if (view === "terms") return <TermosDeUso />;
+  if (view === "privacy") return <PoliticaDePrivacidade />;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
