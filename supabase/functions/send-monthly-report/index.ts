@@ -127,7 +127,7 @@ serve(async (req) => {
       reportSettings?.email_subject || `Relatório de Acompanhamento - ${displayMonth}`
     );
     const introHtml = applyHtmlVariables(
-      reportSettings?.email_intro || `Olá ${safePatientName}, aqui está o resumo do seu progresso terapêutico neste mês.`
+      reportSettings?.email_intro || `Olá ${patientName || 'Paciente'}, aqui está o resumo do seu progresso terapêutico neste mês.`
     ).replace(/\n/g, '<br/>');
 
     const { data: completedAppointments } = await supabaseService
