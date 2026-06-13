@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import FinanceLanding from "@/pages/FinanceLanding";
 import SynapseLanding from "@/pages/SynapseLanding";
 import Contact from "@/pages/public/Contact";
+import Legal from "@/pages/legal/Legal";
 
 const articles = [
   { category: "Início", title: "Como começar no NeuroNex", summary: "Configure seu perfil, cadastre pacientes e organize a agenda.", steps: ["Revise seus dados em Ajustes.", "Cadastre os primeiros pacientes.", "Configure sua disponibilidade."] },
@@ -37,6 +38,7 @@ const HelpCenter = () => {
   if (view === "neurofinance") return <FinanceLanding />;
   if (view === "synapse") return <SynapseLanding />;
   if (view === "contact") return <Contact />;
+  if (view === "legal") return <Legal />;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
