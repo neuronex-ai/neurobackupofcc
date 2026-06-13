@@ -1,49 +1,39 @@
-# Step 4 — Mobile session workspace
+# Step 5 - Desktop online and in-person session workspace
 
-Status: implemented in the mobile clinical flow.
+Status: implemented on top of the shared persistent capture engine.
 
 ## Delivered
 
-- One workspace for online and in-person sessions.
-- Explicit consent gate before any transcription begins.
-- Session, transcript, notes, and review views.
-- Jitsi remains mounted while the professional changes workspace views.
-- In-person speech recognition uses the shared transcript engine.
-- Pause, resume, recovery, offline, pending-sync, and error states.
-- IndexedDB-backed notes draft with localStorage fallback.
-- Safe-area aware footer and keyboard-aware notes editing.
-- Mandatory professional review before AI generation.
-- Explicit option to complete without AI while preserving the draft for later processing.
-- Appointment metadata now stores transcript, summary, draft, and completion references.
+- Desktop sessions now use `useSessionCapture` and the same Supabase transcript records used by mobile.
+- Online and in-person appointments can enter the desktop clinical workspace.
+- Four functional areas remain available during the session: session/video, transcript, notes, and patient context.
+- Jitsi remains mounted while the professional works in transcript and notes.
+- Explicit consent is required before capture starts.
+- In-person capture uses browser speech recognition when available.
+- Transcript segments and notes have local recovery and persistent synchronization.
+- Capture can be paused, resumed, and retried after connection failures.
+- Ending a session opens a mandatory review instead of immediately generating a record.
+- Transcript and notes can be corrected in the review screen before AI generation.
+- The professional can complete without AI and preserve the draft for later.
+- Appointment metadata keeps transcript, summary, pending draft, and completion references without removing existing metadata.
 
-## Clinical safeguards
+## Safety behavior
 
-1. Joining the session does not start transcription automatically.
+1. Joining never starts capture before consent.
 2. Declining consent never blocks the session.
-3. Revoking or pausing capture stops local speech recognition immediately.
-4. A restored recording requires an explicit resume action.
-5. Completing a session requires connectivity so the final state is not lost.
-6. AI generation stays disabled until the professional confirms review.
-7. Completing without AI stores the pending draft in appointment metadata.
+3. The recording indicator reflects the shared capture state, not local UI state.
+4. Completion waits for transcript synchronization.
+5. The appointment is marked attended only after the professional confirms the final action.
+6. AI output remains a draft and is never written without professional review.
+7. Offline content is preserved, but final completion requires connectivity.
 
 ## Main files
 
-- `src/mobile/components/MobileActiveSession.tsx`
-- `src/components/teleconsulta/TranscriptionConsentPanel.tsx`
-- `src/hooks/use-session-capture.ts`
-- `src/hooks/use-resilient-session-notes.ts`
-- `src/components/teleconsulta/JitsiMeet.tsx`
-- `src/lib/appointment-metadata.ts`
-
-## Validation checklist
-
-- Online session with consent granted.
-- Online session with consent declined.
-- In-person session on a supported browser.
-- In-person session on an unsupported browser.
-- Pause and resume transcription.
-- Close and reopen after local recovery.
-- Lose and restore connectivity with pending segments.
-- Edit notes while the mobile keyboard is open.
-- Review and generate a clinical draft.
-- Complete without AI and verify the pending draft metadata.
+- `src/components/teleconsulta/ActiveSessionPanel.tsx`
+- `src/components/teleconsulta/DesktopClinicalSession.tsx`
+- `src/components/teleconsulta/DesktopSessionStage.tsx`
+- `src/components/teleconsulta/DesktopSessionWorkspace.tsx`
+- `src/components/teleconsulta/DesktopSessionReviewDialog.tsx`
+- `src/components/teleconsulta/SessionControls.tsx`
+- `src/hooks/use-desktop-clinical-session.ts`
+- `src/pages/Teleconsulta.tsx`
