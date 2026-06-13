@@ -208,7 +208,7 @@ export function ScheduledPaymentsCalendar({ onOpenAllPayments }: ScheduledPaymen
                 dateKey >= selectedBounds.start &&
                 dateKey <= selectedBounds.end;
               const dayTotal = dayItems.reduce((total, item) => total + item.amount, 0);
-              const dayStatuses = Array.from(new Set(dayItems.map((item) => item.status)));
+              const dayStatuses = Array.from(new Set<string>(dayItems.map((item) => item.status)));
 
               return (
                 <button
