@@ -11,7 +11,7 @@ interface JitsiMeetProps {
   mediaSettings?: MediaDeviceChoice | null;
   onMeetingEnd: () => void;
   onTranscriptUpdate?: (entry: { participant: { name: string }, text: string }) => void;
-  onMuteStatusChanged?: (status: { audio: boolean, video: boolean }) => void;
+  onMuteStatusChanged?: (status: { audio?: boolean, video?: boolean }) => void;
   onConferenceJoined?: () => void;
 }
 
@@ -151,10 +151,10 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
           }
         },
         audioMuteStatusChanged: (data: any) => {
-          if (onMuteStatusChanged) onMuteStatusChanged({ audio: data.muted, video: false });
+          if (onMuteStatusChanged) onMuteStatusChanged({ audio: data.muted });
         },
         videoMuteStatusChanged: (data: any) => {
-          if (onMuteStatusChanged) onMuteStatusChanged({ audio: false, video: data.muted });
+          if (onMuteStatusChanged) onMuteStatusChanged({ video: data.muted });
         }
       });
     }
