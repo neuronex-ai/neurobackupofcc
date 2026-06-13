@@ -1,3 +1,4 @@
+import type { MediaDeviceChoice } from '@/hooks/use-media-readiness';
 import { forwardRef, memo, useEffect, useImperativeHandle, useRef } from 'react';
 
 interface JitsiMeetProps {
@@ -7,6 +8,7 @@ interface JitsiMeetProps {
   userEmail?: string;
   userAvatarUrl?: string;
   subject?: string;
+  mediaSettings?: MediaDeviceChoice | null;
   onMeetingEnd: () => void;
   onTranscriptUpdate?: (entry: { participant: { name: string }, text: string }) => void;
   onMuteStatusChanged?: (status: { audio: boolean, video: boolean }) => void;
@@ -21,13 +23,14 @@ export interface JitsiRef {
   executeCommand: (command: string, ...args: any[]) => void;
 }
 
-const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({ 
-  roomName, 
-  jwt, 
-  userName, 
+const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
+  roomName,
+  jwt,
+  userName,
   userEmail,
   userAvatarUrl,
   subject,
+  mediaSettings,
   onMeetingEnd,
   onTranscriptUpdate,
   onMuteStatusChanged,
@@ -72,21 +75,18 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
           avatarUrl: userAvatarUrl
         },
         configOverwrite: {
-          // Configurações CRÍTICAS para pular o Pre-Join
-          prejoinPageEnabled: false, // Método antigo
+          prejoinPageEnabled: false,
           prejoinConfig: {
-            enabled: false // Método novo (JaaS/Versões recentes)
+            enabled: false
           },
-          startWithAudioMuted: false,
-          startWithVideoMuted: false,
+          startWithAudioMuted: mediaSettings ? !mediaSettings.audioEnabled : false,
+          startWithVideoMuted: mediaSettings ? !mediaSettings.videoEnabled : false,
           requireDisplayName: false,
           skipMeetingPrejoin: true,
-          
-          // UI Geral
-          disableDeepLinking: true, 
+          disableDeepLinking: true,
           enableWelcomePage: false,
           enableClosePage: false,
-          toolbarButtons: [], 
+          toolbarButtons: [],
           notifications: [],
           disable1On1Mode: true,
           disableProfile: true,
@@ -95,7 +95,7 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
           subject: subject || "Teleconsulta NeuroNex",
         },
         interfaceConfigOverwrite: {
-          TOOLBAR_BUTTONS: [], 
+          TOOLBAR_BUTTONS: [],
           SHOW_JITSI_WATERMARK: false,
           SHOW_WATERMARK_FOR_GUESTS: false,
           SHOW_BRAND_WATERMARK: false,
@@ -116,32 +116,45 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
 
       if (subject) {
         setTimeout(() => {
-            api.executeCommand('subject', subject);
+          api.executeCommand('subject', subject);
         }, 1000);
       }
 
       api.addEventListeners({
         readyToClose: onMeetingEnd,
-        videoConferenceJoined: () => {
-            if (onConferenceJoined) onConferenceJoined();
+        videoConferenceJoined: async () => {
+          try {
+            if (mediaSettings?.audioInputId && api.setAudioInputDevice) {
+              await api.setAudioInputDevice(mediaSettings.audioInputLabel || '', mediaSettings.audioInputId);
+            }
+            if (mediaSettings?.audioOutputId && api.setAudioOutputDevice) {
+              await api.setAudioOutputDevice(mediaSettings.audioOutputLabel || '', mediaSettings.audioOutputId);
+            }
+            if (mediaSettings?.videoInputId && api.setVideoInputDevice) {
+              await api.setVideoInputDevice(mediaSettings.videoInputLabel || '', mediaSettings.videoInputId);
+            }
+          } catch (deviceError) {
+            console.warn('[JitsiMeet] Não foi possível aplicar todos os dispositivos do pré-join.', deviceError);
+          }
+          if (onConferenceJoined) onConferenceJoined();
         },
         transcriptionChunkReceived: (data: any) => {
-            if (onTranscriptUpdate) {
-                const participantName = data.participantName || "Participante";
-                const transcriptText = data.transcript?.map((t: any) => t.text).join(' ') || "";
-                if (transcriptText) {
-                    onTranscriptUpdate({ 
-                        participant: { name: participantName }, 
-                        text: transcriptText 
-                    });
-                }
+          if (onTranscriptUpdate) {
+            const participantName = data.participantName || "Participante";
+            const transcriptText = data.transcript?.map((t: any) => t.text).join(' ') || "";
+            if (transcriptText) {
+              onTranscriptUpdate({
+                participant: { name: participantName },
+                text: transcriptText
+              });
             }
+          }
         },
         audioMuteStatusChanged: (data: any) => {
-            if (onMuteStatusChanged) onMuteStatusChanged({ audio: data.muted, video: false });
+          if (onMuteStatusChanged) onMuteStatusChanged({ audio: data.muted, video: false });
         },
         videoMuteStatusChanged: (data: any) => {
-            if (onMuteStatusChanged) onMuteStatusChanged({ audio: false, video: data.muted });
+          if (onMuteStatusChanged) onMuteStatusChanged({ audio: false, video: data.muted });
         }
       });
     }
@@ -152,14 +165,15 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
         apiRef.current = null;
       }
     };
+    // The embedded meeting is intentionally initialized once for this mounted session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
   return (
-    <div 
-        ref={jitsiContainerRef} 
-        className="w-full h-full rounded-[24px] overflow-hidden bg-[#050505]"
-        style={{ pointerEvents: 'auto' }}
+    <div
+      ref={jitsiContainerRef}
+      className="w-full h-full rounded-[24px] overflow-hidden bg-[#050505]"
+      style={{ pointerEvents: 'auto' }}
     />
   );
 });
