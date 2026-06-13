@@ -17,7 +17,7 @@ export interface DashboardAlert {
 const centsToBRL = (value: number) =>
   (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const fetchAlerts = async (userId: string): Promise<DashboardAlert[]> => {
+export const fetchDashboardAlerts = async (userId: string): Promise<DashboardAlert[]> => {
   const alerts: DashboardAlert[] = [];
   const now = new Date();
 
@@ -205,7 +205,7 @@ export const useDashboardAlerts = () => {
   const { user } = useAuth();
   return useQuery({
     queryKey: ['dashboardAlerts', user?.id],
-    queryFn: () => fetchAlerts(user!.id),
+    queryFn: () => fetchDashboardAlerts(user!.id),
     enabled: !!user,
     staleTime: 1000 * 60 * 2,
   });
