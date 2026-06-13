@@ -112,6 +112,20 @@ serve(async (req) => {
     const startISO = format(startOfMonth(refDate), 'yyyy-MM-dd');
     const endISO = format(endOfMonth(refDate), 'yyyy-MM-dd');
     const currentMonth = format(startOfMonth(refDate), 'MMMM', { locale: ptBR });
+    const displayMonth = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
+    const safePatientName = escapeHtml(patientName || 'Paciente');
+    const firstName = safePatientName.split(' ')[0] || safePatientName;
+
+    const applyTemplateVariables = (template: string) => template
+      .replace(/\{\{patientName\}\}/g, safePatientName)
+      .replace(/\{\{month\}\}/g, escapeHtml(displayMonth));
+
+    const emailSubject = applyTemplateVariables(
+      reportSettings?.email_subject || `Relatório de Acompanhamento - ${displayMonth}`
+    );
+    const introHtml = applyTemplateVariables(
+      reportSettings?.email_intro || `Olá ${safePatientName}, aqui está o resumo do seu progresso terapêutico neste mês.`
+    ).replace(/\n/g, '<br/>');
 
     const { data: completedAppointments } = await supabaseService
         .from('appointments')
