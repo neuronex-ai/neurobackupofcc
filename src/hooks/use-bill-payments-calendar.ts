@@ -79,7 +79,7 @@ export function useBillPaymentsCalendar(startDate: Date, endDate: Date) {
     if (!userId) return;
 
     const channel = supabase
-      .channel(`neurofinance-bill-payments-calendar-${userId}`)
+      .channel(`neurofinance-bill-payments-calendar-${userId}-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

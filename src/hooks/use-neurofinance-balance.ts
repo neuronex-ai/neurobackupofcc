@@ -126,7 +126,7 @@ export const useNeuroFinanceBalance = () => {
         if (!user?.id) return;
 
         const channel = supabase
-            .channel(`neurofinance-overview-${user.id}`)
+            .channel(`neurofinance-overview-${user.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`)
             .on(
                 "postgres_changes",
                 {

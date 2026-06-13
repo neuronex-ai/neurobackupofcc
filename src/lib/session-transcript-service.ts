@@ -64,7 +64,7 @@ export const subscribeToSessionTranscript = (
   onRecord: (record: SessionTranscriptRecord) => void,
 ) => {
   const channel = supabase
-    .channel(`session-transcript:${transcriptId}`)
+    .channel(`session-transcript:${transcriptId}:${Date.now()}-${Math.random().toString(36).slice(2)}`)
     .on(
       "postgres_changes",
       {

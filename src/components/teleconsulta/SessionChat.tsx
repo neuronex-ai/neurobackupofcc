@@ -50,7 +50,7 @@ export const SessionChat = ({
     fetchMessages();
 
     const channel = supabase
-      .channel(`session-chat-${appointmentId}`)
+      .channel(`session-chat-${appointmentId}-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on<SessionChatMessage>(
         'postgres_changes',
         {

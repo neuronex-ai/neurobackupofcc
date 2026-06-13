@@ -234,7 +234,7 @@ export function ViewAnamnesis({ onChangeTemplate, onResetToSelection }: ViewAnam
         if (!anamnesisId) return;
 
         const channel = supabase
-            .channel(`anamnesis-${anamnesisId}`)
+            .channel(`anamnesis-${anamnesisId}-${Date.now()}-${Math.random().toString(36).slice(2)}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'patient_anamneses', filter: `id=eq.${anamnesisId}` }, (payload) => {
                 const items = parseAnamnesisContent(payload.new.content);
                 setData(items);

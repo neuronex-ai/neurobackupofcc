@@ -209,7 +209,7 @@ export function useNeurofinanceBillPayments() {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel(`neurofinance-bill-payments-${user.id}`)
+      .channel(`neurofinance-bill-payments-${user.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {

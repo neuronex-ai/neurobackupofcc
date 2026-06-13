@@ -395,7 +395,7 @@ export const useSessionTranscript = ({
   useEffect(() => {
     if (!record?.id || !user) return;
     const channel = supabase
-      .channel(`session-transcript:${record.id}`)
+      .channel(`session-transcript:${record.id}:${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
