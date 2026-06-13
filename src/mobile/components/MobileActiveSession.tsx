@@ -108,6 +108,7 @@ export const MobileActiveSession = ({ activeAppointment, onSessionEnd }: MobileA
     interimText,
     isCaptureEnabled,
     speechSupported,
+    speechError,
     ensureTranscript,
     grantConsent,
     declineConsent,
