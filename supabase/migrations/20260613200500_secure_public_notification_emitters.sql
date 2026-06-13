@@ -19,7 +19,7 @@ declare
   v_message text;
   v_severity text;
 begin
-  if p_event not in ('rescheduled', 'confirmed') then
+  if p_event not in ('rescheduled', 'confirmed', 'cancelled') then
     raise exception 'Unsupported appointment notification event';
   end if;
 
@@ -28,7 +28,16 @@ begin
   from public.appointments a
   left join public.patients p on p.id = a.patient_id
   where a.id = p_appointment_id
-    and a.token = p_token;
+    and (
+      a.token = p_token
+      or exists (
+        select 1
+        from public.appointment_confirmation_tokens act
+        where act.appointment_id = a.id
+          and act.token::text = p_token
+          and act.expires_at > now()
+      )
+    );
 
   if not found then
     raise exception 'Invalid appointment token';
@@ -47,7 +56,7 @@ begin
       coalesce(to_char(v_start_time at time zone 'America/Sao_Paulo', 'DD/MM às HH24:MI'), 'um novo horário')
     );
     v_severity := 'info';
-  else
+  elsif p_event = 'confirmed' then
     v_event_id := format('appointment:%s:confirmed', p_appointment_id);
     v_title := 'Agendamento confirmado';
     v_message := format(
@@ -56,6 +65,14 @@ begin
       coalesce(to_char(v_start_time at time zone 'America/Sao_Paulo', 'DD/MM às HH24:MI'), 'o horário agendado')
     );
     v_severity := 'success';
+  else
+    v_event_id := format('appointment:%s:cancelled', p_appointment_id);
+    v_title := 'Agendamento cancelado pelo paciente';
+    v_message := format(
+      'A consulta de %s foi cancelada.',
+      coalesce(v_patient_name, 'um paciente')
+    );
+    v_severity := 'warning';
   end if;
 
   insert into public.notifications (
@@ -234,8 +251,10 @@ begin
 
   if new.start_time is distinct from old.start_time then
     perform public.emit_public_appointment_notification(new.id, new.token, 'rescheduled');
-  elsif new.status is distinct from old.status and new.status = 'unscored' then
+  elsif new.status is distinct from old.status and new.status in ('unscored', 'confirmed') then
     perform public.emit_public_appointment_notification(new.id, new.token, 'confirmed');
+  elsif new.status is distinct from old.status and new.status = 'cancelled' then
+    perform public.emit_public_appointment_notification(new.id, new.token, 'cancelled');
   end if;
 
   return new;

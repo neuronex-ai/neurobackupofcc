@@ -18,6 +18,8 @@ import { useNotionAuth } from "@/hooks/use-notion-auth";
 import { useTheme } from "@/hooks/use-theme";
 import { useProfile } from "@/hooks/use-profile";
 import { useTour } from "@/components/onboarding/TourContext";
+import { useAuth } from "@/components/auth/SessionContextProvider";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 // Components
 import { ProfessionalProfileForm } from "@/components/settings/ProfessionalProfileForm";
@@ -47,6 +49,8 @@ const Ajustes = () => {
     const { isConnected: isTodoistConnected, isLoading: isLoadingTodoistAuth, connectTodoist, disconnectTodoist } = useTodoistAuth();
     const { isConnected: isNotionConnected, isLoading: isLoadingNotionAuth, connectNotion, disconnectNotion } = useNotionAuth();
     const { theme, toggleTheme } = useTheme();
+    const { user } = useAuth();
+    const { preferences, updatePreferences, isSaving: isSavingPreferences } = useUserPreferences();
     const { data: profile } = useProfile();
     const { canAccess, plan, status } = useSubscription();
     const { data: organizations } = useOrganizations();
@@ -93,20 +97,37 @@ const Ajustes = () => {
         }, 300);
     };
 
-    const handleIntegrationSuggestion = () => {
+    const handleIntegrationSuggestion = async () => {
         const suggestion = integrationSuggestion.trim();
         if (!suggestion) {
             toast.info("Digite o nome de um aplicativo para sugerir.");
             return;
         }
+        if (!user) {
+            toast.error("Entre na sua conta para registrar uma sugestão.");
+            return;
+        }
 
-        const savedSuggestions = JSON.parse(localStorage.getItem("neuronex:integration-suggestions") || "[]") as string[];
-        localStorage.setItem(
-            "neuronex:integration-suggestions",
-            JSON.stringify([...savedSuggestions, suggestion].slice(-20))
-        );
+        const { error } = await supabase
+            .from("integration_suggestions")
+            .insert({ user_id: user.id, suggestion });
+
+        if (error) {
+            toast.error("Não foi possível registrar a sugestão agora.");
+            return;
+        }
+
         setIntegrationSuggestion("");
         toast.success("Sugestão registrada. Vamos considerar nas próximas integrações.");
+    };
+
+    const savePreferences = async (updates: Parameters<typeof updatePreferences>[0]) => {
+        try {
+            await updatePreferences(updates);
+            toast.success("Preferência salva.");
+        } catch {
+            toast.error("Não foi possível salvar a preferência.");
+        }
     };
 
     const menuItems = [
@@ -324,6 +345,103 @@ const Ajustes = () => {
                                                             </div>
                                                             <span className={cn("text-xs font-bold tracking-wider uppercase", theme === 'light' ? "text-primary" : "text-zinc-500")}>Modo Claro (Ceramic)</span>
                                                         </button>
+                                                    </div>
+
+                                                    <div className="mt-8 grid gap-4 rounded-[32px] border border-zinc-200 bg-zinc-50/80 p-5 dark:border-white/10 dark:bg-white/[0.03]">
+                                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                                            <div>
+                                                                <p className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Densidade</p>
+                                                                <p className="text-xs text-zinc-500 dark:text-zinc-500">Ajusta espaçamento geral da interface.</p>
+                                                            </div>
+                                                            <div className="flex rounded-2xl border border-zinc-200 bg-white p-1 dark:border-white/10 dark:bg-zinc-950/50">
+                                                                {[
+                                                                    { value: 'comfortable', label: 'Confortável' },
+                                                                    { value: 'compact', label: 'Compacta' },
+                                                                ].map((option) => (
+                                                                    <button
+                                                                        key={option.value}
+                                                                        type="button"
+                                                                        disabled={isSavingPreferences || !preferences}
+                                                                        onClick={() => void savePreferences({ density: option.value as 'comfortable' | 'compact' })}
+                                                                        className={cn(
+                                                                            "rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition-all",
+                                                                            preferences?.density === option.value
+                                                                                ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-950"
+                                                                                : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                                                                        )}
+                                                                    >
+                                                                        {option.label}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="grid gap-4 sm:grid-cols-2">
+                                                            <label className="space-y-2">
+                                                                <span className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Idioma</span>
+                                                                <select
+                                                                    value={preferences?.language || 'pt-BR'}
+                                                                    disabled={isSavingPreferences || !preferences}
+                                                                    onChange={(event) => void savePreferences({ language: event.target.value })}
+                                                                    className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 outline-none dark:border-white/10 dark:bg-zinc-950/50 dark:text-white"
+                                                                >
+                                                                    <option value="pt-BR">Português (Brasil)</option>
+                                                                    <option value="en-US">English (US)</option>
+                                                                    <option value="es-ES">Español</option>
+                                                                </select>
+                                                            </label>
+
+                                                            <label className="space-y-2">
+                                                                <span className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Fuso horário</span>
+                                                                <select
+                                                                    value={preferences?.timezone || 'America/Sao_Paulo'}
+                                                                    disabled={isSavingPreferences || !preferences}
+                                                                    onChange={(event) => void savePreferences({ timezone: event.target.value })}
+                                                                    className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 outline-none dark:border-white/10 dark:bg-zinc-950/50 dark:text-white"
+                                                                >
+                                                                    <option value="America/Sao_Paulo">São Paulo</option>
+                                                                    <option value="America/Fortaleza">Fortaleza</option>
+                                                                    <option value="America/Manaus">Manaus</option>
+                                                                    <option value="America/Rio_Branco">Rio Branco</option>
+                                                                </select>
+                                                            </label>
+                                                        </div>
+
+                                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                                            <div>
+                                                                <p className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Semana e movimento</p>
+                                                                <p className="text-xs text-zinc-500 dark:text-zinc-500">Controla calendário e animações sensíveis.</p>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant={preferences?.week_starts_on === 1 ? "default" : "outline"}
+                                                                    disabled={isSavingPreferences || !preferences}
+                                                                    onClick={() => void savePreferences({ week_starts_on: 1 })}
+                                                                    className="h-10 rounded-2xl px-4 text-[10px] font-black uppercase tracking-[0.14em]"
+                                                                >
+                                                                    Segunda
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant={preferences?.week_starts_on === 0 ? "default" : "outline"}
+                                                                    disabled={isSavingPreferences || !preferences}
+                                                                    onClick={() => void savePreferences({ week_starts_on: 0 })}
+                                                                    className="h-10 rounded-2xl px-4 text-[10px] font-black uppercase tracking-[0.14em]"
+                                                                >
+                                                                    Domingo
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant={preferences?.reduced_motion ? "default" : "outline"}
+                                                                    disabled={isSavingPreferences || !preferences}
+                                                                    onClick={() => void savePreferences({ reduced_motion: !preferences?.reduced_motion })}
+                                                                    className="h-10 rounded-2xl px-4 text-[10px] font-black uppercase tracking-[0.14em]"
+                                                                >
+                                                                    Reduzir movimento
+                                                                </Button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
 

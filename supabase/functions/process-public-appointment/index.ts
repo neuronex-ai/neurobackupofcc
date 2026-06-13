@@ -17,7 +17,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { token, action, newStartTime, newEndTime, cancellation_reason } = await req.json()
+    const { token, action, newStartTime, newEndTime } = await req.json()
     if (!token) throw new Error('Token obrigatório');
 
     // 1. Validar Token e Buscar Agendamento
@@ -86,25 +86,14 @@ serve(async (req) => {
     }
 
     let updates: any = {};
-    let notificationTitle = '';
-    let notificationMsg = '';
-
-    // Fetch patient name separately to be safe
-    const { data: patient } = await supabaseClient
-      .from('patients')
-      .select('name')
-      .eq('id', appointment.patient_id)
-      .maybeSingle();
-    const patientName = patient?.name || 'Um paciente';
+    let notificationEvent: 'confirmed' | 'cancelled' | 'rescheduled' | null = null;
 
     if (action === 'confirm') {
       updates = { status: 'confirmed' };
-      notificationTitle = '✅ Consulta Confirmada';
-      notificationMsg = `${patientName} confirmou a presença para ${new Date(appointment.start_time).toLocaleDateString('pt-BR')}.`;
+      notificationEvent = 'confirmed';
     } else if (action === 'cancel') {
       updates = { status: 'cancelled' };
-      notificationTitle = '❌ Consulta Cancelada';
-      notificationMsg = `${patientName} cancelou o agendamento.${cancellation_reason ? ` Motivo: ${cancellation_reason}` : ''}`;
+      notificationEvent = 'cancelled';
     } else if (action === 'reschedule') {
       // newStartTime/newEndTime already validated above
       updates = {
@@ -112,10 +101,9 @@ serve(async (req) => {
         start_time: newStartTime,
         end_time: newEndTime
       };
-      const dateStr = new Date(newStartTime).toLocaleDateString('pt-BR');
-      const timeStr = new Date(newStartTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      notificationTitle = '🗓️ Consulta Reagendada pelo Paciente';
-      notificationMsg = `${patientName} reagendou para ${dateStr} às ${timeStr}. Confirme a alteração na agenda.`;
+      notificationEvent = 'rescheduled';
+    } else {
+      throw new Error('Ação de agendamento inválida.');
     }
 
     // 3. Update Appointment
@@ -126,16 +114,18 @@ serve(async (req) => {
 
     if (updateError) throw updateError;
 
-    // 4. Create Notification
-    await supabaseClient
-      .from('notifications')
-      .insert({
-        user_id: appointment.user_id,
-        type: 'appointment_update',
-        title: notificationTitle,
-        message: notificationMsg,
-        read: false,
+    // 4. Emit Notification
+    if (notificationEvent) {
+      const { error: notificationError } = await supabaseClient.rpc('emit_public_appointment_notification', {
+        p_appointment_id: appointment.id,
+        p_token: token,
+        p_event: notificationEvent,
       });
+
+      if (notificationError) {
+        console.error('[process-public-appointment] Failed to emit notification:', notificationError);
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true }),

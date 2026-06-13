@@ -28,6 +28,14 @@ const REVERSE_VARIABLE_MAP = Object.fromEntries(
     Object.entries(VARIABLE_MAP).map(([k, v]) => [v, k])
 );
 
+const toEditorTemplate = (body: string) => {
+    let editorBody = body;
+    Object.entries(VARIABLE_MAP).forEach(([code, short]) => {
+        editorBody = editorBody.split(code).join(short);
+    });
+    return editorBody;
+};
+
 const TEMPLATE_TYPES = [
     { id: 'appointment_reminder', label: 'Lembrete de Consulta' },
     { id: 'payment_reminder', label: 'Lembrete de Pagamento' },
@@ -82,10 +90,36 @@ export const CommunicationSettings = () => {
 
     useEffect(() => {
         if (!user) return;
-        const channelPresets = PRESETS[activeChannel as keyof typeof PRESETS];
-        if (channelPresets) {
-            setTemplate(channelPresets[activeTemplateType] || channelPresets.appointment_reminder);
-        }
+
+        let cancelled = false;
+        const loadTemplate = async () => {
+            setLoading(true);
+            const channelPresets = PRESETS[activeChannel as keyof typeof PRESETS];
+            const fallback = channelPresets?.[activeTemplateType] || channelPresets?.appointment_reminder || "";
+
+            const { data, error } = await supabase
+                .from('communication_templates')
+                .select('body_html')
+                .eq('user_id', user.id)
+                .eq('template_key', `${activeChannel}_${activeTemplateType}`)
+                .maybeSingle();
+
+            if (cancelled) return;
+
+            if (error) {
+                console.error('[CommunicationSettings] Failed to load template:', error);
+                setTemplate(fallback);
+            } else {
+                setTemplate(data?.body_html ? toEditorTemplate(data.body_html) : fallback);
+            }
+            setLoading(false);
+        };
+
+        void loadTemplate();
+
+        return () => {
+            cancelled = true;
+        };
     }, [user, activeChannel, activeTemplateType]);
 
     const handleSave = async () => {
@@ -98,12 +132,14 @@ export const CommunicationSettings = () => {
         });
 
         try {
-            await supabase.from('communication_templates').upsert({
+            const { error } = await supabase.from('communication_templates').upsert({
                 user_id: user.id,
                 template_key: `${activeChannel}_${activeTemplateType}`,
                 subject: activeChannel === 'email' ? TEMPLATE_TYPES.find(t => t.id === activeTemplateType)?.label || 'Mensagem' : 'Mensagem',
                 body_html: dbBody
             }, { onConflict: 'user_id, template_key' });
+
+            if (error) throw error;
 
             toast.success("Modelo atualizado com sucesso.");
         } catch (e) {

@@ -12,7 +12,7 @@ import {
     ArrowLeft, Bell, Building, Calendar, CheckCircle2, ChevronRight, CreditCard, ExternalLink, FileBarChart, Loader2, LogOut, Mail, MessageSquare, Monitor, Moon, Shield, ShieldCheck,
     Smartphone, Sun, User, Wallet, Sparkles
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { MobileLayout } from "../components/MobileLayout";
@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useOrganizations } from "@/hooks/use-organization";
 import { useProfile } from "@/hooks/use-profile";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 type SettingsView =
     | 'main'
@@ -99,6 +100,14 @@ const REVERSE_VARIABLE_MAP = Object.fromEntries(
     Object.entries(VARIABLE_MAP).map(([k, v]) => [v, k])
 );
 
+const toEditorTemplate = (body: string) => {
+    let editorBody = body;
+    Object.entries(VARIABLE_MAP).forEach(([code, short]) => {
+        editorBody = editorBody.split(code).join(short);
+    });
+    return editorBody;
+};
+
 export const MobileSettings = () => {
     const [view, setView] = useState<SettingsView>('main');
     const { theme, toggleTheme } = useTheme();
@@ -106,10 +115,20 @@ export const MobileSettings = () => {
 
     const { startTour } = useTour();
     const { user } = useAuth(); 
+    const { preferences, updatePreferences, isSaving: isSavingPreferences } = useUserPreferences();
 
     const handleReplayTour = () => {
         toast.info("Reiniciando tour...");
         setTimeout(() => { startTour(); }, 300);
+    };
+
+    const savePreferences = async (updates: Parameters<typeof updatePreferences>[0]) => {
+        try {
+            await updatePreferences(updates);
+            toast.success("Preferência salva.");
+        } catch {
+            toast.error("Não foi possível salvar a preferência.");
+        }
     };
 
     const { canAccess } = useSubscription();
@@ -161,6 +180,38 @@ export const MobileSettings = () => {
     const [commsTemplate, setCommsTemplate] = useState("");
     const [commsLoading, setCommsLoading] = useState(false);
 
+    useEffect(() => {
+        if (!user) return;
+
+        let cancelled = false;
+        const loadTemplate = async () => {
+            setCommsLoading(true);
+            const fallback = PRESETS[commsChannel]?.[commsTemplateType] || "";
+            const { data, error } = await supabase
+                .from('communication_templates')
+                .select('body_html')
+                .eq('user_id', user.id)
+                .eq('template_key', `${commsChannel}_${commsTemplateType}`)
+                .maybeSingle();
+
+            if (cancelled) return;
+
+            if (error) {
+                console.error('[MobileSettings] Failed to load communication template:', error);
+                setCommsTemplate(fallback);
+            } else {
+                setCommsTemplate(data?.body_html ? toEditorTemplate(data.body_html) : fallback);
+            }
+            setCommsLoading(false);
+        };
+
+        void loadTemplate();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user, commsChannel, commsTemplateType]);
+
     const handleSaveComms = async () => {
         if (!user) return;
         setCommsLoading(true);
@@ -169,12 +220,13 @@ export const MobileSettings = () => {
             dbBody = dbBody.split(short).join(code);
         });
         try {
-            await supabase.from('communication_templates').upsert({
+            const { error } = await supabase.from('communication_templates').upsert({
                 user_id: user.id,
                 template_key: `${commsChannel}_${commsTemplateType}`,
                 subject: 'Mensagem',
                 body_html: dbBody
             }, { onConflict: 'user_id, template_key' });
+            if (error) throw error;
             toast.success("Modelo salvo!");
         } catch (e) {
             toast.error("Erro ao salvar.");
@@ -287,10 +339,7 @@ export const MobileSettings = () => {
                                 <MinimalHeader title="Mensagens" onBack={() => setView('main')} />
                                 <div className="space-y-8">
                                     <div className="p-1.5 bg-foreground/[0.03] dark:bg-white/[0.03] rounded-2xl border border-border/5">
-                                        <Tabs value={commsChannel} onValueChange={(v) => {
-                                            setCommsChannel(v);
-                                            if (PRESETS[v]) setCommsTemplate(PRESETS[v][commsTemplateType] || "");
-                                        }} className="w-full">
+                                        <Tabs value={commsChannel} onValueChange={setCommsChannel} className="w-full">
                                             <TabsList className="bg-transparent h-11 p-0 w-full grid grid-cols-3 gap-1">
                                                 {[
                                                     { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
@@ -317,10 +366,7 @@ export const MobileSettings = () => {
                                         ].map(type => (
                                             <button
                                                 key={type.id}
-                                                onClick={() => {
-                                                    setCommsTemplateType(type.id);
-                                                    if (PRESETS[commsChannel]) setCommsTemplate(PRESETS[commsChannel][type.id] || "");
-                                                }}
+                                                onClick={() => setCommsTemplateType(type.id)}
                                                 className={cn(
                                                     "px-5 py-3 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap",
                                                     commsTemplateType === type.id
@@ -531,6 +577,91 @@ export const MobileSettings = () => {
                                                     </div>
                                                 )}
                                             </motion.button>
+                                        </div>
+
+                                        <div className="space-y-4 rounded-[32px] border border-white/60 bg-white/40 p-5 shadow-sm backdrop-blur-xl dark:border-white/5 dark:bg-white/[0.02]">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">Densidade</p>
+                                                    <p className="text-[12px] font-medium text-muted-foreground/70">Espaçamento da interface.</p>
+                                                </div>
+                                                <div className="flex rounded-2xl border border-border/10 bg-background/70 p-1">
+                                                    {[
+                                                        { value: 'comfortable', label: 'Normal' },
+                                                        { value: 'compact', label: 'Compacta' },
+                                                    ].map((option) => (
+                                                        <button
+                                                            key={option.value}
+                                                            type="button"
+                                                            disabled={isSavingPreferences || !preferences}
+                                                            onClick={() => void savePreferences({ density: option.value as 'comfortable' | 'compact' })}
+                                                            className={cn(
+                                                                "rounded-xl px-3 py-2 text-[9px] font-black uppercase tracking-[0.14em] transition-all",
+                                                                preferences?.density === option.value
+                                                                    ? "bg-foreground text-background"
+                                                                    : "text-muted-foreground"
+                                                            )}
+                                                        >
+                                                            {option.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid gap-3">
+                                                <select
+                                                    value={preferences?.language || 'pt-BR'}
+                                                    disabled={isSavingPreferences || !preferences}
+                                                    onChange={(event) => void savePreferences({ language: event.target.value })}
+                                                    className="h-12 rounded-2xl border border-border/10 bg-background/70 px-4 text-sm font-bold text-foreground outline-none"
+                                                >
+                                                    <option value="pt-BR">Português (Brasil)</option>
+                                                    <option value="en-US">English (US)</option>
+                                                    <option value="es-ES">Español</option>
+                                                </select>
+
+                                                <select
+                                                    value={preferences?.timezone || 'America/Sao_Paulo'}
+                                                    disabled={isSavingPreferences || !preferences}
+                                                    onChange={(event) => void savePreferences({ timezone: event.target.value })}
+                                                    className="h-12 rounded-2xl border border-border/10 bg-background/70 px-4 text-sm font-bold text-foreground outline-none"
+                                                >
+                                                    <option value="America/Sao_Paulo">Fuso: São Paulo</option>
+                                                    <option value="America/Fortaleza">Fuso: Fortaleza</option>
+                                                    <option value="America/Manaus">Fuso: Manaus</option>
+                                                    <option value="America/Rio_Branco">Fuso: Rio Branco</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant={preferences?.week_starts_on === 1 ? "default" : "outline"}
+                                                    disabled={isSavingPreferences || !preferences}
+                                                    onClick={() => void savePreferences({ week_starts_on: 1 })}
+                                                    className="h-12 rounded-2xl text-[9px] font-black uppercase tracking-[0.14em]"
+                                                >
+                                                    Seg
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant={preferences?.week_starts_on === 0 ? "default" : "outline"}
+                                                    disabled={isSavingPreferences || !preferences}
+                                                    onClick={() => void savePreferences({ week_starts_on: 0 })}
+                                                    className="h-12 rounded-2xl text-[9px] font-black uppercase tracking-[0.14em]"
+                                                >
+                                                    Dom
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant={preferences?.reduced_motion ? "default" : "outline"}
+                                                    disabled={isSavingPreferences || !preferences}
+                                                    onClick={() => void savePreferences({ reduced_motion: !preferences?.reduced_motion })}
+                                                    className="h-12 rounded-2xl text-[9px] font-black uppercase tracking-[0.14em]"
+                                                >
+                                                    Motion
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
 
