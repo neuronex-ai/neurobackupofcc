@@ -33,7 +33,7 @@ export function mapBillPaymentToCalendarItem(
     id: record.id,
     date: record.scheduled_date.slice(0, 10),
     amount: (Number(record.amount || 0) + Number(record.fee_amount || 0)) / 100,
-    status: record.status || "processing",
+    status: String(record.status || "processing"),
     beneficiaryName: record.beneficiary_name || null,
     bankName: record.bank_name || (record.bank_code ? `Banco ${record.bank_code}` : null),
     dueDate: record.due_date || null,
@@ -49,11 +49,11 @@ export function useBillPaymentsCalendar(startDate: Date, endDate: Date) {
   const startKey = format(startDate, "yyyy-MM-dd");
   const endKey = format(endDate, "yyyy-MM-dd");
 
-  const query = useQuery({
+  const query = useQuery<BillPaymentCalendarItem[]>({
     queryKey: ["neurofinance-bill-payments", userId, "calendar", startKey, endKey],
     enabled: Boolean(userId),
     staleTime: 60_000,
-    queryFn: async () => {
+    queryFn: async (): Promise<BillPaymentCalendarItem[]> => {
       if (!userId) return [];
 
       const { data, error } = await supabase
@@ -71,7 +71,7 @@ export function useBillPaymentsCalendar(startDate: Date, endDate: Date) {
       if (error) throw error;
       return (data || [])
         .map((record) => mapBillPaymentToCalendarItem(record as BillPaymentRecord))
-        .filter((item): item is BillPaymentCalendarItem => Boolean(item));
+        .filter((item): item is BillPaymentCalendarItem => item !== null);
     },
   });
 
@@ -93,7 +93,7 @@ export function useBillPaymentsCalendar(startDate: Date, endDate: Date) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [queryClient, userId]);
 
