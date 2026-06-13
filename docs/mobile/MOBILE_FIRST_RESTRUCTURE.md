@@ -78,7 +78,7 @@ Findings:
 
 ### Teleconsulta and pre-join
 
-Status: functional but split into separate desktop and mobile engines.
+Status: real device readiness implemented; shared transcription still pending.
 
 Findings:
 
@@ -86,11 +86,12 @@ Findings:
 - Online transcription can receive Jitsi transcription events.
 - Desktop additionally uses browser speech recognition for local speech.
 - Session notes and transcript backups rely on `localStorage`.
-- In-person sessions do not yet have a real capture/transcription flow.
-- Mobile pre-join checks whether the browser appears Chromium-based, but does not perform a real device preview, permission test, input-level test, or network readiness test.
+- In-person sessions do not yet have a persistent shared capture/transcription flow.
+- Mobile and desktop now use one media-readiness engine for permissions, preview, device selection, microphone level, network classification, and recoverable errors.
+- Selected camera, microphone, output device, and initial mute state are forwarded to the embedded Jitsi meeting.
 - Current session finalization can generate a clinical draft immediately from notes and transcript. The new flow must require review before the final clinical record is confirmed.
 
-Risk: critical.
+Risk: critical until steps 3–5 are complete.
 
 ### Synapse
 
@@ -172,6 +173,28 @@ Rules:
 - All primitives support light and dark mode.
 - Every data screen must define loading, empty, error, offline, and retry behavior.
 
+## Step 2 implementation
+
+Implemented shared files:
+
+- `src/hooks/use-media-readiness.ts`
+- `src/components/teleconsulta/MediaReadinessPanel.tsx`
+- `src/components/teleconsulta/DesktopTeleconsultationLobby.tsx`
+- `src/mobile/components/MobileTeleconsultationLobby.tsx`
+
+Capabilities delivered:
+
+- Camera preview.
+- Camera and microphone permission handling.
+- Camera, microphone, and audio-output selection where supported.
+- Live microphone input meter.
+- Audio-only fallback.
+- Network state classification using available browser information.
+- Error states for blocked permission, missing device, busy device, unsupported browser, and insecure context.
+- Mobile safe-area and keyboard-safe layout.
+- Device handoff and initial mute state to Jitsi.
+- Audio-only pre-join for in-person sessions, ready for the shared transcription engine.
+
 ## 12-step execution pipeline
 
 1. **Mobile audit and shared foundation**
@@ -248,7 +271,7 @@ Minimum validation for every mobile page:
 ## Step status
 
 - [x] Step 1 — audit document and shared primitives created.
-- [ ] Step 2 — real pre-join.
+- [x] Step 2 — real pre-join implemented on mobile and desktop.
 - [ ] Step 3 — shared transcription engine.
 - [ ] Step 4 — mobile session workspace.
 - [ ] Step 5 — desktop session workspace.
