@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Instagram, Linkedin, Twitter, Youtube, Mail, MapPin, Phone, ArrowUpRight } from "lucide-react";
+import { Mail, MapPin, Phone, ArrowUpRight } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 
 export const Footer = () => {
@@ -9,13 +9,11 @@ export const Footer = () => {
 
   const footerLinks = {
     produto: [
-      { label: "Funcionalidades", path: "/funcionalidades" },
+      { label: "Plataforma", path: "/#produto" },
       { label: "NeuroFinance", path: "/neurofinance" },
       { label: "Synapse AI", path: "/synapse" },
     ],
-    empresa: [
-      { label: "Sobre Nós", path: "/sobre" },
-      { label: "Newsletter", path: "/newsletter" },
+    recursos: [
       { label: "Central de Ajuda", path: "/help" },
       { label: "Contato", path: "/contact" },
     ],
@@ -23,125 +21,46 @@ export const Footer = () => {
       { label: "Termos de Uso", path: "/termos-de-uso" },
       { label: "Privacidade", path: "/politica-de-privacidade" },
       { label: "Cookies", path: "/configuracoes-de-cookies" },
-    ]
+    ],
   };
 
   return (
-    <footer className="relative pt-32 pb-16 bg-background overflow-hidden font-sans">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
-      <div className="absolute -bottom-64 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
-
+    <footer className="relative overflow-hidden bg-background pb-16 pt-32 font-sans">
+      <div className="absolute left-1/2 top-0 h-px w-full max-w-7xl -translate-x-1/2 bg-gradient-to-r from-transparent via-border/50 to-transparent" />
       <div className="container relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12 lg:gap-8 mb-24">
-          {/* Brand Section */}
-          <div className="lg:col-span-2 space-y-8">
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex items-center cursor-pointer group/logo"
-              onClick={() => navigate('/')}
-            >
-              <div className="relative w-8 h-8 flex items-center justify-center">
-                <Logo className="w-full h-full" />
-                <div className="absolute inset-0 border border-primary/20 rounded-full animate-[spin_10s_linear_infinite] opacity-0 group-hover/logo:opacity-100 transition-opacity" />
-              </div>
-              <span className="ml-3 text-sm font-black text-foreground tracking-[0.4em] uppercase whitespace-nowrap">NeuroNex</span>
-            </motion.div>
-            
-            <p className="text-muted-foreground/70 text-sm leading-relaxed max-w-xs">
-              Redefinindo o futuro da psicologia com inteligência artificial, voz e tecnologia de ponta.
-            </p>
+        <div className="mb-24 grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-6 lg:gap-8">
+          <div className="space-y-8 lg:col-span-2">
+            <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex items-center" onClick={() => navigate("/")}>
+              <Logo className="h-8 w-8" />
+              <span className="ml-3 text-sm font-black uppercase tracking-[0.4em]">NeuroNex</span>
+            </motion.button>
+            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground/70">Sistema operacional para psicólogos: gestão clínica, inteligência contextual e financeiro conectado.</p>
+          </div>
 
-            <div className="flex items-center gap-4">
-              {[Instagram, Twitter, Linkedin, Youtube].map((Icon, i) => (
-                <motion.a
-                  key={i}
-                  href="#"
-                  whileHover={{ y: -3, scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="w-10 h-10 rounded-xl bg-muted/50 border border-border/50 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/20 transition-all"
-                >
-                  <Icon size={18} />
-                </motion.a>
-              ))}
+          {[{ title: "Produto", links: footerLinks.produto }, { title: "Recursos", links: footerLinks.recursos }, { title: "Jurídico", links: footerLinks.legal }].map((section) => (
+            <div key={section.title} className="space-y-6 lg:col-span-1">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40">{section.title}</h4>
+              <ul className="space-y-4">
+                {section.links.map((link) => (
+                  <li key={link.path}><Link to={link.path} className="group inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground">{link.label}<ArrowUpRight className="ml-1 h-3 w-3 opacity-0 transition group-hover:opacity-100" /></Link></li>
+                ))}
+              </ul>
             </div>
-          </div>
+          ))}
 
-          {/* Links Sections */}
-          <div className="lg:col-span-1 space-y-6">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40">Produto</h4>
-            <ul className="space-y-4">
-              {footerLinks.produto.map((link, i) => (
-                <li key={i}>
-                  <Link to={link.path} className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center group">
-                    {link.label}
-                    <ArrowUpRight className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="lg:col-span-1 space-y-6">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40">Empresa</h4>
-            <ul className="space-y-4">
-              {footerLinks.empresa.map((link, i) => (
-                <li key={i}>
-                  <Link to={link.path} className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center group">
-                    {link.label}
-                    <ArrowUpRight className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="lg:col-span-1 space-y-6">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40">Jurídico</h4>
-            <ul className="space-y-4">
-              {footerLinks.legal.map((link, i) => (
-                <li key={i}>
-                  <Link to={link.path} className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center group">
-                    {link.label}
-                    <ArrowUpRight className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Support Section */}
-          <div className="lg:col-span-1 space-y-6">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40">Suporte</h4>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <Mail size={14} className="text-primary/50" />
-                <span>contato@neuronexai.com.br</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <Phone size={14} className="text-primary/50" />
-                <span>+55 (47) 98873-0611</span>
-              </div>
-              <div className="flex items-start gap-3 text-sm text-muted-foreground leading-relaxed">
-                <MapPin size={14} className="text-primary/50 mt-1 shrink-0" />
-                <span>Thera Faria Lima, 215 - Pinheiros SP</span>
-              </div>
+          <div className="space-y-6 lg:col-span-1">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-foreground/40">Contato</h4>
+            <div className="space-y-4 text-sm text-muted-foreground">
+              <a href="mailto:contato@neuronexai.com.br" className="flex items-center gap-3 hover:text-foreground"><Mail size={14} /> contato@neuronexai.com.br</a>
+              <a href="tel:+5547988730611" className="flex items-center gap-3 hover:text-foreground"><Phone size={14} /> +55 (47) 98873-0611</a>
+              <div className="flex items-start gap-3 leading-relaxed"><MapPin size={14} className="mt-1 shrink-0" /><span>Thera Faria Lima, 215 - Pinheiros, São Paulo - SP</span></div>
             </div>
           </div>
         </div>
 
-        {/* Bottom Section */}
-        <div className="pt-12 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-6">
-          <p className="text-[11px] font-medium text-muted-foreground/50 tracking-wider">
-            2026 © NEURONEX AI LTDA. TODOS OS DIREITOS RESERVADOS.
-          </p>
-          <div className="flex items-center gap-8">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/40 flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Sistemas Operacionais
-            </span>
-          </div>
+        <div className="flex flex-col items-center justify-between gap-6 border-t border-border/50 pt-12 md:flex-row">
+          <p className="text-[11px] font-medium tracking-wider text-muted-foreground/50">{currentYear} © NEURONEX AI LTDA. TODOS OS DIREITOS RESERVADOS.</p>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/45">Brasil</span>
         </div>
       </div>
     </footer>
