@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/SessionContextProvider';
@@ -15,9 +15,30 @@ export interface NotificationSettings {
   in_app_new_patients: boolean;
   in_app_overdue_invoices: boolean;
   in_app_system_updates: boolean;
+  sms_enabled: boolean;
+  sms_security_alerts: boolean;
+  sms_appointments: boolean;
+  push_enabled: boolean;
+  updated_at?: string;
 }
 
-const fetchNotificationSettings = async (userId: string): Promise<Partial<NotificationSettings> | null> => {
+export const DEFAULT_NOTIFICATION_SETTINGS: Omit<NotificationSettings, 'id' | 'user_id'> = {
+  email_enabled: true,
+  email_appointment_reminders: true,
+  email_payment_confirmations: true,
+  email_monthly_reports: true,
+  email_security_alerts: true,
+  in_app_enabled: true,
+  in_app_new_patients: true,
+  in_app_overdue_invoices: true,
+  in_app_system_updates: true,
+  sms_enabled: false,
+  sms_security_alerts: true,
+  sms_appointments: true,
+  push_enabled: true,
+};
+
+const fetchNotificationSettings = async (userId: string): Promise<Partial<NotificationSettings>> => {
   const { data, error } = await supabase
     .from('user_notification_settings')
     .select('*')
@@ -25,50 +46,69 @@ const fetchNotificationSettings = async (userId: string): Promise<Partial<Notifi
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data;
+  return {
+    ...DEFAULT_NOTIFICATION_SETTINGS,
+    ...(data || {}),
+    user_id: userId,
+  };
 };
 
 const upsertNotificationSettings = async (settings: Partial<NotificationSettings>, userId: string) => {
+  const {
+    id: _id,
+    updated_at: _updatedAt,
+    ...editableSettings
+  } = settings;
+
   const { data, error } = await supabase
     .from('user_notification_settings')
-    .upsert({ ...settings, user_id: userId }, { onConflict: 'user_id' })
+    .upsert({
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      ...editableSettings,
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' })
     .select()
     .single();
 
   if (error) throw new Error(error.message);
-  return data;
+  return data as NotificationSettings;
 };
 
 export const useNotificationSettings = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const userId = user?.id;
+  const queryKey = ['notificationSettings', userId] as const;
 
   const query = useQuery({
-    queryKey: ['notificationSettings', userId],
+    queryKey,
     queryFn: () => fetchNotificationSettings(userId!),
-    enabled: !!userId,
+    enabled: Boolean(userId),
+    staleTime: 5 * 60_000,
   });
 
   const mutation = useMutation({
     mutationFn: (settings: Partial<NotificationSettings>) => {
-      if (!userId) throw new Error("Usuário não autenticado");
+      if (!userId) throw new Error('Usuário não autenticado');
       return upsertNotificationSettings(settings, userId);
     },
-    onSuccess: () => {
-      toast.success("Preferências de notificação salvas!");
-      queryClient.invalidateQueries({ queryKey: ['notificationSettings', userId] });
-      queryClient.invalidateQueries({ queryKey: ['dashboardAlerts', userId] }); // Invalida os alertas para refletir as mudanças
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKey, data);
+      toast.success('Preferências de notificação salvas.');
+      void queryClient.invalidateQueries({ queryKey: ['dashboardAlerts', userId] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications', userId] });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(`Erro ao salvar: ${error.message}`);
-    }
+    },
   });
 
   return {
     settings: query.data,
     isLoading: query.isLoading,
     saveSettings: mutation.mutate,
+    saveSettingsAsync: mutation.mutateAsync,
     isSaving: mutation.isPending,
   };
 };
