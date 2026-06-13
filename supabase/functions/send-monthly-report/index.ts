@@ -116,14 +116,17 @@ serve(async (req) => {
     const safePatientName = escapeHtml(patientName || 'Paciente');
     const firstName = safePatientName.split(' ')[0] || safePatientName;
 
-    const applyTemplateVariables = (template: string) => template
+    const applyPlainVariables = (template: string) => template
+      .replace(/\{\{patientName\}\}/g, patientName || 'Paciente')
+      .replace(/\{\{month\}\}/g, displayMonth);
+    const applyHtmlVariables = (template: string) => escapeHtml(template)
       .replace(/\{\{patientName\}\}/g, safePatientName)
       .replace(/\{\{month\}\}/g, escapeHtml(displayMonth));
 
-    const emailSubject = applyTemplateVariables(
+    const emailSubject = applyPlainVariables(
       reportSettings?.email_subject || `Relatório de Acompanhamento - ${displayMonth}`
     );
-    const introHtml = applyTemplateVariables(
+    const introHtml = applyHtmlVariables(
       reportSettings?.email_intro || `Olá ${safePatientName}, aqui está o resumo do seu progresso terapêutico neste mês.`
     ).replace(/\n/g, '<br/>');
 
