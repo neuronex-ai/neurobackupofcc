@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppointments } from '@/hooks/use-appointments';
 import { UpcomingSessionsPanel } from '@/components/teleconsulta/UpcomingSessionsPanel';
 import { ActiveSessionPanel } from '@/components/teleconsulta/ActiveSessionPanel';
-import { startOfWeek, endOfWeek, addMonths } from 'date-fns';
+import { addMonths, endOfWeek, startOfWeek } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileTeleconsulta } from '@/mobile/pages/MobileTeleconsulta';
 import { FeatureGate, LockedFeatureScreen } from '@/components/subscription';
-import { getAppointmentKind, getAppointmentMetadata } from '@/lib/appointment-metadata';
+import { getAppointmentKind } from '@/lib/appointment-metadata';
 import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
 
 const TeleconsultaCore = () => {
@@ -25,35 +25,26 @@ const TeleconsultaCore = () => {
 
   const { data: appointments, isLoading } = useAppointments({
     startDate: dateRange.start,
-    endDate: dateRange.end
+    endDate: dateRange.end,
   });
 
   useEffect(() => {
     if (location.state?.activeAppointmentId && appointments) {
-      const targetApt = appointments.find(a => a.id === location.state.activeAppointmentId);
-      if (targetApt) {
-        setActiveAppointmentId(targetApt.id);
+      const targetAppointment = appointments.find((appointment) => appointment.id === location.state.activeAppointmentId);
+      if (targetAppointment) {
+        setActiveAppointmentId(targetAppointment.id);
         window.history.replaceState({}, document.title, location.pathname);
       }
     }
-  }, [location.state, appointments]);
+  }, [location.pathname, location.state, appointments]);
 
-  const teleconsultationSessions = (appointments || []).filter((appointment) => {
+  const clinicalSessions = (appointments || []).filter((appointment) => {
     if (isCancelledAppointmentStatus(appointment.status, appointment.notes)) return false;
-    if (getAppointmentKind(appointment) !== 'session') return false;
-
-    const metadata = getAppointmentMetadata(appointment);
-    const appointmentType = appointment.type as string;
-    return (
-      appointmentType === 'online' ||
-      appointmentType === 'teleconsulta' ||
-      metadata.modality === 'online' ||
-      !!appointment.google_meet_link
-    );
+    return getAppointmentKind(appointment) === 'session';
   });
 
-  const activeAppointment = teleconsultationSessions.find(apt => apt.id === activeAppointmentId);
-  const upcomingSessions = teleconsultationSessions.filter(apt => apt.id !== activeAppointmentId);
+  const activeAppointment = clinicalSessions.find((appointment) => appointment.id === activeAppointmentId);
+  const upcomingSessions = clinicalSessions.filter((appointment) => appointment.id !== activeAppointmentId);
 
   const startSession = (appointmentId: string) => {
     setActiveAppointmentId(appointmentId);
@@ -61,16 +52,14 @@ const TeleconsultaCore = () => {
 
   const endSession = () => {
     setActiveAppointmentId(undefined);
-    queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    void queryClient.invalidateQueries({ queryKey: ['appointments'] });
   };
 
-  if (isMobile) {
-    return <MobileTeleconsulta />;
-  }
+  if (isMobile) return <MobileTeleconsulta />;
 
   if (activeAppointment) {
     return (
-      <div className="min-h-screen bg-background overflow-hidden relative">
+      <div className="relative min-h-screen overflow-hidden bg-background">
         <ActiveSessionPanel
           activeAppointment={activeAppointment}
           patientName={activeAppointment.patient_name || 'Paciente'}
@@ -81,7 +70,7 @@ const TeleconsultaCore = () => {
   }
 
   return (
-    <div className="min-h-screen pb-12 page-spacing relative overflow-hidden">
+    <div className="page-spacing relative min-h-screen overflow-hidden pb-12">
       <UpcomingSessionsPanel
         upcomingSessions={upcomingSessions}
         activeAppointment={activeAppointment}
@@ -92,21 +81,19 @@ const TeleconsultaCore = () => {
   );
 };
 
-const Teleconsulta = () => {
-  return (
-    <FeatureGate
-      feature="telemedicine"
-      fallback={
-        <LockedFeatureScreen
-          feature="telemedicine"
-          title="Telemedicina HD"
-          description="Realize consultas por videochamada com qualidade HD, transcrição automática e integração total com o prontuário. Disponível a partir do plano Professional."
-        />
-      }
-    >
-      <TeleconsultaCore />
-    </FeatureGate>
-  );
-};
+const Teleconsulta = () => (
+  <FeatureGate
+    feature="telemedicine"
+    fallback={
+      <LockedFeatureScreen
+        feature="telemedicine"
+        title="Sessões clínicas"
+        description="Conduza sessões online ou presenciais com captura consentida, transcrição persistente e integração revisável com o prontuário. Disponível a partir do plano Professional."
+      />
+    }
+  >
+    <TeleconsultaCore />
+  </FeatureGate>
+);
 
 export default Teleconsulta;
