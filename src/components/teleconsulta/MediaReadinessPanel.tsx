@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 
 interface MediaReadinessPanelProps {
   variant?: "mobile" | "desktop";
+  initialAudioEnabled?: boolean;
+  initialVideoEnabled?: boolean;
   onReadinessChange?: (ready: boolean, selection: MediaDeviceChoice) => void;
   className?: string;
 }
@@ -43,11 +45,16 @@ const deviceLabel = (label: string, fallback: string, index: number) => label ||
 
 export const MediaReadinessPanel = ({
   variant = "desktop",
+  initialAudioEnabled = true,
+  initialVideoEnabled = true,
   onReadinessChange,
   className,
 }: MediaReadinessPanelProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const readiness = useMediaReadiness();
+  const readiness = useMediaReadiness({
+    initialAudioEnabled,
+    initialVideoEnabled,
+  });
   const selection = readiness.getSelection();
   const network = networkMeta[readiness.network];
   const NetworkIcon = network.icon;
