@@ -28,17 +28,32 @@ export const useSessionCapture = ({
     provider: modality === 'online' ? 'jitsi' : 'browser_speech',
     language,
   });
+  const {
+    appendSegment,
+    recordConsent,
+    start,
+    pause,
+    resume,
+    finalize,
+  } = transcript;
   const [interimText, setInterimText] = useState('');
+  const [isCaptureEnabled, setIsCaptureEnabled] = useState(false);
   const captureEnabledRef = useRef(false);
+
+  const setCaptureEnabled = useCallback((enabled: boolean) => {
+    captureEnabledRef.current = enabled;
+    setIsCaptureEnabled(enabled);
+  }, []);
 
   const appendLocalSpeech = useCallback((text: string) => {
     if (!captureEnabledRef.current) return;
-    void transcript.appendSegment({
+    void appendSegment({
       source: 'browser_speech',
-      speakerLabel: therapistName,
+      speakerLabel: 'Áudio da sessão',
       text,
+      metadata: { capturedBy: therapistName },
     });
-  }, [therapistName, transcript]);
+  }, [appendSegment, therapistName]);
 
   const speech = useSpeechRecognition({
     lang: language,
@@ -46,76 +61,85 @@ export const useSessionCapture = ({
     onResult: appendLocalSpeech,
     onInterimResult: setInterimText,
   });
+  const {
+    isSupported: speechSupported,
+    isListening,
+    lastError: speechError,
+    startListening,
+    stopListening,
+  } = speech;
 
   const grantConsent = useCallback(async (
     method: SessionTranscriptConsentMethod = 'verbal',
     notes?: string,
   ) => {
-    await transcript.recordConsent('granted', method, notes);
-  }, [transcript]);
+    await recordConsent('granted', method, notes);
+  }, [recordConsent]);
 
   const declineConsent = useCallback(async (notes?: string) => {
-    captureEnabledRef.current = false;
-    speech.stopListening();
-    await transcript.recordConsent('declined', 'verbal', notes);
-  }, [speech, transcript]);
+    setCaptureEnabled(false);
+    stopListening();
+    setInterimText('');
+    await recordConsent('declined', 'verbal', notes);
+  }, [recordConsent, setCaptureEnabled, stopListening]);
 
   const startCapture = useCallback(async () => {
-    await transcript.start();
-    captureEnabledRef.current = true;
-    if (modality === 'in_person' && speech.isSupported) speech.startListening();
-  }, [modality, speech, transcript]);
+    await start();
+    setCaptureEnabled(true);
+    if (modality === 'in_person' && speechSupported) startListening();
+  }, [modality, setCaptureEnabled, speechSupported, start, startListening]);
 
   const pauseCapture = useCallback(async () => {
-    captureEnabledRef.current = false;
-    speech.stopListening();
+    setCaptureEnabled(false);
+    stopListening();
     setInterimText('');
-    await transcript.pause();
-  }, [speech, transcript]);
+    await pause();
+  }, [pause, setCaptureEnabled, stopListening]);
 
   const resumeCapture = useCallback(async () => {
-    await transcript.resume();
-    captureEnabledRef.current = true;
-    if (modality === 'in_person' && speech.isSupported) speech.startListening();
-  }, [modality, speech, transcript]);
+    await resume();
+    setCaptureEnabled(true);
+    if (modality === 'in_person' && speechSupported) startListening();
+  }, [modality, resume, setCaptureEnabled, speechSupported, startListening]);
 
   const appendJitsiSegment = useCallback((entry: {
     participant: { name: string };
     text: string;
   }) => {
     if (!captureEnabledRef.current || modality !== 'online') return;
-    void transcript.appendSegment({
+    void appendSegment({
       source: 'jitsi',
       speakerLabel: entry.participant.name || 'Participante',
       text: entry.text,
     });
-  }, [modality, transcript]);
+  }, [appendSegment, modality]);
 
   const finalizeCapture = useCallback(async () => {
-    captureEnabledRef.current = false;
-    speech.stopListening();
+    setCaptureEnabled(false);
+    stopListening();
     setInterimText('');
-    return transcript.finalize();
-  }, [speech, transcript]);
+    return finalize();
+  }, [finalize, setCaptureEnabled, stopListening]);
 
   const revokeConsent = useCallback(async (notes?: string) => {
-    captureEnabledRef.current = false;
-    speech.stopListening();
+    setCaptureEnabled(false);
+    stopListening();
     setInterimText('');
-    await transcript.recordConsent('revoked', 'verbal', notes);
-  }, [speech, transcript]);
+    await recordConsent('revoked', 'verbal', notes);
+  }, [recordConsent, setCaptureEnabled, stopListening]);
 
   useEffect(() => () => {
     captureEnabledRef.current = false;
-    speech.stopListening();
-  }, [speech]);
+    stopListening();
+  }, [stopListening]);
 
   return {
     ...transcript,
     interimText,
-    speechSupported: speech.isSupported,
-    speechError: speech.lastError,
-    isListening: speech.isListening,
+    isCaptureEnabled,
+    speechSupported,
+    speechError,
+    isListening,
     grantConsent,
     declineConsent,
     revokeConsent,
