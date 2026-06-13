@@ -18,6 +18,7 @@ interface MobileTeleconsultationLobbyProps {
   appointmentStart?: string;
   meetLink: string;
   therapistName: string;
+  isOnline: boolean;
   isLoadingToken: boolean;
   onJoin: (selection: MediaDeviceChoice) => void;
   onBack: () => void;
@@ -35,12 +36,16 @@ export const MobileTeleconsultationLobby = ({
   appointmentStart,
   meetLink,
   therapistName,
+  isOnline,
   isLoadingToken,
   onJoin,
   onBack,
 }: MobileTeleconsultationLobbyProps) => {
   const [isReady, setIsReady] = useState(false);
-  const [selection, setSelection] = useState<MediaDeviceChoice>(emptySelection);
+  const [selection, setSelection] = useState<MediaDeviceChoice>({
+    ...emptySelection,
+    videoEnabled: isOnline,
+  });
 
   const handleReadinessChange = useCallback((ready: boolean, nextSelection: MediaDeviceChoice) => {
     setIsReady(ready);
@@ -63,7 +68,9 @@ export const MobileTeleconsultationLobby = ({
 
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">Pré-entrada</p>
-          <p className="mt-1 text-sm font-black tracking-[-0.02em] text-foreground">Teleconsulta</p>
+          <p className="mt-1 text-sm font-black tracking-[-0.02em] text-foreground">
+            {isOnline ? "Teleconsulta" : "Sessão presencial"}
+          </p>
         </div>
 
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.08] text-xs font-black text-emerald-600 dark:text-emerald-300">
@@ -84,7 +91,12 @@ export const MobileTeleconsultationLobby = ({
         </section>
 
         <section className="mt-4">
-          <MediaReadinessPanel variant="mobile" onReadinessChange={handleReadinessChange} />
+          <MediaReadinessPanel
+            variant="mobile"
+            initialAudioEnabled
+            initialVideoEnabled={isOnline}
+            onReadinessChange={handleReadinessChange}
+          />
         </section>
 
         <section className="mt-4 rounded-[26px] border border-border/40 bg-card/75 p-5 dark:border-white/10 dark:bg-white/[0.03]">
@@ -93,31 +105,35 @@ export const MobileTeleconsultationLobby = ({
             <div>
               <p className="text-xs font-black text-foreground">Antes de entrar</p>
               <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-muted-foreground/70">
-                Confirme que o ambiente está reservado e que o paciente foi informado sobre o uso dos recursos da sessão.
+                {isOnline
+                  ? "Confirme que o ambiente está reservado e que o paciente foi informado sobre o uso dos recursos da sessão."
+                  : "Use um ambiente reservado e confirme o consentimento antes de iniciar qualquer captura de áudio da sessão presencial."}
               </p>
             </div>
           </div>
         </section>
 
-        <section className="mt-4 rounded-[26px] border border-border/40 bg-card/75 p-5 dark:border-white/10 dark:bg-white/[0.03]">
-          <p className="mb-3 text-[8px] font-black uppercase tracking-[0.18em] text-muted-foreground">Enviar link da consulta</p>
-          <PreJoinActions
-            appointmentId={appointmentId}
-            patient={patient}
-            meetLink={meetLink}
-            therapistName={therapistName}
-          />
-        </section>
+        {isOnline ? (
+          <section className="mt-4 rounded-[26px] border border-border/40 bg-card/75 p-5 dark:border-white/10 dark:bg-white/[0.03]">
+            <p className="mb-3 text-[8px] font-black uppercase tracking-[0.18em] text-muted-foreground">Enviar link da consulta</p>
+            <PreJoinActions
+              appointmentId={appointmentId}
+              patient={patient}
+              meetLink={meetLink}
+              therapistName={therapistName}
+            />
+          </section>
+        ) : null}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/45 bg-background/92 px-5 pb-[calc(0.8rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-2xl dark:border-white/10">
         <Button
           type="button"
-          disabled={!isReady || isLoadingToken}
+          disabled={!isReady || (isOnline && isLoadingToken)}
           onClick={() => onJoin(selection)}
           className="h-14 w-full rounded-2xl bg-foreground text-[10px] font-black uppercase tracking-[0.19em] text-background shadow-xl disabled:opacity-45"
         >
-          {isLoadingToken ? (
+          {isOnline && isLoadingToken ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Preparando sala
@@ -125,7 +141,7 @@ export const MobileTeleconsultationLobby = ({
           ) : (
             <>
               <Play className="mr-2 h-4 w-4 fill-current" />
-              Entrar na sessão
+              {isOnline ? "Entrar na sessão" : "Iniciar sessão presencial"}
             </>
           )}
         </Button>
