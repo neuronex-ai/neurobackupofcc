@@ -16,8 +16,10 @@ import {
     FileText,
     Zap,
     ArrowRight,
-    MessageSquare
+    MessageSquare,
+    Globe
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const CategoryCard = ({ icon: Icon, title, count, delay }: any) => (
@@ -123,7 +125,7 @@ const HelpCenter = () => {
                                         { q: "Como ocorre a exportação soberana de prontuários?", a: "Você possui controle absoluto sobre seus dados. A exportação pode ser realizada em massa ou individualmente nos formatos PDF (para leitura física) ou JSON (para portabilidade sistêmica), garantindo soberania total." },
                                         { q: "O NeuroNex OS opera em modo offline?", a: "A agenda e dados essenciais de pacientes são cacheados localmente através de Service Workers de última geração, permitindo consulta imediata sem conectividade. Recursos de IA e sincronização em nuvem exigem conexão ativa para integridade dos dados." },
                                         { q: "Qual a infraestrutura por trás da segurança LGPD?", a: "Utilizamos criptografia de ponta (AES-256) com chaves de acesso que nunca tocam nossos servidores em formato legível. Nossa infraestrutura é auditada periodicamente seguindo padrões HIPAA e LGPD." },
-                                        { q: "Como funciona o Split de Pagamentos do NeuroFinance?", a: "O Split permite automatizar a divisão de honorários entre clínica e profissionais instantaneamente no ato do pagamento, via NeuroFinance (serviços financeiros por Asaas), reduzindo custos tributários e burocracia contábil." }
+                                        { q: "Como funciona o Split de Pagamentos do NeuroBank?", a: "O Split permite automatizar a divisão de honorários entre clínica e profissionais instantaneamente no ato do pagamento, via Stripe Connect, reduzindo custos tributários e burocracia contábil." }
                                     ].map((item, i) => (
                                         <AccordionItem key={i} value={`item-${i}`} className="border border-border/30 bg-card/40 backdrop-blur-3xl px-8 rounded-[32px] transition-all data-[state=open]:bg-card/60 data-[state=open]:border-foreground/20 shadow-premium">
                                             <AccordionTrigger className="text-lg font-bold text-foreground py-7 hover:no-underline hover:text-foreground/80 transition-all text-left">
