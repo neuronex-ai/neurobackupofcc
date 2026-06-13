@@ -19,7 +19,7 @@ export interface UserPreferences {
 }
 
 export const DEFAULT_USER_PREFERENCES: Omit<UserPreferences, 'user_id'> = {
-  theme: 'system',
+  theme: 'dark',
   density: 'comfortable',
   reduced_motion: false,
   language: 'pt-BR',
@@ -115,6 +115,26 @@ export const useUserPreferences = () => {
     root.lang = preferences.language || 'pt-BR';
     root.classList.toggle('reduce-motion', preferences.reduced_motion);
   }, [preferences]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`user-preferences:${userId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_preferences',
+        filter: `user_id=eq.${userId}`,
+      }, () => {
+        void queryClient.invalidateQueries({ queryKey });
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient, queryKey, userId]);
 
   return {
     preferences,
