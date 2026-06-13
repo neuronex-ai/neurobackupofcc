@@ -12,15 +12,17 @@ import {
   FileCheck2,
   GitBranch,
   LayoutDashboard,
+  Maximize2,
   MessageCircle,
   Mic2,
-  ReceiptText,
   Sparkles,
   Users,
   WalletCards,
+  X,
 } from "lucide-react";
 import type { ElementType, ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 
 import { FadeIn } from "@/components/animations/FadeIn";
@@ -29,6 +31,8 @@ import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
 
 const SCREENSHOT_ROOT = "/landing/screenshots";
+const DARK_NEW_BATCH = `${SCREENSHOT_ROOT}/desktop/dark/nova remessa`;
+const LIGHT_NEW_BATCH = `${SCREENSHOT_ROOT}/desktop/light/Nova remessa`;
 
 type ScreenshotSource = {
   dark: string;
@@ -66,9 +70,9 @@ const productModules: ProductModule[] = [
     description: "Visões diária e mensal, compromissos, status e ações rápidas em uma agenda conectada ao restante da operação.",
     bullets: ["Dia e mês", "Status em tempo real", "Acesso ao paciente"],
     icon: CalendarDays,
-    dark: `${SCREENSHOT_ROOT}/desktop/dark/02-dashboard-agenda-viva-dark.webp`,
+    dark: `${DARK_NEW_BATCH}/9-agenda-mensal-dark.webp`,
     light: `${SCREENSHOT_ROOT}/desktop/light/9-agenda-mensal-white.webp`,
-    alt: "Agenda clínica do NeuroNex",
+    alt: "Visualização mensal da agenda clínica do NeuroNex",
   },
   {
     key: "prontuario",
@@ -100,7 +104,8 @@ const productModules: ProductModule[] = [
     description: "Saldo, Pix, boletos, cobranças, pagamentos e saques dentro do fluxo operacional do consultório.",
     bullets: ["Conta e saldo", "Pix e boletos", "Pagamentos e saques"],
     icon: CreditCard,
-    dark: `${SCREENSHOT_ROOT}/desktop/dark/08-neurofinance-conta-saldo-dark.webp`,
+    dark: `${DARK_NEW_BATCH}/08-neurofinance-conta-saldo-dark.webp`,
+    light: `${LIGHT_NEW_BATCH}/08-neurofinance-conta-saldo-white.webp`,
     alt: "Conta e saldo do NeuroFinance",
   },
   {
@@ -122,9 +127,9 @@ const productModules: ProductModule[] = [
     description: "Conexões clínicas e informações relevantes ganham uma representação visual para apoiar leitura e organização.",
     bullets: ["Mapa 2D e 3D", "Conexões relevantes", "Notas contextuais"],
     icon: BrainCircuit,
-    dark: `${SCREENSHOT_ROOT}/desktop/dark/17-neuroview-3d-dark.webp`,
+    dark: `${SCREENSHOT_ROOT}/desktop/dark/17-neuroview-2d-visao-de-todas-conexoes-dark.webp`,
     light: `${SCREENSHOT_ROOT}/desktop/light/17-neuroview-3d-white.webp`,
-    alt: "Visualização 3D do NeuroView",
+    alt: "Visualização das conexões clínicas no NeuroView",
   },
   {
     key: "neuropulse",
@@ -170,9 +175,13 @@ const SectionHeading = ({ eyebrow, title, description, align = "center" }: { eye
   </div>
 );
 
-const ScreenshotImage = ({ source, eager = false, className }: { source: ScreenshotSource; eager?: boolean; className?: string }) => {
+const useResolvedScreenshot = (source: ScreenshotSource) => {
   const { theme } = useTheme();
-  const src = theme === "light" ? source.light || source.dark : source.dark;
+  return theme === "light" ? source.light || source.dark : source.dark;
+};
+
+const ScreenshotImage = ({ source, eager = false, className }: { source: ScreenshotSource; eager?: boolean; className?: string }) => {
+  const src = useResolvedScreenshot(source);
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -194,20 +203,108 @@ const ScreenshotImage = ({ source, eager = false, className }: { source: Screens
   );
 };
 
-const BrowserFrame = ({ source, label, eager = false, compact = false }: { source: ScreenshotSource; label: string; eager?: boolean; compact?: boolean }) => (
-  <div className="overflow-hidden rounded-[30px] border border-border/45 bg-card shadow-[0_34px_110px_-72px_rgba(0,0,0,0.72)] dark:border-white/10 dark:bg-[#08090b]">
-    <div className={cn("flex items-center gap-2 border-b border-border/40 bg-background/82 px-5 dark:border-white/10 dark:bg-white/[0.035]", compact ? "h-11" : "h-14")}>
-      <span className="h-2.5 w-2.5 rounded-full bg-foreground/24" />
-      <span className="h-2.5 w-2.5 rounded-full bg-foreground/16" />
-      <span className="h-2.5 w-2.5 rounded-full bg-foreground/10" />
-      <span className="ml-auto text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">{label}</span>
-    </div>
-    <div className="relative aspect-video overflow-hidden bg-[#050506]">
-      <ScreenshotImage source={source} eager={eager} />
-      <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/[0.035]" />
-    </div>
-  </div>
-);
+const ScreenshotLightbox = ({ source, label, open, onClose }: { source: ScreenshotSource; label: string; open: boolean; onClose: () => void }) => {
+  const src = useResolvedScreenshot(source);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open, onClose]);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/88 p-5 backdrop-blur-xl md:p-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          onMouseDown={onClose}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Imagem ampliada: ${label}`}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.965, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.975, y: 10 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="flex max-h-full w-full max-w-[1600px] flex-col overflow-hidden rounded-[28px] border border-white/12 bg-[#09090b] shadow-[0_50px_180px_-50px_rgba(0,0,0,1)]"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="flex h-14 shrink-0 items-center gap-3 border-b border-white/10 px-5 text-white">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-white/26" />
+                <span className="h-2.5 w-2.5 rounded-full bg-white/16" />
+                <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+              </div>
+              <span className="ml-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/55">{label}</span>
+              <button
+                type="button"
+                onClick={onClose}
+                className="ml-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white"
+                aria-label="Fechar imagem ampliada"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-black p-3 md:p-5">
+              <img src={src} alt={source.alt} width={1280} height={720} className="max-h-[calc(100vh-9rem)] w-auto max-w-full rounded-xl object-contain" />
+            </div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>,
+    document.body,
+  );
+};
+
+const BrowserFrame = ({ source, label, eager = false, compact = false }: { source: ScreenshotSource; label: string; eager?: boolean; compact?: boolean }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <>
+      <div className="overflow-hidden rounded-[30px] border border-border/45 bg-card shadow-[0_34px_110px_-72px_rgba(0,0,0,0.72)] dark:border-white/10 dark:bg-[#08090b]">
+        <div className={cn("flex items-center gap-2 border-b border-border/40 bg-background/82 px-5 dark:border-white/10 dark:bg-white/[0.035]", compact ? "h-11" : "h-14")}>
+          <span className="h-2.5 w-2.5 rounded-full bg-foreground/24" />
+          <span className="h-2.5 w-2.5 rounded-full bg-foreground/16" />
+          <span className="h-2.5 w-2.5 rounded-full bg-foreground/10" />
+          <span className="ml-auto text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">{label}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="group relative block aspect-video w-full overflow-hidden bg-[#050506] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/50"
+          aria-label={`Ampliar imagem: ${label}`}
+        >
+          <ScreenshotImage source={source} eager={eager} />
+          <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/[0.035]" />
+          <div className="pointer-events-none absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/22 via-transparent to-transparent p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/55 px-3 py-2 text-[8px] font-black uppercase tracking-[0.16em] text-white backdrop-blur-md">
+              <Maximize2 className="h-3.5 w-3.5" /> Ampliar
+            </span>
+          </div>
+        </button>
+      </div>
+      <ScreenshotLightbox source={source} label={label} open={expanded} onClose={() => setExpanded(false)} />
+    </>
+  );
+};
 
 export const LandingRealProductShowcase = () => {
   const [activeKey, setActiveKey] = useState(productModules[0].key);
@@ -362,7 +459,8 @@ const financeCards: Array<ScreenshotSource & { title: string; eyebrow: string; d
     description: "Conta, saldo, Pix, boletos, pagamentos, transferências e saques preservados em uma camada bancária própria.",
     icon: WalletCards,
     items: ["Conta e saldo", "Pix e boletos", "Pagamentos"],
-    dark: `${SCREENSHOT_ROOT}/desktop/dark/08-neurofinance-conta-saldo-dark.webp`,
+    dark: `${DARK_NEW_BATCH}/08-neurofinance-conta-saldo-dark.webp`,
+    light: `${LIGHT_NEW_BATCH}/08-neurofinance-conta-saldo-white.webp`,
     alt: "Conta e saldo do NeuroFinance",
   },
   {
@@ -372,6 +470,7 @@ const financeCards: Array<ScreenshotSource & { title: string; eyebrow: string; d
     icon: FileCheck2,
     items: ["NFS-e", "Dados fiscais", "Menos retrabalho"],
     dark: `${SCREENSHOT_ROOT}/desktop/dark/13-fiscal-dados-nfse-dark.webp`,
+    light: `${LIGHT_NEW_BATCH}/13-fiscal-dados-nfse-white.webp`,
     alt: "Dados fiscais para emissão de NFS-e no NeuroNex",
   },
 ];
