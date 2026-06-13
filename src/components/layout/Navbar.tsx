@@ -25,9 +25,8 @@ import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
-import { useDashboardAlerts } from "@/hooks/use-dashboard-alerts";
+import { useUnreadNotificationCount } from "@/hooks/use-notifications";
 import { useIsMobile } from "@/hooks/use-mobile";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -44,13 +43,11 @@ import { CommandSearch } from "./CommandSearch";
 export const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { data: alerts } = useDashboardAlerts();
+  const { unreadCount } = useUnreadNotificationCount();
   const { data: profile } = useProfile();
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const isDarkTheme = theme === "dark";
-  const [hasViewedNotifications, setHasViewedNotifications] = useState(false);
-  const hasAlerts = alerts && alerts.length > 0 && !hasViewedNotifications;
   const isMobile = useIsMobile();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -107,44 +104,17 @@ export const Navbar = () => {
     const Icon = item.icon;
     const isActive = location.pathname === item.href || (item.href !== '/dashboard' && location.pathname.startsWith(item.href));
 
-    if (item.name === "NeuroFinance") {
-      const isFinanceActive = location.pathname.startsWith("/financeiro");
-
-      return (
-        <Tooltip key={item.name}>
-          <TooltipTrigger asChild>
-            <Link to={item.href} id={`nav-${item.href.replace('/', '')}`}>
-              <div className={dockItemClass(isFinanceActive)}>
-                <Icon className={cn("h-4 w-4 transition-transform duration-500", isFinanceActive ? "scale-100" : "group-hover:scale-110")} />
-                {isFinanceActive && (
-                  <span className={activeDotClass} />
-                )}
-              </div>
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className={tooltipClass}>
-            {item.name}
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
     return (
       <Tooltip key={item.name}>
         <TooltipTrigger asChild>
           <Link to={item.href} id={`nav-${item.href.replace('/', '')}`}>
             <div className={dockItemClass(isActive)}>
               <Icon className={cn("h-4 w-4 transition-transform duration-500", isActive ? "scale-100" : "group-hover:scale-110")} />
-
-              {isActive && (
-                <span className={activeDotClass} />
-              )}
+              {isActive && <span className={activeDotClass} />}
             </div>
           </Link>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className={tooltipClass}>
-          {item.name}
-        </TooltipContent>
+        <TooltipContent side="bottom" className={tooltipClass}>{item.name}</TooltipContent>
       </Tooltip>
     );
   };
@@ -161,13 +131,8 @@ export const Navbar = () => {
             : "border border-black/[0.075] bg-white/[0.72] shadow-[0_30px_90px_-46px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.7)] ring-1 ring-white/40 hover:bg-white/[0.78] hover:shadow-[0_42px_112px_-56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.8)]"
         )}
       >
-
-        {/* Logo Area */}
         <div className={cn("flex items-center pr-4 border-r", isDarkTheme ? "border-white/[0.08]" : "border-black/[0.055]")}>
-          <Link
-            to="/synapse-ai"
-            className="relative flex items-center justify-center w-10 h-10 rounded-[18px] transition-all duration-500 group mr-3"
-          >
+          <Link to="/synapse-ai" className="relative flex items-center justify-center w-10 h-10 rounded-[18px] transition-all duration-500 group mr-3">
             <div
               className={cn(
                 "absolute inset-0 rounded-[18px] transition-transform group-hover:scale-105",
@@ -180,45 +145,34 @@ export const Navbar = () => {
               <Sparkles className={cn("h-4 w-4", isDarkTheme ? "text-zinc-900" : "text-white")} />
             </div>
           </Link>
-
-          <span className={cn("text-[10px] font-black tracking-[0.3em] uppercase hidden md:block transition-colors duration-500", isDarkTheme ? "text-white" : "text-zinc-900")}>
-            NeuroNex
-          </span>
+          <span className={cn("text-[10px] font-black tracking-[0.3em] uppercase hidden md:block transition-colors duration-500", isDarkTheme ? "text-white" : "text-zinc-900")}>NeuroNex</span>
         </div>
 
-        {/* Navigation Items */}
         <div id="main-navigation" className="flex items-center gap-1">
-          {navigation.map((item) => (
-            <NavItem key={item.name} item={item} />
-          ))}
+          {navigation.map((item) => <NavItem key={item.name} item={item} />)}
         </div>
 
-        {/* Utilities */}
         <div className={cn("flex items-center gap-1 pl-4 border-l", isDarkTheme ? "border-white/[0.08]" : "border-black/[0.055]")}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                id="global-search"
-                size="icon"
-                variant="ghost"
-                className={utilityButtonClass}
-                onClick={() => setIsSearchOpen(true)}
-              >
+              <Button id="global-search" size="icon" variant="ghost" className={utilityButtonClass} onClick={() => setIsSearchOpen(true)}>
                 <Search className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className={tooltipClass}>Buscar</TooltipContent>
           </Tooltip>
 
-          <Popover onOpenChange={(open) => {
-            if (open) setHasViewedNotifications(true);
-          }}>
+          <Popover>
             <Tooltip>
               <TooltipTrigger asChild>
                 <PopoverTrigger asChild>
-                  <Button id="notifications-trigger" size="icon" variant="ghost" className={cn("relative", utilityButtonClass)}>
+                  <Button id="notifications-trigger" size="icon" variant="ghost" className={cn("relative", utilityButtonClass)} aria-label={`Notificações${unreadCount > 0 ? `, ${unreadCount} não lidas` : ''}`}>
                     <Bell className="h-4 w-4" />
-                    {hasAlerts && <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />}
+                    {unreadCount > 0 && (
+                      <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[7px] font-black text-white shadow-[0_0_8px_rgba(239,68,68,0.55)]">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Button>
                 </PopoverTrigger>
               </TooltipTrigger>
@@ -228,18 +182,13 @@ export const Navbar = () => {
               align="center"
               sideOffset={14}
               className={cn(
-                "w-80 p-0 backdrop-blur-[32px] shadow-[0_48px_96px_-24px_rgba(0,0,0,0.5)] rounded-[32px] overflow-hidden z-[70]",
+                "h-[620px] w-[430px] max-h-[78vh] p-0 backdrop-blur-[32px] shadow-[0_48px_96px_-24px_rgba(0,0,0,0.5)] rounded-[32px] overflow-hidden z-[70]",
                 isDarkTheme
                   ? "border border-white/10 bg-[#080809]/95 ring-1 ring-white/5"
                   : "border border-zinc-200 bg-white/95 ring-1 ring-black/5"
               )}
             >
-              <div className={cn("p-5 border-b", isDarkTheme ? "border-white/5 bg-white/[0.02]" : "border-zinc-100 bg-zinc-50")}>
-                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Notificações</h4>
-              </div>
-              <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                <AlertsPanel />
-              </div>
+              <AlertsPanel />
             </PopoverContent>
           </Popover>
 
@@ -248,9 +197,7 @@ export const Navbar = () => {
               <Button variant="ghost" className="relative h-10 w-10 rounded-2xl ring-offset-background transition-all hover:scale-105 focus:outline-none p-0 overflow-hidden ml-1">
                 <Avatar className="h-10 w-10 border border-zinc-200 dark:border-white/10 rounded-2xl">
                   <AvatarImage src={profile?.avatar_url || ''} alt={fullName} className="object-cover" />
-                  <AvatarFallback className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[10px] font-black">
-                    {fullName.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
+                  <AvatarFallback className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[10px] font-black">{fullName.substring(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -267,9 +214,7 @@ export const Navbar = () => {
               <div className="flex items-center gap-4 p-3 mb-2">
                 <Avatar className="h-12 w-12 border border-zinc-200 dark:border-white/10 rounded-2xl">
                   <AvatarImage src={profile?.avatar_url || ''} alt={fullName} className="object-cover" />
-                  <AvatarFallback className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-black">
-                    {fullName.substring(0, 2).toUpperCase()}
-                  </AvatarFallback>
+                  <AvatarFallback className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-black">{fullName.substring(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col space-y-0.5">
                   <span className="text-sm font-black text-zinc-900 dark:text-white tracking-tight uppercase">{fullName}</span>
@@ -278,32 +223,23 @@ export const Navbar = () => {
               </div>
 
               <DropdownMenuSeparator className="bg-zinc-100 dark:bg-white/5 mx-2 my-2" />
-
               <DropdownMenuItem className="cursor-pointer rounded-2xl focus:bg-zinc-100 dark:focus:bg-white/[0.04] my-1 py-3 px-4 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all text-[11px] font-black uppercase tracking-widest" onClick={() => navigate('/ajustes')}>
-                <Settings className="mr-3 h-4 w-4" />
-                <span>Ajustes</span>
+                <Settings className="mr-3 h-4 w-4" /><span>Ajustes</span>
               </DropdownMenuItem>
-
               <div className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/[0.04] select-none transition-all my-1">
                 <div className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-                  {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                  <span>Interface</span>
+                  {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}<span>Interface</span>
                 </div>
                 <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-8 w-8 rounded-xl border border-zinc-200 dark:border-white/10 hover:bg-zinc-900 dark:hover:bg-white text-zinc-500 hover:text-white dark:hover:text-black">
                   {theme === 'dark' ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
                 </Button>
               </div>
-
               <DropdownMenuItem className="cursor-pointer rounded-2xl focus:bg-zinc-100 dark:focus:bg-white/[0.04] my-1 py-3 px-4 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all text-[11px] font-black uppercase tracking-widest" onClick={() => navigate('/help')}>
-                <HelpCircle className="mr-3 h-4 w-4" />
-                <span>Suporte</span>
+                <HelpCircle className="mr-3 h-4 w-4" /><span>Suporte</span>
               </DropdownMenuItem>
-
               <DropdownMenuSeparator className="bg-zinc-100 dark:bg-white/5 mx-2 my-2" />
-
               <DropdownMenuItem className="cursor-pointer rounded-2xl focus:bg-rose-500 focus:text-white text-rose-500 my-1 py-3 px-4 transition-all text-[11px] font-black uppercase tracking-widest shadow-sm" onClick={handleLogout}>
-                <LogOut className="mr-3 h-4 w-4" />
-                <span>Encerrar</span>
+                <LogOut className="mr-3 h-4 w-4" /><span>Encerrar</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
