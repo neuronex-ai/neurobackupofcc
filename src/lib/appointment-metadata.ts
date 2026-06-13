@@ -29,6 +29,11 @@ export interface AppointmentMetadata {
   lastSyncedAt?: string;
   googleUpdatedAt?: string;
   localUpdatedAt?: string;
+  sessionTranscriptId?: string | null;
+  sessionSummaryNoteId?: string | null;
+  sessionDraftPending?: boolean;
+  sessionDraftNotes?: string | null;
+  sessionCompletedAt?: string | null;
 }
 
 const SESSION_TYPE_LABELS: Record<string, string> = {

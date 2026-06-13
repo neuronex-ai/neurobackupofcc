@@ -10,8 +10,8 @@ interface JitsiMeetProps {
   subject?: string;
   mediaSettings?: MediaDeviceChoice | null;
   onMeetingEnd: () => void;
-  onTranscriptUpdate?: (entry: { participant: { name: string }, text: string }) => void;
-  onMuteStatusChanged?: (status: { audio: boolean, video: boolean }) => void;
+  onTranscriptUpdate?: (entry: { participant: { name: string }; text: string }) => void;
+  onMuteStatusChanged?: (status: { audio: boolean; video: boolean }) => void;
   onConferenceJoined?: () => void;
 }
 
@@ -34,14 +34,29 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
   onMeetingEnd,
   onTranscriptUpdate,
   onMuteStatusChanged,
-  onConferenceJoined
+  onConferenceJoined,
 }, ref) => {
   const jitsiContainerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<any>(null);
+  const callbacksRef = useRef({
+    onMeetingEnd,
+    onTranscriptUpdate,
+    onMuteStatusChanged,
+    onConferenceJoined,
+  });
   const muteStateRef = useRef({
     audio: mediaSettings ? !mediaSettings.audioEnabled : false,
     video: mediaSettings ? !mediaSettings.videoEnabled : false,
   });
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onMeetingEnd,
+      onTranscriptUpdate,
+      onMuteStatusChanged,
+      onConferenceJoined,
+    };
+  }, [onConferenceJoined, onMeetingEnd, onMuteStatusChanged, onTranscriptUpdate]);
 
   useImperativeHandle(ref, () => ({
     toggleAudio: () => apiRef.current?.executeCommand('toggleAudio'),
@@ -67,21 +82,21 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
 
       const domain = '8x8.vc';
       const options = {
-        roomName: roomName,
+        roomName,
         width: '100%',
         height: '100%',
         parentNode: jitsiContainerRef.current,
-        jwt: jwt,
+        jwt,
         lang: 'pt-BR',
         userInfo: {
           displayName: userName,
           email: userEmail,
-          avatarUrl: userAvatarUrl
+          avatarUrl: userAvatarUrl,
         },
         configOverwrite: {
           prejoinPageEnabled: false,
           prejoinConfig: {
-            enabled: false
+            enabled: false,
           },
           startWithAudioMuted: muteStateRef.current.audio,
           startWithVideoMuted: muteStateRef.current.video,
@@ -96,7 +111,7 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
           disableProfile: true,
           hideConferenceTimer: true,
           hideConferenceSubject: false,
-          subject: subject || "Teleconsulta NeuroNex",
+          subject: subject || 'Teleconsulta NeuroNex',
         },
         interfaceConfigOverwrite: {
           TOOLBAR_BUTTONS: [],
@@ -111,21 +126,20 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
           HIDE_INVITE_MORE_HEADER: true,
           recentListEnabled: false,
           launchInWebOptionEnabled: false,
-        }
+        },
       };
 
-      // @ts-ignore
       const api = new window.JitsiMeetExternalAPI(domain, options);
       apiRef.current = api;
 
       if (subject) {
-        setTimeout(() => {
+        window.setTimeout(() => {
           api.executeCommand('subject', subject);
         }, 1000);
       }
 
       api.addEventListeners({
-        readyToClose: onMeetingEnd,
+        readyToClose: () => callbacksRef.current.onMeetingEnd(),
         videoConferenceJoined: async () => {
           try {
             if (mediaSettings?.audioInputId && api.setAudioInputDevice) {
@@ -140,28 +154,26 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
           } catch (deviceError) {
             console.warn('[JitsiMeet] Não foi possível aplicar todos os dispositivos do pré-join.', deviceError);
           }
-          if (onConferenceJoined) onConferenceJoined();
+          callbacksRef.current.onConferenceJoined?.();
         },
         transcriptionChunkReceived: (data: any) => {
-          if (onTranscriptUpdate) {
-            const participantName = data.participantName || "Participante";
-            const transcriptText = data.transcript?.map((t: any) => t.text).join(' ') || "";
-            if (transcriptText) {
-              onTranscriptUpdate({
-                participant: { name: participantName },
-                text: transcriptText
-              });
-            }
+          const participantName = data.participantName || 'Participante';
+          const transcriptText = data.transcript?.map((item: any) => item.text).join(' ') || '';
+          if (transcriptText) {
+            callbacksRef.current.onTranscriptUpdate?.({
+              participant: { name: participantName },
+              text: transcriptText,
+            });
           }
         },
         audioMuteStatusChanged: (data: any) => {
           muteStateRef.current.audio = Boolean(data.muted);
-          onMuteStatusChanged?.({ ...muteStateRef.current });
+          callbacksRef.current.onMuteStatusChanged?.({ ...muteStateRef.current });
         },
         videoMuteStatusChanged: (data: any) => {
           muteStateRef.current.video = Boolean(data.muted);
-          onMuteStatusChanged?.({ ...muteStateRef.current });
-        }
+          callbacksRef.current.onMuteStatusChanged?.({ ...muteStateRef.current });
+        },
       });
     }
 
@@ -178,7 +190,7 @@ const JitsiMeetComponent = forwardRef<JitsiRef, JitsiMeetProps>(({
   return (
     <div
       ref={jitsiContainerRef}
-      className="w-full h-full rounded-[24px] overflow-hidden bg-[#050505]"
+      className="h-full w-full overflow-hidden rounded-[24px] bg-[#050505]"
       style={{ pointerEvents: 'auto' }}
     />
   );
