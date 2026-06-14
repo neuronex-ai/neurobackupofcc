@@ -32,10 +32,12 @@ export const DEFAULT_NOTIFICATION_SETTINGS: Omit<NotificationSettings, 'id' | 'u
   in_app_new_patients: true,
   in_app_overdue_invoices: true,
   in_app_system_updates: true,
+  // SMS and browser push remain disabled until their delivery infrastructure
+  // is operational. Persisting a preference must not imply a working channel.
   sms_enabled: false,
-  sms_security_alerts: true,
-  sms_appointments: true,
-  push_enabled: true,
+  sms_security_alerts: false,
+  sms_appointments: false,
+  push_enabled: false,
 };
 
 const fetchNotificationSettings = async (userId: string): Promise<Partial<NotificationSettings>> => {
