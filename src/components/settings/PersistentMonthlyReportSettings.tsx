@@ -58,11 +58,11 @@ export const PersistentMonthlyReportSettings = () => {
   useEffect(() => {
     if (!settings) return;
     const { user_id: _userId, created_at: _createdAt, updated_at: _updatedAt, ...editable } = settings;
-    setForm({ ...editable, include_notes_summary: false });
+    setForm({ ...editable, enabled: false, include_notes_summary: false });
   }, [settings]);
 
   const handleSave = async () => {
-    await saveSettings({ ...form, include_notes_summary: false });
+    await saveSettings({ ...form, enabled: false, include_notes_summary: false });
   };
 
   const handleTest = async () => {
@@ -77,7 +77,7 @@ export const PersistentMonthlyReportSettings = () => {
         body: {
           testMode: true,
           monthDate: getPreviousMonthDate(),
-          settingsOverride: { ...form, include_notes_summary: false },
+          settingsOverride: { ...form, enabled: false, include_notes_summary: false },
         },
       });
 
@@ -107,7 +107,7 @@ export const PersistentMonthlyReportSettings = () => {
           </div>
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Relatórios mensais</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Escolha o conteúdo e valide a mensagem antes de ativar o envio.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Configure o conteúdo e valide a mensagem com um envio de teste.</p>
           </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -138,35 +138,33 @@ export const PersistentMonthlyReportSettings = () => {
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
             <p className="text-sm font-bold">Conexão Google necessária</p>
-            <p className="mt-1 text-xs">Conecte a conta Google para testar ou ativar o envio pelo Gmail.</p>
+            <p className="mt-1 text-xs">Conecte a conta Google para enviar o teste pelo Gmail.</p>
           </div>
         </div>
       ) : null}
 
       <section className="flex flex-col gap-5 rounded-[26px] border border-border/10 bg-secondary/15 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="rounded-2xl bg-emerald-500/10 p-3 text-emerald-600"><Send className="h-5 w-5" /></div>
+          <div className="rounded-2xl bg-muted p-3 text-muted-foreground"><Send className="h-5 w-5" /></div>
           <div>
-            <Label htmlFor="monthly_enabled" className="text-base font-bold">Envio automático</Label>
-            <p className="mt-1 text-xs text-muted-foreground">Salva a preferência para a rotina mensal de processamento.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Label htmlFor="monthly_enabled" className="text-base font-bold">Agendamento automático</Label>
+              <span className="rounded-full border border-border/10 bg-muted px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Em configuração</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">A ativação será liberada após a rotina segura de processamento e deduplicação.</p>
           </div>
         </div>
-        <Switch
-          id="monthly_enabled"
-          checked={form.enabled}
-          onCheckedChange={(enabled) => setForm((current) => ({ ...current, enabled }))}
-          disabled={!isConnected}
-        />
+        <Switch id="monthly_enabled" checked={false} disabled />
       </section>
 
       <div className="grid gap-6 md:grid-cols-2">
         <section className="space-y-4 rounded-[26px] border border-border/10 bg-secondary/10 p-6">
-          <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Dia de envio</Label>
+          <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Dia planejado</Label>
           <Select value={String(form.send_day)} onValueChange={(value) => setForm((current) => ({ ...current, send_day: Number(value) }))}>
             <SelectTrigger className="h-12 rounded-2xl"><SelectValue /></SelectTrigger>
             <SelectContent>{[1, 5, 10, 15, 20, 25, 28].map((day) => <SelectItem key={day} value={String(day)}>Dia {day}</SelectItem>)}</SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">O relatório considera o mês anterior.</p>
+          <p className="text-xs text-muted-foreground">A preferência fica preparada para a futura ativação. O relatório considera o mês anterior.</p>
         </section>
 
         <section className="space-y-3 rounded-[26px] border border-border/10 bg-secondary/10 p-6">
