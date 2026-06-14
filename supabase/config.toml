@@ -1,38 +1,22 @@
-
 [functions.scientific-updater]
 enabled = true
 verify_jwt = true
 import_map = "./functions/scientific-updater/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/scientific-updater/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/scientific-updater/*.html" ]
 
 [functions.ingest-normative]
 enabled = true
 verify_jwt = true
 import_map = "./functions/ingest-normative/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/ingest-normative/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/ingest-normative/*.html" ]
 
 [functions.sync-cfp-norms]
 enabled = true
 verify_jwt = true
 import_map = "./functions/sync-cfp-norms/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/sync-cfp-norms/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/sync-cfp-norms/*.html" ]
 
-# ─── NEUROBANK (ASAAS BaaS) EDGE FUNCTIONS ──────────────────
+# ─── NEUROFINANCE / ASAAS EDGE FUNCTIONS ─────────────────────
 
 [functions.asaas-webhook]
 enabled = true
@@ -139,6 +123,14 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/neurofinance-post-onboarding/index.ts"
 
+# ─── COMMUNICATION / REPORTS ──────────────────────────────────
+
+[functions.send-monthly-report]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-monthly-report/index.ts"
+
+# ─── SYNAPSE ──────────────────────────────────────────────────
 
 [functions.gemini-text-chat]
 enabled = true
@@ -155,9 +147,4 @@ entrypoint = "./functions/synapse-whatsapp-in/index.ts"
 enabled = true
 verify_jwt = false
 import_map = "./functions/n8n-agent-gateway/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/n8n-agent-gateway/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/n8n-agent-gateway/*.html" ]
