@@ -5,10 +5,11 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useUnreadNotificationCount } from "@/hooks/use-notifications";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
+import "@/styles/mobile-polish.css";
 import { motion } from "framer-motion";
-import { ArrowLeft, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 import { ReactNode, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { MobileBottomNav } from "./MobileBottomNav";
 
 interface MobileLayoutProps {
@@ -26,67 +27,54 @@ export const MobileLayout = ({
 }: MobileLayoutProps) => {
     const [notificationsOpen, setNotificationsOpen] = useState(false);
     const { theme } = useTheme();
-    const navigate = useNavigate();
     const { unreadCount } = useUnreadNotificationCount();
-
-    const isOnboardingShell = !showBottomNav;
-    const navigationVisible = showNav && showBottomNav;
+    const navigationVisible = showNav;
+    const bottomNavigationVisible = showBottomNav;
+    const immersive = !navigationVisible && !bottomNavigationVisible;
 
     return (
         <div
             className={cn(
-                "relative flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-background font-sans text-foreground antialiased selection:bg-foreground/20",
-                isOnboardingShell && "neurofinance-mobile-onboarding-shell",
+                "nn-mobile-shell relative flex h-[100dvh] min-h-[100dvh] w-full flex-col overflow-hidden bg-background font-sans text-foreground antialiased selection:bg-foreground/20",
+                immersive && "neurofinance-mobile-onboarding-shell",
             )}
         >
-            <div className="pointer-events-none fixed inset-0 z-0">
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] mix-blend-overlay" />
-                <div className="absolute left-1/2 top-0 h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-foreground/[0.02] blur-[120px]" />
+            <div className="mobile-surface-texture pointer-events-none fixed inset-0 z-0">
+                <div className="absolute left-1/2 top-0 h-72 w-[min(34rem,120vw)] -translate-x-1/2 rounded-full bg-foreground/[0.018] blur-[96px]" />
+                <div className="premium-noise absolute inset-0 text-foreground" />
             </div>
-
-            {isOnboardingShell && (
-                <button
-                    type="button"
-                    onClick={() => navigate(-1)}
-                    className="fixed left-4 top-[calc(1rem+env(safe-area-inset-top))] z-[150] flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.07] text-white shadow-[0_18px_50px_-36px_rgba(0,0,0,0.95)] transition-all active:scale-95"
-                    aria-label="Voltar"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                </button>
-            )}
 
             {navigationVisible && (
                 <motion.div
-                    initial={{ y: -50, opacity: 0 }}
+                    initial={{ y: -8, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className="fixed left-0 right-0 top-0 z-[100] pt-safe-top"
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="fixed left-0 right-0 top-0 z-[100] pt-[env(safe-area-inset-top)]"
                 >
-                    <div className="flex items-center justify-between px-6 py-4">
-                        <Link to="/dashboard">
-                            <button
-                                type="button"
-                                className="group relative flex h-11 w-11 items-center justify-center rounded-[14px] border border-foreground/5 bg-foreground/5 shadow-sm backdrop-blur-2xl transition-all duration-300 hover:bg-foreground/10 active:scale-90 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+                    <div className="flex items-center justify-between px-4 py-3">
+                        <Link to="/dashboard" className="rounded-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <span
+                                className="group relative flex h-10 w-10 items-center justify-center rounded-[13px] border border-foreground/[0.055] bg-background/72 shadow-[0_10px_28px_-22px_rgba(0,0,0,0.65)] backdrop-blur-xl transition-colors active:bg-foreground/[0.08] dark:border-white/10 dark:bg-black/35"
                                 aria-label="Ir para o Dashboard"
                             >
                                 <img
                                     src={theme === "dark" ? "/favicon-S-FUNDO-BRANCA.ico" : "/favicon-S-FUNDO-PRETA.ico"}
                                     alt="NeuroNex"
-                                    className="h-[18px] w-[18px] object-contain opacity-80 transition-transform group-hover:scale-110 group-hover:opacity-100"
+                                    className="h-[17px] w-[17px] object-contain opacity-85"
                                 />
-                            </button>
+                            </span>
                         </Link>
 
                         <button
                             type="button"
                             onClick={() => setNotificationsOpen(true)}
-                            className="relative flex h-11 w-11 items-center justify-center rounded-[14px] border border-foreground/5 bg-foreground/5 shadow-sm backdrop-blur-2xl transition-all duration-300 hover:bg-foreground/10 active:scale-90 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
-                            aria-label={`Abrir notificações${unreadCount > 0 ? `, ${unreadCount} não lidas` : ''}`}
+                            className="relative flex h-10 w-10 items-center justify-center rounded-[13px] border border-foreground/[0.055] bg-background/72 shadow-[0_10px_28px_-22px_rgba(0,0,0,0.65)] backdrop-blur-xl transition-colors active:bg-foreground/[0.08] dark:border-white/10 dark:bg-black/35"
+                            aria-label={`Abrir notificações${unreadCount > 0 ? `, ${unreadCount} não lidas` : ""}`}
                         >
-                            <Bell className="h-[18px] w-[18px] text-foreground/70 dark:text-white/70" strokeWidth={1.5} />
+                            <Bell className="h-[17px] w-[17px] text-foreground/68" strokeWidth={1.7} />
                             {unreadCount > 0 && (
-                                <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[8px] font-black text-white shadow-[0_0_10px_rgba(239,68,68,0.45)]">
-                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                <span className="absolute -right-1 -top-1 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[7px] font-black text-white">
+                                    {unreadCount > 99 ? "99+" : unreadCount}
                                 </span>
                             )}
                         </button>
@@ -97,24 +85,25 @@ export const MobileLayout = ({
             <Sheet open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                 <SheetContent
                     side="bottom"
-                    className="z-[110] flex h-[85dvh] flex-col overflow-hidden rounded-t-[32px] border-x-0 border-b-0 border-t border-border/45 bg-background p-0 shadow-[0_-24px_80px_-36px_rgba(0,0,0,0.55)] focus:outline-none dark:border-white/10"
+                    className="z-[110] flex h-[min(82dvh,46rem)] flex-col overflow-hidden rounded-t-[26px] border-x-0 border-b-0 border-t border-border/45 bg-background p-0 pb-[env(safe-area-inset-bottom)] shadow-[0_-20px_64px_-38px_rgba(0,0,0,0.5)] focus:outline-none dark:border-white/10"
                 >
-                    <div className="absolute left-1/2 top-3 z-30 h-1 w-10 -translate-x-1/2 rounded-full bg-foreground/15" />
+                    <div className="absolute left-1/2 top-2.5 z-30 h-1 w-9 -translate-x-1/2 rounded-full bg-foreground/14" />
                     <AlertsPanel />
                 </SheetContent>
             </Sheet>
 
             <main
                 className={cn(
-                    "relative z-10 h-full flex-1 animate-fade-in",
-                    navigationVisible ? "pb-32 pt-20" : "pb-0 pt-0",
+                    "relative z-10 min-h-0 min-w-0 flex-1 overflow-hidden",
+                    navigationVisible ? "pt-[calc(4rem+env(safe-area-inset-top))]" : "pt-0",
+                    bottomNavigationVisible ? "pb-[calc(4.85rem+env(safe-area-inset-bottom))]" : "pb-0",
                     className,
                 )}
             >
                 {children}
             </main>
 
-            {navigationVisible && <MobileBottomNav />}
+            {bottomNavigationVisible && <MobileBottomNav />}
         </div>
     );
 };
