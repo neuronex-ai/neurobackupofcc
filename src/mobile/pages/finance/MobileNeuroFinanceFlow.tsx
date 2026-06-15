@@ -51,28 +51,28 @@ export function MobileNeuroFinanceFlow() {
 
   const config = flows[route] || flows.pix;
   const shell = (content: ReactNode) => (
-    <MobilePageScaffold showBottomNavigation={!config.critical} contentClassName="pt-[5.75rem]">
+    <MobilePageScaffold showBottomNavigation={!config.critical}>
       <MobilePageHeader
         title={config.title}
         eyebrow={config.eyebrow}
         description={config.description}
         leading={(
-          <Button variant="outline" size="icon" onClick={() => navigate(config.backTo || home)} className="h-11 w-11 rounded-2xl">
+          <Button variant="outline" size="icon" onClick={() => navigate(config.backTo || home)} className="h-10 w-10 rounded-[14px]">
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">Voltar</span>
           </Button>
         )}
       />
-      <div className="mobile-finance-flow pb-5">{content}</div>
+      <div className="mobile-finance-flow pb-3">{content}</div>
     </MobilePageScaffold>
   );
 
   if (account.isLoading) return shell(<MobileLoadingState label="Sincronizando conta" />);
   if (account.needsInitialOnboarding || account.isAccountMissing) return shell(
-    <MobileStatusBanner variant="warning" title="Ative a conta antes de movimentar dinheiro" description="A Gestão Financeira continua disponível. Conclua o onboarding dentro do NeuroFinance." action={<Button onClick={() => navigate(home)} className="h-11 rounded-2xl text-[9px] font-black uppercase tracking-[0.14em]">Abrir NeuroFinance</Button>} />,
+    <MobileStatusBanner variant="warning" title="Ative a conta antes de movimentar dinheiro" description="A Gestão Financeira continua disponível. Conclua o onboarding dentro do NeuroFinance." action={<Button onClick={() => navigate(home)} className="h-10 rounded-xl text-[8px] font-black uppercase tracking-[0.12em]">Abrir NeuroFinance</Button>} />,
   );
   if (!account.isApproved) return shell(
-    <MobileStatusBanner variant="warning" title="Conta aguardando liberação" description="As operações ficam protegidas até a conclusão da análise cadastral e documental." action={<Button onClick={() => navigate(home)} variant="outline" className="h-11 rounded-2xl text-[9px] font-black uppercase tracking-[0.14em]">Ver situação da conta</Button>} />,
+    <MobileStatusBanner variant="warning" title="Conta aguardando liberação" description="As operações ficam protegidas até a conclusão da análise cadastral e documental." action={<Button onClick={() => navigate(home)} variant="outline" className="h-10 rounded-xl text-[8px] font-black uppercase tracking-[0.12em]">Ver situação da conta</Button>} />,
   );
 
   return (
