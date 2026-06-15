@@ -6,7 +6,6 @@ import { BankTransferView } from "@/components/financeiro/BankTransferView";
 import { PagamentosAgendamento } from "@/components/financeiro/pagamentos/PagamentosAgendamento";
 import { ScheduledBillPayments } from "@/components/financeiro/pagamentos/ScheduledBillPayments";
 import { PixChaves } from "@/components/financeiro/pix/PixChaves";
-import { PixGerarQrCode } from "@/components/financeiro/pix/PixGerarQrCode";
 import { PixPagarCopiaCola } from "@/components/financeiro/pix/PixPagarCopiaCola";
 import { PixReceber } from "@/components/financeiro/pix/PixReceber";
 import { PixTransferir } from "@/components/financeiro/pix/PixTransferir";
@@ -17,6 +16,7 @@ import "@/styles/finance-mobile-flows.css";
 import { MobileLoadingState, MobilePageHeader, MobilePageScaffold, MobileStatusBanner } from "../../components/MobilePagePrimitives";
 import { MobileNeuroFinanceHub } from "./MobileNeuroFinanceHub";
 import { MobileNeuroFinanceStatement } from "./MobileNeuroFinanceStatement";
+import { MobilePixStaticQrCode } from "./MobilePixStaticQrCode";
 
 type Flow = {
   title: string;
@@ -39,7 +39,7 @@ export function MobileNeuroFinanceFlow() {
   const flows: Record<string, Flow> = {
     pix: { title: "Área Pix", eyebrow: "NeuroFinance", description: "Pague, receba e gerencie suas chaves Pix.", backTo: home, content: <MobileNeuroFinanceHub /> },
     "pix/pagar": { title: "Pagar Pix", eyebrow: "Operação protegida", description: "Consulte o código e revise todos os dados antes do PIN.", critical: true, backTo: pix, content: <PixPagarCopiaCola /> },
-    "pix/qrcode": { title: "Gerar QR Code", eyebrow: "Recebimento Pix", description: "Crie uma cobrança com pagador identificado.", critical: true, backTo: pix, content: <PixGerarQrCode /> },
+    "pix/qrcode": { title: "Gerar QR Code", eyebrow: "Recebimento Pix", description: "Receba por uma chave ativa sem cadastrar o pagador.", critical: true, backTo: pix, content: <MobilePixStaticQrCode /> },
     "pix/recebidos": { title: "Pix recebidos", eyebrow: "Movimentações", description: "Recebimentos confirmados e cobranças em aberto.", backTo: pix, content: <PixReceber /> },
     "pix/chaves": { title: "Chaves Pix", eyebrow: "Recebimento", description: "Gerencie as chaves vinculadas à conta.", backTo: pix, content: <PixChaves /> },
     transferir: { title: "Transferir", eyebrow: "Pix com PIN", description: "Valide o destino no DICT antes de autorizar.", critical: true, backTo: home, content: <PixTransferir /> },
