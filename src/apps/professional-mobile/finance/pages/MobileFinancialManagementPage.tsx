@@ -150,8 +150,7 @@ export function MobileFinancialManagementPage() {
           >
             <div className="grid grid-cols-2 gap-2.5">
               <MobileFinanceButton
-                variant="light"
-                className={cn(resultTone !== "dark" && "bg-foreground text-background")}
+                variant="primary"
                 onClick={() => openEntry("income")}
               >
                 <ArrowUpRight className="h-4 w-4" />
@@ -159,11 +158,7 @@ export function MobileFinancialManagementPage() {
               </MobileFinanceButton>
               <MobileFinanceButton
                 variant="secondary"
-                className={cn(
-                  resultTone === "dark"
-                    ? "border-background/15 bg-background/[0.07] text-background"
-                    : "border-foreground/10 bg-background/70 text-foreground",
-                )}
+                className="border-foreground/10 bg-background/70 text-foreground"
                 onClick={() => openEntry("expense")}
               >
                 <ArrowDownRight className="h-4 w-4" />
