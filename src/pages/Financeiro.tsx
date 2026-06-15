@@ -1,37 +1,37 @@
 import { Suspense, lazy } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const DesktopFinanceiro = lazy(() => import("@/pages/desktop/DesktopFinanceiro"));
-const MobileFinanceiro = lazy(() => import("@/mobile/pages/MobileFinanceiro").then(m => ({ default: m.MobileFinanceiro })));
+const MobileFinancialManagementFlow = lazy(() => import("@/mobile/pages/finance/MobileFinancialManagementFlow").then((module) => ({ default: module.MobileFinancialManagementFlow })));
+const MobileNeuroFinanceHome = lazy(() => import("@/mobile/pages/finance/MobileNeuroFinanceHome").then((module) => ({ default: module.MobileNeuroFinanceHome })));
+const MobileNeuroFinanceFlow = lazy(() => import("@/mobile/pages/finance/MobileNeuroFinanceFlow").then((module) => ({ default: module.MobileNeuroFinanceFlow })));
 
-const PageLoader = () => (
-  <div className="h-screen w-full flex items-center justify-center bg-background">
-    <div className="relative">
-      <div className="absolute inset-0 bg-foreground/10 blur-2xl animate-pulse rounded-full" />
-      <Loader2 className="h-8 w-8 animate-spin text-foreground/20 relative z-10" />
-    </div>
-  </div>
-);
+const PageLoader = () => <div className="flex h-screen w-full items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-foreground/20" /></div>;
 
-const FinanceiroCore = () => {
-  const isMobile = useIsMobile();
+const ManagementCore = () => {
+  const mobile = useIsMobile();
+  return <Suspense fallback={<PageLoader />}>{mobile ? <MobileFinancialManagementFlow /> : <DesktopFinanceiro />}</Suspense>;
+};
 
-  return (
-    <Suspense fallback={<PageLoader />}>
-      {isMobile ? <MobileFinanceiro /> : <DesktopFinanceiro />}
-    </Suspense>
-  );
+const NeuroFinanceHomeCore = () => {
+  const mobile = useIsMobile();
+  return <Suspense fallback={<PageLoader />}>{mobile ? <MobileNeuroFinanceHome /> : <DesktopFinanceiro />}</Suspense>;
+};
+
+const BankingFlowCore = () => {
+  const mobile = useIsMobile();
+  return <Suspense fallback={<PageLoader />}>{mobile ? <MobileNeuroFinanceFlow /> : <DesktopFinanceiro />}</Suspense>;
 };
 
 const Financeiro = () => (
   <Routes>
-    <Route index element={<FinanceiroCore />} />
-    <Route path="gestao/*" element={<Navigate to="/financeiro" replace />} />
-    <Route path="neurofinance/*" element={<FinanceiroCore />} />
-    <Route path="*" element={<FinanceiroCore />} />
+    <Route index element={<ManagementCore />} />
+    <Route path="gestao/*" element={<ManagementCore />} />
+    <Route path="neurofinance" element={<NeuroFinanceHomeCore />} />
+    <Route path="neurofinance/*" element={<BankingFlowCore />} />
+    <Route path="*" element={<ManagementCore />} />
   </Routes>
 );
 

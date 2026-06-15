@@ -7,41 +7,46 @@ Separar definitivamente dois produtos que antes apareciam misturados na mesma te
 1. **Gestão Financeira** — controle gerencial do consultório, disponível sem conta bancária.
 2. **NeuroFinance** — movimentação de dinheiro real, condicionada ao plano e ao onboarding bancário.
 
-A Step 8 não altera os hooks bancários, Edge Functions Asaas, PIN financeiro ou regras já validadas. O trabalho é aditivo e mobile-first.
-
-## Problemas encontrados no ponto de partida
-
-- o cabeçalho dizia `NeuroFinance` e `Gestão de Caixa` ao mesmo tempo;
-- o onboarding bancário substituía toda a página e bloqueava a gestão gerencial;
-- ações ainda não adaptadas exibiam toast de “funcionalidade em desenvolvimento” como se fossem botões operacionais;
-- conta bancária, métricas gerenciais e transações manuais apareciam no mesmo fluxo;
-- o carregamento da conta Asaas bloqueava inclusive a área que não depende do Asaas;
-- o modal de verificação utilizava proporções de desktop no celular.
+A Step 8 não altera os contratos das Edge Functions Asaas, a validação do PIN financeiro ou as regras bancárias já aprovadas. O trabalho é aditivo e mobile-first.
 
 ## Arquitetura adotada
 
-### Rotas
+### Rotas principais
 
 - `/financeiro` → Gestão Financeira.
-- `/financeiro/neurofinance` → conta bancária e movimentação real.
+- `/financeiro/neurofinance` → página inicial da conta bancária.
 
-O seletor mobile navega entre rotas reais, permitindo deep link, botão voltar e restauração correta após atualizar a página.
+### Operações bancárias mobile
 
-### Gestão Financeira
+- `/financeiro/neurofinance/pix` → central Pix.
+- `/financeiro/neurofinance/pix/pagar` → Pix Copia e Cola.
+- `/financeiro/neurofinance/pix/qrcode` → QR Code para recebimento.
+- `/financeiro/neurofinance/pix/recebidos` → recebimentos e cobranças Pix.
+- `/financeiro/neurofinance/pix/chaves` → gerenciamento de chaves.
+- `/financeiro/neurofinance/transferir` → transferência Pix.
+- `/financeiro/neurofinance/saque` → saque para conta ou chave cadastrada.
+- `/financeiro/neurofinance/pagamentos/boleto` → consulta, pagamento ou agendamento de boleto.
+- `/financeiro/neurofinance/pagamentos/agendados` → histórico e comprovantes.
+- `/financeiro/neurofinance/extrato` → realizado, futuro e recorrências.
+
+As rotas são reais e restauráveis. Atualização da página, botão voltar e deep links preservam o contexto da operação.
+
+## Gestão Financeira
 
 - não depende de conta NeuroFinance;
 - permanece acessível para o plano gratuito;
 - usa `transactions`, `useFinancialMetrics` e os lançamentos gerenciais existentes;
-- mantém criação de receita/despesa e cobrança existente;
+- mantém criação de receita, despesa e cobrança;
 - apresenta módulos futuros como `Próxima etapa`, sem simular sucesso.
 
-### NeuroFinance
+## NeuroFinance
 
-- onboarding aparece somente dentro da rota NeuroFinance;
+- onboarding aparece somente dentro da página inicial bancária;
 - bloqueio de plano é aplicado somente ao módulo bancário;
-- saldo, pendências cadastrais e ações bancárias ficam isolados;
-- ações ainda não adaptadas são exibidas como `Em adaptação` e permanecem desabilitadas;
-- centro de verificação passa a usar altura dinâmica e scroll único.
+- saldo, pendências cadastrais e operações ficam isolados da Gestão;
+- conta não aprovada bloqueia operações e encaminha para Saúde da Conta;
+- operações sensíveis ocultam a navegação inferior;
+- PIN permanece obrigatório para Pix, transferências, saques e boletos.
 
 ## Entrega RC1
 
@@ -51,20 +56,46 @@ O seletor mobile navega entre rotas reais, permitindo deep link, botão voltar e
 - métricas mensais e transações reorganizadas;
 - filtros de receitas e despesas funcionais;
 - gráfico vazio com estado orientativo;
-- status explícito para recursos ativos, em adaptação e próximos;
+- status explícito para recursos ativos e próximos;
 - suporte a light/dark pelos componentes compartilhados;
-- navegação compatível com voltar do navegador;
-- nenhuma alteração em fluxos Asaas existentes.
+- nenhuma alteração nos fluxos Asaas existentes.
 
-## Próximas corridas da Step 8
+## Entrega RC2
 
-1. Fluxo mobile de Pix: pagar, QR Code, recebidos e chaves.
-2. Transferências e saques com PIN em sheet dedicado.
-3. Pagamento de boletos em etapas.
-4. Extrato realizado, futuro e assinaturas.
-5. Cobranças bancárias, comprovantes e compartilhamento.
-6. Inadimplência, planejamento e relatórios gerenciais.
-7. Testes em 360, 390, 412 e 430 px.
+- página inicial NeuroFinance própria para mobile;
+- central de operações bancárias com rotas protegidas;
+- Pix Copia e Cola reutilizando consulta, congelamento dos dados e PIN;
+- geração de QR Code Pix com paciente ou pagador identificado;
+- listagem de Pix recebidos e cobranças;
+- criação, cópia e exclusão de chaves Pix;
+- transferência Pix com consulta DICT e confirmação por PIN;
+- saque para conta bancária, chave salva ou nova chave Pix;
+- pagamento de boleto por linha digitável, imagem ou PDF;
+- escolha entre pagamento imediato e agendamento;
+- tela de pagamentos agendados com retorno bancário e comprovantes;
+- extrato mobile com saldo, entradas, saídas, busca e filtros;
+- PIN redimensionado para telas pequenas e protegido por safe area;
+- estilos de compatibilidade para componentes bancários preexistentes em telefones;
+- build de preview validado na Vercel.
+
+## Proteções mantidas
+
+- nenhuma Edge Function Asaas foi reescrita;
+- nenhuma tabela ou coluna foi removida;
+- nenhuma operação é executada antes da tela de revisão;
+- PIN é solicitado somente depois da consulta ao provedor;
+- conta ausente, pendente ou restrita não acessa operações;
+- o plano gratuito continua acessando a Gestão Financeira;
+- comprovante só é apresentado quando existe retorno ou documento disponível.
+
+## Próximas corridas
+
+1. Polimento específico da listagem Pix e confirmação de estorno.
+2. Compartilhamento nativo de comprovantes no PWA.
+3. Inadimplência e cobranças gerenciais mobile.
+4. Planejamento, metas e ponto de equilíbrio.
+5. Relatórios gerenciais e exportação para contador.
+6. Testes visuais e funcionais em 360, 390, 412 e 430 px.
 
 ## Critérios para conclusão
 
@@ -73,7 +104,7 @@ O seletor mobile navega entre rotas reais, permitindo deep link, botão voltar e
 - nenhuma ação visual afirma sucesso sem backend;
 - nenhum fluxo bancário validado é reescrito nesta etapa;
 - PIN permanece obrigatório em operações sensíveis;
-- formulários críticos usam página, sheet ou fluxo em etapas;
+- formulários críticos usam página, diálogo seguro ou fluxo em etapas;
 - erros bancários recebem mensagens específicas;
 - light e dark não apresentam contraste quebrado;
 - não existe scroll vertical duplo.

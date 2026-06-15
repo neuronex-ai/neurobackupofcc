@@ -1,0 +1,51 @@
+@media (max-width: 639px) {
+  .mobile-finance-flow .grid-cols-5,
+  .mobile-finance-flow .grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mobile-finance-flow .grid-cols-3 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .mobile-finance-flow .text-5xl {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+  }
+
+  .mobile-finance-flow .text-4xl {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+
+  .mobile-finance-flow .p-8,
+  .mobile-finance-flow .p-7,
+  .mobile-finance-flow .p-6 {
+    padding: 1.25rem;
+  }
+
+  .mobile-finance-flow .w-52 {
+    width: 11rem;
+  }
+
+  .mobile-finance-flow .h-52 {
+    height: 11rem;
+  }
+
+  .mobile-finance-flow textarea {
+    min-height: 9rem;
+  }
+
+  .mobile-finance-flow input,
+  .mobile-finance-flow textarea,
+  .mobile-finance-flow button {
+    max-width: 100%;
+  }
+
+  .mobile-finance-flow .rounded-\[36px\],
+  .mobile-finance-flow .rounded-\[32px\],
+  .mobile-finance-flow .rounded-\[30px\],
+  .mobile-finance-flow .rounded-\[28px\] {
+    border-radius: 1.5rem;
+  }
+}
