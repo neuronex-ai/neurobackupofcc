@@ -1,14 +1,24 @@
-@media (max-width: 639px) {
+@media (max-width: 767px) {
+  .management-mobile-flow {
+    min-width: 0;
+    overflow-x: clip;
+  }
+
   .management-mobile-flow h1 {
-    font-size: 2.1rem !important;
-    line-height: 0.95 !important;
-    letter-spacing: -0.055em !important;
+    font-size: 1.8rem !important;
+    line-height: 0.96 !important;
+    letter-spacing: -0.05em !important;
   }
 
   .management-mobile-flow .text-5xl,
   .management-mobile-flow .text-4xl {
-    font-size: 1.9rem;
-    line-height: 2.15rem;
+    font-size: 1.7rem;
+    line-height: 1.95rem;
+  }
+
+  .management-mobile-flow .text-3xl {
+    font-size: 1.5rem;
+    line-height: 1.8rem;
   }
 
   .management-mobile-flow .p-12,
@@ -16,7 +26,11 @@
   .management-mobile-flow .p-8,
   .management-mobile-flow .p-7,
   .management-mobile-flow .p-6 {
-    padding: 1.15rem;
+    padding: 1rem;
+  }
+
+  .management-mobile-flow .p-5 {
+    padding: 0.9rem;
   }
 
   .management-mobile-flow .px-6 {
@@ -33,7 +47,13 @@
   .management-mobile-flow .mt-8,
   .management-mobile-flow .mt-7,
   .management-mobile-flow .mt-6 {
-    margin-top: 1.15rem;
+    margin-top: 1rem;
+  }
+
+  .management-mobile-flow .space-y-8 > :not([hidden]) ~ :not([hidden]),
+  .management-mobile-flow .space-y-7 > :not([hidden]) ~ :not([hidden]),
+  .management-mobile-flow .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1rem;
   }
 
   .management-mobile-flow .grid-cols-3,
@@ -57,7 +77,7 @@
 
   .management-mobile-flow .min-h-\[166px\],
   .management-mobile-flow .min-h-\[210px\] {
-    min-height: 9rem;
+    min-height: 8rem;
   }
 
   .management-mobile-flow .rounded-\[42px\],
@@ -66,7 +86,7 @@
   .management-mobile-flow .rounded-\[32px\],
   .management-mobile-flow .rounded-\[30px\],
   .management-mobile-flow .rounded-\[28px\] {
-    border-radius: 1.5rem;
+    border-radius: 1.25rem;
   }
 
   .management-mobile-flow .flex.items-center.justify-between.gap-6,
@@ -77,5 +97,23 @@
 
   .management-mobile-flow .shrink-0 {
     max-width: 100%;
+  }
+
+  .management-mobile-flow .shadow-2xl,
+  .management-mobile-flow .shadow-xl {
+    box-shadow: 0 16px 42px -30px rgb(0 0 0 / 0.55);
+  }
+
+  .management-mobile-flow button,
+  .management-mobile-flow input,
+  .management-mobile-flow textarea,
+  .management-mobile-flow select {
+    max-width: 100%;
+  }
+
+  .management-mobile-flow input,
+  .management-mobile-flow textarea,
+  .management-mobile-flow select {
+    font-size: 16px;
   }
 }
