@@ -2,7 +2,7 @@ import WebSocket from 'ws';
 import fs from 'fs';
 
 const tools = JSON.parse(fs.readFileSync('src/lib/gemini-voice-tools.json', 'utf8'));
-const apiKey = 'AIzaSyDYCon_LabW_mK7VWIf375iNbrEw75eySc';
+const apiKey = 'AIzaSyBN6fU7DeO0OfvTSu9Lp-p55vxXHSAQeYY';
 const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
 const ws = new WebSocket(url);
@@ -11,7 +11,7 @@ ws.on('open', () => {
     console.log('Connected');
     const msg = {
         setup: {
-            model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
+            model: 'models/gemini-2.5-flash-preview-tts',
             generationConfig: {
                 responseModalities: ['AUDIO'],
                 speechConfig: {
@@ -28,7 +28,7 @@ ws.on('open', () => {
         }
     };
     ws.send(JSON.stringify(msg));
-    
+
     // empty audio chunk
     ws.send(JSON.stringify({
         realtimeInput: { mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: "" }] }

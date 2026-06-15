@@ -110,21 +110,22 @@ export const Navbar = () => {
           {/* Actions */}
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Link to="/auth">
-              <Button
-                size="sm"
-                className={cn(
-                  "h-10 px-6 rounded-full bg-primary text-primary-foreground hidden md:inline-flex",
-                  "hover:opacity-95 text-[10px] font-black uppercase tracking-[0.25em]",
-                  "shadow-[0_16px_32px_-8px_rgba(var(--primary-rgb),0.3)]",
-                  "transition-all duration-300 ease-apple",
-                  "hover:scale-105 hover:shadow-[0_20px_40px_-8px_rgba(var(--primary-rgb),0.4)]",
-                  "active:scale-95"
-                )}
-              >
+            <Button
+              asChild
+              size="sm"
+              className={cn(
+                "h-10 px-6 rounded-full bg-primary text-primary-foreground hidden md:inline-flex",
+                "hover:opacity-95 text-[10px] font-black uppercase tracking-[0.25em]",
+                "shadow-[0_16px_32px_-8px_rgba(var(--primary-rgb),0.3)]",
+                "transition-all duration-300 ease-apple",
+                "hover:scale-105 hover:shadow-[0_20px_40px_-8px_rgba(var(--primary-rgb),0.4)]",
+                "active:scale-95"
+              )}
+            >
+              <Link to="/auth">
                 Entrar
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         </motion.div>
       </motion.nav>

@@ -508,11 +508,11 @@ export const LandingRealFinanceFiscalSection = () => (
             <p className="text-[9px] font-black uppercase tracking-[0.24em] opacity-45">Uma operação conectada</p>
             <p className="mt-2 text-lg font-black tracking-[-0.035em]">A sessão pode alimentar gestão, cobrança e fiscal sem transformar o psicólogo em operador financeiro.</p>
           </div>
-          <Link to="/create-account" className="shrink-0">
-            <Button className="h-12 rounded-2xl bg-background px-6 text-[9px] font-black uppercase tracking-[0.18em] text-foreground hover:bg-background/90 dark:bg-zinc-950 dark:text-white">
+          <Button asChild className="h-12 shrink-0 rounded-2xl bg-background px-6 text-[9px] font-black uppercase tracking-[0.18em] text-foreground hover:bg-background/90 dark:bg-zinc-950 dark:text-white">
+            <Link to="/create-account">
               Começar grátis <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </FadeIn>
     </div>

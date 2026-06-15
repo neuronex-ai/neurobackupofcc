@@ -270,11 +270,11 @@ export const MobileRealSynapseSection = () => (
           </div>
         ))}
       </div>
-      <Link to="/help?view=synapse" className="mt-6 block">
-        <Button className="h-14 w-full rounded-2xl bg-background text-[10px] font-black uppercase tracking-[0.2em] text-foreground hover:bg-background/90 dark:bg-zinc-950 dark:text-white">
+      <Button asChild className="mt-6 h-14 w-full rounded-2xl bg-background text-[10px] font-black uppercase tracking-[0.2em] text-foreground hover:bg-background/90 dark:bg-zinc-950 dark:text-white">
+        <Link to="/help?view=synapse">
           Conhecer o Synapse <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </Link>
+        </Link>
+      </Button>
     </div>
   </section>
 );
@@ -318,16 +318,16 @@ export const MobileRealFinanceSection = () => (
       <div className="mt-5"><LandscapeFrame source={fiscalDesktop} label="Fiscal · NFS-e" /></div>
     </FadeIn>
     <div className="mt-6 grid gap-3">
-      <Link to="/help?view=neurofinance" className="block">
-        <Button className="h-14 w-full rounded-2xl bg-foreground text-[10px] font-black uppercase tracking-[0.2em] text-background">
+      <Button asChild className="h-14 w-full rounded-2xl bg-foreground text-[10px] font-black uppercase tracking-[0.2em] text-background">
+        <Link to="/help?view=neurofinance">
           Conhecer o NeuroFinance <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </Link>
-      <Link to="/create-account" className="block">
-        <Button variant="outline" className="h-14 w-full rounded-2xl text-[10px] font-black uppercase tracking-[0.2em]">
+        </Link>
+      </Button>
+      <Button asChild variant="outline" className="h-14 w-full rounded-2xl text-[10px] font-black uppercase tracking-[0.2em]">
+        <Link to="/create-account">
           Começar grátis
-        </Button>
-      </Link>
+        </Link>
+      </Button>
     </div>
   </section>
 );

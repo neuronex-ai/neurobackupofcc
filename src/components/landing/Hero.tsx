@@ -59,22 +59,25 @@ export const Hero = () => {
                 <FadeIn delay={0.8} className="w-full">
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-5 sm:gap-8 w-full">
                         <Magnetic strength={0.2} className="w-full sm:w-auto">
-                            <Link to="/create-account" className="w-full sm:w-auto">
-                                <Button className="group relative overflow-hidden w-full sm:w-auto h-14 sm:h-16 px-8 sm:px-12 rounded-full bg-foreground text-background hover:bg-foreground/90 text-[11px] sm:text-[12px] font-black uppercase tracking-[0.3em] shadow-lg transition-all duration-500 hover:scale-105 active:scale-[0.98] border-0">
+                            <Button asChild className="group relative overflow-hidden w-full sm:w-auto h-14 sm:h-16 px-8 sm:px-12 rounded-full bg-foreground text-background hover:bg-foreground/90 text-[11px] sm:text-[12px] font-black uppercase tracking-[0.3em] shadow-lg transition-all duration-500 hover:scale-105 active:scale-[0.98] border-0">
+                                <Link to="/create-account">
                                     <span className="relative flex items-center">
                                         Começar grátis
                                         <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2.5 opacity-70 group-hover:translate-x-1.5 transition-transform duration-500 ease-out" />
                                     </span>
-                                </Button>
-                            </Link>
+                                </Link>
+                            </Button>
                         </Magnetic>
 
                         <Magnetic strength={0.2} className="w-full sm:w-auto">
-                            <button type="button" onClick={() => document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth" })} className="w-full sm:w-auto">
-                                <Button variant="ghost" className="w-full sm:w-auto h-14 sm:h-16 px-6 sm:px-10 rounded-full text-foreground/70 hover:text-foreground hover:bg-foreground/5 text-[11px] sm:text-[12px] font-black uppercase tracking-[0.25em] transition-all duration-500 border border-border/10 hover:border-primary/20 backdrop-blur-xl hover:scale-105 active:scale-[0.98]">
-                                    Ver planos
-                                </Button>
-                            </button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth" })}
+                                className="w-full sm:w-auto h-14 sm:h-16 px-6 sm:px-10 rounded-full text-foreground/70 hover:text-foreground hover:bg-foreground/5 text-[11px] sm:text-[12px] font-black uppercase tracking-[0.25em] transition-all duration-500 border border-border/10 hover:border-primary/20 backdrop-blur-xl hover:scale-105 active:scale-[0.98]"
+                            >
+                                Ver planos
+                            </Button>
                         </Magnetic>
                     </div>
                 </FadeIn>

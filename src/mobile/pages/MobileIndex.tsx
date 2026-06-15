@@ -180,12 +180,17 @@ const HeroMobile = () => (
       </FadeIn>
       <FadeIn delay={0.3} className="mt-9 w-full">
         <div className="grid gap-3">
-          <Link to="/create-account" className="w-full">
-            <Button className="h-14 w-full rounded-2xl bg-foreground text-[10px] font-black uppercase tracking-[0.22em] text-background shadow-premium active:scale-[0.98]">Começar grátis <ArrowRight className="ml-2 h-4 w-4" /></Button>
-          </Link>
-          <button type="button" onClick={() => document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth" })} className="w-full">
-            <Button variant="ghost" className="h-14 w-full rounded-2xl border border-border/35 bg-foreground/[0.035] text-[10px] font-black uppercase tracking-[0.22em] text-foreground/75 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.045]">Ver planos</Button>
-          </button>
+          <Button asChild className="h-14 w-full rounded-2xl bg-foreground text-[10px] font-black uppercase tracking-[0.22em] text-background shadow-premium active:scale-[0.98]">
+            <Link to="/create-account">Começar grátis <ArrowRight className="ml-2 h-4 w-4" /></Link>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => document.getElementById("waitlist")?.scrollIntoView({ behavior: "smooth" })}
+            className="h-14 w-full rounded-2xl border border-border/35 bg-foreground/[0.035] text-[10px] font-black uppercase tracking-[0.22em] text-foreground/75 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.045]"
+          >
+            Ver planos
+          </Button>
         </div>
       </FadeIn>
     </div>
