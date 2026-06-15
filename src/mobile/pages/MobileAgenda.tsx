@@ -1,4 +1,3 @@
-import { NewAppointmentModal } from "@/components/agenda/NewAppointmentModal";
 import { Button } from "@/components/ui/button";
 import { useAppointmentsByDateRange } from "@/hooks/use-appointments-by-date-range";
 import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from "@/lib/appointment-status";
@@ -20,6 +19,7 @@ import {
   subMonths,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import type { Appointment } from "@/types";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -42,9 +42,12 @@ import {
   MobileSegmentedControl,
   MobileSkeletonCard,
 } from "../components/MobilePagePrimitives";
+import { MobileNewAppointmentSheet } from "../components/MobileNewAppointmentSheet";
 
 type ViewMode = "week" | "month";
-type AppointmentItem = any;
+type AppointmentItem = Omit<Appointment, "type"> & {
+  type: Appointment["type"] | "teleconsulta";
+};
 
 const getInitials = (name?: string | null) => {
   const parts = String(name || "Paciente").trim().split(/\s+/).filter(Boolean);
@@ -172,12 +175,12 @@ export const MobileAgenda = () => {
               {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
               <span className="sr-only">{searchOpen ? "Fechar busca" : "Buscar"}</span>
             </Button>
-            <NewAppointmentModal>
+            <MobileNewAppointmentSheet selectedDate={selectedDate}>
               <Button type="button" size="icon" className="h-10 w-10 rounded-[14px]">
                 <Plus className="h-4 w-4" />
                 <span className="sr-only">Novo agendamento</span>
               </Button>
-            </NewAppointmentModal>
+            </MobileNewAppointmentSheet>
           </div>
         )}
       />
@@ -314,11 +317,11 @@ export const MobileAgenda = () => {
               description={searchTerm ? "Nenhum compromisso corresponde à busca." : "Use este espaço para organizar notas, retornos ou criar um novo agendamento."}
               className="min-h-[230px] rounded-[20px] border border-dashed border-border/45"
               action={(
-                <NewAppointmentModal>
+                <MobileNewAppointmentSheet selectedDate={selectedDate}>
                   <Button className="h-11 rounded-xl px-5 text-[8px] font-black uppercase tracking-[0.12em]">
                     <Plus className="mr-2 h-4 w-4" /> Novo agendamento
                   </Button>
-                </NewAppointmentModal>
+                </MobileNewAppointmentSheet>
               )}
             />
           ) : (

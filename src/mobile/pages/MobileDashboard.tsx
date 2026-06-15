@@ -1,6 +1,5 @@
 "use client";
 
-import { NewAppointmentModal } from "@/components/agenda/NewAppointmentModal";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { NewPatientModal } from "@/components/patients/NewPatientModal";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 import { cn } from "@/lib/utils";
 import { addDays, differenceInMinutes, endOfDay, format, isAfter, isSameDay, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import type { Appointment } from "@/types";
 import { motion } from "framer-motion";
 import {
     ArrowRight,
@@ -34,8 +34,14 @@ import {
     MobilePageScaffold,
     MobileSectionHeader,
 } from "../components/MobilePagePrimitives";
+import { MobileNewAppointmentSheet } from "../components/MobileNewAppointmentSheet";
 
-type MobileAppointment = any;
+type MobileAppointment = Omit<Appointment, "type"> & {
+    type: Appointment["type"] | "teleconsulta";
+};
+type MobileAuthUser = {
+    user_metadata?: Record<string, unknown>;
+};
 
 type MetricCardProps = {
     label: string;
@@ -46,9 +52,11 @@ type MetricCardProps = {
     onClick: () => void;
 };
 
-const getFirstName = (user?: any) => {
+const getFirstName = (user?: MobileAuthUser | null) => {
     const metadata = user?.user_metadata || {};
-    return metadata.first_name || metadata.name?.split?.(" ")?.[0] || "Doutor";
+    const firstName = typeof metadata.first_name === "string" ? metadata.first_name : null;
+    const name = typeof metadata.name === "string" ? metadata.name : null;
+    return firstName || name?.split(" ")?.[0] || "Doutor";
 };
 
 const formatAppointmentTime = (appointment?: MobileAppointment) => {
@@ -197,11 +205,11 @@ export const MobileDashboard = () => {
                                 Bom dia, {firstName}.
                             </h1>
                         </div>
-                        <NewAppointmentModal>
+                        <MobileNewAppointmentSheet selectedDate={today}>
                             <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-background text-foreground active:opacity-80" aria-label="Novo agendamento">
                                 <Plus className="h-4.5 w-4.5" />
                             </button>
-                        </NewAppointmentModal>
+                        </MobileNewAppointmentSheet>
                     </div>
 
                     <p className="mt-4 text-xs font-medium leading-relaxed opacity-68">
@@ -280,9 +288,9 @@ export const MobileDashboard = () => {
                 <section className="space-y-3">
                     <MobileSectionHeader eyebrow="Ações rápidas" title="Atalhos úteis" />
                     <div className="grid gap-2">
-                        <NewAppointmentModal>
+                        <MobileNewAppointmentSheet selectedDate={today}>
                             <div><MobileActionListItem icon={Plus} title="Novo agendamento" description="Abra o formulário para marcar uma sessão." /></div>
-                        </NewAppointmentModal>
+                        </MobileNewAppointmentSheet>
                         <NewPatientModal>
                             <div><MobileActionListItem icon={Users} title="Novo paciente" description="Cadastre uma pessoa e os dados de atendimento." /></div>
                         </NewPatientModal>
