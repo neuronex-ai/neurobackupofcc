@@ -78,6 +78,15 @@
     backdrop-filter: blur(18px);
   }
 
+  .nn-mobile-shell [class~="pt-[5.75rem]"] {
+    padding-top: 0 !important;
+  }
+
+  .nn-mobile-shell .pb-32,
+  .nn-mobile-shell .pb-44 {
+    padding-bottom: 1rem !important;
+  }
+
   .nn-mobile-shell > nav {
     bottom: calc(0.7rem + env(safe-area-inset-bottom)) !important;
     width: calc(100% - 1rem) !important;
@@ -88,6 +97,22 @@
     border-radius: 24px !important;
     padding: 0.3rem 0.4rem !important;
     box-shadow: 0 14px 38px -24px rgb(0 0 0 / 0.55) !important;
+  }
+
+  .nn-mobile-shell > nav a[class*="flex-col"],
+  .nn-mobile-shell > nav button[class*="flex-col"] {
+    width: 3rem !important;
+    height: 2.65rem !important;
+    border-radius: 14px !important;
+  }
+
+  .nn-mobile-shell > nav [class~="w-[58px]"] {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  .nn-mobile-shell > nav [class~="-mt-9"] {
+    margin-top: -1.45rem !important;
   }
 
   .nn-mobile-shell [data-mobile-compact-card="true"] {
@@ -108,6 +133,10 @@
   .nn-mobile-shell [data-mobile-sticky-actions="true"] {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .nn-mobile-shell .animate-fade-in {
+    animation-duration: 0.2s !important;
   }
 
   [data-radix-dialog-content],
