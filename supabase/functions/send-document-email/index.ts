@@ -1,179 +1,105 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
+import { deliverPatientEmail, escapeHtml, renderTemplate } from '../_shared/email-delivery.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const toBase64 = (str: string) => {
-  const bytes = new TextEncoder().encode(str);
-  const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
-  return btoa(binString);
-};
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+});
 
-const toUrlSafeBase64 = (str: string) => {
-  return toBase64(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-};
+serve(async (request) => {
+  if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (request.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
 
-async function refreshAccessToken(supabaseService: any, userId: string, refreshToken: string) {
-  const tokenUrl = 'https://oauth2.googleapis.com/token';
-  const GOOGLE_CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID');
-  const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET');
-
-  const tokenResponse = await fetch(tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID!,
-      client_secret: GOOGLE_CLIENT_SECRET!,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
-    }).toString(),
-  });
-
-  if (!tokenResponse.ok) throw new Error("Failed to refresh Google access token.");
-  const tokens = await tokenResponse.json();
-  const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
-
-  await supabaseService
-    .from('user_google_tokens')
-    .update({ access_token: tokens.access_token, expires_at: expiresAt.toISOString() })
-    .eq('user_id', userId);
-
-  return tokens.access_token;
-}
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  const supabaseService = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const db = createClient(
+    Deno.env.get('SUPABASE_URL') || '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
+    { auth: { persistSession: false } },
   );
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Missing auth header');
+    const authorization = request.headers.get('Authorization');
+    if (!authorization) return json({ error: 'Autenticação necessária.' }, 401);
 
-    const jwt = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabaseService.auth.getUser(jwt);
-    if (userError || !user) throw new Error('Invalid token');
-    const userId = user.id;
+    const authResult = await db.auth.getUser(authorization.replace('Bearer ', ''));
+    const user = authResult.data.user;
+    if (authResult.error || !user?.email) return json({ error: 'Sessão inválida ou expirada.' }, 401);
 
     const {
       to,
       subject,
-      htmlBody, // The simple HTML content from the editor
+      htmlBody,
       documentType,
-      pdfAttachment // { filename, content (base64), contentType }
-    } = await req.json();
+      recipientName,
+      actionUrl,
+      pdfAttachment,
+    } = await request.json();
 
-    // Fetch user profile for name
-    const { data: profile } = await supabaseService.from('profiles').select('first_name, last_name, clinic_name').eq('id', userId).single();
-    const therapistName = profile?.first_name ? `${profile.first_name} ${profile.last_name || ''}` : "Seu Psicólogo";
-    const clinicName = profile?.clinic_name || "Consultório";
+    if (!to || !String(to).includes('@')) return json({ error: 'E-mail de destino inválido.' }, 400);
+    if (!pdfAttachment?.filename || !pdfAttachment?.content) return json({ error: 'O documento em PDF é obrigatório.' }, 400);
 
-    // Build the email wrapper (nice looking HTML)
-    const wrappedHtmlBody = `
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-             body { font-family: 'Inter', sans-serif; background-color: #050505; color: #ffffff; padding: 40px; }
-             .container { max-width: 600px; margin: 0 auto; background-color: #0A0A0B; border: 1px solid #27272a; border-radius: 24px; overflow: hidden; }
-             .header { padding: 32px 40px; text-align: center; border-bottom: 1px solid #27272a; }
-             .content { padding: 40px; color: #d4d4d8; line-height: 1.6; }
-             .footer { padding: 24px; text-align: center; font-size: 11px; color: #52525b; border-top: 1px solid #27272a; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                 <p style="margin:0; font-size:10px; text-transform:uppercase; letter-spacing:2px; color:#71717A; font-weight:700;">${clinicName}</p>
-                 <h1 style="margin:12px 0 0 0; font-size:20px; font-weight:700; color:#fff;">${documentType} gerado(a)</h1>
-            </div>
-            <div class="content">
-                <p style="margin-bottom: 24px;">Olá,</p>
-                <p>Segue em anexo o documento <strong>"${documentType}"</strong> conforme solicitado.</p>
-                <div style="background-color: #18181B; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin: 24px 0; font-style: italic; color: #a1a1aa;">
-                   ${htmlBody}
-                </div>
-                <p>O arquivo original assinada digitalmente encontra-se em anexo (PDF).</p>
-                <p style="margin-top: 32px;">Atenciosamente,<br/><strong style="color: #fff;">${therapistName}</strong></p>
-            </div>
-            <div class="footer">
-                Enviado via NeuroNex • Documento Protegido
-            </div>
-        </div>
-    </body>
-    </html>
-    `;
+    const [profileResult, templateResult] = await Promise.all([
+      db.from('profiles').select('first_name,last_name,full_name,clinic_name').eq('id', user.id).maybeSingle(),
+      db.from('system_email_templates').select('subject,body_html').eq('template_key', 'document_available').eq('enabled', true).maybeSingle(),
+    ]);
 
+    const profile = profileResult.data;
+    const professionalName = profile?.full_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Seu psicólogo';
+    const documentName = documentType || pdfAttachment.filename || 'Documento';
+    const destinationUrl = actionUrl || 'https://neuronexai.com.br/';
+    const variables = {
+      RECIPIENT_NAME: recipientName || 'Paciente',
+      PROFESSIONAL_NAME: professionalName,
+      DOCUMENT_NAME: documentName,
+      ACTION_URL: destinationUrl,
+    };
 
-    // Fetch Google Tokens
-    const { data: tokenData } = await supabaseService.from('user_google_tokens').select('*').eq('user_id', userId).single();
-    if (!tokenData) throw new Error('Google account not connected');
+    const renderedSubject = renderTemplate(
+      templateResult.data?.subject || subject || 'Seu documento está disponível',
+      variables,
+    );
 
-    let accessToken = tokenData.access_token;
-    if (new Date(tokenData.expires_at) < new Date(Date.now() + 60000)) {
-      accessToken = await refreshAccessToken(supabaseService, userId, tokenData.refresh_token);
-    }
+    const fallbackHtml = `<!doctype html><html lang="pt-BR"><body style="font-family:Arial,sans-serif;background:#f4f4f5;padding:32px"><div style="max-width:600px;margin:auto;background:white;border-radius:20px;padding:32px"><h1>${escapeHtml(documentName)}</h1><p>Olá, ${escapeHtml(recipientName || 'Paciente')}.</p><p>${escapeHtml(professionalName)} enviou um documento em anexo.</p>${htmlBody ? `<div style="margin-top:22px;padding:18px;background:#fafafa;border-radius:12px">${htmlBody}</div>` : ''}<p style="margin-top:28px;font-size:11px;color:#71717a">NEURONEX AI · CNPJ 65.610.762/0001-55 · Pinheiros, São Paulo - SP</p></div></body></html>`;
+    const renderedHtml = renderTemplate(templateResult.data?.body_html || fallbackHtml, variables);
 
-    // Construct Multipart Email
-    const boundary = "boundary_" + Date.now().toString(16);
-
-    // Header for the email
-    const messageParts = [
-      `To: ${to}`,
-      `From: ${therapistName} <${user.email}>`,
-      `Subject: =?utf-8?B?${toBase64(subject)}?=`,
-      'MIME-Version: 1.0',
-      `Content-Type: multipart/mixed; boundary="${boundary}"`,
-      '',
-      `--${boundary}`,
-      'Content-Type: text/html; charset="UTF-8"',
-      'Content-Transfer-Encoding: base64',
-      '',
-      toBase64(wrappedHtmlBody),
-      ''
-    ];
-
-    if (pdfAttachment) {
-      messageParts.push(`--${boundary}`);
-      messageParts.push(`Content-Type: application/pdf; name="${pdfAttachment.filename}"`);
-      messageParts.push(`Content-Disposition: attachment; filename="${pdfAttachment.filename}"`);
-      messageParts.push('Content-Transfer-Encoding: base64');
-      messageParts.push('');
-      messageParts.push(pdfAttachment.content); // Already base64
-      messageParts.push('');
-    }
-
-    messageParts.push(`--${boundary}--`);
-
-    const rawEmail = messageParts.join('\r\n');
-
-    const gmailRes = await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ raw: toUrlSafeBase64(rawEmail) }),
+    const delivery = await deliverPatientEmail({
+      db,
+      userId: user.id,
+      senderName: professionalName,
+      senderEmail: user.email,
+      to: String(to).trim(),
+      subject: renderedSubject,
+      html: renderedHtml,
+      attachments: [{
+        filename: String(pdfAttachment.filename),
+        content: String(pdfAttachment.content),
+        contentType: pdfAttachment.contentType || 'application/pdf',
+      }],
     });
 
-    if (!gmailRes.ok) {
-      const errText = await gmailRes.text();
-      console.error("Gmail Error:", errText);
-      throw new Error(`Gmail API Error: ${errText}`);
-    }
+    await db.from('email_delivery_logs').insert({
+      user_id: user.id,
+      template_key: 'document_available',
+      recipient: String(to).trim(),
+      provider: delivery.provider,
+      sender: delivery.provider === 'gmail' ? user.email : 'notificacoes@email.neuronex.site',
+      status: 'sent',
+      provider_message_id: delivery.providerMessageId,
+      metadata: {
+        documentType: documentName,
+        filename: pdfAttachment.filename,
+        gmailError: delivery.gmailError,
+      },
+    });
 
-    return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-
-  } catch (e: any) {
-    console.error("Email API Error:", e);
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return json({ success: true, provider: delivery.provider, providerMessageId: delivery.providerMessageId });
+  } catch (error) {
+    console.error('[send-document-email]', error);
+    return json({ error: error instanceof Error ? error.message : 'Não foi possível enviar o documento.' }, 500);
   }
 });

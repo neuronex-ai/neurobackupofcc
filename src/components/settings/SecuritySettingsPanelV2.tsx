@@ -1,0 +1,141 @@
+import { useAuth } from '@/components/auth/SessionContextProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useFinancialSettings } from '@/hooks/use-financial-settings';
+import { useProfile } from '@/hooks/use-profile';
+import { supabase } from '@/integrations/supabase/client';
+import { KeyRound, Loader2, Mail, Phone } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
+import { AuthenticatorSettings } from './AuthenticatorSettings';
+import { SetPinModal } from './SetPinModal';
+
+const Card = ({ children }: { children: ReactNode }) => (
+  <section className="rounded-[24px] border border-border/50 bg-card p-6 md:p-8">{children}</section>
+);
+
+export const SecuritySettingsPanelV2 = () => {
+  const { user } = useAuth();
+  const { profile, refetch: refetchProfile } = useProfile();
+  const { settings, refetch: refetchFinancial } = useFinancialSettings();
+  const [pinOpen, setPinOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const changeEmail = async () => {
+    if (!newEmail.includes('@')) return toast.error('Digite um e-mail válido.');
+    setSaving('email');
+    try {
+      const result = await supabase.auth.updateUser({ email: newEmail.trim().toLowerCase() });
+      if (result.error) throw result.error;
+      setNewEmail('');
+      toast.success('Enviamos a confirmação para o novo endereço.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível alterar o e-mail.');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const changePhone = async () => {
+    if (!newPhone.trim() || !user) return toast.error('Digite um telefone válido.');
+    setSaving('phone');
+    try {
+      const result = await supabase.from('profiles').update({ phone: newPhone.trim() }).eq('id', user.id);
+      if (result.error) throw result.error;
+      setNewPhone('');
+      await refetchProfile();
+      toast.success('Telefone atualizado. SMS permanece desabilitado.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível salvar o telefone.');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const changePassword = async () => {
+    if (!user?.email || !currentPassword || !newPassword) return toast.error('Preencha todos os campos.');
+    if (newPassword.length < 8) return toast.error('Use pelo menos oito caracteres.');
+    if (newPassword !== confirmPassword) return toast.error('As novas senhas não coincidem.');
+    setSaving('password');
+    try {
+      const authentication = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
+      if (authentication.error) throw new Error('A senha atual não confere.');
+      const result = await supabase.auth.updateUser({ password: newPassword });
+      if (result.error) throw result.error;
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      toast.success('Senha alterada com segurança.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível alterar a senha.');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl space-y-8">
+      <header>
+        <h2 className="text-2xl font-bold">Segurança da conta</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Gerencie acesso, credenciais e proteção financeira.</p>
+      </header>
+
+      <AuthenticatorSettings />
+
+      <Card>
+        <div className="flex gap-5">
+          <Mail className="mt-1 h-6 w-6 text-muted-foreground" />
+          <div className="flex-1 space-y-4">
+            <div><h3 className="font-bold">E-mail de acesso</h3><p className="text-sm text-muted-foreground">Atual: {user?.email}</p></div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Input type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="Novo e-mail" />
+              <Button onClick={() => void changeEmail()} disabled={saving === 'email'}>{saving === 'email' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Alterar'}</Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex gap-5">
+          <Phone className="mt-1 h-6 w-6 text-muted-foreground" />
+          <div className="flex-1 space-y-4">
+            <div><h3 className="font-bold">Telefone de contato</h3><p className="text-sm text-muted-foreground">Atual: {profile?.phone || 'não cadastrado'}. Não será usado para MFA ou SMS.</p></div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Input value={newPhone} onChange={(event) => setNewPhone(event.target.value)} placeholder="+55 (47) 98873-0611" />
+              <Button onClick={() => void changePhone()} disabled={saving === 'phone'}>{saving === 'phone' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar'}</Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex gap-5">
+          <KeyRound className="mt-1 h-6 w-6 text-muted-foreground" />
+          <div className="flex-1 space-y-4">
+            <div><h3 className="font-bold">Senha</h3><p className="text-sm text-muted-foreground">Confirme a senha atual antes de substituí-la.</p></div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="Senha atual" />
+              <Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="Nova senha" />
+              <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirmar nova senha" />
+            </div>
+            <Button onClick={() => void changePassword()} disabled={saving === 'password'}>{saving === 'password' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Atualizar senha'}</Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-center justify-between gap-4">
+          <div><h3 className="font-bold">PIN financeiro</h3><p className="text-sm text-muted-foreground">{settings?.pin_hash ? 'PIN ativo para operações sensíveis.' : 'Crie um PIN de seis dígitos.'}</p></div>
+          <Button variant="outline" onClick={() => setPinOpen(true)}>{settings?.pin_hash ? 'Alterar PIN' : 'Criar PIN'}</Button>
+        </div>
+      </Card>
+
+      <SetPinModal open={pinOpen} onOpenChange={setPinOpen} onSuccess={() => void refetchFinancial()} />
+    </div>
+  );
+};

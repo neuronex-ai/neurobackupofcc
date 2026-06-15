@@ -15,21 +15,17 @@ export const useInvitePatient = () => {
 
   return useMutation({
     mutationFn: async ({ patientId, options }: { patientId: string, options: InviteOptions }) => {
-
-      // 1. Fetch Patient Info
       const { data: patient, error: pError } = await supabase
         .from('patients')
         .select('*')
         .eq('id', patientId)
         .single();
 
-      if (pError || !patient) throw new Error("Paciente não encontrado.");
+      if (pError || !patient) throw new Error('Paciente não encontrado.');
 
-      // 2. Generate Auth
       const authCode = Math.random().toString(36).substring(2, 7).toUpperCase();
       const token = crypto.randomUUID();
 
-      // 3. Create Appointment
       const { data: appointment, error: dbError } = await supabase
         .from('appointments')
         .insert({
@@ -37,52 +33,46 @@ export const useInvitePatient = () => {
           user_id: session?.user?.id,
           status: 'pending',
           type: 'online',
-          token: token,
+          token,
           auth_code: authCode,
           price: options.paymentType === 'charge' ? options.price : null,
           payment_config: { type: options.paymentType },
-          notes: `Convite enviado via ${options.channel === 'whatsapp' ? 'WhatsApp' : 'E-mail'}.`
+          notes: `Convite enviado via ${options.channel === 'whatsapp' ? 'WhatsApp' : 'E-mail'}.`,
         })
         .select()
         .single();
 
       if (dbError) throw dbError;
 
-      // 4. Send Email only if applicable
       if (options.channel === 'email') {
-        if (!patient.email) {
-          throw new Error("E-mail do paciente não cadastrado.");
-        }
+        if (!patient.email) throw new Error('E-mail do paciente não cadastrado.');
 
-        const { error: fnError } = await supabase.functions.invoke('send-patient-invite', {
+        const { error: fnError } = await supabase.functions.invoke('send-patient-invite-safe', {
           body: {
             appointmentId: appointment.id,
             patientEmail: patient.email,
             patientName: patient.name,
             psychologistName: session?.user?.user_metadata?.full_name || 'Seu Psicólogo',
-            authCode: authCode,
-            token: token,
+            authCode,
+            token,
             frontendUrl: window.location.origin,
-            channel: 'email'
-          }
+            channel: 'email',
+          },
         });
 
         if (fnError) {
-          console.error("Erro detalhado da Edge Function:", fnError);
-          // If it's a FunctionsHttpError, the context might contain the response
+          console.error('Erro detalhado da Edge Function:', fnError);
           const details = (fnError as any).context?.message || fnError.message;
-          throw new Error("Falha ao enviar e-mail: " + details);
+          throw new Error('Falha ao enviar e-mail: ' + details);
         }
       }
 
       return { ...appointment, authCode, token, patientPhone: patient.phone, patientName: patient.name };
     },
-    onSuccess: () => {
-      // toast handled in widget or here
-    },
+    onSuccess: () => undefined,
     onError: (error) => {
       console.error(error);
       toast.error(getUserFacingErrorMessage(error, 'generic'));
-    }
+    },
   });
 };
