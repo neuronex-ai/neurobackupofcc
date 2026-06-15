@@ -158,7 +158,7 @@ export function MobileNeuroFinancePage() {
             }
           />
 
-          <MobileFinanceTabs<FinanceArea>
+          <MobileFinanceTabs
             value="neurofinance"
             onValueChange={switchArea}
             options={[

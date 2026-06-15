@@ -126,7 +126,7 @@ export function MobileFinancialManagementPage() {
             }
           />
 
-          <MobileFinanceTabs<FinanceArea>
+          <MobileFinanceTabs
             value="management"
             onValueChange={switchArea}
             options={[
