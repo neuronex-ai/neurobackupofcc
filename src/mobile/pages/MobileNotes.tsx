@@ -1,5 +1,6 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
 import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import { PersonalNote } from "@/types";
 import { AnimatePresence, motion } from "framer-motion";
@@ -8,16 +9,13 @@ import { useState } from "react";
 import { MobileLayout } from "../components/MobileLayout";
 import { MobileNoteEditor } from "../components/notes/MobileNoteEditor";
 import { MobileNotesListView } from "../components/notes/MobileNotesListView";
-import { Input } from "@/components/ui/input";
 
 export const MobileNotes = () => {
     const { notes = [], createNote, updateNote, deleteNote } = usePersonalNotes();
-
     const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-    const selectedNote = (notes ?? []).find(n => n.id === selectedNoteId);
+    const selectedNote = (notes ?? []).find((note) => note.id === selectedNoteId);
 
     const handleUpdateNote = (id: string, updates: Partial<PersonalNote>) => {
         updateNote({ id, updates });
@@ -38,67 +36,71 @@ export const MobileNotes = () => {
                 tags: [],
                 patient_id: null,
             });
-            if (newNote) {
-                setSelectedNoteId(newNote.id);
-            }
-        } catch (e) {
-            console.error(e);
+            if (newNote) setSelectedNoteId(newNote.id);
+        } catch (error) {
+            console.error(error);
         }
     };
 
-    const filteredNotes = (notes ?? []).filter(note =>
+    const filteredNotes = (notes ?? []).filter((note) =>
         note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         note.content.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const renderHeader = () => (
-        <div className="px-5 mb-4 relative z-50 w-full animate-fade-in">
-            <div className="w-full h-[60px] flex items-center justify-between p-2 pl-4 pr-2 bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all duration-300">
+        <div className="relative z-50 mb-3 w-full px-4">
+            <div className="flex h-14 w-full items-center justify-between rounded-[20px] border border-white/10 bg-zinc-900/92 p-2 pl-4 shadow-[0_12px_36px_-24px_rgba(0,0,0,0.75)] backdrop-blur-xl">
                 {isSearchOpen ? (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="flex-1 flex items-center gap-2 w-full"
+                        initial={{ opacity: 0, x: 6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.16 }}
+                        className="flex w-full flex-1 items-center gap-2"
                     >
                         <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
                             <Input
                                 autoFocus
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder="Buscar nota..."
-                                className="h-9 pl-9 bg-white/5 border-transparent rounded-full text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-0 text-sm"
+                                className="h-9 rounded-xl border-transparent bg-white/5 pl-9 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-0"
                             />
                         </div>
                         <button
+                            type="button"
                             onClick={() => {
                                 setIsSearchOpen(false);
                                 setSearchQuery("");
                             }}
-                            className="w-9 h-9 rounded-full text-zinc-400 hover:text-white flex items-center justify-center"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 active:bg-white/10 active:text-white"
+                            aria-label="Fechar busca"
                         >
-                            <X className="w-4 h-4" />
+                            <X className="h-4 w-4" />
                         </button>
                     </motion.div>
                 ) : (
                     <>
-                        <div className="flex flex-col justify-center h-full -space-y-0.5">
-                            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest pl-0.5">Meus Registros</span>
-                            <h1 className="text-base font-bold text-zinc-100 tracking-tight leading-none">Notas Rápidas</h1>
+                        <div className="flex h-full flex-col justify-center">
+                            <span className="text-[8px] font-bold uppercase tracking-[0.16em] text-zinc-500">Meus registros</span>
+                            <h1 className="text-[15px] font-bold leading-tight tracking-tight text-zinc-100">Notas rápidas</h1>
                         </div>
-
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                             <button
+                                type="button"
                                 onClick={() => setIsSearchOpen(true)}
-                                className="w-9 h-9 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95"
+                                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-zinc-400 active:bg-white/10 active:text-white"
+                                aria-label="Buscar notas"
                             >
-                                <Search className="w-4 h-4" />
+                                <Search className="h-4 w-4" />
                             </button>
                             <button
+                                type="button"
                                 onClick={handleCreateNote}
-                                className="w-9 h-9 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
+                                className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm active:opacity-80"
+                                aria-label="Criar nota"
                             >
-                                <Plus className="w-4 h-4" />
+                                <Plus className="h-4 w-4" />
                             </button>
                         </div>
                     </>
@@ -107,17 +109,20 @@ export const MobileNotes = () => {
         </div>
     );
 
+    const editorOpen = Boolean(selectedNoteId && selectedNote);
+
     return (
-        <MobileLayout className="px-0 min-h-screen bg-background" showNav={!selectedNoteId}>
-            <div className="flex flex-col h-full pt-0">
-                <AnimatePresence mode="wait">
-                    {selectedNoteId && selectedNote ? (
+        <MobileLayout className="bg-background" showNav={!editorOpen} showBottomNav={!editorOpen}>
+            <div className="flex h-full min-h-0 flex-col">
+                <AnimatePresence mode="wait" initial={false}>
+                    {editorOpen ? (
                         <motion.div
                             key="editor-edit"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 10 }}
-                            className="flex-1 flex flex-col h-full"
+                            initial={{ opacity: 0, x: 8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 8 }}
+                            transition={{ duration: 0.18 }}
+                            className="flex h-full min-h-0 flex-1 flex-col"
                         >
                             <MobileNoteEditor
                                 note={selectedNote}
@@ -132,13 +137,11 @@ export const MobileNotes = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="flex-1 flex flex-col h-full"
+                            transition={{ duration: 0.16 }}
+                            className="flex h-full min-h-0 flex-1 flex-col"
                         >
                             {renderHeader()}
-                            <MobileNotesListView
-                                notes={filteredNotes}
-                                onNoteSelect={setSelectedNoteId}
-                            />
+                            <MobileNotesListView notes={filteredNotes} onNoteSelect={setSelectedNoteId} />
                         </motion.div>
                     )}
                 </AnimatePresence>
