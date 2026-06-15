@@ -4,6 +4,7 @@ import { useAuth } from "@/components/auth/SessionContextProvider";
 import { WaitlistModal } from "@/components/landing/WaitlistModal";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
