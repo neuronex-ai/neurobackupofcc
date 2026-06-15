@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { ArrowDownRight, ArrowUpRight, Loader2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
+
 import { Input } from "@/components/ui/input";
 import { useAddTransaction } from "@/hooks/use-add-transaction";
 import { usePatients } from "@/hooks/use-patients";
 import { cn } from "@/lib/utils";
-import { parseMoney } from "../../shared/MobileFinancePrimitives";
+import {
+  MobileFinanceButton,
+  MobileFinanceField,
+  MobileFinanceSelect,
+  MobileFinanceSheet,
+  mobileFinanceInputClassName,
+  parseMoney,
+} from "../../shared/MobileFinancePrimitives";
 
 type EntryType = "income" | "expense";
 
@@ -38,12 +44,23 @@ export function MobileFinancialEntrySheet({
   const numericAmount = useMemo(() => parseMoney(amount), [amount]);
   const valid = description.trim().length >= 2 && numericAmount > 0 && Boolean(date);
 
-  const closeAndReset = () => {
-    onOpenChange(false);
+  const resetFields = () => {
     setDescription("");
     setAmount("");
     setCategory("");
     setPatientId("");
+    setDate(format(new Date(), "yyyy-MM-dd"));
+    setPaymentMethod("pix");
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    onOpenChange(nextOpen);
+    if (!nextOpen) resetFields();
+  };
+
+  const closeAndReset = () => {
+    onOpenChange(false);
+    resetFields();
   };
 
   const submit = async () => {
@@ -67,22 +84,26 @@ export function MobileFinancialEntrySheet({
   };
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[92vh] overflow-y-auto border-border/40 bg-background px-5 pb-[calc(28px+env(safe-area-inset-bottom))] pt-3">
-        <div className="mx-auto h-1 w-10 rounded-full bg-foreground/15" />
-        <div className="mt-7">
-          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
-            Gestão Financeira
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.035em]">
-            Novo lançamento
-          </h2>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            Registre um movimento administrativo. Esta ação não movimenta saldo da conta NeuroFinance.
-          </p>
-        </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-2 rounded-[20px] border border-border/40 bg-card/60 p-1.5">
+    <MobileFinanceSheet
+      open={open}
+      onOpenChange={handleOpenChange}
+      eyebrow="Gestão Financeira"
+      title="Novo lançamento"
+      description="Registre um movimento administrativo. Esta ação não movimenta saldo da conta NeuroFinance."
+      icon={type === "income" ? ArrowUpRight : ArrowDownRight}
+      footer={
+        <MobileFinanceButton
+          disabled={!valid}
+          loading={addTransaction.isPending}
+          onClick={() => void submit()}
+          className="min-h-14 w-full rounded-[18px]"
+        >
+          Salvar lançamento
+        </MobileFinanceButton>
+      }
+    >
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 gap-2 rounded-[20px] border border-border/40 bg-card/60 p-1.5 dark:border-white/10 dark:bg-white/[0.03]">
           {[
             { value: "income" as const, label: "Entrada", icon: ArrowUpRight },
             { value: "expense" as const, label: "Despesa", icon: ArrowDownRight },
@@ -95,119 +116,85 @@ export function MobileFinancialEntrySheet({
                 type="button"
                 onClick={() => setType(item.value)}
                 className={cn(
-                  "flex h-12 items-center justify-center gap-2 rounded-[16px] text-xs font-semibold transition",
+                  "flex h-12 items-center justify-center gap-2 rounded-[15px] text-[11px] font-black uppercase tracking-[0.1em] transition",
                   active
                     ? "bg-foreground text-background"
-                    : "text-muted-foreground",
+                    : "text-muted-foreground active:bg-foreground/[0.045]",
                 )}
               >
-                <Icon className="h-4 w-4" strokeWidth={1.7} />
+                <Icon className="h-4 w-4" />
                 {item.label}
               </button>
             );
           })}
         </div>
 
-        <div className="mt-5 space-y-4">
-          <label className="block">
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Descrição
-            </span>
+        <MobileFinanceField label="Descrição">
+          <Input
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Ex.: sessão, aluguel, material"
+            className={mobileFinanceInputClassName}
+          />
+        </MobileFinanceField>
+
+        <MobileFinanceField label="Valor">
+          <Input
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            inputMode="decimal"
+            placeholder="0,00"
+            className={cn(mobileFinanceInputClassName, "h-14 text-xl font-black tracking-[-0.03em]")}
+          />
+        </MobileFinanceField>
+
+        <div className="grid grid-cols-2 gap-3">
+          <MobileFinanceField label="Data">
             <Input
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Ex.: sessão, aluguel, material"
-              className="mt-2 h-[52px] rounded-[18px] border-border/50 bg-card"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              type="date"
+              className={mobileFinanceInputClassName}
             />
-          </label>
-
-          <label className="block">
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Valor
-            </span>
+          </MobileFinanceField>
+          <MobileFinanceField label="Categoria">
             <Input
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              inputMode="decimal"
-              placeholder="0,00"
-              className="mt-2 h-14 rounded-[18px] border-border/50 bg-card text-xl font-semibold"
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              placeholder="Opcional"
+              className={mobileFinanceInputClassName}
             />
-          </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                Data
-              </span>
-              <Input
-                value={date}
-                onChange={(event) => setDate(event.target.value)}
-                type="date"
-                className="mt-2 h-[52px] rounded-[18px] border-border/50 bg-card"
-              />
-            </label>
-            <label className="block">
-              <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                Categoria
-              </span>
-              <Input
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                placeholder="Opcional"
-                className="mt-2 h-[52px] rounded-[18px] border-border/50 bg-card"
-              />
-            </label>
-          </div>
-
-          <label className="block">
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Forma de pagamento
-            </span>
-            <select
-              value={paymentMethod}
-              onChange={(event) => setPaymentMethod(event.target.value)}
-              className="mt-2 h-[52px] w-full rounded-[18px] border border-border/50 bg-card px-4 text-sm outline-none"
-            >
-              <option value="pix">Pix</option>
-              <option value="cash">Dinheiro</option>
-              <option value="card">Cartão</option>
-              <option value="external_transfer">Transferência externa</option>
-              <option value="boleto">Boleto</option>
-              <option value="manual">Outro</option>
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Paciente relacionado
-            </span>
-            <select
-              value={patientId}
-              onChange={(event) => setPatientId(event.target.value)}
-              className="mt-2 h-[52px] w-full rounded-[18px] border border-border/50 bg-card px-4 text-sm outline-none"
-            >
-              <option value="">Nenhum paciente</option>
-              {patients.map((patient: any) => (
-                <option key={patient.id} value={patient.id}>
-                  {patient.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          </MobileFinanceField>
         </div>
 
-        <Button
-          type="button"
-          disabled={!valid || addTransaction.isPending}
-          onClick={() => void submit()}
-          className="mt-6 h-14 w-full rounded-[20px] text-xs font-semibold uppercase tracking-[0.16em]"
-        >
-          {addTransaction.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : null}
-          Salvar lançamento
-        </Button>
-      </DrawerContent>
-    </Drawer>
+        <MobileFinanceField label="Forma de pagamento">
+          <MobileFinanceSelect
+            value={paymentMethod}
+            onChange={(event) => setPaymentMethod(event.target.value)}
+          >
+            <option value="pix">Pix</option>
+            <option value="cash">Dinheiro</option>
+            <option value="card">Cartão</option>
+            <option value="external_transfer">Transferência externa</option>
+            <option value="boleto">Boleto</option>
+            <option value="manual">Outro</option>
+          </MobileFinanceSelect>
+        </MobileFinanceField>
+
+        <MobileFinanceField label="Paciente relacionado">
+          <MobileFinanceSelect
+            value={patientId}
+            onChange={(event) => setPatientId(event.target.value)}
+          >
+            <option value="">Nenhum paciente</option>
+            {patients.map((patient: any) => (
+              <option key={patient.id} value={patient.id}>
+                {patient.name}
+              </option>
+            ))}
+          </MobileFinanceSelect>
+        </MobileFinanceField>
+      </div>
+    </MobileFinanceSheet>
   );
 }

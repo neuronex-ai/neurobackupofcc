@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { addYears, subMonths } from "date-fns";
+import { addYears, format, subMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -12,14 +13,15 @@ import {
   Loader2,
   QrCode,
   Receipt,
+  RefreshCw,
   Send,
   ShieldCheck,
+  TrendingUp,
   Wallet,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { useNeuroFinanceBalance } from "@/hooks/use-neurofinance-balance";
 import { useNeuroFinanceStatement } from "@/hooks/use-neurofinance-statement";
@@ -29,6 +31,12 @@ import { MobileLayout } from "@/mobile/components/MobileLayout";
 import {
   MobileActionButton,
   MobileEmptyState,
+  MobileFinanceButton,
+  MobileFinanceHero,
+  MobileFinanceIconButton,
+  MobileFinanceInsightStrip,
+  MobileFinanceListRow,
+  MobileFinanceTabs,
   MobilePageTitle,
   MobileSectionTitle,
   formatMoney,
@@ -39,6 +47,7 @@ import { MobileChargeFlow } from "../components/MobileChargeFlow";
 import { MobilePixPaymentFlow } from "../components/MobilePixPaymentFlow";
 import { MobileTransferFlow } from "../components/MobileTransferFlow";
 
+type FinanceArea = "management" | "neurofinance";
 type Flow =
   | "charge"
   | "bill"
@@ -58,6 +67,14 @@ function flowFromPath(pathname: string): Flow {
   return null;
 }
 
+const formatStatementDate = (transaction: any) => {
+  const rawDate = transaction.date || transaction.created_at;
+  if (!rawDate) return "Recente";
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) return "Recente";
+  return format(date, "d MMM, HH:mm", { locale: ptBR });
+};
+
 export function MobileNeuroFinancePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -70,7 +87,9 @@ export function MobileNeuroFinancePage() {
 
   const routeFlow = flowFromPath(location.pathname);
   const approved = account.isApproved;
-  const transactions = (statement.data || []).slice(0, 8);
+  const transactions = (statement.data || []).slice(0, 10);
+  const availableBalance = Number(balance.data?.balance || 0);
+  const pendingBalance = Number(balance.data?.pending || 0);
 
   const openFlow = (flow: Exclude<Flow, null>) => {
     const routes: Record<Exclude<Flow, null>, string> = {
@@ -84,6 +103,10 @@ export function MobileNeuroFinancePage() {
   };
 
   const closeFlow = () => navigate(home);
+
+  const switchArea = (area: FinanceArea) => {
+    navigate(area === "management" ? "/financeiro" : "/financeiro/neurofinance");
+  };
 
   const refresh = async () => {
     try {
@@ -110,231 +133,248 @@ export function MobileNeuroFinancePage() {
 
   return (
     <MobileLayout className="min-h-screen bg-background px-0">
-      <div className="space-y-8 px-5 pb-32 pt-4">
-        <MobilePageTitle
-          eyebrow="Conta e movimentações reais"
-          title="NeuroFinance"
-          description="Saldo, recebimentos e movimentações reais com revisão dos dados, validação de saldo e PIN financeiro."
-          action={
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={() => setShowBalance((value) => !value)}
-              className="h-11 w-11 shrink-0 rounded-[16px] border-border/50 bg-card"
-            >
-              {showBalance ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </Button>
-          }
-        />
-
-        {!approved ? (
-          <section className={cn(mobileFinanceSurface, "p-5")}>
-            <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-foreground text-background">
-              <ShieldCheck className="h-5 w-5" strokeWidth={1.6} />
-            </div>
-            <p className="mt-5 text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
-              Conta protegida
-            </p>
-            <h2 className="mt-2 text-xl font-semibold tracking-[-0.035em]">
-              {account.needsInitialOnboarding || account.isAccountMissing
-                ? "Ative sua conta NeuroFinance"
-                : "Conta em validação"}
-            </h2>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              A Gestão Financeira continua disponível. As operações reais serão
-              liberadas quando a conta estiver aprovada.
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => navigate("/ajustes")}
-              className="mt-5 h-12 w-full rounded-[18px]"
-            >
-              Ver situação da conta
-            </Button>
-          </section>
-        ) : null}
-
-        <section
-          className={cn(
-            mobileFinanceSurface,
-            "relative overflow-hidden bg-foreground p-6 text-background",
-          )}
-        >
-          <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-background/10 blur-3xl" />
-          <div className="relative">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-[14px] border border-background/15 bg-background/10">
-                  <Wallet className="h-4 w-4" strokeWidth={1.6} />
-                </div>
-                <p className="text-[9px] font-medium uppercase tracking-[0.22em] text-background/60">
-                  Saldo disponível
-                </p>
-              </div>
-              <span className="rounded-full border border-background/15 px-3 py-1 text-[9px] uppercase tracking-[0.16em] text-background/65">
-                {approved ? "Ativo" : "Restrito"}
-              </span>
-            </div>
-            <p className="mt-7 text-[35px] font-semibold tracking-[-0.055em]">
-              {showBalance ? formatMoney(balance.data?.balance) : "R$ ••••••"}
-            </p>
-            <p className="mt-2 text-[11px] text-background/55">
-              {showBalance
-                ? `${formatMoney(balance.data?.pending)} a liberar`
-                : "Valores ocultos"}
-            </p>
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <MobileSectionTitle
-            title="Movimentar"
-            description="Ações essenciais da conta adaptadas para celular."
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <MobileActionButton
-              label="Cobrar"
-              description="Pix, boleto ou cartão"
-              icon={Receipt}
-              onClick={() => openFlow("charge")}
-              disabled={!approved}
-            />
-            <MobileActionButton
-              label="Pagar boleto"
-              description="Pagar agora ou agendar"
-              icon={Barcode}
-              onClick={() => openFlow("bill")}
-              disabled={!approved}
-            />
-            <MobileActionButton
-              label="Pagar Pix"
-              description="Pix Copia e Cola"
-              icon={QrCode}
-              onClick={() => openFlow("pix-payment")}
-              disabled={!approved}
-            />
-            <MobileActionButton
-              label="Transferir Pix"
-              description="Validar chave e titular"
-              icon={Send}
-              onClick={() => openFlow("pix-transfer")}
-              disabled={!approved}
-            />
-            <MobileActionButton
-              label="Minha conta"
-              description="Transferir para conta cadastrada"
-              icon={Landmark}
-              onClick={() => openFlow("bank-payout")}
-              disabled={!approved}
-            />
-            <MobileActionButton
-              label="Gestão"
-              description="Receitas, despesas e resultado"
-              icon={CircleDollarSign}
-              onClick={() => navigate("/financeiro")}
-            />
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <MobileSectionTitle
-            title="Extrato recente"
-            description="Movimentações sincronizadas da conta."
-            trailing={
-              <button
-                type="button"
-                onClick={() => void refresh()}
-                className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-              >
-                Atualizar
-                <FileText className="h-3.5 w-3.5" />
-              </button>
+      <div className="mobile-scroll-owner h-full overflow-y-auto overflow-x-hidden px-5 pb-32 pt-4">
+        <div className="space-y-6">
+          <MobilePageTitle
+            eyebrow="Conta e movimentações reais"
+            title="Financeiro"
+            description="Operações bancárias com revisão dos dados, validação de saldo e PIN financeiro."
+            action={
+              <MobileFinanceIconButton
+                icon={showBalance ? EyeOff : Eye}
+                label={showBalance ? "Ocultar saldo" : "Mostrar saldo"}
+                onClick={() => setShowBalance((value) => !value)}
+              />
             }
           />
 
-          {statement.isLoading ? (
-            <div
-              className={cn(
-                mobileFinanceSurface,
-                "flex h-28 items-center justify-center",
-              )}
-            >
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : transactions.length === 0 ? (
-            <MobileEmptyState
-              title="Nenhuma movimentação"
-              description="As operações confirmadas aparecerão aqui automaticamente."
-            />
-          ) : (
-            <div
-              className={cn(
-                mobileFinanceSurface,
-                "divide-y divide-border/35 px-4",
-              )}
-            >
-              {transactions.map((transaction: any) => {
-                const income = transaction.type === "income";
-                return (
-                  <article
-                    key={transaction.id}
-                    className="flex items-center justify-between gap-3 py-4"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] border border-border/40 bg-foreground/[0.035]">
-                        {income ? (
-                          <ArrowUpRight
-                            className="h-4 w-4"
-                            strokeWidth={1.6}
-                          />
-                        ) : (
-                          <ArrowDownRight
-                            className="h-4 w-4"
-                            strokeWidth={1.6}
-                          />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-[13px] font-semibold">
-                          {transaction.description || "Movimentação"}
-                        </p>
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                          {transaction.status || transaction.category || "Processada"} ·{" "}
-                          {new Date(
-                            transaction.date || transaction.created_at || Date.now(),
-                          ).toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="shrink-0 text-[13px] font-semibold">
-                      {income ? "+" : "−"}{" "}
-                      {showBalance
-                        ? formatMoney(Math.abs(transaction.amount))
-                        : "••••"}
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
+          <MobileFinanceTabs<FinanceArea>
+            value="neurofinance"
+            onValueChange={switchArea}
+            options={[
+              {
+                value: "management",
+                label: "Gestão",
+                description: "Controle",
+                icon: TrendingUp,
+              },
+              {
+                value: "neurofinance",
+                label: "NeuroFinance",
+                description: "Conta",
+                icon: Wallet,
+              },
+            ]}
+            className="sticky top-2 z-30"
+          />
 
-        <section
-          className={cn(
-            mobileFinanceSurface,
-            "flex items-start gap-3 p-4 text-[11px] leading-4 text-muted-foreground",
-          )}
-        >
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
-          <p>
-            Pagamentos e transferências exigem revisão dos dados e PIN. O saldo
-            é validado novamente no momento da execução.
-          </p>
-        </section>
+          {!approved ? (
+            <MobileFinanceListRow
+              icon={ShieldCheck}
+              title={
+                account.needsInitialOnboarding || account.isAccountMissing
+                  ? "Ative sua conta NeuroFinance"
+                  : "Conta em validação"
+              }
+              description="A Gestão Financeira continua disponível. Operações reais serão liberadas quando a conta estiver aprovada."
+              status="Ação"
+              tone="warning"
+              onClick={() => navigate("/ajustes")}
+            />
+          ) : null}
+
+          <MobileFinanceHero
+            eyebrow="Saldo disponível"
+            title={approved ? "Conta NeuroFinance ativa" : "Conta restrita"}
+            value={
+              balance.isLoading
+                ? "—"
+                : showBalance
+                  ? formatMoney(availableBalance)
+                  : "R$ ••••••"
+            }
+            description={
+              showBalance
+                ? `${formatMoney(pendingBalance)} a liberar. O saldo é conferido novamente antes de qualquer envio.`
+                : "Valores ocultos nesta sessão. As operações continuam protegidas por PIN."
+            }
+            icon={Wallet}
+            tone={approved ? "dark" : "warning"}
+            action={
+              <MobileFinanceButton
+                variant={approved ? "light" : "secondary"}
+                className="min-h-10 px-3"
+                onClick={() => void refresh()}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </MobileFinanceButton>
+            }
+          >
+            <div className="grid grid-cols-2 gap-2.5">
+              <MobileFinanceButton
+                variant={approved ? "light" : "secondary"}
+                disabled={!approved}
+                onClick={() => openFlow("charge")}
+              >
+                <Receipt className="h-4 w-4" />
+                Cobrar
+              </MobileFinanceButton>
+              <MobileFinanceButton
+                variant="secondary"
+                disabled={!approved}
+                className={cn(
+                  approved && "border-background/15 bg-background/[0.07] text-background",
+                )}
+                onClick={() => openFlow("pix-payment")}
+              >
+                <QrCode className="h-4 w-4" />
+                Pagar Pix
+              </MobileFinanceButton>
+            </div>
+          </MobileFinanceHero>
+
+          <MobileFinanceInsightStrip
+            items={[
+              {
+                label: "Status",
+                value: approved ? "Ativo" : "Restrito",
+                icon: ShieldCheck,
+                tone: approved ? "success" : "warning",
+              },
+              {
+                label: "A liberar",
+                value: showBalance ? formatMoney(pendingBalance) : "••••",
+                icon: CircleDollarSign,
+              },
+              {
+                label: "Extrato",
+                value: `${transactions.length}`,
+                icon: FileText,
+              },
+            ]}
+          />
+
+          <section className="space-y-4">
+            <MobileSectionTitle
+              title="Movimentar"
+              description="Ações essenciais da conta, com revisão antes do PIN."
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <MobileActionButton
+                label="Cobrar"
+                description="Pix, boleto ou cartão"
+                icon={Receipt}
+                tone="success"
+                onClick={() => openFlow("charge")}
+                disabled={!approved}
+              />
+              <MobileActionButton
+                label="Pagar boleto"
+                description="Pagar agora ou agendar"
+                icon={Barcode}
+                onClick={() => openFlow("bill")}
+                disabled={!approved}
+              />
+              <MobileActionButton
+                label="Pagar Pix"
+                description="Pix Copia e Cola"
+                icon={QrCode}
+                onClick={() => openFlow("pix-payment")}
+                disabled={!approved}
+              />
+              <MobileActionButton
+                label="Transferir Pix"
+                description="Validar chave e titular"
+                icon={Send}
+                onClick={() => openFlow("pix-transfer")}
+                disabled={!approved}
+              />
+              <MobileActionButton
+                label="Minha conta"
+                description="Enviar para conta cadastrada"
+                icon={Landmark}
+                onClick={() => openFlow("bank-payout")}
+                disabled={!approved}
+              />
+              <MobileActionButton
+                label="Gestão"
+                description="Receitas e despesas"
+                icon={CircleDollarSign}
+                onClick={() => navigate("/financeiro")}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <MobileSectionTitle
+              title="Extrato recente"
+              description="Movimentações sincronizadas da conta."
+              trailing={
+                <MobileFinanceButton
+                  variant="ghost"
+                  className="min-h-9 px-2.5"
+                  onClick={() => void refresh()}
+                >
+                  Atualizar
+                </MobileFinanceButton>
+              }
+            />
+
+            {statement.isLoading ? (
+              <div
+                className={cn(
+                  mobileFinanceSurface,
+                  "flex h-28 items-center justify-center",
+                )}
+              >
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : transactions.length === 0 ? (
+              <MobileEmptyState
+                icon={FileText}
+                title="Nenhuma movimentação"
+                description="As operações confirmadas aparecerão aqui automaticamente."
+              />
+            ) : (
+              <div className="space-y-2">
+                {transactions.map((transaction: any) => {
+                  const income = transaction.type === "income";
+                  const amount = Math.abs(Number(transaction.amount || 0));
+
+                  return (
+                    <MobileFinanceListRow
+                      key={transaction.id}
+                      icon={income ? ArrowUpRight : ArrowDownRight}
+                      title={transaction.description || "Movimentação"}
+                      description={transaction.status || transaction.category || "Processada"}
+                      meta={formatStatementDate(transaction)}
+                      value={
+                        showBalance
+                          ? `${income ? "+" : "−"} ${formatMoney(amount)}`
+                          : "••••"
+                      }
+                      tone={income ? "success" : "danger"}
+                      valueMuted={!showBalance}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section
+            className={cn(
+              mobileFinanceSurface,
+              "flex items-start gap-3 p-4 text-[11px] font-medium leading-relaxed text-muted-foreground/70",
+            )}
+          >
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
+            <p>
+              Pagamentos e transferências exigem revisão dos dados e PIN. O saldo
+              é validado novamente no momento da execução.
+            </p>
+          </section>
+        </div>
       </div>
 
       <MobileChargeFlow
