@@ -42,6 +42,15 @@ import {
 type EntryType = "income" | "expense";
 type FinanceArea = "management" | "neurofinance";
 type TransactionFilter = "all" | "income" | "expense";
+type MobileFinanceTransaction = {
+  id: string;
+  type?: string | null;
+  amount?: number | string | null;
+  date?: string | Date | null;
+  created_at?: string | Date | null;
+  description?: string | null;
+  category?: string | null;
+};
 
 const filters: Array<{ value: TransactionFilter; label: string }> = [
   { value: "all", label: "Todas" },
@@ -49,7 +58,7 @@ const filters: Array<{ value: TransactionFilter; label: string }> = [
   { value: "expense", label: "Despesas" },
 ];
 
-const formatTransactionDate = (transaction: any) => {
+const formatTransactionDate = (transaction: MobileFinanceTransaction) => {
   const rawDate = transaction.date || transaction.created_at;
   if (!rawDate) return "Recente";
   const date = new Date(rawDate);
@@ -60,7 +69,8 @@ const formatTransactionDate = (transaction: any) => {
 export function MobileFinancialManagementPage() {
   const navigate = useNavigate();
   const { data: metrics, isLoading } = useFinancialMetrics();
-  const { data: transactions = [] } = useTransactions(subMonths(new Date(), 3));
+  const { data: transactionData = [] } = useTransactions(subMonths(new Date(), 3));
+  const transactions = transactionData as MobileFinanceTransaction[];
   const [entryOpen, setEntryOpen] = useState(false);
   const [entryType, setEntryType] = useState<EntryType>("income");
   const [filter, setFilter] = useState<TransactionFilter>("all");
@@ -69,7 +79,7 @@ export function MobileFinancialManagementPage() {
     () =>
       [...transactions]
         .sort(
-          (a: any, b: any) =>
+          (a, b) =>
             new Date(b.date || b.created_at).getTime() -
             new Date(a.date || a.created_at).getTime(),
         )
@@ -79,7 +89,7 @@ export function MobileFinancialManagementPage() {
 
   const visibleTransactions = useMemo(
     () =>
-      recent.filter((transaction: any) => {
+      recent.filter((transaction) => {
         if (filter === "all") return true;
         return transaction.type === filter;
       }),
@@ -327,7 +337,7 @@ export function MobileFinancialManagementPage() {
               />
             ) : (
               <div className="space-y-2">
-                {visibleTransactions.slice(0, 10).map((transaction: any) => {
+                {visibleTransactions.slice(0, 10).map((transaction) => {
                   const income = transaction.type === "income";
                   const amount = Math.abs(Number(transaction.amount || 0));
 

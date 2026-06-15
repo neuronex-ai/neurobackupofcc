@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Check, Landmark, Loader2, Send, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
+  MobileFinanceSheet,
   formatMoney,
   mobileFinanceSurface,
   parseMoney,
@@ -87,16 +87,14 @@ export function MobileTransferFlow({
 
   return (
     <>
-      <Drawer
+      <MobileFinanceSheet
         open={open}
         onOpenChange={(next) => {
           onOpenChange(next);
           if (!next) reset();
         }}
+        bodyClassName="pb-[calc(28px+env(safe-area-inset-bottom))]"
       >
-        <DrawerContent className="max-h-[94vh] overflow-y-auto border-border/40 bg-background px-5 pb-[calc(28px+env(safe-area-inset-bottom))] pt-3">
-          <div className="mx-auto h-1 w-10 rounded-full bg-foreground/15" />
-
           {result ? (
             <div className="py-9 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background">
@@ -221,8 +219,7 @@ export function MobileTransferFlow({
               </Button>
             </div>
           )}
-        </DrawerContent>
-      </Drawer>
+      </MobileFinanceSheet>
 
       <MobileFinancialPinSheet
         open={pinOpen}

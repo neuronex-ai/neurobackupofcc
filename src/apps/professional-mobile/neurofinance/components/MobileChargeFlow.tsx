@@ -2,14 +2,25 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, Copy, ExternalLink, Loader2, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { usePatients } from "@/hooks/use-patients";
-import { parseMoney, formatMoney } from "../../shared/MobileFinancePrimitives";
+import {
+  MobileFinanceSheet,
+  parseMoney,
+  formatMoney,
+} from "../../shared/MobileFinancePrimitives";
 import {
   createNeuroFinanceCharge,
   type ChargeResult,
 } from "../services/neurofinance-mobile-api";
+
+type MobilePatientOption = {
+  id: string;
+  name?: string | null;
+  cpf?: string | null;
+  payer_cpf?: string | null;
+  email?: string | null;
+};
 
 export function MobileChargeFlow({
   open,
@@ -20,7 +31,8 @@ export function MobileChargeFlow({
   onOpenChange: (open: boolean) => void;
   onCompleted: () => void;
 }) {
-  const { data: patients = [] } = usePatients();
+  const { data: patientData = [] } = usePatients();
+  const patients = patientData as MobilePatientOption[];
   const [patientId, setPatientId] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"pix" | "boleto" | "card" | "undefined">(
@@ -36,7 +48,7 @@ export function MobileChargeFlow({
   const [result, setResult] = useState<ChargeResult | null>(null);
 
   const patient = useMemo(
-    () => patients.find((item: any) => item.id === patientId) as any,
+    () => patients.find((item) => item.id === patientId),
     [patientId, patients],
   );
   useEffect(() => {
@@ -49,7 +61,7 @@ export function MobileChargeFlow({
   const valid = Boolean(patientId) && value > 0 && Boolean(dueDate) && payerDocument.length >= 11;
 
   const submit = async () => {
-    if (!valid) return;
+    if (!valid || !patient) return;
     setBusy(true);
     try {
       const data = await createNeuroFinanceCharge({
@@ -58,7 +70,7 @@ export function MobileChargeFlow({
         payment_method: method,
         description: description.trim() || "Cobrança NeuroFinance",
         due_date: dueDate,
-        patient_name: patient.name,
+        patient_name: patient.name || "Paciente",
         patient_cpf: payerDocument,
         patient_email: payerEmail.trim() || undefined,
       });
@@ -85,16 +97,14 @@ export function MobileChargeFlow({
   };
 
   return (
-    <Drawer
+    <MobileFinanceSheet
       open={open}
       onOpenChange={(next) => {
         onOpenChange(next);
         if (!next) reset();
       }}
+      bodyClassName="pb-[calc(28px+env(safe-area-inset-bottom))]"
     >
-      <DrawerContent className="max-h-[94vh] overflow-y-auto border-border/40 bg-background px-5 pb-[calc(28px+env(safe-area-inset-bottom))] pt-3">
-        <div className="mx-auto h-1 w-10 rounded-full bg-foreground/15" />
-
         {result ? (
           <div className="py-8">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background">
@@ -184,9 +194,9 @@ export function MobileChargeFlow({
                   className="mt-2 h-[52px] w-full rounded-[18px] border border-border/50 bg-card px-4 text-sm outline-none"
                 >
                   <option value="">Selecione</option>
-                  {patients.map((item: any) => (
+                  {patients.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.name}
+                      {item.name || "Paciente"}
                     </option>
                   ))}
                 </select>
@@ -282,7 +292,6 @@ export function MobileChargeFlow({
             </Button>
           </>
         )}
-      </DrawerContent>
-    </Drawer>
+    </MobileFinanceSheet>
   );
 }

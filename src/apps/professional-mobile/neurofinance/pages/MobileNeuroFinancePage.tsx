@@ -55,6 +55,16 @@ type Flow =
   | "pix-transfer"
   | "bank-payout"
   | null;
+type MobileStatementTransaction = {
+  id: string;
+  type?: string | null;
+  amount?: number | string | null;
+  date?: string | Date | null;
+  created_at?: string | Date | null;
+  description?: string | null;
+  status?: string | null;
+  category?: string | null;
+};
 
 const home = "/financeiro/neurofinance";
 
@@ -67,7 +77,7 @@ function flowFromPath(pathname: string): Flow {
   return null;
 }
 
-const formatStatementDate = (transaction: any) => {
+const formatStatementDate = (transaction: MobileStatementTransaction) => {
   const rawDate = transaction.date || transaction.created_at;
   if (!rawDate) return "Recente";
   const date = new Date(rawDate);
@@ -87,7 +97,7 @@ export function MobileNeuroFinancePage() {
 
   const routeFlow = flowFromPath(location.pathname);
   const approved = account.isApproved;
-  const transactions = (statement.data || []).slice(0, 10);
+  const transactions = ((statement.data || []) as MobileStatementTransaction[]).slice(0, 10);
   const availableBalance = Number(balance.data?.balance || 0);
   const pendingBalance = Number(balance.data?.pending || 0);
 
@@ -337,7 +347,7 @@ export function MobileNeuroFinancePage() {
               />
             ) : (
               <div className="space-y-2">
-                {transactions.map((transaction: any) => {
+                {transactions.map((transaction) => {
                   const income = transaction.type === "income";
                   const amount = Math.abs(Number(transaction.amount || 0));
 

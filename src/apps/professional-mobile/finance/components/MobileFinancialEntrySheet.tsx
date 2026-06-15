@@ -17,6 +17,10 @@ import {
 } from "../../shared/MobileFinancePrimitives";
 
 type EntryType = "income" | "expense";
+type MobilePatientOption = {
+  id: string;
+  name?: string | null;
+};
 
 export function MobileFinancialEntrySheet({
   open,
@@ -28,7 +32,8 @@ export function MobileFinancialEntrySheet({
   defaultType?: EntryType;
 }) {
   const addTransaction = useAddTransaction();
-  const { data: patients = [] } = usePatients();
+  const { data: patientData = [] } = usePatients();
+  const patients = patientData as MobilePatientOption[];
   const [type, setType] = useState<EntryType>(defaultType);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
@@ -187,9 +192,9 @@ export function MobileFinancialEntrySheet({
             onChange={(event) => setPatientId(event.target.value)}
           >
             <option value="">Nenhum paciente</option>
-            {patients.map((patient: any) => (
+            {patients.map((patient) => (
               <option key={patient.id} value={patient.id}>
-                {patient.name}
+                {patient.name || "Paciente"}
               </option>
             ))}
           </MobileFinanceSelect>
