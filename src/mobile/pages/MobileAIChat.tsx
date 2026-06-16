@@ -292,14 +292,14 @@ export const MobileAIChat = () => {
 
   return (
     <MobileLayout showBottomNav={false} className="h-full overflow-hidden bg-background px-0 pb-0 pt-0">
-      <header className="fixed left-0 right-0 top-0 z-[105] px-4 pt-[calc(0.85rem+env(safe-area-inset-top))]">
+      <header className="pointer-events-none fixed left-0 right-0 top-0 z-[105] px-4 pt-[calc(0.55rem+env(safe-area-inset-top))]">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="pointer-events-auto flex items-center gap-2">
             <MobileSynapseIconButton icon={ArrowLeft} label="Voltar" onClick={() => navigate("/mobile")} />
             <MobileSynapseIconButton icon={History} label="Histórico" onClick={() => setIsHistoryOpen(true)} />
           </div>
 
-          <div className="min-w-0 flex-1 rounded-[16px] border border-border/40 bg-background/78 px-3 py-2 text-center backdrop-blur-xl dark:border-white/10 dark:bg-black/45">
+          <div className="pointer-events-auto min-w-0 flex-1 rounded-full border border-foreground/[0.07] bg-background/62 px-3 py-2 text-center shadow-[0_14px_34px_-24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055]">
             <p className="truncate text-[9px] font-black uppercase tracking-[0.17em] text-muted-foreground/58">
               Synapse AI
             </p>
@@ -308,7 +308,7 @@ export const MobileAIChat = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="pointer-events-auto flex items-center gap-2">
             <MobileSynapseIconButton icon={mode === "chat" ? Mic : MessageSquare} label={mode === "chat" ? "Modo voz" : "Modo texto"} onClick={toggleVoiceMode} />
             <MobileSynapseIconButton icon={SquarePen} label="Nova conversa" onClick={createNewChat} />
           </div>

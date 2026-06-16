@@ -82,7 +82,7 @@ export function MobileSynapseIconButton({
       type="button"
       aria-label={label}
       className={cn(
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] border border-border/45 bg-background/78 text-foreground shadow-sm backdrop-blur-xl transition active:scale-95 dark:border-white/10 dark:bg-black/45",
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-foreground/[0.07] bg-background/62 text-foreground shadow-[0_14px_34px_-24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl transition active:scale-95 dark:border-white/10 dark:bg-white/[0.055]",
         className,
       )}
       {...props}
