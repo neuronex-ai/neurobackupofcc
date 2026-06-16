@@ -142,21 +142,8 @@ export function MobileNeuroFinancePage() {
 
   return (
     <MobileLayout className="min-h-screen bg-background px-0">
-      <div className="mobile-scroll-owner h-full overflow-y-auto overflow-x-hidden px-5 pb-32 pt-4">
-        <div className="space-y-6">
-          <MobilePageTitle
-            eyebrow="Conta e movimentações reais"
-            title="Financeiro"
-            description="Operações bancárias com revisão dos dados, validação de saldo e PIN financeiro."
-            action={
-              <MobileFinanceIconButton
-                icon={showBalance ? EyeOff : Eye}
-                label={showBalance ? "Ocultar saldo" : "Mostrar saldo"}
-                onClick={() => setShowBalance((value) => !value)}
-              />
-            }
-          />
-
+      <div className="mobile-scroll-owner h-full overflow-y-auto overflow-x-hidden px-5 pb-32 pt-3">
+        <div className="space-y-5">
           <MobileFinanceTabs
             value="neurofinance"
             onValueChange={switchArea}
@@ -185,8 +172,8 @@ export function MobileNeuroFinancePage() {
                   ? "Ative sua conta NeuroFinance"
                   : "Conta em validação"
               }
-              description="A Gestão Financeira continua disponível. Operações reais serão liberadas quando a conta estiver aprovada."
-              status="Ação"
+              description="Operações reais liberam após aprovação."
+              status="Ajustes"
               tone="warning"
               onClick={() => navigate("/ajustes")}
             />
