@@ -123,7 +123,8 @@ export const MediaReadinessPanel = ({
           type="button"
           onClick={() => readiness.setAudioEnabled(!readiness.audioEnabled)}
           className={cn(
-            "flex min-h-14 items-center justify-center gap-2 rounded-[20px] border text-[9px] font-black uppercase tracking-[0.14em] transition active:scale-[0.98]",
+            "flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-[20px] border px-2 text-center text-[9px] font-black uppercase leading-tight tracking-[0.12em] transition active:scale-[0.98]",
+            compact && "flex-col py-3",
             readiness.audioEnabled
               ? "border-emerald-500/20 bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-300"
               : "border-border/45 bg-foreground/[0.035] text-muted-foreground dark:border-white/10 dark:bg-white/[0.035]",
@@ -136,7 +137,8 @@ export const MediaReadinessPanel = ({
           type="button"
           onClick={() => readiness.setVideoEnabled(!readiness.videoEnabled)}
           className={cn(
-            "flex min-h-14 items-center justify-center gap-2 rounded-[20px] border text-[9px] font-black uppercase tracking-[0.14em] transition active:scale-[0.98]",
+            "flex min-h-14 min-w-0 items-center justify-center gap-2 rounded-[20px] border px-2 text-center text-[9px] font-black uppercase leading-tight tracking-[0.12em] transition active:scale-[0.98]",
+            compact && "flex-col py-3",
             readiness.videoEnabled
               ? "border-emerald-500/20 bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-300"
               : "border-border/45 bg-foreground/[0.035] text-muted-foreground dark:border-white/10 dark:bg-white/[0.035]",
