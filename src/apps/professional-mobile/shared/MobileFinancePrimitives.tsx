@@ -78,9 +78,9 @@ export function MobileEyebrow({ children, className }: { children: ReactNode; cl
 }
 
 export function MobilePageTitle({
-  eyebrow,
-  title,
-  description,
+  eyebrow: _eyebrow,
+  title: _title,
+  description: _description,
   action,
 }: {
   eyebrow: string;
@@ -88,20 +88,7 @@ export function MobilePageTitle({
   description: string;
   action?: ReactNode;
 }) {
-  return (
-    <header className="flex items-start justify-between gap-4">
-      <div className="min-w-0">
-        <MobileEyebrow>{eyebrow}</MobileEyebrow>
-        <h1 className="mt-2 text-[2rem] font-black leading-[0.94] tracking-[-0.058em] text-foreground">
-          {title}
-        </h1>
-        <p className="mt-3 max-w-[22rem] text-[12px] font-medium leading-relaxed text-muted-foreground/70">
-          {description}
-        </p>
-      </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </header>
-  );
+  return action ? <div className="flex justify-end">{action}</div> : null;
 }
 
 export function MobileFinanceTabs<T extends string>({
