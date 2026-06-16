@@ -34,6 +34,7 @@ export function MobilePixPaymentFlow({
     useState<PixPaymentConsultation | null>(null);
   const [editableAmount, setEditableAmount] = useState("");
   const [pinOpen, setPinOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<OperationResult | null>(null);
 
