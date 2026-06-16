@@ -53,7 +53,7 @@ export class GeminiLiveClient {
         this.options.onStatusChange?.('connecting');
 
         try {
-            const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${this.options.apiKey}`;
+            const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=${encodeURIComponent(this.options.token)}`;
             this.ws = new WebSocket(url);
 
             this.ws.onopen = this.handleSocketOpen.bind(this);
@@ -105,14 +105,13 @@ export class GeminiLiveClient {
 
     private handleSocketOpen() {
         // Do NOT set connected yet — must wait for setupComplete from server
-        console.log("[Gemini Live] WebSocket opened, sending setup message...");
-
         // Send Initial Setup
         const msg: any = {
             setup: {
-                model: 'models/gemini-2.0-flash-live-001',
+                model: `models/${this.options.model || 'gemini-3.1-flash-live-preview'}`,
                 generationConfig: {
                     responseModalities: ['AUDIO'],
+                    temperature: 0.5,
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
