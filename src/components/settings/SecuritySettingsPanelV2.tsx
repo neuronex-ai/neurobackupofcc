@@ -26,7 +26,7 @@ const Card = ({ children }: { children: ReactNode }) => (
 );
 
 export const SecuritySettingsPanelV2 = () => {
-  const { user } = useAuth();
+  const { session, user } = useAuth();
   const { profile, refetch: refetchProfile } = useProfile();
   const { settings, refetch: refetchFinancial } = useFinancialSettings();
   const [pinOpen, setPinOpen] = useState(false);
@@ -36,6 +36,19 @@ export const SecuritySettingsPanelV2 = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricStatus, setBiometricStatus] = useState<BiometricStatus | null>(null);
+  const [biometricPreference, setBiometricPreference] = useState<BiometricPreference>('unset');
+
+  const refreshBiometricSettings = async () => {
+    const status = await getBiometricStatus();
+    setBiometricStatus(status);
+    setBiometricPreference(getBiometricPreferenceForUser(user?.id));
+  };
+
+  useEffect(() => {
+    void refreshBiometricSettings().catch(() => undefined);
+  }, [user?.id]);
 
   const changeEmail = async () => {
     if (!newEmail.includes('@')) return toast.error('Digite um e-mail válido.');
@@ -88,6 +101,45 @@ export const SecuritySettingsPanelV2 = () => {
       setSaving(null);
     }
   };
+
+  const toggleBiometrics = async (enabled: boolean) => {
+    if (!user?.id) return;
+    setBiometricBusy(true);
+    try {
+      if (enabled) {
+        if (!session) throw new Error('Entre novamente para ativar a biometria neste aparelho.');
+        await enableBiometricSignIn({
+          userId: user.id,
+          email: user.email,
+          session,
+        });
+        toast.success('Login com biometria ativado neste aparelho.');
+      } else {
+        await disableBiometricSignIn(user.id);
+        toast.success('Login com biometria desativado neste aparelho.');
+      }
+      await refreshBiometricSettings();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Nao foi possivel alterar a biometria.');
+    } finally {
+      setBiometricBusy(false);
+    }
+  };
+
+  const biometricEnabled = Boolean(user?.id && isBiometricEnabledForUser(user.id));
+  const biometricAvailable = Boolean(
+    hasNativeSecureBridge() &&
+      biometricStatus?.native &&
+      biometricStatus.available &&
+      biometricStatus.enrolled,
+  );
+  const biometricStatusText = !hasNativeSecureBridge()
+    ? 'Disponivel apenas no app Android com cofre nativo.'
+    : biometricAvailable
+      ? biometricPreference === 'disabled'
+        ? 'Desativado por escolha neste aparelho.'
+        : 'Aparelho pronto para login e transacoes com biometria.'
+      : biometricStatus?.reason || 'Configure digital, rosto ou bloqueio seguro no aparelho.';
 
   return (
     <div className="max-w-4xl space-y-8">
