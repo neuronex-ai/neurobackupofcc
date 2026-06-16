@@ -388,6 +388,22 @@ function normalizeDetectedValue(mode: ScannerMode, value?: string | null) {
   return text;
 }
 
+async function waitForVideoElement(
+  ref: RefObject<HTMLVideoElement>,
+  isCancelled: () => boolean,
+  timeoutMs = 1600,
+) {
+  const startedAt = Date.now();
+
+  while (!isCancelled()) {
+    if (ref.current) return ref.current;
+    if (Date.now() - startedAt > timeoutMs) return null;
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+
+  return null;
+}
+
 async function startNativeBoletoScanner({
   video,
   onDetected,
