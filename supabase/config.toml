@@ -130,6 +130,16 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/send-monthly-report/index.ts"
 
+# ─── AUTH EMAIL TEMPLATES ─────────────────────────────────────
+
+[auth.email.template.confirmation]
+subject = "Confirme seu e-mail na NeuroNex AI"
+content_path = "./supabase/templates/confirm-signup.html"
+
+[auth.email.template.magic_link]
+subject = "{{ .Token }} é seu código da NeuroNex AI"
+content_path = "./supabase/templates/magic-link.html"
+
 # ─── SYNAPSE ──────────────────────────────────────────────────
 
 [functions.gemini-text-chat]
