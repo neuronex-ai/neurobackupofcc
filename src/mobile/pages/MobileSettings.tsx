@@ -372,10 +372,12 @@ export const MobileSettings = () => {
                         />
 
                         <div className="space-y-5 pb-2">
-                            {menuGroups.map((group) => (
-                                <section key={group.title} className="space-y-2.5">
-                                    <MobileSectionHeader title={group.title} />
-                                    <div className="grid gap-2">
+                            {refinedMenuGroups.map((group) => (
+                                <section key={group.title} className="space-y-2">
+                                    <div className="px-2 text-center">
+                                        <MobileSectionHeader title={group.title} className="justify-center text-center [&>div]:mx-auto" />
+                                    </div>
+                                    <div className={cn("mobile-settings-group overflow-hidden rounded-[28px]", premiumPanelClass)}>
                                         {group.items.map((item) => (
                                             <CustomMenuItem key={item.value} item={item} onClick={() => setView(item.value)} />
                                         ))}
