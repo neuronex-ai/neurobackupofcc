@@ -4,7 +4,8 @@ export type GeminiLiveStatus = 'disconnected' | 'connecting' | 'connected' | 'er
 export type ToolCallHandler = (name: string, params: any) => Promise<any>;
 
 export interface GeminiClientOptions {
-    apiKey: string;
+    token: string;
+    model?: string;
     systemInstruction?: string;
     tools?: any[];
     onStatusChange?: (status: GeminiLiveStatus) => void;
