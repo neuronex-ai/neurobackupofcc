@@ -64,8 +64,21 @@ const ResetPasswordPage = () => {
             if (error) throw error;
 
             toast.success("Senha redefinida com sucesso!");
-            // Redirect to dashboard after password reset
-            navigate('/dashboard');
+            const { data: authData } = await supabase.auth.getUser();
+            const userId = authData.user?.id;
+
+            if (!userId) {
+                navigate('/auth', { replace: true });
+                return;
+            }
+
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('setup_completed')
+                .eq('id', userId)
+                .maybeSingle();
+
+            navigate(profile?.setup_completed ? '/dashboard' : '/initial-settings', { replace: true });
         } catch (error: any) {
             toast.error(error.message || "Erro ao redefinir senha.");
         } finally {
