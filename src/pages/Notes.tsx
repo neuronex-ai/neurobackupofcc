@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import { useReminders } from "@/hooks/use-reminders";
-import { Navbar } from "@/components/layout/Navbar";
 import { CommandMenu } from "@/components/layout/CommandMenu";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -286,7 +285,6 @@ export default function Notes() {
             </div>
 
             <div className="relative z-40 w-full shrink-0">
-                <Navbar />
                 <CommandMenu />
             </div>
 

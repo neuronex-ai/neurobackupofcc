@@ -11,7 +11,6 @@ import {
   Settings,
   LogOut,
   Search,
-  Sparkles,
   NotebookPen,
   Bell,
   Video,
@@ -132,20 +131,30 @@ export const Navbar = () => {
         )}
       >
         <div className={cn("flex items-center pr-4 border-r", isDarkTheme ? "border-white/[0.08]" : "border-black/[0.055]")}>
-          <Link to="/synapse-ai" className="relative flex items-center justify-center w-10 h-10 rounded-[18px] transition-all duration-500 group mr-3">
-            <div
+          <Link
+            to="/dashboard"
+            aria-label="Ir para o dashboard NeuroNex"
+            className={cn(
+              "group flex items-center gap-3 rounded-[22px] px-1.5 py-1 transition-all duration-500 hover:bg-black/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:bg-white/[0.055]",
+            )}
+          >
+            <span
               className={cn(
-                "absolute inset-0 rounded-[18px] transition-transform group-hover:scale-105",
+                "flex h-10 w-10 items-center justify-center rounded-[18px] border transition-all duration-500 group-hover:scale-105",
                 isDarkTheme
-                  ? "bg-white shadow-[0_18px_48px_-28px_rgba(255,255,255,0.5)]"
-                  : "bg-zinc-950 shadow-[0_18px_48px_-28px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.12)]"
+                  ? "border-white/[0.08] bg-white/[0.045] shadow-[0_18px_48px_-30px_rgba(255,255,255,0.26)]"
+                  : "border-black/[0.06] bg-white/80 shadow-[0_18px_44px_-30px_rgba(0,0,0,0.34)]",
               )}
-            />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Sparkles className={cn("h-4 w-4", isDarkTheme ? "text-zinc-900" : "text-white")} />
-            </div>
+            >
+              <img
+                src={isDarkTheme ? "/favicon-light.png" : "/favicon-dark.png"}
+                alt=""
+                aria-hidden="true"
+                className="h-6 w-6 object-contain transition-transform duration-500 group-hover:scale-105"
+              />
+            </span>
+            <span className={cn("text-[10px] font-black tracking-[0.3em] uppercase hidden md:block transition-colors duration-500", isDarkTheme ? "text-white" : "text-zinc-900")}>NeuroNex</span>
           </Link>
-          <span className={cn("text-[10px] font-black tracking-[0.3em] uppercase hidden md:block transition-colors duration-500", isDarkTheme ? "text-white" : "text-zinc-900")}>NeuroNex</span>
         </div>
 
         <div id="main-navigation" className="flex items-center gap-1">

@@ -6,6 +6,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { useTour } from "@/components/onboarding/TourContext";
+import { useLocation } from "react-router-dom";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,7 +14,11 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   const isMobile = useIsMobile();
+  const location = useLocation();
   const { isTourOpen, completeTour } = useTour();
+  const hasFullBleedDesktopShell =
+    !isMobile &&
+    (location.pathname === "/dashboard" || location.pathname.startsWith("/notas"));
 
   return (
     <div className={cn(
@@ -26,7 +31,8 @@ export const Layout = ({ children }: LayoutProps) => {
       {!isMobile && <Navbar />}
       <main className={cn(
         "flex-1 transition-all duration-300 relative z-10",
-        !isMobile && "pt-20 pb-12",
+        !isMobile && !hasFullBleedDesktopShell && "pt-20 pb-12",
+        !isMobile && hasFullBleedDesktopShell && "pb-0",
         isMobile && "pt-0",
       )}>
         {children}
