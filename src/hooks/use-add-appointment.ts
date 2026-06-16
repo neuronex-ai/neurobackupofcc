@@ -19,6 +19,16 @@ interface NewAppointmentData {
 
 const GOOGLE_CALENDAR_SYNC_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/google-calendar-sync";
 
+const toLogMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Erro sem detalhes serializaveis.';
+  }
+};
+
 const syncAppointmentToGoogle = async (
   appointment: Partial<Appointment>,
   patient: Partial<Patient>,
@@ -116,9 +126,9 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
       googleMeetLink = syncResult.googleMeetLink || null;
       toast.success("Agendamento sincronizado com Google Calendar!");
     } catch (e: any) {
-      console.warn("Google Sync Failed:", e.message);
+      console.warn("Google Sync Failed:", toLogMessage(e));
       metadata.syncStatus = 'failed';
-      toast.warning(`Agendamento criado, mas falha na sincronizacao com Google: ${e.message}`);
+      toast.warning(`Agendamento criado, mas falha na sincronizacao com Google: ${toLogMessage(e)}`);
     }
   }
 
@@ -146,7 +156,7 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
     .single();
 
   if (appointmentError) {
-    console.error('Erro ao adicionar agendamento:', appointmentError);
+    console.error(`Erro ao adicionar agendamento: ${toLogMessage(appointmentError)}`);
     throw new Error(appointmentError.message);
   }
 
@@ -157,7 +167,7 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
       patientData.name
     );
   } catch (financialError) {
-    console.warn('[useAddAppointment] Agendamento criado, mas a automacao financeira nao foi aplicada:', financialError);
+    console.warn(`[useAddAppointment] Agendamento criado, mas a automacao financeira nao foi aplicada: ${toLogMessage(financialError)}`);
   }
 
   return { newAppointment, patientData };
@@ -192,7 +202,7 @@ export const useAddAppointment = () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-activities'] });
     },
     onError: (error) => {
-      console.error('[useAddAppointment] Falha ao criar agendamento', error);
+      console.error(`[useAddAppointment] Falha ao criar agendamento: ${toLogMessage(error)}`);
       toast.error(getUserFacingErrorMessage(error, 'save'));
     }
   });
