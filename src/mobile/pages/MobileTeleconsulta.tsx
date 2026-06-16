@@ -281,13 +281,13 @@ export const MobileTeleconsulta = () => {
 
                     {/* Tabs / History Section */}
                     <div className="px-1 space-y-6">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                             <h3 className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em]">Gestão de Sessões</h3>
-                            <div className="flex p-1 rounded-xl bg-foreground/[0.04] border border-border/10 backdrop-blur-md">
+                            <div className="flex shrink-0 p-1 rounded-xl bg-foreground/[0.04] border border-border/10 backdrop-blur-md">
                                 <button
                                     onClick={() => setViewMode('upcoming')}
                                     className={cn(
-                                        "px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all",
+                                        "px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-[0.14em] transition-all",
                                         viewMode === 'upcoming' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
                                     )}
                                 >
@@ -296,7 +296,7 @@ export const MobileTeleconsulta = () => {
                                 <button
                                     onClick={() => setViewMode('history')}
                                     className={cn(
-                                        "px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all",
+                                        "px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-[0.14em] transition-all",
                                         viewMode === 'history' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
                                     )}
                                 >
