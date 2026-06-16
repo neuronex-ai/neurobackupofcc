@@ -78,11 +78,11 @@ export const PreJoinActions = ({ appointmentId, patient, meetLink, therapistName
   };
 
   return (
-    <div className="flex items-center gap-3 animate-fade-up delay-200">
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 animate-fade-up delay-200">
       <Button
         variant="outline"
         size="icon"
-        className="rounded-full h-12 w-12 bg-white/5 dark:bg-black/20 hover:bg-white/10 dark:hover:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm hover:scale-105 active:scale-95 transition-all duration-500 ease-apple group relative"
+        className="h-11 w-11 shrink-0 rounded-full bg-white/5 dark:bg-black/20 hover:bg-white/10 dark:hover:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm hover:scale-105 active:scale-95 transition-all duration-500 ease-apple group relative"
         onClick={() => handleSendReminder('whatsapp')}
         disabled={!!sending}
         aria-label="Enviar via WhatsApp"
@@ -97,7 +97,7 @@ export const PreJoinActions = ({ appointmentId, patient, meetLink, therapistName
       <Button
         variant="outline"
         size="icon"
-        className="rounded-full h-12 w-12 bg-white/5 dark:bg-black/20 hover:bg-white/10 dark:hover:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm hover:scale-105 active:scale-95 transition-all duration-500 ease-apple group relative"
+        className="h-11 w-11 shrink-0 rounded-full bg-white/5 dark:bg-black/20 hover:bg-white/10 dark:hover:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm hover:scale-105 active:scale-95 transition-all duration-500 ease-apple group relative"
         onClick={() => handleSendReminder('email')}
         disabled={!!sending || !patient?.email}
         aria-label="Enviar via Gmail"
@@ -109,19 +109,19 @@ export const PreJoinActions = ({ appointmentId, patient, meetLink, therapistName
         )}
       </Button>
 
-      <div className="w-px h-8 bg-zinc-200 dark:bg-white/10 mx-1" />
+      <div className="mx-1 hidden h-8 w-px bg-zinc-200 dark:bg-white/10 sm:block" />
 
       <Button
         variant="outline"
         size="icon"
-        className="rounded-full h-12 w-12 bg-white/5 dark:bg-black/20 hover:bg-white/10 dark:hover:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm hover:scale-105 active:scale-95 transition-all duration-500 ease-apple group relative"
+        className="h-11 w-11 shrink-0 rounded-full bg-white/5 dark:bg-black/20 hover:bg-white/10 dark:hover:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm hover:scale-105 active:scale-95 transition-all duration-500 ease-apple group relative"
         onClick={handleCopyLink}
         aria-label="Copiar Link"
       >
         <Link className="h-4 w-4 text-zinc-500 dark:text-zinc-400 group-hover:text-amber-500 transition-colors duration-300" />
       </Button>
 
-      <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-600 ml-2">
+      <span className="min-w-0 flex-[1_1_8rem] text-[9px] font-bold uppercase leading-tight tracking-[0.16em] text-zinc-400 dark:text-zinc-600 sm:ml-2">
         Convidar Paciente
       </span>
     </div>
