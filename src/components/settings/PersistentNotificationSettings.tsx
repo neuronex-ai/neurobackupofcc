@@ -4,9 +4,9 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { DEFAULT_NOTIFICATION_SETTINGS, type NotificationSettings, useNotificationSettings } from '@/hooks/use-notification-settings';
-import { disablePushNotifications, enablePushNotifications } from '@/lib/push-notifications';
+import { disablePushNotifications, enablePushNotifications, logPushStep } from '@/lib/push-notifications';
 import { BellRing, Loader2, Mail, Monitor, Smartphone } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 type Key = keyof Pick<NotificationSettings, 'email_enabled' | 'email_appointment_reminders' | 'email_payment_confirmations' | 'email_monthly_reports' | 'email_security_alerts' | 'in_app_enabled' | 'in_app_new_patients' | 'in_app_overdue_invoices' | 'in_app_system_updates'>;
@@ -26,6 +26,7 @@ export const PersistentNotificationSettings = () => {
   const { settings, isLoading, isSaving, saveSettingsAsync } = useNotificationSettings();
   const [state, setState] = useState<Partial<NotificationSettings>>(DEFAULT_NOTIFICATION_SETTINGS);
   const [pushBusy, setPushBusy] = useState(false);
+  const pushBusyRef = useRef(false);
   const pushSupported =
     typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
@@ -35,17 +36,22 @@ export const PersistentNotificationSettings = () => {
   useEffect(() => { if (settings) setState({ ...DEFAULT_NOTIFICATION_SETTINGS, ...settings, sms_enabled: false, sms_security_alerts: false, sms_appointments: false }); }, [settings]);
 
   const togglePush = async (enabled: boolean) => {
-    if (!user) return;
+    if (!user || pushBusyRef.current) return;
+    pushBusyRef.current = true;
     setPushBusy(true);
     try {
       if (enabled) await enablePushNotifications(user.id);
       else await disablePushNotifications(user.id);
       const next = { ...state, push_enabled: enabled, sms_enabled: false, sms_security_alerts: false, sms_appointments: false };
+      logPushStep('push:settings-save', { enabled });
       setState(next); await saveSettingsAsync(next);
       toast.success(enabled ? 'Notificações nativas ativadas neste dispositivo.' : 'Notificações nativas desativadas neste dispositivo.');
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : 'Não foi possível alterar as notificações nativas.');
-    } finally { setPushBusy(false); }
+    } finally {
+      pushBusyRef.current = false;
+      setPushBusy(false);
+    }
   };
 
   const save = async () => {

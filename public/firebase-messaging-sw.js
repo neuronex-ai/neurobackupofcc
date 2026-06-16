@@ -39,6 +39,7 @@ try {
   });
 } catch (error) {
   console.error('[NeuroNex Push] Firebase Messaging unavailable in service worker.', error);
+  throw error;
 }
 
 self.addEventListener('install', () => {
