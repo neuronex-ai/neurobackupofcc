@@ -2,8 +2,9 @@
 
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { useChatSessions, useCreateChatSession, useDeleteChatSession, useSendChatMessage, useSessionMessages } from "@/hooks/use-ai-chat";
+import { useGeminiVoice } from "@/hooks/use-gemini-voice";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-import { useTextToSpeech } from "@/hooks/use-text-to-speech";
+import { useVoiceConfig } from "@/hooks/use-voice-config";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
@@ -90,7 +91,6 @@ export const MobileAIChat = () => {
   const { user } = useAuth();
   const [mode, setMode] = useState<SynapseMode>("chat");
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [lastResponse, setLastResponse] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -107,7 +107,32 @@ export const MobileAIChat = () => {
   const { mutate: sendMessage, isPending: isProcessing } = useSendChatMessage();
 
   const { isListening, transcript, startListening, stopListening, resetTranscript } = useSpeechRecognition();
-  const { speak, stop: stopSpeaking } = useTextToSpeech();
+  const {
+    token: voiceToken,
+    model: voiceModel,
+    voiceName,
+    newSessionExpiresAt,
+    isLoading: isVoiceConfigLoading,
+    error: voiceConfigError,
+    refresh: refreshVoiceConfig,
+  } = useVoiceConfig();
+  const {
+    isConnected: isVoiceConnected,
+    isListening: isVoiceListening,
+    isProcessing: isVoiceProcessing,
+    isSpeaking: isVoiceSpeaking,
+    lastResponse: voiceLastResponse,
+    startSession: startVoiceSession,
+    endSession: endVoiceSession,
+    toggleListening: toggleVoiceListening,
+    error: voiceRuntimeError,
+  } = useGeminiVoice({
+    token: voiceToken,
+    model: voiceModel,
+    voiceName,
+    language: "pt-BR",
+    systemInstruction: "Voce e o Synapse AI mobile do NeuroNex. Converse por voz em portugues brasileiro com respostas curtas, naturais e uteis para a rotina clinica, agenda, pacientes e financeiro.",
+  });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
