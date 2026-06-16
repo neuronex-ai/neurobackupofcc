@@ -8,9 +8,11 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   disableBiometricSignIn,
   enableBiometricSignIn,
+  canAttemptNativeBiometrics,
   getBiometricPreferenceForUser,
   getBiometricStatus,
   hasNativeSecureBridge,
+  isBiometricStatusUsable,
   isBiometricEnabledForUser,
   type BiometricPreference,
   type BiometricStatus,
@@ -127,14 +129,12 @@ export const SecuritySettingsPanelV2 = () => {
   };
 
   const biometricEnabled = Boolean(user?.id && isBiometricEnabledForUser(user.id));
-  const biometricAvailable = Boolean(
-    hasNativeSecureBridge() &&
-      biometricStatus?.native &&
-      biometricStatus.available &&
-      biometricStatus.enrolled,
-  );
+  const biometricAvailable = Boolean(hasNativeSecureBridge() && isBiometricStatusUsable(biometricStatus));
+  const biometricCanAttempt = biometricAvailable || canAttemptNativeBiometrics();
   const biometricStatusText = !hasNativeSecureBridge()
-    ? 'Disponivel apenas no app Android com cofre nativo.'
+    ? biometricCanAttempt
+      ? 'Toque para validar a biometria neste aparelho.'
+      : 'Disponivel apenas no app Android com cofre nativo.'
     : biometricAvailable
       ? biometricPreference === 'disabled'
         ? 'Desativado por escolha neste aparelho.'
@@ -169,7 +169,7 @@ export const SecuritySettingsPanelV2 = () => {
           ) : (
             <Switch
               checked={biometricEnabled}
-              disabled={!user?.id || (!biometricAvailable && !biometricEnabled)}
+              disabled={!user?.id || (!biometricCanAttempt && !biometricEnabled)}
               onCheckedChange={(value) => void toggleBiometrics(value)}
             />
           )}

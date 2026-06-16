@@ -20,6 +20,11 @@ type NativeWindow = Window & {
   };
 };
 
+function isLikelyMobileDevice() {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
 export type BiometricStatus = {
   available: boolean;
   enrolled: boolean;
@@ -180,6 +185,23 @@ export function hasNativeSecureBridge() {
   );
 }
 
+export function canAttemptNativeBiometrics() {
+  const bridge = getNativeBridge();
+  return Boolean(
+    bridge?.getBiometricStatus ||
+      bridge?.authenticateBiometric ||
+      (isLikelyMobileDevice() && bridge),
+  );
+}
+
+export function isBiometricStatusUsable(status?: BiometricStatus | null) {
+  return Boolean(
+    status?.native &&
+      status.supported !== false &&
+      (status.available || status.enrolled || status.reason === null),
+  );
+}
+
 export function hasNativeCodeScanner() {
   return Boolean(getNativeBridge()?.scanCode);
 }
@@ -192,8 +214,13 @@ export async function getBiometricStatus(): Promise<BiometricStatus> {
       const result = await normalizeNativeResult<Record<string, unknown>>(
         bridge.getBiometricStatus({ allowDeviceCredential: true }),
       );
-      const available = Boolean(result?.available ?? result?.canAuthenticate);
-      const enrolled = Boolean(result?.enrolled ?? result?.hasEnrolledBiometrics ?? available);
+      const available = Boolean(result?.available ?? result?.canAuthenticate ?? result?.success);
+      const enrolled = Boolean(
+        result?.enrolled ??
+          result?.hasEnrolledBiometrics ??
+          result?.hasEnrolled ??
+          available,
+      );
       return {
         available,
         enrolled,
@@ -285,7 +312,7 @@ export async function enableBiometricSignIn(params: {
   }
 
   const status = await getBiometricStatus();
-  if (!status.native || !status.available || !status.enrolled) {
+  if (!isBiometricStatusUsable(status)) {
     throw new Error(
       status.reason ||
         "Este aparelho ainda nao tem biometria ou bloqueio seguro configurado.",
@@ -342,7 +369,7 @@ export async function restoreBiometricSession() {
   }
 
   const status = await getBiometricStatus();
-  if (!status.native || !status.available || !status.enrolled) {
+  if (!isBiometricStatusUsable(status)) {
     throw new Error(
       status.reason ||
         "Biometria indisponivel. Entre com e-mail e senha para continuar.",
@@ -370,7 +397,7 @@ export async function canUseBiometricTransaction(userId?: string | null) {
   if (!hasNativeSecureBridge()) return false;
   if (!userId || !isBiometricEnabledForUser(userId)) return false;
   const status = await getBiometricStatus();
-  return status.native && status.available && status.enrolled;
+  return isBiometricStatusUsable(status);
 }
 
 export async function getFinancialPinWithBiometrics(params: {
@@ -417,9 +444,11 @@ export async function scanCodeWithNative(params: {
       prompt:
         params.mode === "pix"
           ? "Aponte a camera para o QR Code Pix."
-          : "Aponte a camera para as barras horizontais do boleto.",
+          : "Vire o celular na horizontal e enquadre as barras do boleto de ponta a ponta.",
       useMlKit: true,
       useCameraX: true,
+      orientation: params.mode === "boleto" ? "landscape" : "portrait",
+      tryHarder: params.mode === "boleto",
     }),
   );
 
