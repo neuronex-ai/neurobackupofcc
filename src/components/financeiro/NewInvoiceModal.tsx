@@ -13,6 +13,7 @@ import {
   CreditCard,
   Info,
   Loader2,
+  Mail,
   QrCode,
   Share2,
   User as UserIcon,
@@ -168,6 +169,20 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
     const amountStr = Number(values.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     const msg = `Olá ${patient.name.split(" ")[0]}! Segue o link para o pagamento da sua sessão (${amountStr}):\n${paymentUrl}`;
     window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+  }, [patients, paymentUrl, form]);
+
+  const handleEmailShare = useCallback(() => {
+    const values = form.getValues();
+    const patient = patients?.find((p) => p.id === values.patientId);
+
+    if (!patient?.email || !paymentUrl) {
+      toast.error("Dados incompletos para envio por e-mail.");
+      return;
+    }
+
+    const amountStr = Number(values.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const msg = `Olá ${patient.name.split(" ")[0]}! Segue o link para o pagamento da sua sessão (${amountStr}):\n${paymentUrl}`;
+    window.location.href = `mailto:${patient.email}?subject=${encodeURIComponent("Cobrança NeuroFinance")}&body=${encodeURIComponent(msg)}`;
   }, [patients, paymentUrl, form]);
 
   const renderConfirmation = () => {
@@ -349,10 +364,14 @@ export const NewInvoiceModal = React.memo(({ children }: { children?: React.Reac
         )}
       </div>
 
-      <div className="flex shrink-0 gap-4 border-t border-zinc-100 bg-white p-8 dark:border-white/5 dark:bg-black/20">
+      <div className="flex shrink-0 gap-3 border-t border-zinc-100 bg-white p-8 dark:border-white/5 dark:bg-black/20">
         <Button onClick={handleShare} className="h-16 flex-1 gap-3 rounded-[20px] bg-zinc-900 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-2xl transition-all hover:opacity-90 active:scale-95 dark:bg-white dark:text-black">
           <Share2 className="h-4 w-4" />
-          Enviar no WhatsApp
+          WhatsApp
+        </Button>
+        <Button onClick={handleEmailShare} variant="outline" className="h-16 flex-1 gap-3 rounded-[20px] border-zinc-200 text-[10px] font-black uppercase tracking-[0.2em] dark:border-white/10">
+          <Mail className="h-4 w-4" />
+          Gmail
         </Button>
         <Button variant="ghost" onClick={() => handleOpenChange(false)} className="h-16 rounded-[20px] px-8 text-[10px] font-black uppercase tracking-widest text-zinc-500">
           Fechar

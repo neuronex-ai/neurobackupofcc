@@ -46,14 +46,14 @@ const PRIVATE_MENU: MenuItem[] = [
   { label: "Notas", href: "/notas", icon: NotebookPen },
   { label: "Financeiro", href: "/financeiro", icon: DollarSign },
   { label: "Synapse AI", href: "/synapse-ai", icon: Sparkles },
-  { label: "Integracoes", href: "/ajustes?tab=integrations", icon: Zap },
+  { label: "Integrações", href: "/ajustes?tab=integrations", icon: Zap },
   { label: "Ajustes", href: "/ajustes", icon: Settings },
 ];
 
 const PUBLIC_MENU: MenuItem[] = [
-  { label: "Inicio", href: "/", icon: LayoutDashboard },
+  { label: "Início", href: "/", icon: LayoutDashboard },
   { label: "Funcionalidades", href: "/#features", icon: Sparkles },
-  { label: "Precos", href: "/pricing", icon: DollarSign },
+  { label: "Preços", href: "/pricing", icon: DollarSign },
   { label: "Contato", href: "/contato", icon: Zap },
 ];
 
@@ -63,7 +63,7 @@ export function MobileMainMenuSheet({ open, onOpenChange, publicMode, onWaitlist
   const { user } = useAuth();
   const { data: profile } = useProfile();
   const menuItems = publicMode ? PUBLIC_MENU : PRIVATE_MENU;
-  const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Usuario";
+  const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Usuário";
   const initials = fullName.substring(0, 2).toUpperCase();
 
   const isActive = (href: string) => {
@@ -76,7 +76,7 @@ export function MobileMainMenuSheet({ open, onOpenChange, publicMode, onWaitlist
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      toast.error("Nao foi possivel encerrar a sessao.");
+      toast.error("Não foi possível encerrar a sessão.");
       return;
     }
     onOpenChange(false);
@@ -87,9 +87,9 @@ export function MobileMainMenuSheet({ open, onOpenChange, publicMode, onWaitlist
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="z-[220] w-full max-w-none border-none bg-transparent p-0 shadow-none focus:outline-none md:hidden"
+        className="z-[220] w-full max-w-none border-none bg-background p-0 text-foreground shadow-none focus:outline-none dark:bg-[#050505] md:hidden"
       >
-        <div className="flex h-full flex-col overflow-hidden bg-background/96 backdrop-blur-3xl dark:bg-black/96">
+        <div className="flex h-full flex-col overflow-hidden bg-white text-zinc-950 dark:bg-[#050505] dark:text-white">
           <div className="px-7 pb-8 pt-[calc(3.25rem+env(safe-area-inset-top))]">
             <div className="flex items-center justify-between gap-4">
               {!publicMode ? (
@@ -98,18 +98,18 @@ export function MobileMainMenuSheet({ open, onOpenChange, publicMode, onWaitlist
                   onClick={() => onOpenChange(false)}
                   className="flex min-w-0 items-center gap-4 rounded-[24px] active:scale-[0.99]"
                 >
-                  <Avatar className="h-14 w-14 border border-border/45 shadow-2xl dark:border-white/10">
+                  <Avatar className="h-14 w-14 border border-zinc-200 shadow-2xl dark:border-white/10">
                     <AvatarImage src={profile?.avatar_url || ""} />
-                    <AvatarFallback className="bg-foreground text-sm font-black text-background">{initials}</AvatarFallback>
+                    <AvatarFallback className="bg-zinc-950 text-sm font-black text-white dark:bg-white dark:text-zinc-950">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <p className="truncate text-lg font-black tracking-[-0.04em] text-foreground">{fullName}</p>
-                    <p className="mt-0.5 truncate text-[11px] font-semibold text-muted-foreground/65">{user?.email}</p>
+                    <p className="truncate text-lg font-black tracking-[-0.04em] text-zinc-950 dark:text-white">{fullName}</p>
+                    <p className="mt-0.5 truncate text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">{user?.email}</p>
                   </div>
                 </Link>
               ) : (
                 <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/50">NeuroNex</p>
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">NeuroNex</p>
                   <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">Menu</h2>
                 </div>
               )}
@@ -129,13 +129,13 @@ export function MobileMainMenuSheet({ open, onOpenChange, publicMode, onWaitlist
                     className={cn(
                       "flex min-h-[58px] items-center gap-5 rounded-[24px] px-5 text-[15px] font-black tracking-[-0.01em] transition-all duration-200 active:scale-[0.98]",
                       active
-                        ? "bg-foreground text-background shadow-[0_18px_44px_-28px_rgba(0,0,0,0.75)]"
-                        : "text-muted-foreground active:bg-foreground/[0.06] dark:active:bg-white/[0.06]",
+                        ? "bg-zinc-950 text-white shadow-[0_18px_44px_-28px_rgba(0,0,0,0.75)] dark:bg-white dark:text-zinc-950"
+                        : "text-zinc-600 active:bg-zinc-100 dark:text-zinc-300 dark:active:bg-white/[0.08]",
                     )}
                   >
-                    <item.icon className={cn("h-5 w-5", active ? "text-background" : "text-muted-foreground")} strokeWidth={1.7} />
+                    <item.icon className={cn("h-5 w-5", active ? "text-current" : "text-zinc-500 dark:text-zinc-400")} strokeWidth={1.7} />
                     <span className="flex-1">{item.label}</span>
-                    <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-background/60" : "bg-foreground/10 dark:bg-white/10")} />
+                    <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-current/60" : "bg-zinc-300 dark:bg-white/20")} />
                   </Link>
                 );
               })}
@@ -164,14 +164,14 @@ export function MobileMainMenuSheet({ open, onOpenChange, publicMode, onWaitlist
           </div>
 
           {!publicMode ? (
-            <div className="border-t border-border/35 p-5 pb-[calc(1.2rem+env(safe-area-inset-bottom))] dark:border-white/10">
+            <div className="border-t border-zinc-200 bg-white p-5 pb-[calc(1.2rem+env(safe-area-inset-bottom))] dark:border-white/10 dark:bg-[#050505]">
               <Button
                 type="button"
                 variant="outline"
                 onClick={logout}
-                className="h-[52px] w-full rounded-[18px] border-red-500/20 text-[9px] font-black uppercase tracking-[0.12em] text-red-500"
+                className="h-[52px] w-full rounded-[18px] border-red-500/25 bg-white text-[9px] font-black uppercase tracking-[0.12em] text-red-500 dark:bg-white/[0.04] dark:text-red-300"
               >
-                <LogOut className="mr-2 h-4 w-4" /> Encerrar sessao
+                <LogOut className="mr-2 h-4 w-4" /> Encerrar sessão
               </Button>
             </div>
           ) : null}
