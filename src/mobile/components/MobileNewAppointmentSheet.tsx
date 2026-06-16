@@ -6,10 +6,6 @@ import { cn } from "@/lib/utils";
 import { addMinutes, format } from "date-fns";
 import { CalendarPlus, CheckCircle2, Clock, MapPin, Video } from "lucide-react";
 import {
-  cloneElement,
-  isValidElement,
-  type MouseEventHandler,
-  type ReactElement,
   type ReactNode,
   useEffect,
   useMemo,
@@ -22,10 +18,6 @@ import {
   MobileSynapseField,
   mobileSynapseInputClassName,
 } from "./synapse/MobileSynapsePrimitives";
-
-type ClickableChildProps = {
-  onClick?: MouseEventHandler<HTMLElement>;
-};
 
 interface MobileNewAppointmentSheetProps {
   children: ReactNode;
@@ -60,19 +52,6 @@ export function MobileNewAppointmentSheet({
   }, [open, selectedDate, selectedTime]);
 
   const patientOptions = useMemo(() => patients || [], [patients]);
-
-  const trigger = isValidElement<ClickableChildProps>(children)
-    ? cloneElement(children as ReactElement<ClickableChildProps>, {
-      onClick: (event) => {
-        children.props.onClick?.(event);
-        if (!event.defaultPrevented) setOpen(true);
-      },
-    })
-    : (
-      <button type="button" onClick={() => setOpen(true)}>
-        {children}
-      </button>
-    );
 
   const handleSubmit = async () => {
     if (!patientId) {
@@ -129,7 +108,14 @@ export function MobileNewAppointmentSheet({
 
   return (
     <>
-      {trigger}
+      <span
+        className="contents"
+        onClick={(event) => {
+          if (!event.defaultPrevented) setOpen(true);
+        }}
+      >
+        {children}
+      </span>
       <Drawer open={open} onOpenChange={setOpen}>
         <DrawerContent className="[&>div:first-child]:hidden z-[125] flex h-[min(92dvh,46rem)] max-h-[92dvh] overflow-hidden rounded-t-[30px] border-border/40 bg-background p-0 shadow-2xl dark:border-white/10">
           <div className="mx-auto mt-3 h-1 w-10 shrink-0 rounded-full bg-foreground/14" />
