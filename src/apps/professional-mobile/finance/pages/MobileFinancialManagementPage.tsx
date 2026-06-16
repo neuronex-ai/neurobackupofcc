@@ -117,21 +117,8 @@ export function MobileFinancialManagementPage() {
 
   return (
     <MobileLayout className="min-h-screen bg-background px-0">
-      <div className="mobile-scroll-owner h-full overflow-y-auto overflow-x-hidden px-5 pb-32 pt-4">
-        <div className="space-y-6">
-          <MobilePageTitle
-            eyebrow="Operação do consultório"
-            title="Financeiro"
-            description="Controle administrativo para receitas, despesas e previsibilidade sem movimentar dinheiro real."
-            action={
-              <MobileFinanceIconButton
-                icon={Plus}
-                label="Novo lançamento"
-                onClick={() => openEntry("income")}
-              />
-            }
-          />
-
+      <div className="mobile-scroll-owner h-full overflow-y-auto overflow-x-hidden px-5 pb-32 pt-3">
+        <div className="space-y-5">
           <MobileFinanceTabs
             value="management"
             onValueChange={switchArea}
@@ -158,11 +145,19 @@ export function MobileFinancialManagementPage() {
             value={isLoading ? "—" : formatMoney(result)}
             description={
               result >= 0
-                ? "A operação está positiva neste período. Continue acompanhando recebíveis e despesas recorrentes."
-                : "O mês pede atenção: revise despesas e pendências antes de projetar novos compromissos."
+                ? "Resultado positivo neste periodo."
+                : "Revise despesas e pendencias."
             }
             icon={Scale}
             tone="default"
+            action={
+              <MobileFinanceIconButton
+                icon={Plus}
+                label="Novo lancamento"
+                onClick={() => openEntry("income")}
+                className="h-10 w-10 rounded-[14px] border-foreground/10 bg-background/70"
+              />
+            }
           >
             <div className="grid grid-cols-2 gap-2.5">
               <MobileFinanceButton
