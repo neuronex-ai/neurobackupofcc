@@ -123,7 +123,7 @@ export const MobileTeleconsulta = () => {
                 window.history.replaceState({}, document.title, location.pathname);
             }
         }
-    }, [location.state, appointments, activeSession]);
+    }, [location.pathname, location.state, appointments, activeSession]);
 
     const handleStartSession = (appointment: Appointment) => {
         navigate('/teleconsulta', { state: { activeAppointmentId: appointment.id } });
