@@ -1,19 +1,24 @@
-import { useMemo, useState } from "react";
-import { addYears, format, subMonths } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { addYears, format, isAfter, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   AlertCircle,
   ArrowDownRight,
   ArrowUpRight,
   Barcode,
+  Calendar,
   CheckCircle2,
+  ChevronDown,
   CircleDollarSign,
   Clock3,
+  Download,
   Eye,
   EyeOff,
   FileText,
+  Filter,
   Landmark,
   Loader2,
+  MoreHorizontal,
   QrCode,
   Receipt,
   RefreshCw,
@@ -25,11 +30,17 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { UpsellModal } from "@/components/subscription";
+import { Button } from "@/components/ui/button";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
+import { useInvoicesPage } from "@/hooks/use-invoices";
 import { useNeuroFinanceBalance } from "@/hooks/use-neurofinance-balance";
 import { useNeuroFinanceStatement } from "@/hooks/use-neurofinance-statement";
+import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
 import { MobileLayout } from "@/mobile/components/MobileLayout";
+import type { Invoice, Transaction } from "@/types";
 
 import {
   MobileActionButton,
@@ -37,9 +48,10 @@ import {
   MobileFinanceButton,
   MobileFinanceHero,
   MobileFinanceIconButton,
-  MobileFinanceInsightStrip,
   MobileFinanceListRow,
+  MobileFinanceSheet,
   MobileFinanceTabs,
+  MobileMetricCard,
   MobileSectionTitle,
   formatMoney,
   mobileFinanceSurface,
@@ -51,22 +63,15 @@ import { MobilePixPaymentFlow } from "../components/MobilePixPaymentFlow";
 import { MobileTransferFlow } from "../components/MobileTransferFlow";
 
 type FinanceArea = "management" | "neurofinance";
-type Flow =
-  | "charge"
-  | "bill"
-  | "pix-payment"
-  | "pix-transfer"
-  | "bank-payout"
-  | null;
-type MobileStatementTransaction = {
-  id: string;
-  type?: string | null;
-  amount?: number | string | null;
-  date?: string | Date | null;
+type Flow = "charge" | "bill" | "pix-payment" | "pix-transfer" | "bank-payout" | null;
+type ActivityView = "statement" | "charges";
+type StatementFilter = "all" | "income" | "expense" | "pending";
+type ChargeStatus = "all" | "pending" | "overdue" | "paid" | "cancelled";
+type DetailList = "income" | "expense" | "pending" | null;
+
+type MobileStatementTransaction = Transaction & {
   created_at?: string | Date | null;
-  description?: string | null;
-  status?: string | null;
-  category?: string | null;
+  available_at?: string | Date | null;
 };
 
 const home = "/financeiro/neurofinance";
@@ -88,37 +93,15 @@ const formatStatementDate = (transaction: MobileStatementTransaction) => {
   return format(date, "d MMM, HH:mm", { locale: ptBR });
 };
 
-const accountHealthCopy = {
-  active: {
-    title: "Saude da conta boa",
-    description: "Conta aprovada para cobrancas, Pix e repasses.",
-    tone: "success",
-  },
-  account_missing: {
-    title: "Conta desconectada",
-    description: "A conexao com a subconta precisa de suporte.",
-    tone: "danger",
-  },
-  restricted: {
-    title: "Regularizacao pendente",
-    description: "Revise as etapas solicitadas para liberar operacoes.",
-    tone: "warning",
-  },
-  pending_review: {
-    title: "Conta em analise",
-    description: "Aguardando retorno da verificacao cadastral.",
-    tone: "info",
-  },
-  onboarding: {
-    title: "Dados pendentes",
-    description: "Complete as informacoes de onboarding para continuar.",
-    tone: "warning",
-  },
-  not_started: {
-    title: "Onboarding nao iniciado",
-    description: "Ative a conta pelo onboarding mobile.",
-    tone: "warning",
-  },
+const healthCopy = {
+  active: { title: "Conta ativa", description: "Pix, boletos, cobrancas e repasses liberados.", tone: "success" },
+  account_missing: { title: "Conta desconectada", description: "A subconta precisa de suporte para reconectar.", tone: "danger" },
+  restricted: { title: "Regularizacao pendente", description: "Resolva as etapas abertas para liberar operacoes.", tone: "warning" },
+  pending_review: { title: "Conta em analise", description: "Aguardando retorno da verificacao cadastral.", tone: "info" },
+  onboarding: { title: "Dados em andamento", description: "Finalize as informacoes solicitadas.", tone: "warning" },
+  pending: { title: "Validacao pendente", description: "Estamos acompanhando o retorno do provedor.", tone: "info" },
+  not_started: { title: "Onboarding nao iniciado", description: "Abra a conta para liberar saldo real.", tone: "warning" },
+  disabled: { title: "Conta restrita", description: "Operacoes temporariamente indisponiveis.", tone: "danger" },
 };
 
 const healthToneClass = {
@@ -137,29 +120,87 @@ const stageToneClass = {
   neutral: "bg-foreground/[0.06] text-muted-foreground",
 } as const;
 
+const chargeStatusCopy: Record<string, { label: string; tone: "success" | "warning" | "danger" | "default" }> = {
+  paid: { label: "Recebida", tone: "success" },
+  overdue: { label: "Vencida", tone: "danger" },
+  cancelled: { label: "Cancelada", tone: "default" },
+  pending: { label: "Pendente", tone: "warning" },
+};
+
 export function MobileNeuroFinancePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const account = useFinancialAccount();
   const balance = useNeuroFinanceBalance();
+  const { data: profile } = useProfile();
+  const { plan, isLoading: subscriptionLoading, canAccess, isDevAccount } = useSubscription();
   const statementStart = useMemo(() => subMonths(new Date(), 6), []);
   const statementEnd = useMemo(() => addYears(new Date(), 2), []);
   const statement = useNeuroFinanceStatement(statementStart, statementEnd);
   const [showBalance, setShowBalance] = useState(true);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [upsellOpen, setUpsellOpen] = useState(false);
+  const [statusExpanded, setStatusExpanded] = useState(false);
+  const [activityView, setActivityView] = useState<ActivityView>("statement");
+  const [statementFilter, setStatementFilter] = useState<StatementFilter>("all");
+  const [chargeStatus, setChargeStatus] = useState<ChargeStatus>("all");
+  const [actionSheet, setActionSheet] = useState<ActivityView | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<MobileStatementTransaction | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [detailList, setDetailList] = useState<DetailList>(null);
 
   const routeFlow = flowFromPath(location.pathname);
   const approved = account.isApproved;
-  const transactions = ((statement.data || []) as MobileStatementTransaction[]).slice(0, 10);
+  const canUseNeuroFinance =
+    isDevAccount || canAccess("advanced_finance") || plan === "Professional" || plan === "Enterprise";
+  const shouldShowOnboarding = canUseNeuroFinance && (account.needsInitialOnboarding || account.isAccountMissing);
+  const psychologistName =
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+    (profile as { full_name?: string } | undefined)?.full_name ||
+    "Psicologo";
+
+  const invoicesQuery = useInvoicesPage({
+    page: 1,
+    pageSize: 30,
+    status: chargeStatus === "all" ? undefined : [chargeStatus],
+  });
+
+  const transactions = useMemo(
+    () => ((statement.data || []) as MobileStatementTransaction[]),
+    [statement.data],
+  );
+
+  const filteredTransactions = useMemo(() => {
+    const now = new Date();
+    return transactions.filter((transaction) => {
+      const isFuture = transaction.status === "pending" || isAfter(new Date(transaction.date), now);
+      if (statementFilter === "pending") return isFuture;
+      if (statementFilter === "income") return transaction.type === "income" && !isFuture;
+      if (statementFilter === "expense") return transaction.type === "expense" && !isFuture;
+      return !isFuture || transaction.status === "completed";
+    });
+  }, [statementFilter, transactions]);
+
+  const detailTransactions = useMemo(() => {
+    if (!detailList) return [];
+    return transactions.filter((transaction) => {
+      if (detailList === "pending") return transaction.status === "pending" || isAfter(new Date(transaction.date), new Date());
+      return transaction.type === detailList;
+    });
+  }, [detailList, transactions]);
+
+  const invoices = invoicesQuery.data?.invoices || [];
   const availableBalance = Number(balance.data?.balance || 0);
   const pendingBalance = Number(balance.data?.pending || 0);
-  const healthKey = (account.uiStatus || "not_started") as keyof typeof accountHealthCopy;
-  const health = accountHealthCopy[healthKey] || accountHealthCopy.not_started;
-  const HealthIcon = approved
-    ? CheckCircle2
-    : account.isRestricted || account.isAccountMissing
-      ? AlertCircle
-      : Clock3;
+  const totalReceived = Number(balance.data?.totalReceived || 0);
+  const paidOut = Number(balance.data?.paidOut || 0);
+  const healthKey = (account.uiStatus || "not_started") as keyof typeof healthCopy;
+  const health = healthCopy[healthKey] || healthCopy.not_started;
+  const HealthIcon = approved ? CheckCircle2 : account.isRestricted || account.isAccountMissing ? AlertCircle : Clock3;
+
+  useEffect(() => {
+    if (shouldShowOnboarding) setOnboardingOpen(true);
+  }, [shouldShowOnboarding]);
 
   const openFlow = (flow: Exclude<Flow, null>) => {
     const routes: Record<Exclude<Flow, null>, string> = {
@@ -173,30 +214,98 @@ export function MobileNeuroFinancePage() {
   };
 
   const closeFlow = () => navigate(home);
-
-  const switchArea = (area: FinanceArea) => {
-    navigate(area === "management" ? "/financeiro" : "/financeiro/neurofinance");
-  };
+  const switchArea = (area: FinanceArea) => navigate(area === "management" ? "/financeiro" : "/financeiro/neurofinance");
 
   const refresh = async () => {
     try {
       await balance.syncNow();
       await statement.refetch();
+      await invoicesQuery.refetch();
       await account.refetch();
       toast.success("NeuroFinance atualizado.");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Não foi possível atualizar agora.",
-      );
+      toast.error(error instanceof Error ? error.message : "Nao foi possivel atualizar agora.");
     }
   };
 
-  if (account.isLoading) {
+  const exportPdf = (view: ActivityView) => {
+    toast.info(`Preparando ${view === "statement" ? "extrato" : "cobrancas"} para PDF.`);
+    window.print();
+  };
+
+  if (account.isLoading || subscriptionLoading) {
     return (
       <MobileLayout className="min-h-screen bg-background px-5">
         <div className="flex min-h-[60vh] items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
+      </MobileLayout>
+    );
+  }
+
+  if (!canUseNeuroFinance) {
+    return (
+      <MobileLayout className="min-h-screen bg-background px-0">
+        <div className="mobile-scroll-owner h-full overflow-y-auto px-5 pb-32 pt-3">
+          <MobileFinanceTabs
+            value="neurofinance"
+            onValueChange={switchArea}
+            options={[
+              { value: "management", label: "Gestao", description: "Controle", icon: TrendingUp },
+              { value: "neurofinance", label: "NeuroFinance", description: "Conta", icon: Wallet },
+            ]}
+            className="sticky top-2 z-30"
+          />
+          <section className={cn(mobileFinanceSurface, "mt-5 overflow-hidden p-5")}>
+            <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-foreground text-background">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <p className="mt-6 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/55">Plano Professional</p>
+            <h1 className="mt-2 text-3xl font-black leading-[0.92] tracking-[-0.06em]">NeuroFinance libera dinheiro real.</h1>
+            <p className="mt-4 text-sm font-semibold leading-relaxed text-muted-foreground/70">
+              A Gestao Financeira continua disponivel no plano Essential. Para criar conta NeuroFinance, pagar Pix, boletos, sacar e receber saldo real, atualize o plano.
+            </p>
+            <Button onClick={() => setUpsellOpen(true)} className="mt-6 h-14 w-full rounded-[20px] text-[10px] font-black uppercase tracking-[0.16em]">
+              Ver planos
+            </Button>
+          </section>
+        </div>
+        <UpsellModal feature="advanced_finance" open={upsellOpen} onOpenChange={setUpsellOpen} />
+      </MobileLayout>
+    );
+  }
+
+  if (shouldShowOnboarding) {
+    return (
+      <MobileLayout className="min-h-screen bg-background px-0">
+        <div className="mobile-scroll-owner h-full overflow-y-auto px-5 pb-32 pt-3">
+          <MobileFinanceTabs
+            value="neurofinance"
+            onValueChange={switchArea}
+            options={[
+              { value: "management", label: "Gestao", description: "Controle", icon: TrendingUp },
+              { value: "neurofinance", label: "NeuroFinance", description: "Conta", icon: Wallet },
+            ]}
+            className="sticky top-2 z-30"
+          />
+          <section className={cn(mobileFinanceSurface, "mt-5 p-5 text-center")}>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[20px] bg-foreground text-background">
+              <Landmark className="h-6 w-6" />
+            </div>
+            <h1 className="mt-5 text-3xl font-black leading-[0.92] tracking-[-0.06em]">Crie sua conta NeuroFinance.</h1>
+            <p className="mx-auto mt-3 max-w-xs text-sm font-semibold leading-relaxed text-muted-foreground/70">
+              Envie os dados pelo celular para liberar cobrancas, Pix, boletos, saques e saldo real.
+            </p>
+            <Button onClick={() => setOnboardingOpen(true)} className="mt-6 h-14 w-full rounded-[20px] text-[10px] font-black uppercase tracking-[0.16em]">
+              Comecar onboarding
+            </Button>
+          </section>
+        </div>
+        <MobileNeuroFinanceOnboardingSheet
+          open={onboardingOpen}
+          onOpenChange={setOnboardingOpen}
+          onComplete={() => void refresh()}
+        />
       </MobileLayout>
     );
   }
@@ -209,53 +318,17 @@ export function MobileNeuroFinancePage() {
             value="neurofinance"
             onValueChange={switchArea}
             options={[
-              {
-                value: "management",
-                label: "Gestão",
-                description: "Controle",
-                icon: TrendingUp,
-              },
-              {
-                value: "neurofinance",
-                label: "NeuroFinance",
-                description: "Conta",
-                icon: Wallet,
-              },
+              { value: "management", label: "Gestao", description: "Controle", icon: TrendingUp },
+              { value: "neurofinance", label: "NeuroFinance", description: "Conta", icon: Wallet },
             ]}
             className="sticky top-2 z-30"
           />
 
-          {!approved ? (
-            <MobileFinanceListRow
-              icon={ShieldCheck}
-              title={
-                account.needsInitialOnboarding || account.isAccountMissing
-                  ? "Ative sua conta NeuroFinance"
-                  : "Conta em validação"
-              }
-              description="Operações reais liberam após aprovação."
-              status="Ajustes"
-              tone="warning"
-              onClick={() => account.needsInitialOnboarding ? setOnboardingOpen(true) : navigate("/ajustes")}
-            />
-          ) : null}
-
           <MobileFinanceHero
-            eyebrow="Saldo disponível"
-            title={approved ? "Conta NeuroFinance ativa" : "Conta restrita"}
-            value={
-              balance.isLoading
-                ? "—"
-                : showBalance
-                  ? formatMoney(availableBalance)
-                  : "R$ ••••••"
-            }
-            description={
-              showBalance
-                ? `${formatMoney(pendingBalance)} a liberar.`
-                : "Saldo oculto nesta sessao."
-            }
-            icon={Wallet}
+            eyebrow="Saldo disponivel"
+            title={psychologistName}
+            value={balance.isLoading ? "..." : showBalance ? formatMoney(availableBalance) : "R$ ******"}
+            description={showBalance ? `${formatMoney(pendingBalance)} a liberar.` : "Saldo oculto nesta sessao."}
             tone={approved ? "default" : "warning"}
             action={
               <div className="flex items-center gap-2">
@@ -274,240 +347,376 @@ export function MobileNeuroFinancePage() {
               </div>
             }
           >
-            <div className="grid grid-cols-2 gap-2.5">
-              <MobileFinanceButton
-                variant={approved ? "primary" : "secondary"}
-                disabled={!approved}
-                onClick={() => openFlow("charge")}
-              >
-                <Receipt className="h-4 w-4" />
-                Cobrar
-              </MobileFinanceButton>
-              <MobileFinanceButton
-                variant="secondary"
-                disabled={!approved}
-                onClick={() => openFlow("pix-payment")}
-              >
-                <QrCode className="h-4 w-4" />
-                Pagar Pix
-              </MobileFinanceButton>
+            <div className="-mx-1 overflow-x-auto pb-1">
+              <div className="flex min-w-max gap-2 px-1">
+                <MiniMetric label="Quanto entrou" value={totalReceived} hidden={!showBalance} icon={ArrowUpRight} onClick={() => setDetailList("income")} />
+                <MiniMetric label="Quanto saiu" value={paidOut} hidden={!showBalance} icon={ArrowDownRight} onClick={() => setDetailList("expense")} />
+                <MiniMetric label="Quanto vai cair" value={pendingBalance} hidden={!showBalance} icon={Calendar} onClick={() => setDetailList("pending")} />
+              </div>
             </div>
           </MobileFinanceHero>
 
-          <MobileFinanceInsightStrip
-            items={[
-              {
-                label: "Status",
-                value: approved ? "Ativo" : "Restrito",
-                icon: ShieldCheck,
-                tone: approved ? "success" : "warning",
-              },
-              {
-                label: "A liberar",
-                value: showBalance ? formatMoney(pendingBalance) : "••••",
-                icon: CircleDollarSign,
-              },
-              {
-                label: "Extrato",
-                value: `${transactions.length}`,
-                icon: FileText,
-              },
-            ]}
-          />
+          <section className="space-y-4">
+            <MobileSectionTitle title="Acoes" />
+            <div className="grid grid-cols-2 gap-3">
+              <MobileActionButton label="Cobrar" description="Pix ou boleto" icon={Receipt} tone="success" onClick={() => openFlow("charge")} disabled={!approved} />
+              <MobileActionButton label="Pagar boleto" description="Agora ou agendar" icon={Barcode} onClick={() => openFlow("bill")} disabled={!approved} />
+              <MobileActionButton label="Pagar Pix" description="Copia e Cola" icon={QrCode} onClick={() => openFlow("pix-payment")} disabled={!approved} />
+              <MobileActionButton label="Transferir Pix" description="Chave validada" icon={Send} onClick={() => openFlow("pix-transfer")} disabled={!approved} />
+              <MobileActionButton label="Minha conta" description="Conta cadastrada" icon={Landmark} onClick={() => openFlow("bank-payout")} disabled={!approved} />
+              <MobileActionButton label="Gestao" description="Controle" icon={CircleDollarSign} onClick={() => navigate("/financeiro")} />
+            </div>
+          </section>
 
           <section className="space-y-3">
-            <MobileSectionTitle
-              title="Saude da conta"
-              trailing={
-                <MobileFinanceButton
-                  variant="ghost"
-                  className="min-h-9 px-2.5"
-                  onClick={() => void refresh()}
-                >
-                  Sincronizar
-                </MobileFinanceButton>
-              }
-            />
-            <div className={cn(
-              mobileFinanceSurface,
-              "space-y-4 p-4",
-            )}>
-              <div className={cn(
-                "flex items-start gap-3 rounded-[18px] border p-3.5",
-                healthToneClass[health.tone as keyof typeof healthToneClass],
-              )}>
-                <HealthIcon className="mt-0.5 h-5 w-5 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-black tracking-[-0.02em]">{health.title}</p>
-                  <p className="mt-1 text-[11px] font-medium leading-relaxed opacity-75">{health.description}</p>
+            <button
+              type="button"
+              onClick={() => setStatusExpanded((value) => !value)}
+              className={cn(mobileFinanceSurface, "flex w-full items-center gap-3 p-4 text-left transition active:scale-[0.99]")}
+              aria-expanded={statusExpanded}
+            >
+              <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]", healthToneClass[health.tone as keyof typeof healthToneClass])}>
+                <HealthIcon className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground/55">Status da conta</span>
+                <span className="mt-1 block truncate text-sm font-black">{health.title}</span>
+              </span>
+              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", statusExpanded && "rotate-180")} />
+            </button>
+            {statusExpanded ? (
+              <div className={cn(mobileFinanceSurface, "space-y-3 p-4")}>
+                <p className="text-xs font-semibold leading-relaxed text-muted-foreground/70">{health.description}</p>
+                <div className="grid gap-2">
+                  {(account.approvalStages || []).slice(0, 5).map((stage) => (
+                    <div key={stage.id} className="flex items-center gap-3 rounded-[16px] border border-border/35 bg-background/55 p-3 dark:border-white/10 dark:bg-white/[0.025]">
+                      <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px]", stageToneClass[stage.tone as keyof typeof stageToneClass] || stageToneClass.neutral)}>
+                        {stage.tone === "approved" ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[12px] font-black text-foreground">{stage.label}</p>
+                        <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">{stage.statusLabel}</p>
+                      </div>
+                      {stage.actionable ? <span className="rounded-full bg-amber-500/12 px-2 py-1 text-[7px] font-black uppercase tracking-[0.1em] text-amber-600 dark:text-amber-300">Acao</span> : null}
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              <div className="grid gap-2">
-                {(account.approvalStages || []).map((stage) => (
-                  <div key={stage.id} className="flex items-center gap-3 rounded-[16px] border border-border/35 bg-background/55 p-3 dark:border-white/10 dark:bg-white/[0.025]">
-                    <span className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px]",
-                      stageToneClass[stage.tone] || stageToneClass.neutral,
-                    )}>
-                      {stage.tone === "approved" ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12px] font-black text-foreground">{stage.label}</p>
-                      <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">{stage.statusLabel}</p>
-                    </div>
-                    {stage.actionable ? (
-                      <span className="rounded-full bg-amber-500/12 px-2 py-1 text-[7px] font-black uppercase tracking-[0.1em] text-amber-600 dark:text-amber-300">
-                        Acao
-                      </span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </div>
+            ) : null}
           </section>
 
           <section className="space-y-4">
             <MobileSectionTitle
-              title="Movimentar"
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <MobileActionButton
-                label="Cobrar"
-                description="Pix ou boleto"
-                icon={Receipt}
-                tone="success"
-                onClick={() => openFlow("charge")}
-                disabled={!approved}
-              />
-              <MobileActionButton
-                label="Pagar boleto"
-                description="Agora ou agendar"
-                icon={Barcode}
-                onClick={() => openFlow("bill")}
-                disabled={!approved}
-              />
-              <MobileActionButton
-                label="Pagar Pix"
-                description="Copia e Cola"
-                icon={QrCode}
-                onClick={() => openFlow("pix-payment")}
-                disabled={!approved}
-              />
-              <MobileActionButton
-                label="Transferir Pix"
-                description="Chave validada"
-                icon={Send}
-                onClick={() => openFlow("pix-transfer")}
-                disabled={!approved}
-              />
-              <MobileActionButton
-                label="Minha conta"
-                description="Conta cadastrada"
-                icon={Landmark}
-                onClick={() => openFlow("bank-payout")}
-                disabled={!approved}
-              />
-              <MobileActionButton
-                label="Gestão"
-                description="Controle"
-                icon={CircleDollarSign}
-                onClick={() => navigate("/financeiro")}
-              />
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <MobileSectionTitle
-              title="Extrato recente"
+              title="Extrato"
               trailing={
-                <MobileFinanceButton
-                  variant="ghost"
-                  className="min-h-9 px-2.5"
-                  onClick={() => void refresh()}
-                >
-                  Atualizar
-                </MobileFinanceButton>
+                <MobileFinanceIconButton
+                  icon={MoreHorizontal}
+                  label="Acoes"
+                  onClick={() => setActionSheet(activityView)}
+                  className="h-10 w-10 rounded-[14px]"
+                />
               }
             />
-
-            {statement.isLoading ? (
-              <div
-                className={cn(
-                  mobileFinanceSurface,
-                  "flex h-28 items-center justify-center",
-                )}
-              >
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : transactions.length === 0 ? (
-              <MobileEmptyState
-                icon={FileText}
-                title="Nenhuma movimentação"
-                description="Operações confirmadas aparecem aqui."
+            <MobileFinanceTabs
+              value={activityView}
+              onValueChange={setActivityView}
+              options={[
+                { value: "statement", label: "Extrato", description: `${filteredTransactions.length} itens`, icon: FileText },
+                { value: "charges", label: "Cobrancas", description: `${invoices.length} itens`, icon: Receipt },
+              ]}
+            />
+            {activityView === "statement" ? (
+              <StatementList
+                isLoading={statement.isLoading}
+                transactions={filteredTransactions.slice(0, 18)}
+                hidden={!showBalance}
+                onOpen={setSelectedTransaction}
               />
             ) : (
-              <div className="space-y-2">
-                {transactions.map((transaction) => {
-                  const income = transaction.type === "income";
-                  const amount = Math.abs(Number(transaction.amount || 0));
-
-                  return (
-                    <MobileFinanceListRow
-                      key={transaction.id}
-                      icon={income ? ArrowUpRight : ArrowDownRight}
-                      title={transaction.description || "Movimentação"}
-                      description={transaction.status || transaction.category || "Processada"}
-                      meta={formatStatementDate(transaction)}
-                      value={
-                        showBalance
-                          ? `${income ? "+" : "−"} ${formatMoney(amount)}`
-                          : "••••"
-                      }
-                      tone={income ? "success" : "danger"}
-                      valueMuted={!showBalance}
-                    />
-                  );
-                })}
-              </div>
+              <ChargesList
+                isLoading={invoicesQuery.isLoading}
+                invoices={invoices}
+                hidden={!showBalance}
+                onOpen={setSelectedInvoice}
+              />
             )}
           </section>
-
         </div>
       </div>
 
-      <MobileChargeFlow
-        open={routeFlow === "charge"}
-        onOpenChange={(open) => !open && closeFlow()}
-        onCompleted={() => void refresh()}
+      <ActivityActionsSheet
+        view={actionSheet}
+        statementFilter={statementFilter}
+        chargeStatus={chargeStatus}
+        onStatementFilter={setStatementFilter}
+        onChargeStatus={setChargeStatus}
+        onExport={exportPdf}
+        onClose={() => setActionSheet(null)}
       />
-      <MobileBillPaymentFlow
-        open={routeFlow === "bill"}
-        onOpenChange={(open) => !open && closeFlow()}
-        onCompleted={() => void refresh()}
-      />
-      <MobilePixPaymentFlow
-        open={routeFlow === "pix-payment"}
-        onOpenChange={(open) => !open && closeFlow()}
-        onCompleted={() => void refresh()}
-      />
-      <MobileTransferFlow
-        open={routeFlow === "pix-transfer"}
-        onOpenChange={(open) => !open && closeFlow()}
-        purpose="transfer"
-        onCompleted={() => void refresh()}
-      />
-      <MobileTransferFlow
-        open={routeFlow === "bank-payout"}
-        onOpenChange={(open) => !open && closeFlow()}
-        purpose="payout"
-        onCompleted={() => void refresh()}
-      />
-      <MobileNeuroFinanceOnboardingSheet
-        open={onboardingOpen}
-        onOpenChange={setOnboardingOpen}
-        onComplete={() => void refresh()}
-      />
+      <TransactionDetailSheet transaction={selectedTransaction} hidden={!showBalance} onOpenChange={(open) => !open && setSelectedTransaction(null)} />
+      <InvoiceDetailSheet invoice={selectedInvoice} hidden={!showBalance} onOpenChange={(open) => !open && setSelectedInvoice(null)} />
+      <MetricDetailSheet kind={detailList} transactions={detailTransactions} hidden={!showBalance} onOpenChange={(open) => !open && setDetailList(null)} />
+
+      <MobileChargeFlow open={routeFlow === "charge"} onOpenChange={(open) => !open && closeFlow()} onCompleted={() => void refresh()} />
+      <MobileBillPaymentFlow open={routeFlow === "bill"} onOpenChange={(open) => !open && closeFlow()} onCompleted={() => void refresh()} />
+      <MobilePixPaymentFlow open={routeFlow === "pix-payment"} onOpenChange={(open) => !open && closeFlow()} onCompleted={() => void refresh()} />
+      <MobileTransferFlow open={routeFlow === "pix-transfer"} onOpenChange={(open) => !open && closeFlow()} purpose="transfer" onCompleted={() => void refresh()} />
+      <MobileTransferFlow open={routeFlow === "bank-payout"} onOpenChange={(open) => !open && closeFlow()} purpose="payout" onCompleted={() => void refresh()} />
     </MobileLayout>
+  );
+}
+
+function MiniMetric({ label, value, hidden, icon, onClick }: { label: string; value: number; hidden: boolean; icon: typeof ArrowUpRight; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="w-[148px] shrink-0 rounded-[18px] border border-border/35 bg-background/68 p-3 text-left shadow-sm backdrop-blur-xl transition active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.035]">
+      <span className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-foreground/[0.055] text-foreground">
+        {(() => {
+          const Icon = icon;
+          return <Icon className="h-4 w-4" />;
+        })()}
+      </span>
+      <p className="mt-3 text-[8px] font-black uppercase tracking-[0.14em] text-muted-foreground/60">{label}</p>
+      <p className="mt-1 truncate text-lg font-black tracking-[-0.04em]">{hidden ? "R$ ******" : formatMoney(value)}</p>
+    </button>
+  );
+}
+
+function StatementList({ isLoading, transactions, hidden, onOpen }: { isLoading: boolean; transactions: MobileStatementTransaction[]; hidden: boolean; onOpen: (transaction: MobileStatementTransaction) => void }) {
+  if (isLoading) return <LoadingCard />;
+  if (transactions.length === 0) return <MobileEmptyState icon={FileText} title="Nenhuma movimentacao" description="Operacoes confirmadas aparecem aqui." />;
+
+  return (
+    <div className="space-y-2">
+      {transactions.map((transaction) => {
+        const income = transaction.type === "income";
+        const amount = Math.abs(Number(transaction.amount || 0));
+        return (
+          <MobileFinanceListRow
+            key={transaction.id}
+            icon={income ? ArrowUpRight : ArrowDownRight}
+            title={transaction.description || "Movimentacao"}
+            description={transaction.status || transaction.category || "Processada"}
+            meta={formatStatementDate(transaction)}
+            value={hidden ? "******" : `${income ? "+" : "-"} ${formatMoney(amount)}`}
+            tone={income ? "success" : "danger"}
+            valueMuted={hidden}
+            onClick={() => onOpen(transaction)}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function ChargesList({ isLoading, invoices, hidden, onOpen }: { isLoading: boolean; invoices: Invoice[]; hidden: boolean; onOpen: (invoice: Invoice) => void }) {
+  if (isLoading) return <LoadingCard />;
+  if (invoices.length === 0) return <MobileEmptyState icon={Receipt} title="Nenhuma cobranca" description="Cobrancas geradas pelo NeuroFinance aparecem aqui." />;
+
+  return (
+    <div className="space-y-2">
+      {invoices.map((invoice) => {
+        const status = String((invoice as { status?: string }).status || "pending").toLowerCase();
+        const copy = chargeStatusCopy[status] || chargeStatusCopy.pending;
+        return (
+          <MobileFinanceListRow
+            key={invoice.id}
+            icon={Receipt}
+            title={invoice.description || "Cobranca NeuroFinance"}
+            description={copy.label}
+            meta={invoice.due_date ? `Vence ${format(new Date(invoice.due_date), "dd/MM")}` : "Sem vencimento"}
+            value={hidden ? "******" : formatMoney(Number(invoice.amount || 0))}
+            tone={copy.tone}
+            valueMuted={hidden}
+            onClick={() => onOpen(invoice)}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function LoadingCard() {
+  return (
+    <div className={cn(mobileFinanceSurface, "flex h-28 items-center justify-center")}>
+      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+function ActivityActionsSheet({
+  view,
+  statementFilter,
+  chargeStatus,
+  onStatementFilter,
+  onChargeStatus,
+  onExport,
+  onClose,
+}: {
+  view: ActivityView | null;
+  statementFilter: StatementFilter;
+  chargeStatus: ChargeStatus;
+  onStatementFilter: (filter: StatementFilter) => void;
+  onChargeStatus: (status: ChargeStatus) => void;
+  onExport: (view: ActivityView) => void;
+  onClose: () => void;
+}) {
+  const open = Boolean(view);
+  return (
+    <MobileFinanceSheet open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()} contentClassName="h-auto max-h-[82dvh]">
+      {view ? (
+        <div className="py-7">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/55">Acoes</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">{view === "statement" ? "Extrato" : "Cobrancas"}</h2>
+            </div>
+            <Filter className="h-5 w-5 text-muted-foreground" />
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {view === "statement" ? (
+              <ToggleGrid
+                value={statementFilter}
+                options={[
+                  ["all", "Todos"],
+                  ["income", "Entradas"],
+                  ["expense", "Saidas"],
+                  ["pending", "A cair"],
+                ]}
+                onChange={(value) => onStatementFilter(value as StatementFilter)}
+              />
+            ) : (
+              <ToggleGrid
+                value={chargeStatus}
+                options={[
+                  ["all", "Todas"],
+                  ["pending", "Pendentes"],
+                  ["overdue", "Vencidas"],
+                  ["paid", "Recebidas"],
+                  ["cancelled", "Canceladas"],
+                ]}
+                onChange={(value) => onChargeStatus(value as ChargeStatus)}
+              />
+            )}
+            <MobileFinanceButton variant="secondary" className="w-full" onClick={() => onExport(view)}>
+              <Download className="h-4 w-4" />
+              Exportar PDF
+            </MobileFinanceButton>
+          </div>
+        </div>
+      ) : null}
+    </MobileFinanceSheet>
+  );
+}
+
+function ToggleGrid({ value, options, onChange }: { value: string; options: Array<[string, string]>; onChange: (value: string) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {options.map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => onChange(id)}
+          className={cn(
+            "min-h-12 rounded-[16px] border px-3 text-[10px] font-black uppercase tracking-[0.12em] transition active:scale-[0.98]",
+            value === id ? "border-foreground bg-foreground text-background" : "border-border/40 bg-card/70 text-muted-foreground dark:border-white/10 dark:bg-white/[0.035]",
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TransactionDetailSheet({ transaction, hidden, onOpenChange }: { transaction: MobileStatementTransaction | null; hidden: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <MobileFinanceSheet open={Boolean(transaction)} onOpenChange={onOpenChange} contentClassName="h-auto max-h-[82dvh]">
+      {transaction ? (
+        <DetailContent
+          eyebrow="Movimentacao"
+          title={transaction.description || "Movimentacao NeuroFinance"}
+          amount={hidden ? "******" : formatMoney(Math.abs(Number(transaction.amount || 0)))}
+          rows={[
+            ["Tipo", transaction.type === "income" ? "Entrada" : "Saida"],
+            ["Status", transaction.status || "Processada"],
+            ["Data", formatStatementDate(transaction)],
+            ["Categoria", transaction.category || "NeuroFinance"],
+          ]}
+        />
+      ) : null}
+    </MobileFinanceSheet>
+  );
+}
+
+function InvoiceDetailSheet({ invoice, hidden, onOpenChange }: { invoice: Invoice | null; hidden: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <MobileFinanceSheet open={Boolean(invoice)} onOpenChange={onOpenChange} contentClassName="h-auto max-h-[82dvh]">
+      {invoice ? (
+        <DetailContent
+          eyebrow="Cobranca"
+          title={invoice.description || "Cobranca NeuroFinance"}
+          amount={hidden ? "******" : formatMoney(Number(invoice.amount || 0))}
+          rows={[
+            ["Status", String((invoice as { status?: string }).status || "Pendente")],
+            ["Vencimento", invoice.due_date ? format(new Date(invoice.due_date), "dd/MM/yyyy") : "Sem data"],
+            ["Numero", invoice.invoice_number || invoice.id],
+            ["Link", invoice.payment_url ? "Disponivel" : "Indisponivel"],
+          ]}
+        />
+      ) : null}
+    </MobileFinanceSheet>
+  );
+}
+
+function MetricDetailSheet({ kind, transactions, hidden, onOpenChange }: { kind: DetailList; transactions: MobileStatementTransaction[]; hidden: boolean; onOpenChange: (open: boolean) => void }) {
+  const title = kind === "income" ? "Quanto entrou" : kind === "expense" ? "Quanto saiu" : "Quanto vai cair";
+  return (
+    <MobileFinanceSheet open={Boolean(kind)} onOpenChange={onOpenChange} contentClassName="h-[82dvh]">
+      <div className="py-7">
+        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/55">Detalhes</p>
+        <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">{title}</h2>
+        <div className="mt-6 space-y-2">
+          {transactions.length === 0 ? (
+            <MobileEmptyState icon={FileText} title="Sem registros" description="Nenhuma movimentacao encontrada para este grupo." />
+          ) : (
+            transactions.slice(0, 30).map((transaction) => {
+              const income = transaction.type === "income";
+              const amount = Math.abs(Number(transaction.amount || 0));
+              return (
+                <MobileFinanceListRow
+                  key={transaction.id}
+                  icon={income ? ArrowUpRight : ArrowDownRight}
+                  title={transaction.description || "Movimentacao"}
+                  description={transaction.status || transaction.category || "Processada"}
+                  meta={formatStatementDate(transaction)}
+                  value={hidden ? "******" : `${income ? "+" : "-"} ${formatMoney(amount)}`}
+                  tone={income ? "success" : "danger"}
+                  valueMuted={hidden}
+                />
+              );
+            })
+          )}
+        </div>
+      </div>
+    </MobileFinanceSheet>
+  );
+}
+
+function DetailContent({ eyebrow, title, amount, rows }: { eyebrow: string; title: string; amount: string; rows: Array<[string, string]> }) {
+  return (
+    <div className="py-7">
+      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/55">{eyebrow}</p>
+      <h2 className="mt-2 text-2xl font-black leading-tight tracking-[-0.05em]">{title}</h2>
+      <p className="mt-5 text-4xl font-black tracking-[-0.06em]">{amount}</p>
+      <div className="mt-6 grid gap-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between gap-4 rounded-[16px] border border-border/35 bg-card/70 p-3 dark:border-white/10 dark:bg-white/[0.035]">
+            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">{label}</span>
+            <span className="max-w-[58%] truncate text-right text-xs font-black">{value || "-"}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

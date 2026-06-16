@@ -238,7 +238,7 @@ export function MobileFinanceHero({
   title: string;
   value: string;
   description?: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   tone?: Tone;
   action?: ReactNode;
   children?: ReactNode;
@@ -249,9 +249,11 @@ export function MobileFinanceHero({
     <section className={cn("overflow-hidden rounded-[24px] border p-4", styles.surface)}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]", styles.icon)}>
-            <Icon className="h-[18px] w-[18px]" />
-          </div>
+          {Icon ? (
+            <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]", styles.icon)}>
+              <Icon className="h-[18px] w-[18px]" />
+            </div>
+          ) : null}
           <div className="min-w-0">
             <p className={cn("truncate text-[8px] font-black uppercase tracking-[0.17em]", styles.muted)}>
               {eyebrow}
