@@ -191,19 +191,26 @@ export function MobileNeuroFinancePage() {
             }
             description={
               showBalance
-                ? `${formatMoney(pendingBalance)} a liberar. O saldo é conferido novamente antes de qualquer envio.`
-                : "Valores ocultos nesta sessão. As operações continuam protegidas por PIN."
+                ? `${formatMoney(pendingBalance)} a liberar.`
+                : "Saldo oculto nesta sessao."
             }
             icon={Wallet}
             tone={approved ? "default" : "warning"}
             action={
-              <MobileFinanceButton
-                variant="secondary"
-                className="min-h-10 px-3"
-                onClick={() => void refresh()}
-              >
-                <RefreshCw className="h-4 w-4" />
-              </MobileFinanceButton>
+              <div className="flex items-center gap-2">
+                <MobileFinanceIconButton
+                  icon={showBalance ? EyeOff : Eye}
+                  label={showBalance ? "Ocultar saldo" : "Mostrar saldo"}
+                  onClick={() => setShowBalance((value) => !value)}
+                  className="h-10 w-10 rounded-[14px] border-foreground/10 bg-background/70"
+                />
+                <MobileFinanceIconButton
+                  icon={RefreshCw}
+                  label="Atualizar NeuroFinance"
+                  onClick={() => void refresh()}
+                  className="h-10 w-10 rounded-[14px] border-foreground/10 bg-background/70"
+                />
+              </div>
             }
           >
             <div className="grid grid-cols-2 gap-2.5">
@@ -250,12 +257,11 @@ export function MobileNeuroFinancePage() {
           <section className="space-y-4">
             <MobileSectionTitle
               title="Movimentar"
-              description="Ações essenciais da conta, com revisão antes do PIN."
             />
             <div className="grid grid-cols-2 gap-3">
               <MobileActionButton
                 label="Cobrar"
-                description="Pix, boleto ou cartão"
+                description="Pix ou boleto"
                 icon={Receipt}
                 tone="success"
                 onClick={() => openFlow("charge")}
@@ -263,35 +269,35 @@ export function MobileNeuroFinancePage() {
               />
               <MobileActionButton
                 label="Pagar boleto"
-                description="Pagar agora ou agendar"
+                description="Agora ou agendar"
                 icon={Barcode}
                 onClick={() => openFlow("bill")}
                 disabled={!approved}
               />
               <MobileActionButton
                 label="Pagar Pix"
-                description="Pix Copia e Cola"
+                description="Copia e Cola"
                 icon={QrCode}
                 onClick={() => openFlow("pix-payment")}
                 disabled={!approved}
               />
               <MobileActionButton
                 label="Transferir Pix"
-                description="Validar chave e titular"
+                description="Chave validada"
                 icon={Send}
                 onClick={() => openFlow("pix-transfer")}
                 disabled={!approved}
               />
               <MobileActionButton
                 label="Minha conta"
-                description="Enviar para conta cadastrada"
+                description="Conta cadastrada"
                 icon={Landmark}
                 onClick={() => openFlow("bank-payout")}
                 disabled={!approved}
               />
               <MobileActionButton
                 label="Gestão"
-                description="Receitas e despesas"
+                description="Controle"
                 icon={CircleDollarSign}
                 onClick={() => navigate("/financeiro")}
               />
@@ -301,7 +307,6 @@ export function MobileNeuroFinancePage() {
           <section className="space-y-4">
             <MobileSectionTitle
               title="Extrato recente"
-              description="Movimentações sincronizadas da conta."
               trailing={
                 <MobileFinanceButton
                   variant="ghost"
@@ -326,7 +331,7 @@ export function MobileNeuroFinancePage() {
               <MobileEmptyState
                 icon={FileText}
                 title="Nenhuma movimentação"
-                description="As operações confirmadas aparecerão aqui automaticamente."
+                description="Operações confirmadas aparecem aqui."
               />
             ) : (
               <div className="space-y-2">
@@ -355,18 +360,6 @@ export function MobileNeuroFinancePage() {
             )}
           </section>
 
-          <section
-            className={cn(
-              mobileFinanceSurface,
-              "flex items-start gap-3 p-4 text-[11px] font-medium leading-relaxed text-muted-foreground/70",
-            )}
-          >
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
-            <p>
-              Pagamentos e transferências exigem revisão dos dados e PIN. O saldo
-              é validado novamente no momento da execução.
-            </p>
-          </section>
         </div>
       </div>
 
