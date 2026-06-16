@@ -334,7 +334,7 @@ export const MobileAIChat = () => {
               onToggleRecording={() => void handleVoiceToggle()}
               onReset={() => {
                 endVoiceSession();
-                void refreshVoiceConfig();
+                void handleVoiceToggle();
               }}
             />
           </motion.div>
