@@ -111,7 +111,6 @@ export const MobileAIChat = () => {
     token: voiceToken,
     model: voiceModel,
     voiceName,
-    newSessionExpiresAt,
     isLoading: isVoiceConfigLoading,
     error: voiceConfigError,
     refresh: refreshVoiceConfig,
@@ -144,7 +143,6 @@ export const MobileAIChat = () => {
     createSession(undefined, {
       onSuccess: (data) => {
         setSessionId(data.id);
-        setLastResponse("");
         setInputValue("");
         setRichMessages({});
         resetTranscript();
@@ -219,10 +217,6 @@ export const MobileAIChat = () => {
     sendMessage({ message: messageText, sessionId, attachments: uploadedFiles }, {
       onSuccess: (payload: unknown) => {
         const data = toSynapseResponse(payload);
-        if (data?.response && mode === "voice") {
-          setLastResponse(data.response);
-          speak(data.response);
-        }
 
         if (!data?.clientAction) return;
 
@@ -241,16 +235,39 @@ export const MobileAIChat = () => {
         setRichMessages((previous) => ({ ...previous, latest: data.clientAction }));
       },
     });
-  }, [inputValue, mode, resetTranscript, sendMessage, sessionId, speak, stopListening, user?.id]);
+  }, [inputValue, resetTranscript, sendMessage, sessionId, stopListening, user?.id]);
+
+  const handleVoiceToggle = useCallback(async () => {
+    if (isVoiceConnected) {
+      toggleVoiceListening();
+      return;
+    }
+
+    try {
+      const config = await refreshVoiceConfig();
+      await startVoiceSession({
+        token: config.token,
+        model: config.model,
+        voiceName: config.voiceName,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Não foi possível iniciar o modo voz.";
+      toast.error(message);
+    }
+  }, [isVoiceConnected, refreshVoiceConfig, startVoiceSession, toggleVoiceListening]);
 
   const toggleVoiceMode = () => {
     setMode((current) => {
       if (current === "chat") return "voice";
       stopListening();
-      stopSpeaking();
+      endVoiceSession();
       return "chat";
     });
   };
+
+  useEffect(() => () => {
+    endVoiceSession();
+  }, [endVoiceSession]);
 
   const groupedSessionEntries = useMemo(() => {
     type ChatSession = (typeof sessionList)[number];
@@ -308,13 +325,16 @@ export const MobileAIChat = () => {
             className="h-full"
           >
             <MobileSynapseVoicePanel
-              isListening={isListening}
-              isProcessing={isProcessing}
-              lastResponse={lastResponse}
-              onToggleRecording={() => isListening ? stopListening() : startListening()}
+              isConnected={isVoiceConnected}
+              isListening={isVoiceListening}
+              isProcessing={isVoiceProcessing || isVoiceConfigLoading}
+              isSpeaking={isVoiceSpeaking}
+              lastResponse={voiceLastResponse}
+              error={voiceRuntimeError || voiceConfigError}
+              onToggleRecording={() => void handleVoiceToggle()}
               onReset={() => {
-                stopSpeaking();
-                setLastResponse("");
+                endVoiceSession();
+                void refreshVoiceConfig();
               }}
             />
           </motion.div>

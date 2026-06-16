@@ -12,7 +12,7 @@ import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 
 export const mobileFinanceSurface =
-  "rounded-[22px] border border-border/40 bg-card/72 shadow-[0_18px_54px_-42px_rgba(0,0,0,0.78)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.03]";
+  "rounded-[22px] border border-border/32 bg-card/72 shadow-[0_18px_54px_-42px_rgba(0,0,0,0.78)] backdrop-blur-xl dark:border-white/[0.055] dark:bg-white/[0.026]";
 
 export const mobileFinanceInputClassName =
   "mt-2 h-[52px] rounded-[17px] border-border/50 bg-card px-4 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-foreground/12";
@@ -38,7 +38,7 @@ type Tone = "default" | "dark" | "success" | "warning" | "danger";
 
 const toneStyles: Record<Tone, { surface: string; icon: string; text: string; muted: string }> = {
   default: {
-    surface: "border-border/40 bg-card/72 text-foreground dark:border-white/10 dark:bg-white/[0.03]",
+    surface: "border-border/32 bg-card/72 text-foreground dark:border-white/[0.055] dark:bg-white/[0.026]",
     icon: "bg-foreground/[0.045] text-muted-foreground",
     text: "text-foreground",
     muted: "text-muted-foreground/68",
@@ -50,22 +50,22 @@ const toneStyles: Record<Tone, { surface: string; icon: string; text: string; mu
     muted: "text-background/62",
   },
   success: {
-    surface: "border-emerald-500/18 bg-emerald-500/[0.07] text-emerald-700 dark:text-emerald-300",
+    surface: "border-border/32 bg-card/72 text-foreground dark:border-white/[0.055] dark:bg-white/[0.026]",
     icon: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
-    text: "text-emerald-700 dark:text-emerald-300",
-    muted: "text-emerald-700/62 dark:text-emerald-300/65",
+    text: "text-foreground",
+    muted: "text-muted-foreground/68",
   },
   warning: {
-    surface: "border-amber-500/20 bg-amber-500/[0.075] text-amber-800 dark:text-amber-200",
+    surface: "border-border/32 bg-card/72 text-foreground dark:border-white/[0.055] dark:bg-white/[0.026]",
     icon: "bg-amber-500/10 text-amber-700 dark:text-amber-200",
-    text: "text-amber-800 dark:text-amber-200",
-    muted: "text-amber-800/62 dark:text-amber-200/65",
+    text: "text-foreground",
+    muted: "text-muted-foreground/68",
   },
   danger: {
-    surface: "border-rose-500/18 bg-rose-500/[0.065] text-rose-700 dark:text-rose-300",
+    surface: "border-border/32 bg-card/72 text-foreground dark:border-white/[0.055] dark:bg-white/[0.026]",
     icon: "bg-rose-500/10 text-rose-600 dark:text-rose-300",
-    text: "text-rose-700 dark:text-rose-300",
-    muted: "text-rose-700/62 dark:text-rose-300/65",
+    text: "text-foreground",
+    muted: "text-muted-foreground/68",
   },
 };
 
@@ -120,7 +120,7 @@ export function MobileFinanceTabs<T extends string>({
       role="tablist"
       aria-label="Areas do financeiro"
       className={cn(
-        "grid grid-cols-2 gap-1 rounded-[18px] border border-border/45 bg-background/84 p-1 shadow-[0_12px_34px_-28px_rgba(0,0,0,0.7)] backdrop-blur-xl dark:border-white/10 dark:bg-black/45",
+        "grid grid-cols-2 gap-1 rounded-[18px] border border-border/36 bg-background/76 p-1 shadow-[0_12px_34px_-28px_rgba(0,0,0,0.7)] backdrop-blur-xl dark:border-white/[0.055] dark:bg-white/[0.04]",
         className,
       )}
     >
@@ -184,7 +184,7 @@ export function MobileFinanceButton({
       className={cn(
         "inline-flex min-h-11 items-center justify-center gap-2 rounded-[15px] px-4 text-[9px] font-black uppercase tracking-[0.14em] transition active:scale-[0.985] disabled:pointer-events-none disabled:opacity-45",
         variant === "primary" && "bg-foreground text-background shadow-sm",
-        variant === "secondary" && "border border-border/45 bg-card/78 text-foreground dark:border-white/10 dark:bg-white/[0.04]",
+        variant === "secondary" && "border border-border/36 bg-card/78 text-foreground dark:border-white/[0.055] dark:bg-white/[0.035]",
         variant === "ghost" && "bg-transparent text-muted-foreground active:bg-foreground/[0.045]",
         variant === "light" && "bg-background text-foreground hover:bg-background/90",
         variant === "danger" && "border border-rose-500/20 bg-rose-500/[0.07] text-rose-600 dark:text-rose-300",
@@ -212,7 +212,7 @@ export function MobileFinanceIconButton({
       type="button"
       aria-label={label}
       className={cn(
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] border border-border/45 bg-card/78 text-foreground transition active:scale-95 dark:border-white/10 dark:bg-white/[0.04]",
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] border border-border/36 bg-card/78 text-foreground transition active:scale-95 dark:border-white/[0.055] dark:bg-white/[0.035]",
         className,
       )}
       {...props}
@@ -483,7 +483,7 @@ export function MobileFinanceListRow({
   );
 
   const classes = cn(
-    "flex w-full items-center gap-3 rounded-[20px] border border-border/40 bg-card/72 p-3.5 text-left dark:border-white/10 dark:bg-white/[0.03]",
+    "flex w-full items-center gap-3 rounded-[20px] border border-border/32 bg-card/72 p-3.5 text-left dark:border-white/[0.055] dark:bg-white/[0.026]",
     onClick && "transition active:bg-foreground/[0.045]",
     disabled && "cursor-not-allowed opacity-45",
     className,
@@ -592,7 +592,7 @@ export function MobileFinanceSheet({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
         className={cn(
-          "[&>div:first-child]:hidden z-[120] flex h-[min(92dvh,46rem)] max-h-[92dvh] overflow-hidden rounded-t-[30px] border-border/40 bg-background p-0 shadow-2xl dark:border-white/10",
+          "[&>div:first-child]:hidden z-[120] flex h-[min(92dvh,46rem)] max-h-[92dvh] overflow-hidden rounded-t-[30px] border-border/32 bg-background p-0 shadow-2xl dark:border-white/[0.055]",
           contentClassName,
         )}
       >
@@ -601,7 +601,7 @@ export function MobileFinanceSheet({
           <header className="shrink-0 px-5 pb-4 pt-5">
             <div className="flex items-start gap-3">
               {Icon ? (
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] border border-border/40 bg-card/72 dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] border border-border/32 bg-card/72 dark:border-white/[0.055] dark:bg-white/[0.026]">
                   <Icon className="h-5 w-5" />
                 </div>
               ) : null}
@@ -623,7 +623,7 @@ export function MobileFinanceSheet({
           {children}
         </div>
         {footer ? (
-          <footer className="shrink-0 border-t border-border/40 bg-background/94 px-5 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl dark:border-white/10">
+          <footer className="shrink-0 border-t border-border/32 bg-background/94 px-5 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl dark:border-white/[0.055]">
             {footer}
           </footer>
         ) : null}

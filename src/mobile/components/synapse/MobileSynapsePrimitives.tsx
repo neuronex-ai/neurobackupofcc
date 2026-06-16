@@ -380,27 +380,55 @@ export function MobileSynapseThinking() {
 }
 
 export function MobileSynapseVoicePanel({
+  isConnected,
   isListening,
   isProcessing,
+  isSpeaking,
   lastResponse,
+  error,
   onToggleRecording,
   onReset,
 }: {
+  isConnected: boolean;
   isListening: boolean;
   isProcessing: boolean;
+  isSpeaking: boolean;
   lastResponse: string;
+  error?: string | null;
   onToggleRecording: () => void;
   onReset: () => void;
 }) {
+  const statusLabel = error
+    ? "Ajuste necessário"
+    : isSpeaking
+      ? "Respondendo"
+      : isProcessing
+        ? "Conectando"
+        : isListening
+          ? "Ouvindo"
+          : isConnected
+            ? "Pausado"
+            : "Modo voz";
+  const title = error
+    ? "Não consegui abrir a voz."
+    : isSpeaking
+      ? "Synapse está falando."
+      : isListening
+        ? "Pode falar."
+        : "Synapse por voz";
+  const description = error || lastResponse || (isConnected
+    ? "Toque no controle para pausar ou retomar a escuta em tempo real."
+    : "Toque para iniciar uma conversa de baixa latência com voz nativa do Gemini Live.");
+
   return (
-    <section className="flex min-h-full flex-col justify-center px-5 pb-28 pt-24">
+    <section className="flex min-h-full flex-col justify-center px-5 pb-12 pt-[calc(6.4rem+env(safe-area-inset-top))]">
       <div className="rounded-[30px] border border-border/40 bg-card/78 p-6 text-center dark:border-white/10 dark:bg-white/[0.035]">
-        <MobileSynapseEyebrow>{isProcessing ? "Processando" : isListening ? "Ouvindo" : "Modo voz"}</MobileSynapseEyebrow>
+        <MobileSynapseEyebrow>{statusLabel}</MobileSynapseEyebrow>
         <h2 className="mt-2 text-3xl font-black leading-[0.92] tracking-[-0.055em] text-foreground">
-          {isListening ? "Pode falar." : "Synapse por voz"}
+          {title}
         </h2>
         <p className="mx-auto mt-3 max-w-[18rem] text-xs font-medium leading-relaxed text-muted-foreground/68">
-          {lastResponse || "Toque no controle para iniciar, pausar ou transformar sua fala em uma conversa contextual."}
+          {description}
         </p>
 
         <button
@@ -409,14 +437,16 @@ export function MobileSynapseVoicePanel({
           disabled={isProcessing}
           className={cn(
             "mx-auto mt-9 flex h-32 w-32 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-65",
-            isListening
+            error
+              ? "border-rose-500/30 bg-rose-500/10 text-rose-500"
+              : isListening || isSpeaking
               ? "border-foreground bg-foreground text-background shadow-[0_22px_70px_-42px_rgba(0,0,0,0.9)]"
               : "border-border/45 bg-background text-foreground dark:border-white/10 dark:bg-black/35",
           )}
         >
           {isProcessing ? (
             <Loader2 className="h-10 w-10 animate-spin" />
-          ) : isListening ? (
+          ) : isListening || isSpeaking ? (
             <div className="flex h-12 items-center gap-1.5">
               {[0, 1, 2, 3].map((item) => (
                 <span

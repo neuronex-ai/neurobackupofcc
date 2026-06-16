@@ -32,16 +32,16 @@ export const MobileLayout = ({ children, className, showNav = true, showBottomNa
       </div>
 
       {showNav ? (
-        <header className="fixed left-0 right-0 top-0 z-[100] pt-[env(safe-area-inset-top)]">
-          <div className="flex items-center justify-between gap-2 px-4 py-3">
+        <header className="pointer-events-none fixed left-0 right-0 top-0 z-[100] pt-[env(safe-area-inset-top)]">
+          <div className="flex items-center justify-between gap-2 px-4 py-2.5">
             <div className="flex min-w-0 items-center gap-2">
-              <Link to="/dashboard" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-foreground/[0.055] bg-background/78 backdrop-blur-xl dark:border-white/10 dark:bg-black/40">
+              <Link to="/dashboard" className="pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-foreground/[0.07] bg-background/62 shadow-[0_14px_34px_-24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055]">
                 <img src={theme === "dark" ? "/favicon-S-FUNDO-BRANCA.ico" : "/favicon-S-FUNDO-PRETA.ico"} alt="NeuroNex" className="h-[17px] w-[17px] object-contain opacity-85" />
               </Link>
               <MobileRoutePill />
             </div>
 
-            <button type="button" onClick={() => setNotificationsOpen(true)} className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-foreground/[0.055] bg-background/78 backdrop-blur-xl dark:border-white/10 dark:bg-black/40" aria-label="Abrir notificações">
+            <button type="button" onClick={() => setNotificationsOpen(true)} className="pointer-events-auto relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-foreground/[0.07] bg-background/62 shadow-[0_14px_34px_-24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055]" aria-label="Abrir notificações">
               <Bell className="h-[17px] w-[17px] text-foreground/68" />
               {unreadCount > 0 ? <span className="absolute -right-1 -top-1 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-background bg-red-500 px-1 text-[7px] font-black text-white">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
             </button>
@@ -56,7 +56,7 @@ export const MobileLayout = ({ children, className, showNav = true, showBottomNa
         </SheetContent>
       </Sheet>
 
-      <main className={cn("relative z-10 min-h-0 min-w-0 flex-1 overflow-hidden", showNav ? "pt-[calc(4rem+env(safe-area-inset-top))]" : "pt-0", showBottomNav ? "pb-[calc(4.85rem+env(safe-area-inset-bottom))]" : "pb-0", className)}>
+      <main className={cn("relative z-10 min-h-0 min-w-0 flex-1 overflow-hidden", showNav ? "pt-[calc(3.35rem+env(safe-area-inset-top))]" : "pt-0", showBottomNav ? "pb-[calc(4.85rem+env(safe-area-inset-bottom))]" : "pb-0", className)}>
         {children}
       </main>
 

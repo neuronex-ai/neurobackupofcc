@@ -89,13 +89,14 @@ export const MobileBottomNav = () => {
                     initial={{ y: 10, opacity: 0, x: "-50%" }}
                     animate={{ y: 0, opacity: 1, x: "-50%" }}
                     transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                    className="fixed bottom-[calc(0.7rem+env(safe-area-inset-bottom))] left-1/2 z-[100] w-[calc(100%-1rem)] max-w-[430px] md:hidden"
+                    className="fixed bottom-[calc(0.55rem+env(safe-area-inset-bottom))] left-1/2 z-[100] w-[calc(100%-1.15rem)] max-w-[410px] md:hidden"
                 >
-                    <div className="flex h-[3.65rem] items-center justify-between rounded-[24px] border border-border/45 bg-background/88 px-1.5 shadow-[0_16px_42px_-26px_rgba(0,0,0,0.55)] backdrop-blur-xl dark:border-white/10 dark:bg-black/80">
+                    <div className="relative flex h-16 items-center justify-between overflow-hidden rounded-[30px] border border-foreground/[0.08] bg-background/70 px-2 shadow-[0_24px_60px_-34px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.11)] backdrop-blur-2xl dark:border-white/[0.13] dark:bg-white/[0.065]">
+                        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-white/20 dark:bg-white/18" />
                         {navItems.slice(0, 2).map((item) => {
                             const active = isActive(item.href);
                             return (
-                                <Link key={item.href} to={item.href} className={cn("relative flex h-11 w-14 flex-col items-center justify-center rounded-[14px] text-muted-foreground transition-colors active:opacity-70", active && "bg-foreground/[0.06] text-foreground")}>
+                                <Link key={item.href} to={item.href} className={cn("relative flex h-12 w-[3.25rem] flex-col items-center justify-center rounded-[18px] text-muted-foreground transition-all duration-200 active:scale-95", active && "bg-foreground/[0.075] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]")}>
                                     <item.icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.4 : 1.8} />
                                     <span className="mt-0.5 text-[7px] font-black">{item.label}</span>
                                 </Link>
@@ -105,10 +106,10 @@ export const MobileBottomNav = () => {
                         <Link
                             to="/synapse-ai"
                             className={cn(
-                                "flex h-12 w-12 items-center justify-center rounded-[17px] border shadow-sm transition-transform active:scale-95",
+                                "relative -mt-3 flex h-[3.35rem] w-[3.35rem] items-center justify-center rounded-[21px] border shadow-[0_20px_46px_-24px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.16)] transition-transform active:scale-95",
                                 isActive("/synapse-ai")
                                     ? "border-primary bg-primary text-primary-foreground"
-                                    : "border-foreground bg-foreground text-background",
+                                    : "border-foreground/70 bg-foreground text-background",
                             )}
                             aria-label="Abrir Synapse"
                         >
@@ -118,7 +119,7 @@ export const MobileBottomNav = () => {
                         {navItems.slice(2).map((item) => {
                             const active = isActive(item.href);
                             return (
-                                <Link key={item.href} to={item.href} className={cn("relative flex h-11 w-14 flex-col items-center justify-center rounded-[14px] text-muted-foreground transition-colors active:opacity-70", active && "bg-foreground/[0.06] text-foreground")}>
+                                <Link key={item.href} to={item.href} className={cn("relative flex h-12 w-[3.25rem] flex-col items-center justify-center rounded-[18px] text-muted-foreground transition-all duration-200 active:scale-95", active && "bg-foreground/[0.075] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]")}>
                                     <item.icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.4 : 1.8} />
                                     <span className="mt-0.5 text-[7px] font-black">{item.label}</span>
                                 </Link>
@@ -128,7 +129,7 @@ export const MobileBottomNav = () => {
                         <button
                             type="button"
                             onClick={() => setMenuOpen(true)}
-                            className="flex h-11 w-14 flex-col items-center justify-center rounded-[14px] text-muted-foreground transition-colors active:bg-foreground/[0.05]"
+                            className="flex h-12 w-[3.25rem] flex-col items-center justify-center rounded-[18px] text-muted-foreground transition-all duration-200 active:scale-95 active:bg-foreground/[0.06]"
                             aria-label="Abrir menu"
                         >
                             <Menu className="h-[18px] w-[18px]" strokeWidth={1.8} />

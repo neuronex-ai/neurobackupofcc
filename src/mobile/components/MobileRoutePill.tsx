@@ -55,7 +55,7 @@ export const MobileRoutePill = () => {
   if (location.pathname === "/dashboard" || crumbs.length === 0) return null;
 
   return (
-    <nav aria-label="Trilha da página" className="min-w-0 max-w-[calc(100vw-7.5rem)] overflow-hidden rounded-[13px] border border-foreground/[0.055] bg-background/72 px-2.5 py-2 shadow-[0_10px_28px_-22px_rgba(0,0,0,0.65)] backdrop-blur-xl dark:border-white/10 dark:bg-black/35">
+    <nav aria-label="Trilha da página" className="pointer-events-auto min-w-0 max-w-[calc(100vw-7.5rem)] overflow-hidden rounded-full border border-foreground/[0.07] bg-background/62 px-3 py-2 shadow-[0_12px_30px_-24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055]">
       <div className="flex min-w-0 items-center gap-1 overflow-hidden">
         {crumbs.map((crumb, index) => {
           const last = index === crumbs.length - 1;
