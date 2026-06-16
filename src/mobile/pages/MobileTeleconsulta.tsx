@@ -31,6 +31,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SessionReminderDrawer } from "../components/SessionReminderDrawer";
 import { Input } from "@/components/ui/input";
 
+type LatestSessionNote = {
+    patients?: {
+        id: string;
+        name?: string | null;
+    } | null;
+    ai_summary?: {
+        sentiment?: string | null;
+        summary?: string | null;
+    } | null;
+};
+
 export const MobileTeleconsulta = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -44,7 +55,7 @@ export const MobileTeleconsulta = () => {
     const [searchQuery, setSearchQuery] = useState("");
 
     // Fetch latest session note for the Recap section
-    const { data: latestNotes } = useQuery<any[]>({
+    const { data: latestNotes } = useQuery<LatestSessionNote[]>({
         queryKey: ['latestSessionNotes', user?.id],
         queryFn: async () => {
             const { data, error } = await supabase
