@@ -188,7 +188,7 @@ export class GeminiLiveClient {
 
         // Error handling
         if (msg.error) {
-            console.error("[Gemini] API error:", msg.error);
+            this.options.onError?.(new Error(msg.error.message || "Erro no Live API"));
         }
     }
 
@@ -210,14 +210,14 @@ export class GeminiLiveClient {
                         }]
                     }
                 }));
-            } catch (err: any) {
-                console.error("Tool execution failed", err);
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : "Tool execution failed";
                 this.ws?.send(JSON.stringify({
                     toolResponse: {
                         functionResponses: [{
                             id: functionCall.id,
                             name: functionCall.name,
-                            response: { error: err.message }
+                            response: { error: message }
                         }]
                     }
                 }));
