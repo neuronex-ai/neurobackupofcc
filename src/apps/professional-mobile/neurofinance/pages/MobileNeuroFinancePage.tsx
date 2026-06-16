@@ -212,7 +212,7 @@ export function MobileNeuroFinancePage() {
             tone={approved ? "default" : "warning"}
             action={
               <MobileFinanceButton
-                variant={approved ? "light" : "secondary"}
+                variant="secondary"
                 className="min-h-10 px-3"
                 onClick={() => void refresh()}
               >
@@ -222,7 +222,7 @@ export function MobileNeuroFinancePage() {
           >
             <div className="grid grid-cols-2 gap-2.5">
               <MobileFinanceButton
-                variant={approved ? "light" : "secondary"}
+                variant={approved ? "primary" : "secondary"}
                 disabled={!approved}
                 onClick={() => openFlow("charge")}
               >
@@ -232,9 +232,6 @@ export function MobileNeuroFinancePage() {
               <MobileFinanceButton
                 variant="secondary"
                 disabled={!approved}
-                className={cn(
-                  approved && "border-background/15 bg-background/[0.07] text-background",
-                )}
                 onClick={() => openFlow("pix-payment")}
               >
                 <QrCode className="h-4 w-4" />
