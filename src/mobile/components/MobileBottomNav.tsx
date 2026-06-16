@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { MobileMainMenuSheet } from "./MobileMainMenuSheet";
 import { AnimatePresence, motion } from "framer-motion";
 import { Calendar, DollarSign, Home, LogIn, LogOut, Menu, Settings, Sparkles, X } from "lucide-react";
 import { useState } from "react";

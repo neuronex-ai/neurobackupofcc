@@ -46,6 +46,7 @@ import {
 } from "../../shared/MobileFinancePrimitives";
 import { MobileBillPaymentFlow } from "../components/MobileBillPaymentFlow";
 import { MobileChargeFlow } from "../components/MobileChargeFlow";
+import { MobileNeuroFinanceOnboardingSheet } from "../components/MobileNeuroFinanceOnboardingSheet";
 import { MobilePixPaymentFlow } from "../components/MobilePixPaymentFlow";
 import { MobileTransferFlow } from "../components/MobileTransferFlow";
 
@@ -145,6 +146,7 @@ export function MobileNeuroFinancePage() {
   const statementEnd = useMemo(() => addYears(new Date(), 2), []);
   const statement = useNeuroFinanceStatement(statementStart, statementEnd);
   const [showBalance, setShowBalance] = useState(true);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   const routeFlow = flowFromPath(location.pathname);
   const approved = account.isApproved;
@@ -234,7 +236,7 @@ export function MobileNeuroFinancePage() {
               description="Operações reais liberam após aprovação."
               status="Ajustes"
               tone="warning"
-              onClick={() => navigate("/ajustes")}
+              onClick={() => account.needsInitialOnboarding ? setOnboardingOpen(true) : navigate("/ajustes")}
             />
           ) : null}
 
@@ -500,6 +502,11 @@ export function MobileNeuroFinancePage() {
         onOpenChange={(open) => !open && closeFlow()}
         purpose="payout"
         onCompleted={() => void refresh()}
+      />
+      <MobileNeuroFinanceOnboardingSheet
+        open={onboardingOpen}
+        onOpenChange={setOnboardingOpen}
+        onComplete={() => void refresh()}
       />
     </MobileLayout>
   );

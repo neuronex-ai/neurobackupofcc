@@ -6,14 +6,13 @@ import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { useTour } from "@/components/onboarding/TourContext";
 import { FiscalConfigPanel } from "@/components/settings/FiscalConfigPanel";
 import { MonthlyReportSettings } from "@/components/settings/MonthlyReportSettings";
-import { NeuroNexPayWizard } from "@/components/settings/NeuroNexPayWizard";
+import { MobileNeuroFinanceAccountStatusPanel } from "@/apps/professional-mobile/neurofinance/components/MobileNeuroFinanceAccountStatusPanel";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { ProfessionalProfileForm } from "@/components/settings/ProfessionalProfileForm";
 import { SecuritySettingsPanel } from "@/components/settings/SecuritySettingsPanel";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSubscription } from "@/context/SubscriptionContext";
-import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
 import { useOrganizations } from "@/hooks/use-organization";
 import { useProfile } from "@/hooks/use-profile";
@@ -27,7 +26,6 @@ import {
     ArrowLeft,
     Bell,
     Building,
-    CheckCircle2,
     ChevronRight,
     CreditCard,
     FileBarChart,
@@ -212,7 +210,6 @@ export const MobileSettings = () => {
     const { canAccess } = useSubscription();
     const { data: organizations } = useOrganizations();
     const { data: profile } = useProfile();
-    const financialAccount = useFinancialAccount();
     const { isConnected: isGoogleConnected, isLoading: googleLoading, connectGoogle, disconnectGoogle } = useGoogleAuth();
     const { preferences, updatePreferences, isSaving: preferencesSaving } = useUserPreferences();
 
@@ -476,28 +473,7 @@ export const MobileSettings = () => {
                         {view === "payments" ? (
                             <>
                                 <SubviewHeader title="NeuroFinance" description="Status da conta financeira e acesso às operações." onBack={() => setView("main")} />
-                                <div className="space-y-3">
-                                    <section className="rounded-[24px] border border-border/40 bg-card/68 p-3 dark:border-white/10 dark:bg-white/[0.025]">
-                                        <NeuroNexPayWizard isMobile onSuccess={() => void financialAccount.refetch()} />
-                                    </section>
-                                    <section className="rounded-[22px] border border-border/40 bg-card/68 p-5 dark:border-white/10 dark:bg-white/[0.025]">
-                                        <div className="flex items-center gap-3">
-                                            <div className={cn("flex h-11 w-11 items-center justify-center rounded-[15px]", financialAccount.isConnected ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
-                                                {financialAccount.isConnected ? <CheckCircle2 className="h-5 w-5" /> : <Wallet className="h-5 w-5" />}
-                                            </div>
-                                            <div>
-                                                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-muted-foreground/55">Situação</p>
-                                                <p className="mt-1 text-[14px] font-black text-foreground">{financialAccount.isConnected ? "Conta conectada" : "Ativação pendente"}</p>
-                                            </div>
-                                        </div>
-                                        <p className="mt-4 text-[10px] font-medium leading-relaxed text-muted-foreground/68">
-                                            Titular: {[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Não informado"}
-                                        </p>
-                                    </section>
-                                    <Button onClick={() => navigate("/financeiro/neurofinance")} className="h-12 w-full rounded-[15px] text-[8px] font-black uppercase tracking-[0.12em]">
-                                        Abrir NeuroFinance
-                                    </Button>
-                                </div>
+                                <MobileNeuroFinanceAccountStatusPanel onOpenNeuroFinance={() => navigate("/financeiro/neurofinance")} />
                             </>
                         ) : null}
 
