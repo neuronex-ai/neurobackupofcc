@@ -395,6 +395,10 @@ async function authenticateWithWebAuthn(params: {
   email?: string | null;
   allowRegistration?: boolean;
 }) {
+  if (!canAttemptWebAuthnPlatform()) {
+    throw new Error("Biometria de plataforma indisponivel neste ambiente.");
+  }
+
   if (!params.userId) {
     throw new Error("Conta biometrica nao encontrada neste aparelho.");
   }
