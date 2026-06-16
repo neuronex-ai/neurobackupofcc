@@ -122,12 +122,14 @@ async function invoke<T>(
   body: Record<string, unknown>,
 ): Promise<T> {
   const { data, error } = await supabase.functions.invoke(functionName, { body });
+  const explicitSuccess =
+    data && typeof data === "object" && (data as { success?: unknown }).success === true;
   const responseError =
     data && typeof data === "object" && "error" in data
       ? String((data as { error?: unknown }).error || "")
       : "";
 
-  if (error || responseError) {
+  if (error || (responseError && !explicitSuccess)) {
     throw new Error(
       responseError || error?.message || "Não foi possível concluir a operação.",
     );
