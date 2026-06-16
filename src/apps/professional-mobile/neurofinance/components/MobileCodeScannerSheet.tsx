@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { Camera, Loader2, RefreshCw, ShieldCheck, X } from "lucide-react";
@@ -98,6 +98,7 @@ export function MobileCodeScannerSheet({
     const start = async () => {
       detectedRef.current = false;
       setError(null);
+      if (mode === "boleto") await lockLandscapeBestEffort();
 
       if (hasNativeCodeScanner()) {
         setState("native");
@@ -131,7 +132,9 @@ export function MobileCodeScannerSheet({
         return;
       }
 
-      if (!navigator.mediaDevices?.getUserMedia || !videoRef.current) {
+      const videoElement = await waitForVideoElement(videoRef, () => cancelled);
+
+      if (!navigator.mediaDevices?.getUserMedia || !videoElement) {
         setError("Camera indisponivel neste navegador ou contexto.");
         setState("error");
         return;
@@ -140,7 +143,7 @@ export function MobileCodeScannerSheet({
       setState("starting");
       if (mode === "boleto") {
         const nativeStarted = await startNativeBoletoScanner({
-          video: videoRef.current,
+          video: videoElement,
           onDetected: async (value) => {
             detectedRef.current = true;
             controlsRef.current?.stop();
@@ -192,7 +195,7 @@ export function MobileCodeScannerSheet({
               aspectRatio: mode === "boleto" ? { ideal: 16 / 9 } : undefined,
             },
           },
-          videoRef.current,
+          videoElement,
           (result) => {
             if (!result || detectedRef.current) return;
             const value = normalizeDetectedValue(mode, result.getText());
@@ -236,6 +239,7 @@ export function MobileCodeScannerSheet({
       cancelled = true;
       controlsRef.current?.stop();
       controlsRef.current = null;
+      if (mode === "boleto") void unlockOrientationBestEffort();
     };
   }, [mode, onDetected, onOpenChange, open, retryKey]);
 
@@ -280,7 +284,11 @@ export function MobileCodeScannerSheet({
             <video
               ref={videoRef}
               muted
+              autoPlay
               playsInline
+              onLoadedMetadata={(event) => {
+                event.currentTarget.play().catch(() => undefined);
+              }}
               className="h-full w-full object-cover"
             />
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -309,7 +317,11 @@ export function MobileCodeScannerSheet({
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/72 text-white">
                 <Loader2 className="h-6 w-6 animate-spin" />
                 <p className="mt-3 text-xs font-semibold">
-                  {state === "native" ? "Abrindo leitor nativo" : "Solicitando camera"}
+                  {state === "native"
+                    ? "Abrindo leitor nativo"
+                    : mode === "boleto"
+                      ? "Abrindo camera em paisagem"
+                      : "Solicitando camera"}
                 </p>
               </div>
             ) : null}
