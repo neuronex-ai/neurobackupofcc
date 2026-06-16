@@ -288,7 +288,7 @@ export default function Notes() {
                 <CommandMenu />
             </div>
 
-            <div className="relative z-10 mx-auto flex h-full w-full max-w-[2200px] flex-1 items-stretch overflow-hidden px-5 pb-5 pt-3">
+            <div className="relative z-10 mx-auto flex h-full w-full max-w-[2200px] flex-1 items-stretch overflow-hidden px-5 pb-5 pt-28">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
