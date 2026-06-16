@@ -15,7 +15,7 @@ import {
   Speaker,
   TriangleAlert,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -55,7 +55,20 @@ export const MediaReadinessPanel = ({
     initialAudioEnabled,
     initialVideoEnabled,
   });
-  const selection = readiness.getSelection();
+  const selection = useMemo(
+    () => readiness.getSelection(),
+    [
+      readiness.audioEnabled,
+      readiness.audioInputId,
+      readiness.audioOutputId,
+      readiness.audioInputs,
+      readiness.audioOutputs,
+      readiness.videoEnabled,
+      readiness.videoInputId,
+      readiness.videoInputs,
+      readiness.getSelection,
+    ],
+  );
   const network = networkMeta[readiness.network];
   const NetworkIcon = network.icon;
   const compact = variant === "mobile";
@@ -73,8 +86,8 @@ export const MediaReadinessPanel = ({
   }, [readiness.stream]);
 
   useEffect(() => {
-    onReadinessChange?.(readiness.isReady, readiness.getSelection());
-  }, [onReadinessChange, readiness]);
+    onReadinessChange?.(readiness.isReady, selection);
+  }, [onReadinessChange, readiness.isReady, selection]);
 
   return (
     <div className={cn("space-y-4", className)}>
