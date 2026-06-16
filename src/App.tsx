@@ -31,6 +31,7 @@ import EmailConfirmedPage from "./pages/auth/EmailConfirmedPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import CreateAccount from "./pages/auth/CreateAccount";
 import AccountCreated from "./pages/auth/AccountCreated";
+import InitialSettings from "./pages/auth/InitialSettings";
 import GoogleConnectionSuccess from "./pages/auth/GoogleConnectionSuccess";
 import ConfirmAppointment from "./pages/ConfirmAppointment";
 import JoinSession from "./pages/JoinSession";
@@ -121,6 +122,7 @@ const SharedRoutes = () => {
 
         {/* ─── Protected Professional Routes ──────────────── */}
         <Route path="/synapse-ai" element={<ProtectedRoute><AIChat /></ProtectedRoute>} />
+        <Route path="/initial-settings" element={<ProtectedRoute isFullScreen><InitialSettings /></ProtectedRoute>} />
 
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/agenda" element={<ProtectedRoute><Agenda /></ProtectedRoute>} />
