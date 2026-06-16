@@ -9,6 +9,14 @@ const corsHeaders = {
 // Production domain
 const PRODUCTION_DOMAIN = "https://neuronex.site";
 
+function sanitizeReturnTo(value: unknown) {
+    const raw = String(value || "").trim();
+    if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\\\")) {
+        return "/ajustes?status=success&service=google";
+    }
+    return raw;
+}
+
 serve(async (req) => {
     if (req.method === "OPTIONS") {
         return new Response(null, { headers: corsHeaders });
@@ -25,7 +33,6 @@ serve(async (req) => {
         }
     }
 
-    const REDIRECT_SUCCESS_URL = `${baseUrl}/google-connection-success`;
     const REDIRECT_FAILURE_URL = `${baseUrl}/ajustes?status=error&service=google`;
 
     try {
@@ -48,9 +55,11 @@ serve(async (req) => {
 
         // Parse state to get userId
         let userId: string;
+        let returnTo = "/ajustes?status=success&service=google";
         try {
             const stateData = JSON.parse(atob(state));
             userId = stateData.userId;
+            returnTo = sanitizeReturnTo(stateData.returnTo);
             if (!userId) throw new Error("No userId in state");
         } catch (e) {
             console.error("[google-auth-callback] Invalid state:", e);
@@ -124,7 +133,10 @@ serve(async (req) => {
         }
 
         console.log("[google-auth-callback] Tokens saved! Redirecting to success page...");
-        return Response.redirect(REDIRECT_SUCCESS_URL, 302);
+        return Response.redirect(
+            `${baseUrl}/google-connection-success?status=success&service=google&returnTo=${encodeURIComponent(returnTo)}`,
+            302,
+        );
 
     } catch (error: any) {
         console.error("[google-auth-callback] Unhandled error:", error);

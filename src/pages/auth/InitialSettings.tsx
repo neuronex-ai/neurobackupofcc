@@ -1,11 +1,11 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { useTour } from "@/components/onboarding/TourContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useProfile } from "@/hooks/use-profile";
@@ -19,34 +19,59 @@ import {
   Check,
   CheckCircle2,
   ChevronLeft,
+  Crown,
   Gem,
   Loader2,
   Mail,
+  MapPin,
   Monitor,
   Moon,
-  Palette,
+  Search,
   ShieldCheck,
   Sparkles,
   Sun,
   Wallet,
+  type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+type WizardStep = "style" | "profile" | "connections" | "neurofinance";
+type ThemeChoice = "light" | "dark" | "system";
+type GoogleChoice = "connect" | "skip" | "";
+type NeuroFinanceChoice = "create_now" | "later" | "";
+
+type AddressSuggestion = {
+  id: string;
+  label: string;
+  source: "google" | "viacep";
+  metadata?: Record<string, unknown>;
+};
+
+type ProfessionalAddress = {
+  label?: string;
+  placeId?: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  source?: string;
+  [key: string]: unknown;
+};
+
 export type InitialSettingsDraft = {
-  theme: "light" | "dark" | "system";
-  accent: string;
+  theme: ThemeChoice;
   clinicName: string;
   crp: string;
   address: string;
+  professionalAddress: ProfessionalAddress | null;
   bio: string;
-  calendarSyncEnabled: boolean;
-  gmailSendEnabled: boolean;
-  neurofinanceIntroChoice: "create_now" | "later" | "";
+  googleWorkspaceChoice: GoogleChoice;
+  neurofinanceIntroChoice: NeuroFinanceChoice;
 };
-
-type WizardStep = "style" | "profile" | "connections" | "neurofinance";
 
 const fadeStep: Variants = {
   hidden: { opacity: 0, y: 16, scale: 0.985 },
@@ -59,33 +84,27 @@ const fadeStep: Variants = {
   exit: { opacity: 0, y: -10, scale: 0.99, transition: { duration: 0.18 } },
 };
 
-const steps: Array<{ id: WizardStep; label: string; icon: typeof Sparkles }> = [
-  { id: "style", label: "Estilo", icon: Palette },
+const steps: Array<{ id: WizardStep; label: string; icon: LucideIcon }> = [
+  { id: "style", label: "Estilo", icon: Sparkles },
   { id: "profile", label: "Perfil", icon: ShieldCheck },
   { id: "connections", label: "Conexões", icon: CalendarClock },
   { id: "neurofinance", label: "NeuroFinance", icon: Wallet },
 ];
 
-const accents = [
-  { id: "mono", label: "Mono", className: "bg-zinc-950 dark:bg-white" },
-  { id: "graphite", label: "Grafite", className: "bg-zinc-600" },
-  { id: "emerald", label: "Verde", className: "bg-emerald-500" },
-  { id: "amber", label: "Dourado", className: "bg-amber-400" },
-];
-
-const storageKeyFor = (userId?: string | null) => `neuronex.initial-settings.v1:${userId || "anonymous"}`;
-
 const emptyDraft: InitialSettingsDraft = {
   theme: "system",
-  accent: "mono",
   clinicName: "",
   crp: "",
   address: "",
+  professionalAddress: null,
   bio: "",
-  calendarSyncEnabled: false,
-  gmailSendEnabled: false,
+  googleWorkspaceChoice: "",
   neurofinanceIntroChoice: "",
 };
+
+function storageKeyFor(userId?: string | null) {
+  return `neuronex.initial-settings.v2:${userId || "anonymous"}`;
+}
 
 function readStoredDraft(userId?: string | null) {
   if (typeof window === "undefined") return emptyDraft;
@@ -103,23 +122,68 @@ function removeStoredDraft(userId?: string | null) {
   window.localStorage.removeItem(storageKeyFor(userId));
 }
 
+function maskCrp(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+}
+
+function isValidCrp(value: string) {
+  if (!value.trim()) return true;
+  return /^\d{2}\/\d{4,6}$/.test(value.trim());
+}
+
+function isValidWizardStep(value: string | null): value is WizardStep {
+  return Boolean(value && steps.some((item) => item.id === value));
+}
+
+async function invokeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(name, { body });
+  if (!error) return data as T;
+
+  let message = error.message || "Não foi possível concluir esta ação.";
+  const context = (error as { context?: Response }).context;
+  if (context) {
+    try {
+      const payload = await context.clone().json();
+      if (typeof payload?.error === "string") message = payload.error;
+    } catch {
+      // Keep default message.
+    }
+  }
+  throw new Error(message);
+}
+
 export default function InitialSettings() {
   const navigate = useNavigate();
+  const location = useLocation();
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const { profile } = useProfile();
   const { startTour } = useTour();
   const { theme, setTheme } = useTheme();
-  const { isConnected: isGoogleConnected, isLoading: isGoogleLoading, connectGoogle, connectionEmail } = useGoogleAuth();
+  const { plan, isDevAccount } = useSubscription();
+  const {
+    isConnected: isGoogleConnected,
+    isLoading: isGoogleLoading,
+    connectGoogle,
+    connectionEmail,
+  } = useGoogleAuth();
+
   const [step, setStep] = useState<WizardStep>("style");
   const [draft, setDraftState] = useState<InitialSettingsDraft>(() => readStoredDraft(user?.id));
   const [saving, setSaving] = useState(false);
   const [hydratedFromProfile, setHydratedFromProfile] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [validatingAddressId, setValidatingAddressId] = useState<string | null>(null);
 
   const currentIndex = steps.findIndex((item) => item.id === step);
   const progress = ((currentIndex + 1) / steps.length) * 100;
   const isDarkTheme = theme === "dark";
   const logoSrc = isDarkTheme ? "/favicon-light.png" : "/favicon-dark.png";
+  const canCreateNeuroFinance = isDevAccount || plan === "Professional" || plan === "Enterprise";
 
   const shellClass = isDarkTheme ? "bg-[#020202] text-white" : "bg-[#f8f8f6] text-[#171514]";
   const frameClass = isDarkTheme
@@ -138,6 +202,12 @@ export default function InitialSettings() {
   const mutedPanelClass = isDarkTheme
     ? "border-black/10 bg-black/[0.035] text-[#171514]"
     : "border-white/15 bg-white/[0.035] text-white";
+  const activePanelClass = isDarkTheme
+    ? "border-black bg-black text-white shadow-[0_18px_46px_-34px_rgba(0,0,0,0.65)]"
+    : "border-white bg-white text-black shadow-[0_18px_46px_-34px_rgba(255,255,255,0.35)]";
+  const primaryActionClass = isDarkTheme
+    ? "bg-black text-white hover:bg-zinc-950"
+    : "bg-white text-black hover:bg-zinc-100";
 
   const firstName = useMemo(() => {
     const name = profile?.first_name || profile?.full_name || user?.email || "profissional";
@@ -153,29 +223,119 @@ export default function InitialSettings() {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const stepParam = params.get("step");
+    if (isValidWizardStep(stepParam)) setStep(stepParam);
+    if (params.get("google") === "success" || params.get("status") === "success") {
+      setDraft({ googleWorkspaceChoice: "connect" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
+  useEffect(() => {
     if (!profile || hydratedFromProfile) return;
     const stored = readStoredDraft(user?.id);
-    const hasStored = Object.values(stored).some((value) => Boolean(value));
+    const hasStored = JSON.stringify(stored) !== JSON.stringify(emptyDraft);
+    const savedAddress = (profile.professional_address || {}) as ProfessionalAddress;
+
     setDraftState({
       ...emptyDraft,
       ...stored,
+      theme: hasStored ? stored.theme : "system",
       clinicName: hasStored ? stored.clinicName : profile.clinic_name || "",
       crp: hasStored ? stored.crp : profile.crp || "",
-      address: hasStored ? stored.address : profile.address || "",
+      address: hasStored ? stored.address : profile.address || savedAddress.label || "",
+      professionalAddress: hasStored ? stored.professionalAddress : savedAddress.label ? savedAddress : null,
       bio: hasStored ? stored.bio : profile.bio || "",
-      calendarSyncEnabled: hasStored ? stored.calendarSyncEnabled : Boolean(profile.calendar_sync_enabled),
-      gmailSendEnabled: hasStored ? stored.gmailSendEnabled : Boolean(profile.gmail_send_enabled),
+      googleWorkspaceChoice: hasStored
+        ? stored.googleWorkspaceChoice
+        : profile.calendar_sync_enabled && profile.gmail_send_enabled
+          ? "connect"
+          : "",
       neurofinanceIntroChoice: hasStored ? stored.neurofinanceIntroChoice : profile.neurofinance_intro_choice || "",
     });
     setHydratedFromProfile(true);
   }, [hydratedFromProfile, profile, user?.id]);
 
   useEffect(() => {
-    setDraft({ theme: draft.theme || "system" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!draft.address || draft.professionalAddress?.label === draft.address) {
+      setAddressSuggestions([]);
+      setAddressError(null);
+      return;
+    }
+
+    if (draft.address.trim().length < 3) {
+      setAddressSuggestions([]);
+      setAddressError(null);
+      return;
+    }
+
+    setAddressLoading(true);
+    setAddressError(null);
+    const timer = window.setTimeout(() => {
+      void invokeFunction<{ suggestions: AddressSuggestion[]; message?: string }>("address-autocomplete", {
+        query: draft.address,
+      })
+        .then((result) => {
+          setAddressSuggestions(result.suggestions || []);
+          setAddressError(result.message || null);
+        })
+        .catch((error) => {
+          setAddressSuggestions([]);
+          setAddressError(error instanceof Error ? error.message : "Não conseguimos buscar endereços agora.");
+        })
+        .finally(() => setAddressLoading(false));
+    }, 450);
+
+    return () => {
+      window.clearTimeout(timer);
+      setAddressLoading(false);
+    };
+  }, [draft.address, draft.professionalAddress?.label]);
+
+  const selectAddress = async (suggestion: AddressSuggestion) => {
+    setValidatingAddressId(suggestion.id);
+    try {
+      const result = await invokeFunction<{ valid: boolean; address: ProfessionalAddress; error?: string }>(
+        "address-validate",
+        {
+          suggestion,
+        },
+      );
+      if (!result.valid || !result.address?.label) {
+        throw new Error(result.error || "Selecione um endereço válido.");
+      }
+      setDraft({ address: result.address.label, professionalAddress: result.address });
+      setAddressSuggestions([]);
+      setAddressError(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não conseguimos validar este endereço.");
+    } finally {
+      setValidatingAddressId(null);
+    }
+  };
 
   const goNext = () => {
+    if (step === "profile") {
+      if (!isValidCrp(draft.crp)) {
+        toast.error("Use o formato CRP 00/000000 ou deixe o campo em branco.");
+        return;
+      }
+      if (draft.address.trim() && draft.professionalAddress?.label !== draft.address.trim()) {
+        toast.error("Selecione um endereço profissional válido da lista.");
+        return;
+      }
+    }
+
+    if (step === "connections") {
+      if (isGoogleConnected) {
+        setDraft({ googleWorkspaceChoice: "connect" });
+      } else if (!draft.googleWorkspaceChoice) {
+        toast.error("Escolha conectar Google Agenda e Gmail ou deixar para depois.");
+        return;
+      }
+    }
+
     const next = steps[currentIndex + 1]?.id;
     if (next) setStep(next);
   };
@@ -190,47 +350,31 @@ export default function InitialSettings() {
       toast.error("Sessão expirada. Entre novamente.");
       return;
     }
-    if (!draft.neurofinanceIntroChoice) {
+
+    const neurofinanceChoice =
+      draft.neurofinanceIntroChoice || (canCreateNeuroFinance ? "" : "later");
+
+    if (!neurofinanceChoice) {
       toast.error("Escolha se quer criar a conta bancária agora ou deixar para depois.");
       return;
     }
 
     setSaving(true);
     try {
-      const now = new Date().toISOString();
-      const payload = {
-        id: user.id,
-        clinic_name: draft.clinicName.trim() || null,
-        crp: draft.crp.trim() || null,
-        address: draft.address.trim() || null,
-        bio: draft.bio.trim() || null,
-        setup_completed: true,
-        calendar_sync_enabled: draft.calendarSyncEnabled && isGoogleConnected,
-        gmail_send_enabled: draft.gmailSendEnabled && isGoogleConnected,
-        neurofinance_intro_choice: draft.neurofinanceIntroChoice,
-        initial_preferences: {
-          theme: draft.theme,
-          accent: draft.accent,
-          calendar_sync_requested: draft.calendarSyncEnabled,
-          gmail_send_requested: draft.gmailSendEnabled,
-          google_connected: isGoogleConnected,
-          google_email: connectionEmail,
-          welcome_tour_requested: true,
-        },
-        updated_at: now,
-      };
+      const googleChoice = isGoogleConnected ? "connect" : draft.googleWorkspaceChoice || "skip";
+      const result = await invokeFunction<{ success: boolean; error?: string }>("initial-settings-save", {
+        theme: draft.theme,
+        clinicName: draft.clinicName,
+        crp: draft.crp,
+        address: draft.address,
+        professionalAddress: draft.professionalAddress || {},
+        bio: draft.bio,
+        googleChoice,
+        googleConnected: isGoogleConnected,
+        neurofinanceIntroChoice: neurofinanceChoice,
+      });
 
-      const update = await supabase
-        .from("profiles")
-        .update(payload)
-        .eq("id", user.id)
-        .select("id")
-        .maybeSingle();
-
-      if (update.error || !update.data?.id) {
-        const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
-        if (error) throw error;
-      }
+      if (!result.success) throw new Error(result.error || "Não foi possível salvar suas configurações.");
 
       removeStoredDraft(user.id);
       toast.success("Configurações iniciais salvas.");
@@ -255,12 +399,7 @@ export default function InitialSettings() {
         )}
       >
         {!isMobile ? (
-          <InitialSettingsRail
-            logoSrc={logoSrc}
-            firstName={firstName}
-            step={step}
-            progress={progress}
-          />
+          <InitialSettingsRail logoSrc={logoSrc} firstName={firstName} step={step} progress={progress} />
         ) : (
           <div className="flex min-h-[7.2rem] flex-col items-center justify-start gap-3 pt-1">
             <img src={logoSrc} alt="NeuroNex AI" className="h-14 w-14 object-contain" />
@@ -301,11 +440,11 @@ export default function InitialSettings() {
                   key="style"
                   draft={draft}
                   mutedPanelClass={mutedPanelClass}
+                  activePanelClass={activePanelClass}
                   onTheme={(next) => {
                     setTheme(next);
                     setDraft({ theme: next });
                   }}
-                  onAccent={(accent) => setDraft({ accent })}
                 />
               ) : null}
 
@@ -314,6 +453,11 @@ export default function InitialSettings() {
                   key="profile"
                   draft={draft}
                   inputClass={inputClass}
+                  addressSuggestions={addressSuggestions}
+                  addressLoading={addressLoading}
+                  addressError={addressError}
+                  validatingAddressId={validatingAddressId}
+                  onSelectAddress={(suggestion) => void selectAddress(suggestion)}
                   onChange={setDraft}
                 />
               ) : null}
@@ -323,11 +467,15 @@ export default function InitialSettings() {
                   key="connections"
                   draft={draft}
                   mutedPanelClass={mutedPanelClass}
+                  activePanelClass={activePanelClass}
                   isGoogleConnected={isGoogleConnected}
                   isGoogleLoading={isGoogleLoading}
                   connectionEmail={connectionEmail}
                   onChange={setDraft}
-                  onConnectGoogle={() => void connectGoogle()}
+                  onConnectGoogle={() => {
+                    setDraft({ googleWorkspaceChoice: "connect" });
+                    void connectGoogle({ returnTo: "/initial-settings?step=neurofinance&google=success" });
+                  }}
                 />
               ) : null}
 
@@ -336,6 +484,9 @@ export default function InitialSettings() {
                   key="neurofinance"
                   draft={draft}
                   mutedPanelClass={mutedPanelClass}
+                  activePanelClass={activePanelClass}
+                  canCreateNeuroFinance={canCreateNeuroFinance}
+                  plan={plan}
                   onChange={setDraft}
                 />
               ) : null}
@@ -357,7 +508,7 @@ export default function InitialSettings() {
                   type="button"
                   disabled={saving}
                   onClick={() => void saveAndFinish()}
-                  className="h-12 rounded-[16px] bg-current text-[10px] font-black uppercase tracking-[0.12em] text-background hover:opacity-90"
+                  className={cn("h-12 rounded-[16px] text-[10px] font-black uppercase tracking-[0.12em]", primaryActionClass)}
                 >
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                   Finalizar
@@ -366,7 +517,7 @@ export default function InitialSettings() {
                 <Button
                   type="button"
                   onClick={goNext}
-                  className="h-12 rounded-[16px] bg-current text-[10px] font-black uppercase tracking-[0.12em] text-background hover:opacity-90"
+                  className={cn("h-12 rounded-[16px] text-[10px] font-black uppercase tracking-[0.12em]", primaryActionClass)}
                 >
                   Próximo
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -436,18 +587,18 @@ function InitialSettingsRail({
 function StyleStep({
   draft,
   mutedPanelClass,
+  activePanelClass,
   onTheme,
-  onAccent,
 }: {
   draft: InitialSettingsDraft;
   mutedPanelClass: string;
-  onTheme: (theme: InitialSettingsDraft["theme"]) => void;
-  onAccent: (accent: string) => void;
+  activePanelClass: string;
+  onTheme: (theme: ThemeChoice) => void;
 }) {
   const themes = [
-    { id: "light" as const, label: "Claro", icon: Sun },
-    { id: "dark" as const, label: "Escuro", icon: Moon },
-    { id: "system" as const, label: "Sistema", icon: Monitor },
+    { id: "light" as const, label: "Claro", icon: Sun, description: "Interface clara e limpa." },
+    { id: "dark" as const, label: "Escuro", icon: Moon, description: "Contraste premium para ambientes escuros." },
+    { id: "system" as const, label: "Sistema", icon: Monitor, description: "Segue o tema do aparelho." },
   ];
 
   return (
@@ -455,7 +606,7 @@ function StyleStep({
       <StepHeading
         eyebrow="Preferências"
         title="Escolha como o NeuroNex deve se sentir."
-        description="Você pode mudar tema e estilo visual depois em Ajustes."
+        description="Você pode mudar o tema depois em Ajustes. Mantemos a identidade visual da NeuroNex em todos os modos."
       />
       <div className="grid gap-3">
         {themes.map((item) => {
@@ -467,40 +618,22 @@ function StyleStep({
               onClick={() => onTheme(item.id)}
               className={cn(
                 "flex min-h-[4.25rem] items-center justify-between rounded-[22px] border p-4 text-left transition-all active:scale-[0.99]",
-                active ? "border-current bg-current text-background" : mutedPanelClass,
+                active ? activePanelClass : mutedPanelClass,
               )}
             >
               <span className="flex items-center gap-3">
                 <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-current/10">
                   <item.icon className="h-5 w-5" />
                 </span>
-                <span className="text-sm font-black">{item.label}</span>
+                <span>
+                  <span className="block text-sm font-black">{item.label}</span>
+                  <span className="mt-1 block text-[11px] font-semibold opacity-55">{item.description}</span>
+                </span>
               </span>
               {active ? <Check className="h-5 w-5" /> : null}
             </button>
           );
         })}
-      </div>
-      <div>
-        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.16em] text-current/45">Acento visual</p>
-        <div className="grid grid-cols-4 gap-2">
-          {accents.map((accent) => {
-            const active = draft.accent === accent.id;
-            return (
-              <button
-                key={accent.id}
-                type="button"
-                onClick={() => onAccent(accent.id)}
-                className={cn("rounded-[20px] border p-3 text-center transition-all", active ? "border-current bg-current/[0.08]" : "border-current/10")}
-              >
-                <span className={cn("mx-auto block h-8 w-8 rounded-full", accent.className)} />
-                <span className="mt-2 block text-[9px] font-black uppercase tracking-[0.12em] text-current/52">
-                  {accent.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
       </div>
     </motion.div>
   );
@@ -509,10 +642,20 @@ function StyleStep({
 function ProfileStep({
   draft,
   inputClass,
+  addressSuggestions,
+  addressLoading,
+  addressError,
+  validatingAddressId,
+  onSelectAddress,
   onChange,
 }: {
   draft: InitialSettingsDraft;
   inputClass: string;
+  addressSuggestions: AddressSuggestion[];
+  addressLoading: boolean;
+  addressError: string | null;
+  validatingAddressId: string | null;
+  onSelectAddress: (suggestion: AddressSuggestion) => void;
   onChange: (updates: Partial<InitialSettingsDraft>) => void;
 }) {
   return (
@@ -531,23 +674,64 @@ function ProfileStep({
             className={cn("h-12", inputClass)}
           />
         </WizardField>
-        <WizardField label="CRP">
+
+        <WizardField label="CRP (opcional)">
           <Input
             value={draft.crp}
-            onChange={(event) => onChange({ crp: event.target.value })}
-            placeholder="CRP 00/000000"
+            onChange={(event) => onChange({ crp: maskCrp(event.target.value) })}
+            placeholder="00/000000"
+            inputMode="numeric"
             className={cn("h-12", inputClass)}
           />
+          {draft.crp && !isValidCrp(draft.crp) ? (
+            <p className="mt-2 text-[11px] font-bold text-red-500">Use o formato 00/000000.</p>
+          ) : null}
         </WizardField>
+
         <WizardField label="Endereço profissional">
-          <Input
-            value={draft.address}
-            onChange={(event) => onChange({ address: event.target.value })}
-            placeholder="Rua, número, cidade e UF"
-            className={cn("h-12", inputClass)}
-          />
+          <div className="relative">
+            <Input
+              value={draft.address}
+              onChange={(event) => onChange({ address: event.target.value, professionalAddress: null })}
+              placeholder="Busque pelo endereço ou CEP"
+              className={cn("h-12 pr-11", inputClass)}
+            />
+            <span className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[10px] text-current/50">
+              {addressLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </span>
+          </div>
+          {draft.professionalAddress?.label === draft.address ? (
+            <p className="mt-2 flex items-center gap-2 text-[11px] font-bold text-emerald-500">
+              <Check className="h-3.5 w-3.5" />
+              Endereço validado.
+            </p>
+          ) : null}
+          {addressError ? <p className="mt-2 text-[11px] font-bold text-current/45">{addressError}</p> : null}
+          {addressSuggestions.length > 0 ? (
+            <div className="mt-2 overflow-hidden rounded-[18px] border border-current/10 bg-current/[0.04]">
+              {addressSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  onClick={() => onSelectAddress(suggestion)}
+                  className="flex w-full items-center gap-3 border-b border-current/8 px-3 py-3 text-left text-xs font-bold last:border-b-0 hover:bg-current/10"
+                >
+                  {validatingAddressId === suggestion.id ? (
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  ) : (
+                    <MapPin className="h-4 w-4 shrink-0" />
+                  )}
+                  <span>{suggestion.label}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <p className="mt-2 text-[10px] font-semibold leading-relaxed text-current/40">
+            Se não quiser informar agora, deixe em branco. Se digitar, selecione um endereço validado.
+          </p>
         </WizardField>
-        <WizardField label="Como você quer se apresentar">
+
+        <WizardField label="Como você quer se apresentar (opcional)">
           <Textarea
             value={draft.bio}
             onChange={(event) => onChange({ bio: event.target.value })}
@@ -563,6 +747,7 @@ function ProfileStep({
 function ConnectionsStep({
   draft,
   mutedPanelClass,
+  activePanelClass,
   isGoogleConnected,
   isGoogleLoading,
   connectionEmail,
@@ -571,54 +756,46 @@ function ConnectionsStep({
 }: {
   draft: InitialSettingsDraft;
   mutedPanelClass: string;
+  activePanelClass: string;
   isGoogleConnected: boolean;
   isGoogleLoading: boolean;
   connectionEmail: string | null;
   onChange: (updates: Partial<InitialSettingsDraft>) => void;
   onConnectGoogle: () => void;
 }) {
+  const connectActive = isGoogleConnected || draft.googleWorkspaceChoice === "connect";
   return (
     <motion.div variants={fadeStep} initial="hidden" animate="visible" exit="exit" className="space-y-7">
       <StepHeading
         eyebrow="Agenda e Gmail"
-        title="Conecte só o que fizer sentido agora."
-        description="A integração Google pode sincronizar agenda e permitir envio de e-mails em seu nome quando você autorizar."
+        title="Conecte os dois juntos ou deixe para depois."
+        description="Hoje a NeuroNex usa Google Agenda e Gmail como um pacote único de permissão."
       />
-      <div className="space-y-3">
-        <ToggleCard
+      <div className="grid gap-3">
+        <ChoiceCard
+          active={connectActive}
           icon={CalendarClock}
-          title="Sincronizar agenda"
-          description="Trazer compromissos do Google Calendar e reduzir retrabalho."
-          checked={draft.calendarSyncEnabled}
-          onCheckedChange={(checked) => onChange({ calendarSyncEnabled: checked })}
-          mutedPanelClass={mutedPanelClass}
+          title={isGoogleConnected ? "Google conectado" : "Conectar Google Agenda e Gmail"}
+          description={
+            isGoogleConnected
+              ? `Pronto${connectionEmail ? `: ${connectionEmail}` : ""}.`
+              : "Sincroniza agenda e permite envio de e-mails quando você pedir."
+          }
+          loading={isGoogleLoading && draft.googleWorkspaceChoice === "connect"}
+          activeClassName={activePanelClass}
+          onClick={isGoogleConnected ? () => onChange({ googleWorkspaceChoice: "connect" }) : onConnectGoogle}
         />
-        <ToggleCard
+        <ChoiceCard
+          active={!isGoogleConnected && draft.googleWorkspaceChoice === "skip"}
           icon={Mail}
-          title="Permitir envio pelo Gmail"
-          description="Usar seu Gmail para mensagens e convites quando você solicitar."
-          checked={draft.gmailSendEnabled}
-          onCheckedChange={(checked) => onChange({ gmailSendEnabled: checked })}
-          mutedPanelClass={mutedPanelClass}
+          title="Agora não"
+          description="Sem problemas. Você pode conectar depois em Ajustes."
+          activeClassName={activePanelClass}
+          onClick={() => onChange({ googleWorkspaceChoice: "skip" })}
         />
       </div>
-      <div className={cn("rounded-[24px] border p-4", mutedPanelClass)}>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-black">Google Workspace</p>
-            <p className="mt-1 text-[11px] font-semibold leading-relaxed text-current/50">
-              {isGoogleConnected ? `Conectado${connectionEmail ? `: ${connectionEmail}` : ""}` : "Conecte agora ou deixe para depois em Ajustes."}
-            </p>
-          </div>
-          <Button
-            type="button"
-            disabled={isGoogleLoading || isGoogleConnected}
-            onClick={onConnectGoogle}
-            className="h-11 rounded-[14px] bg-current px-4 text-[10px] font-black uppercase tracking-[0.12em] text-background"
-          >
-            {isGoogleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : isGoogleConnected ? "Conectado" : "Conectar"}
-          </Button>
-        </div>
+      <div className={cn("rounded-[24px] border p-4 text-xs font-semibold leading-relaxed text-current/55", mutedPanelClass)}>
+        Ao conectar, pediremos os dois escopos necessários de uma vez. Não existe seleção separada nesta versão.
       </div>
     </motion.div>
   );
@@ -627,10 +804,16 @@ function ConnectionsStep({
 function NeuroFinanceIntroStep({
   draft,
   mutedPanelClass,
+  activePanelClass,
+  canCreateNeuroFinance,
+  plan,
   onChange,
 }: {
   draft: InitialSettingsDraft;
   mutedPanelClass: string;
+  activePanelClass: string;
+  canCreateNeuroFinance: boolean;
+  plan: string;
   onChange: (updates: Partial<InitialSettingsDraft>) => void;
 }) {
   return (
@@ -638,21 +821,40 @@ function NeuroFinanceIntroStep({
       <StepHeading
         eyebrow="NeuroFinance"
         title="Quer preparar sua conta bancária agora?"
-        description="A Gestão Financeira já funciona sem isso. A conta NeuroFinance libera operações bancárias depois da aprovação."
+        description="A gestão financeira já funciona sem isso. A conta NeuroFinance libera operações bancárias depois da aprovação."
       />
+      {!canCreateNeuroFinance ? (
+        <div className={cn("rounded-[24px] border p-4", mutedPanelClass)}>
+          <div className="flex items-start gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-current/10">
+              <Crown className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-black">Disponível nos planos Profissional e Enterprise</p>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-current/55">
+                Seu plano atual é {plan}. Vamos deixar salvo para depois e você pode fazer upgrade quando quiser.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="grid gap-3">
+        {canCreateNeuroFinance ? (
+          <ChoiceCard
+            active={draft.neurofinanceIntroChoice === "create_now"}
+            icon={Wallet}
+            title="Criar conta bancária"
+            description="Salvamos sua intenção e abrimos o onboarding bancário depois do tour."
+            activeClassName={activePanelClass}
+            onClick={() => onChange({ neurofinanceIntroChoice: "create_now" })}
+          />
+        ) : null}
         <ChoiceCard
-          active={draft.neurofinanceIntroChoice === "create_now"}
-          icon={Wallet}
-          title="Criar conta bancária"
-          description="Você vai para o onboarding bancário após conhecer o app."
-          onClick={() => onChange({ neurofinanceIntroChoice: "create_now" })}
-        />
-        <ChoiceCard
-          active={draft.neurofinanceIntroChoice === "later"}
+          active={draft.neurofinanceIntroChoice === "later" || !canCreateNeuroFinance}
           icon={Gem}
           title="Agora não"
           description="Deixe isso salvo e configure quando fizer sentido."
+          activeClassName={activePanelClass}
           onClick={() => onChange({ neurofinanceIntroChoice: "later" })}
         />
       </div>
@@ -690,50 +892,21 @@ function WizardField({ label, children }: { label: string; children: React.React
   );
 }
 
-function ToggleCard({
-  icon: Icon,
-  title,
-  description,
-  checked,
-  onCheckedChange,
-  mutedPanelClass,
-}: {
-  icon: typeof Sparkles;
-  title: string;
-  description: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  mutedPanelClass: string;
-}) {
-  return (
-    <div className={cn("rounded-[24px] border p-4", mutedPanelClass)}>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-current/10">
-            <Icon className="h-5 w-5" />
-          </span>
-          <div>
-            <p className="text-sm font-black">{title}</p>
-            <p className="mt-1 text-[11px] font-semibold leading-relaxed text-current/50">{description}</p>
-          </div>
-        </div>
-        <Switch checked={checked} onCheckedChange={onCheckedChange} />
-      </div>
-    </div>
-  );
-}
-
 function ChoiceCard({
   active,
   icon: Icon,
   title,
   description,
+  loading = false,
+  activeClassName,
   onClick,
 }: {
   active: boolean;
-  icon: typeof Sparkles;
+  icon: LucideIcon;
   title: string;
   description: string;
+  loading?: boolean;
+  activeClassName: string;
   onClick: () => void;
 }) {
   return (
@@ -742,12 +915,12 @@ function ChoiceCard({
       onClick={onClick}
       className={cn(
         "flex min-h-[5rem] items-center justify-between gap-4 rounded-[24px] border p-4 text-left transition-all active:scale-[0.99]",
-        active ? "border-current bg-current text-background" : "border-current/12 bg-current/[0.035] text-current",
+        active ? activeClassName : "border-current/12 bg-current/[0.035] text-current",
       )}
     >
       <span className="flex items-center gap-3">
         <span className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-current/10">
-          <Icon className="h-5 w-5" />
+          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Icon className="h-5 w-5" />}
         </span>
         <span>
           <span className="block text-sm font-black">{title}</span>

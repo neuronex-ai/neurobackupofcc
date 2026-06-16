@@ -9,14 +9,22 @@ import { Button } from "@/components/ui/button";
 const GoogleConnectionSuccess = () => {
     const navigate = useNavigate();
     const [countdown, setCountdown] = useState(5);
+    const params = new URLSearchParams(window.location.search);
+    const rawReturnTo = params.get("returnTo") || "/ajustes?status=success&service=google";
+    const returnTo = rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
+        ? rawReturnTo
+        : "/ajustes?status=success&service=google";
+
+    const successTarget = returnTo.includes("status=success")
+        ? returnTo
+        : `${returnTo}${returnTo.includes("?") ? "&" : "?"}status=success&service=google`;
 
     useEffect(() => {
         const timer = setInterval(() => {
             setCountdown((prev) => {
                 if (prev <= 1) {
                     clearInterval(timer);
-                    // Pass query params so the hook detects success
-                    navigate("/ajustes?status=success&service=google");
+                    navigate(successTarget, { replace: true });
                     return 0;
                 }
                 return prev - 1;
@@ -24,7 +32,7 @@ const GoogleConnectionSuccess = () => {
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [navigate]);
+    }, [navigate, successTarget]);
 
     return (
         <div className="min-h-screen bg-background flex items-center justify-center p-8 relative overflow-hidden font-sans">
@@ -107,7 +115,7 @@ const GoogleConnectionSuccess = () => {
                     </div>
 
                     <Button
-                        onClick={() => navigate("/ajustes?status=success&service=google")}
+                        onClick={() => navigate(successTarget, { replace: true })}
                         className="bg-foreground text-background hover:opacity-90 h-14 px-8 rounded-full font-bold uppercase tracking-widest text-[11px]"
                     >
                         <Settings className="w-4 h-4 mr-3" />

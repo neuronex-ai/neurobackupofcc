@@ -482,9 +482,10 @@ function IdentityStep({
             placeholder="voce@exemplo.com"
             className={inputClass}
           />
+          <EmailAvailabilityHint availability={emailAvailability} kind="primary" />
         </AuthField>
 
-        <AuthField label="E-mail de recuperação">
+        <AuthField label="E-mail de recuperação (opcional)">
           <Input
             value={draft.recoveryEmail}
             onChange={(event) => onChange("recoveryEmail", event.target.value)}
@@ -494,6 +495,7 @@ function IdentityStep({
             placeholder="email.alternativo@email.com"
             className={inputClass}
           />
+          <EmailAvailabilityHint availability={recoveryEmailAvailability} kind="recovery" />
         </AuthField>
 
         <AuthField label="Celular / WhatsApp">
@@ -568,7 +570,7 @@ function IdentityStep({
 
       <Button
         type="button"
-        disabled={loading}
+        disabled={loading || emailAvailability.status === "checking" || emailAvailability.status === "exists"}
         onClick={() => void onSubmit()}
         className={cn("h-14 w-full rounded-[12px] text-[11px] font-black uppercase tracking-[0.2em]", actionButtonClass)}
       >
@@ -623,7 +625,7 @@ function PasswordStep({
       <div>
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-current/42">E-mail confirmado</p>
         <h2 className="mt-2 text-[2rem] font-black leading-[0.95] tracking-[-0.06em]">
-          Parabéns, {firstName}. Sua conta foi criada.
+          Perfeito, {firstName}. Agora vamos criar sua senha.
         </h2>
         <p className="mt-3 text-sm font-semibold leading-relaxed text-current/56">
           Agora crie uma senha para acessar a NeuroNex com segurança.
@@ -877,6 +879,67 @@ function AuthField({ label, children }: { label: string; children: React.ReactNo
       {children}
     </label>
   );
+}
+
+function EmailAvailabilityHint({
+  availability,
+  kind,
+}: {
+  availability: EmailAvailability;
+  kind: "primary" | "recovery";
+}) {
+  if (availability.status === "idle") return null;
+
+  if (availability.status === "checking") {
+    return (
+      <p className="mt-2 flex items-center gap-2 text-[11px] font-bold text-current/45">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Verificando e-mail...
+      </p>
+    );
+  }
+
+  if (availability.status === "invalid") {
+    return <p className="mt-2 text-[11px] font-bold text-red-500">{availability.message || "Digite um e-mail válido."}</p>;
+  }
+
+  if (availability.status === "error") {
+    return (
+      <p className="mt-2 text-[11px] font-bold text-amber-500">
+        {availability.message || "Não conseguimos verificar agora. Vamos validar ao avançar."}
+      </p>
+    );
+  }
+
+  if (kind === "primary" && availability.status === "exists") {
+    return (
+      <p className="mt-2 text-[11px] font-bold text-red-500">
+        Já existe uma conta com este e-mail.{" "}
+        <Link to="/auth?role=pro" className="underline underline-offset-4">
+          Fazer login
+        </Link>
+      </p>
+    );
+  }
+
+  if (kind === "recovery" && availability.status === "exists") {
+    return (
+      <p className="mt-2 text-[11px] font-bold text-current/45">
+        {availability.message || "Pode usar como e-mail de recuperação."}
+      </p>
+    );
+  }
+
+  if (availability.status === "available") {
+    return (
+      <p className="mt-2 flex items-center gap-2 text-[11px] font-bold text-emerald-500">
+        <Check className="h-3.5 w-3.5" />
+        {kind === "primary" ? "E-mail disponível." : "E-mail de recuperação válido."}
+      </p>
+    );
+  }
+
+  return null;
 }
 
 function PasswordInput({

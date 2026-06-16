@@ -17,6 +17,13 @@ const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
+function sanitizeReturnTo(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\\\")) {
+    return "/ajustes?status=success&service=google";
+  }
+  return value;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -51,6 +58,9 @@ serve(async (req) => {
       );
     }
 
+    const requestUrl = new URL(req.url);
+    const returnTo = sanitizeReturnTo(requestUrl.searchParams.get("returnTo"));
+
     console.log("[google-auth-init] Generating OAuth URL for user:", user.id);
 
     // Redirect URI must match Google Cloud Console configuration
@@ -65,7 +75,7 @@ serve(async (req) => {
     }
 
     // Create state with user ID (base64 encoded JSON)
-    const stateData = { userId: user.id, timestamp: Date.now() };
+    const stateData = { userId: user.id, timestamp: Date.now(), returnTo };
     const state = btoa(JSON.stringify(stateData));
 
     const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");

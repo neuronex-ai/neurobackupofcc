@@ -102,7 +102,7 @@ export const useGoogleAuth = () => {
     }
   }, [checkConnectionStatus]);
 
-  const connectGoogle = useCallback(async () => {
+  const connectGoogle = useCallback(async (options?: { returnTo?: string }) => {
     if (!session) {
       toast.error("Usuário não autenticado. Faça login primeiro.");
       return;
@@ -111,7 +111,10 @@ export const useGoogleAuth = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(GOOGLE_AUTH_INIT_URL, {
+      const url = new URL(GOOGLE_AUTH_INIT_URL);
+      if (options?.returnTo) url.searchParams.set('returnTo', options.returnTo);
+
+      const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,

@@ -52,6 +52,7 @@ export interface Profile {
   setup_completed?: boolean;
   signup_completed_at?: string | null;
   initial_preferences?: Record<string, unknown> | null;
+  professional_address?: Record<string, unknown> | null;
   calendar_sync_enabled?: boolean;
   gmail_send_enabled?: boolean;
   neurofinance_intro_choice?: 'create_now' | 'later' | string | null;
