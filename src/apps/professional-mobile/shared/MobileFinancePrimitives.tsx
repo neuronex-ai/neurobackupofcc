@@ -312,7 +312,7 @@ export function MobileMetricCard({
     </>
   );
 
-  const classes = cn("min-h-[142px] rounded-[22px] border p-4 text-left", styles.surface, onClick && "transition active:scale-[0.99]");
+  const classes = cn("min-h-[132px] rounded-[20px] border p-3.5 text-left", styles.surface, onClick && "transition active:scale-[0.99]");
 
   if (onClick) {
     return (
@@ -350,14 +350,14 @@ export function MobileActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex min-h-[118px] flex-col items-start justify-between rounded-[22px] border p-4 text-left transition active:scale-[0.985]",
+        "flex min-h-[106px] flex-col items-start justify-between rounded-[20px] border p-3.5 text-left transition active:scale-[0.985]",
         styles.surface,
         disabled && "cursor-not-allowed opacity-45",
       )}
     >
       <div className="flex w-full items-start justify-between gap-2">
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-[14px]", styles.icon)}>
-          <Icon className="h-[18px] w-[18px]" />
+        <div className={cn("flex h-9 w-9 items-center justify-center rounded-[13px]", styles.icon)}>
+          <Icon className="h-4 w-4" />
         </div>
         {badge ? (
           <span className={cn("rounded-full px-2 py-1 text-[7px] font-black uppercase tracking-[0.11em]", tone === "dark" ? "bg-background/10 text-background/68" : "bg-foreground/[0.055] text-muted-foreground")}>
@@ -365,7 +365,7 @@ export function MobileActionButton({
           </span>
         ) : null}
       </div>
-      <div className="mt-4">
+      <div className="mt-3">
         <p className={cn("text-[13px] font-black tracking-[-0.015em]", styles.text)}>{label}</p>
         {description ? (
           <p className={cn("mt-1 line-clamp-2 text-[10px] font-medium leading-relaxed", styles.muted)}>{description}</p>
