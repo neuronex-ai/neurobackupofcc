@@ -21,6 +21,23 @@ type ScannerMode = "pix" | "boleto";
 
 type ScannerState = "idle" | "starting" | "scanning" | "error" | "native";
 
+type DetectedBarcode = {
+  rawValue?: string;
+  displayValue?: string;
+};
+
+type BarcodeDetectorInstance = {
+  detect: (source: HTMLVideoElement) => Promise<DetectedBarcode[]>;
+};
+
+type BarcodeDetectorConstructor = {
+  new (options?: { formats?: string[] }): BarcodeDetectorInstance;
+};
+
+type BarcodeWindow = Window & {
+  BarcodeDetector?: BarcodeDetectorConstructor;
+};
+
 const formatHints = {
   pix: [BarcodeFormat.QR_CODE],
   boleto: [
@@ -119,6 +136,39 @@ export function MobileCodeScannerSheet({
       }
 
       setState("starting");
+      if (mode === "boleto") {
+        const nativeStarted = await startNativeBoletoScanner({
+          video: videoRef.current,
+          onDetected: async (value) => {
+            detectedRef.current = true;
+            controlsRef.current?.stop();
+            onOpenChange(false);
+            await onDetected(value);
+          },
+          onInvalid: () => {
+            const now = Date.now();
+            if (now - lastInvalidToastRef.current > 1800) {
+              lastInvalidToastRef.current = now;
+              toast.error("Codigo lido nao parece boleto. Vire o celular e enquadre as barras.");
+            }
+          },
+        }).catch((cause) => {
+          console.warn("[BoletoScanner] BarcodeDetector fallback", cause);
+          return null;
+        });
+
+        if (cancelled) {
+          nativeStarted?.stop();
+          return;
+        }
+
+        if (nativeStarted) {
+          controlsRef.current = nativeStarted;
+          setState("scanning");
+          return;
+        }
+      }
+
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, formatHints[mode]);
       hints.set(DecodeHintType.TRY_HARDER, true);
@@ -135,8 +185,9 @@ export function MobileCodeScannerSheet({
             audio: false,
             video: {
               facingMode: { ideal: "environment" },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
+              width: { ideal: mode === "boleto" ? 1920 : 1280 },
+              height: { ideal: mode === "boleto" ? 1080 : 720 },
+              aspectRatio: mode === "boleto" ? { ideal: 16 / 9 } : undefined,
             },
           },
           videoRef.current,
@@ -247,6 +298,11 @@ export function MobileCodeScannerSheet({
                 ) : null}
               </div>
             </div>
+            {mode === "boleto" ? (
+              <div className="pointer-events-none absolute left-3 right-3 top-3 rounded-full bg-black/58 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-white backdrop-blur-md">
+                Vire o celular na horizontal
+              </div>
+            ) : null}
             {isLoading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/72 text-white">
                 <Loader2 className="h-6 w-6 animate-spin" />
