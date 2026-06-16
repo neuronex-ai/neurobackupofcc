@@ -190,7 +190,7 @@ export function canAttemptNativeBiometrics() {
   return Boolean(
     bridge?.getBiometricStatus ||
       bridge?.authenticateBiometric ||
-      (isLikelyMobileDevice() && bridge),
+      isLikelyMobileDevice(),
   );
 }
 
