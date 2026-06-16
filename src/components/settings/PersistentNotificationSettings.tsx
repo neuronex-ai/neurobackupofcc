@@ -26,6 +26,11 @@ export const PersistentNotificationSettings = () => {
   const { settings, isLoading, isSaving, saveSettingsAsync } = useNotificationSettings();
   const [state, setState] = useState<Partial<NotificationSettings>>(DEFAULT_NOTIFICATION_SETTINGS);
   const [pushBusy, setPushBusy] = useState(false);
+  const pushSupported =
+    typeof window !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    typeof Notification !== 'undefined';
+  const pushPermission = pushSupported ? Notification.permission : 'default';
 
   useEffect(() => { if (settings) setState({ ...DEFAULT_NOTIFICATION_SETTINGS, ...settings, sms_enabled: false, sms_security_alerts: false, sms_appointments: false }); }, [settings]);
 
@@ -56,7 +61,7 @@ export const PersistentNotificationSettings = () => {
 
     <section className="space-y-4"><div className="flex items-center gap-4"><Monitor className="h-5 w-5" /><h3 className="text-sm font-bold uppercase tracking-widest">Dentro da NeuroNex</h3><Switch className="ml-auto" checked={Boolean(state.in_app_enabled)} onCheckedChange={(value) => setState((current) => ({ ...current, in_app_enabled: value }))} /></div>{rows.filter((row) => row.channel === 'panel').map((row) => <div key={row.key} className="flex items-center justify-between border-b border-border/10 py-4 pl-9"><div><Label>{row.label}</Label><p className="text-xs text-muted-foreground">{row.description}</p></div><Switch checked={Boolean(state[row.key])} disabled={!state.in_app_enabled} onCheckedChange={(value) => setState((current) => ({ ...current, [row.key]: value }))} /></div>)}</section>
 
-    <section className="flex items-center gap-4 rounded-[24px] border border-primary/20 bg-primary/5 p-5"><BellRing className="h-5 w-5 text-primary" /><div className="flex-1"><div className="flex items-center gap-2"><Label>Notificações nativas do navegador/PWA</Label><span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-500">DISPONÍVEL</span></div><p className="text-xs text-muted-foreground">Aparecem no Windows, Android e PWA mesmo com a aba fechada.</p></div>{pushBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Switch checked={Boolean(state.push_enabled) && Notification.permission === 'granted'} onCheckedChange={(value) => void togglePush(value)} />}</section>
+    <section className="flex items-center gap-4 rounded-[24px] border border-primary/20 bg-primary/5 p-5"><BellRing className="h-5 w-5 text-primary" /><div className="flex-1"><div className="flex items-center gap-2"><Label>Notificações nativas do navegador/PWA</Label><span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-500">{pushSupported ? 'DISPONÍVEL' : 'INDISPONÍVEL'}</span></div><p className="text-xs text-muted-foreground">{pushSupported ? 'Aparecem no Windows, Android e PWA mesmo com a aba fechada.' : 'Este navegador nao oferece Service Worker/Notification para push nativo.'}</p></div>{pushBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Switch disabled={!pushSupported} checked={Boolean(state.push_enabled) && pushPermission === 'granted'} onCheckedChange={(value) => void togglePush(value)} />}</section>
 
     <section className="flex items-center gap-4 rounded-[24px] border border-border/10 bg-secondary/15 p-5 opacity-65"><Smartphone className="h-5 w-5" /><div className="flex-1"><Label>SMS</Label><p className="text-xs text-muted-foreground">Indisponível até a contratação e validação de um provedor.</p></div><Switch checked={false} disabled /></section>
   </div>;

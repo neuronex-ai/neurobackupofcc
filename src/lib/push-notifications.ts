@@ -72,13 +72,20 @@ const deviceInfo = () => {
 };
 
 export const enablePushNotifications = async (userId: string) => {
-  if (!('serviceWorker' in navigator) || typeof Notification === 'undefined') throw new Error('Notificações não são suportadas neste dispositivo.');
+  if (!('serviceWorker' in navigator) || typeof Notification === 'undefined') throw new Error('Notificacoes nativas nao sao suportadas neste dispositivo.');
+  await assertPushEnvironment();
+  if (Notification.permission === 'denied') {
+    throw new Error('As notificacoes estao bloqueadas. Libere a permissao no navegador e tente novamente.');
+  }
   const permission = await Notification.requestPermission();
-  if (permission !== 'granted') throw new Error('A permissão de notificações não foi concedida.');
-  const registration = await navigator.serviceWorker.register(serviceWorkerUrl());
+  if (permission !== 'granted') throw new Error('A permissao de notificacoes nao foi concedida.');
+  const registration = await navigator.serviceWorker.register(serviceWorkerUrl()).catch((error) => {
+    throw new Error(error instanceof Error ? `Falha ao registrar notificacoes: ${error.message}` : 'Falha ao registrar notificacoes nativas.');
+  });
+  await registration.update().catch(() => undefined);
   const messaging = await getMessagingClient();
   const token = await messaging.getToken({ vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY, serviceWorkerRegistration: registration });
-  if (!token) throw new Error('O navegador não retornou um token de notificação.');
+  if (!token) throw new Error('O navegador nao retornou um token de notificacao.');
   const { error } = await db.from('push_subscriptions').upsert({ user_id: userId, fcm_token: token, ...deviceInfo(), enabled: true, permission: 'granted', last_seen_at: new Date().toISOString() }, { onConflict: 'user_id,fcm_token' });
   if (error) throw error;
   return token as string;

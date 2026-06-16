@@ -5,6 +5,7 @@ import { Camera, Loader2, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { findBoletoCandidate } from "@/lib/boleto";
 import { cn } from "@/lib/utils";
 import {
   hasNativeCodeScanner,
@@ -25,8 +26,7 @@ const formatHints = {
   boleto: [
     BarcodeFormat.ITF,
     BarcodeFormat.CODE_128,
-    BarcodeFormat.EAN_13,
-    BarcodeFormat.QR_CODE,
+    BarcodeFormat.CODABAR,
   ],
 } satisfies Record<ScannerMode, BarcodeFormat[]>;
 
@@ -37,9 +37,9 @@ const copy = {
     hint: "Nenhum pagamento e enviado a partir da leitura.",
   },
   boleto: {
-    title: "Ler boleto",
-    description: "Aponte para o codigo de barras. Os dados serao validados antes do PIN.",
-    hint: "A leitura apenas preenche a consulta do boleto.",
+    title: "Ler codigo de barras",
+    description: "Enquadre as barras horizontais do boleto de ponta a ponta. Os dados serao validados antes do PIN.",
+    hint: "QR Codes nao sao usados para boleto. A leitura apenas preenche a consulta.",
   },
 } satisfies Record<ScannerMode, { title: string; description: string; hint: string }>;
 
@@ -59,6 +59,7 @@ export function MobileCodeScannerSheet({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const detectedRef = useRef(false);
+  const lastInvalidToastRef = useRef(0);
   const [state, setState] = useState<ScannerState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -88,9 +89,17 @@ export function MobileCodeScannerSheet({
             onOpenChange(false);
             return;
           }
+          const detectedValue = normalizeDetectedValue(mode, value);
+          if (!detectedValue) {
+            throw new Error(
+              mode === "boleto"
+                ? "Codigo lido nao parece um boleto. Enquadre as barras horizontais."
+                : "Codigo nao encontrado.",
+            );
+          }
           detectedRef.current = true;
           onOpenChange(false);
-          await onDetected(value);
+          await onDetected(detectedValue);
         } catch (cause) {
           if (cancelled) return;
           setError(
@@ -112,8 +121,12 @@ export function MobileCodeScannerSheet({
       setState("starting");
       const hints = new Map();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, formatHints[mode]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
+      if (mode === "boleto") {
+        hints.set(DecodeHintType.ALLOWED_LENGTHS, [44, 46, 47, 48]);
+      }
       const reader = new BrowserMultiFormatReader(hints, {
-        delayBetweenScanAttempts: 260,
+        delayBetweenScanAttempts: mode === "boleto" ? 150 : 260,
       });
 
       try {
@@ -129,9 +142,17 @@ export function MobileCodeScannerSheet({
           videoRef.current,
           (result) => {
             if (!result || detectedRef.current) return;
+            const value = normalizeDetectedValue(mode, result.getText());
+            if (!value) {
+              const now = Date.now();
+              if (now - lastInvalidToastRef.current > 1800) {
+                lastInvalidToastRef.current = now;
+                toast.error("Codigo lido nao parece boleto. Aponte para as barras horizontais.");
+              }
+              return;
+            }
             detectedRef.current = true;
             controlsRef.current?.stop();
-            const value = result.getText();
             onOpenChange(false);
             Promise.resolve(onDetected(value)).catch((cause) => {
               toast.error(
@@ -199,7 +220,10 @@ export function MobileCodeScannerSheet({
         </div>
 
         <div className={cn(mobileFinanceSurface, "mt-6 overflow-hidden p-2")}>
-          <div className="relative aspect-[3/4] overflow-hidden rounded-[18px] bg-black">
+          <div className={cn(
+            "relative overflow-hidden rounded-[18px] bg-black",
+            mode === "boleto" ? "aspect-[16/9]" : "aspect-[3/4]",
+          )}>
             <video
               ref={videoRef}
               muted
@@ -207,7 +231,21 @@ export function MobileCodeScannerSheet({
               className="h-full w-full object-cover"
             />
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="h-[46%] w-[76%] rounded-[22px] border-2 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,0.28)]" />
+              <div
+                className={cn(
+                  "relative border-2 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,0.28)]",
+                  mode === "boleto"
+                    ? "h-[24%] w-[88%] rounded-[12px]"
+                    : "h-[46%] w-[76%] rounded-[22px]",
+                )}
+              >
+                {mode === "boleto" ? (
+                  <>
+                    <span className="absolute left-3 right-3 top-1/2 h-px -translate-y-1/2 bg-white/65" />
+                    <span className="absolute left-1/2 top-2 bottom-2 w-px -translate-x-1/2 bg-white/35" />
+                  </>
+                ) : null}
+              </div>
             </div>
             {isLoading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/72 text-white">
@@ -271,4 +309,11 @@ function cameraErrorMessage(cause: unknown) {
   return cause instanceof Error
     ? cause.message
     : "Verifique a permissao de camera e tente novamente.";
+}
+
+function normalizeDetectedValue(mode: ScannerMode, value?: string | null) {
+  const text = value?.trim();
+  if (!text) return null;
+  if (mode === "boleto") return findBoletoCandidate(text);
+  return text;
 }

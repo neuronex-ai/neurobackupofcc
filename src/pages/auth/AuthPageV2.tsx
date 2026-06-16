@@ -42,6 +42,7 @@ const AuthPageV2 = () => {
   const [biometricStatus, setBiometricStatus] = useState<BiometricStatus | null>(null);
   const [biometricAccount, setBiometricAccount] = useState<StoredBiometricAccount | null>(null);
   const [biometricPromptOpen, setBiometricPromptOpen] = useState(false);
+  const [autoBiometricAttempted, setAutoBiometricAttempted] = useState(false);
   const [pendingBiometricSession, setPendingBiometricSession] = useState<Session | null>(null);
   const [mfaOpen, setMfaOpen] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
@@ -181,6 +182,12 @@ const AuthPageV2 = () => {
     biometricStatus.available &&
     biometricStatus.enrolled &&
     biometricAccount;
+
+  useEffect(() => {
+    if (!canUseBiometrics || autoBiometricAttempted || biometricLoading || loading) return;
+    setAutoBiometricAttempted(true);
+    void unlockWithBiometrics();
+  }, [autoBiometricAttempted, biometricLoading, canUseBiometrics, loading]);
 
   return <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-5">
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(139,92,246,.12),transparent_35%),radial-gradient(circle_at_90%_90%,rgba(255,255,255,.05),transparent_30%)]" />
