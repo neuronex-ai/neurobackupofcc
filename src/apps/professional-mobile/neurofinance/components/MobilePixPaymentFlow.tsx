@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Check, Loader2, QrCode, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Camera, Check, Loader2, QrCode, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import {
   mobileFinanceSurface,
   parseMoney,
 } from "../../shared/MobileFinancePrimitives";
+import { MobileCodeScannerSheet } from "./MobileCodeScannerSheet";
 import { MobileFinancialPinSheet } from "./MobileFinancialPinSheet";
 import {
   authorizePixPayment,

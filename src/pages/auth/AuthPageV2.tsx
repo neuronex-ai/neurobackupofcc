@@ -120,7 +120,7 @@ const AuthPageV2 = () => {
         refresh_token: restored.session.refresh_token,
       });
       if (error) throw error;
-      toast.success('SessÃ£o desbloqueada com biometria.');
+      toast.success('Sessao desbloqueada com biometria.');
       await evaluateSession();
     } catch (cause) {
       toast.error(
@@ -151,7 +151,7 @@ const AuthPageV2 = () => {
       toast.error(
         cause instanceof Error
           ? cause.message
-          : 'NÃ£o foi possÃ­vel ativar biometria agora.',
+          : 'Nao foi possivel ativar biometria agora.',
       );
     } finally {
       setBiometricLoading(false);
@@ -182,11 +182,54 @@ const AuthPageV2 = () => {
         <label className="flex items-center gap-3 text-xs text-muted-foreground"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /> Manter meu e-mail neste dispositivo</label>
         <Button type="submit" disabled={loading} className="h-14 w-full rounded-2xl font-black uppercase tracking-[.2em]">{loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Entrar'}</Button>
       </form>
+      {canUseBiometrics ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={biometricLoading || loading}
+          onClick={() => void unlockWithBiometrics()}
+          className="mt-3 h-14 w-full rounded-2xl font-black uppercase tracking-[.16em]"
+        >
+          {biometricLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Fingerprint className="mr-2 h-4 w-4" />}
+          Entrar com biometria
+        </Button>
+      ) : null}
       <button onClick={() => setForgotOpen(true)} className="mt-6 w-full text-center text-xs font-semibold text-muted-foreground hover:text-foreground">Esqueci minha senha</button>
       <div className="mt-7 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-muted-foreground"><ShieldCheck className="h-3.5 w-3.5" /> Sessão protegida</div>
     </section>
     <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
-    <TotpMfaDialog open={mfaOpen} mode="challenge" onOpenChange={setMfaOpen} onSuccess={redirect} onCancel={cancelMfa} />
+    <TotpMfaDialog open={mfaOpen} mode="challenge" onOpenChange={setMfaOpen} onSuccess={finishAuthenticatedSession} onCancel={cancelMfa} />
+    <Dialog open={biometricPromptOpen} onOpenChange={(open) => !biometricLoading && setBiometricPromptOpen(open)}>
+      <DialogContent className="max-w-sm rounded-[28px] p-6">
+        <DialogHeader>
+          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-[18px] border border-border/40 bg-card">
+            <Fingerprint className="h-5 w-5" />
+          </div>
+          <DialogTitle>Entrar com biometria?</DialogTitle>
+          <DialogDescription>
+            Ative neste aparelho para desbloquear o app com digital, rosto ou senha do dispositivo. Se falhar, o login normal continua disponivel.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:space-x-0">
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={biometricLoading}
+            onClick={() => void skipBiometrics()}
+          >
+            Agora nao
+          </Button>
+          <Button
+            type="button"
+            disabled={biometricLoading}
+            onClick={() => void enableBiometrics()}
+          >
+            {biometricLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Ativar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </main>;
 };
 

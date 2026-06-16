@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeBoletoInput } from "@/lib/boleto";
 
 export type NeuroFinanceAccountState = {
   id: string;
@@ -163,14 +164,22 @@ export const createNeuroFinanceCharge = (payload: {
   patient_email?: string;
 }) => invoke<ChargeResult>("asaas-create-payment", payload);
 
-export const consultBillPayment = (identificationField: string) =>
-  invoke<{ success: true; consultation: BillConsultation }>(
+export const consultBillPayment = (input: string) => {
+  const normalized = normalizeBoletoInput(input);
+  if (!normalized.isValid) {
+    throw new Error("Informe uma linha digitavel ou codigo de barras valido.");
+  }
+
+  return invoke<{ success: true; consultation: BillConsultation }>(
     "asaas-bill-payment",
     {
       action: "consult",
-      identificationField: identificationField.replace(/\D/g, ""),
+      ...(normalized.kind === "barcode"
+        ? { barCode: normalized.digits }
+        : { identificationField: normalized.digits }),
     },
   );
+};
 
 export const authorizeBillPayment = (payload: {
   consultationId: string;
