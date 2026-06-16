@@ -48,9 +48,9 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import "@/styles/mobile-settings-premium.css";
 import {
     MobileActionListItem,
-    MobilePageHeader,
     MobilePageScaffold,
     MobileSectionHeader,
     MobileStatusBanner,
@@ -116,48 +116,86 @@ const toEditorTemplate = (body: string) => {
     return result;
 };
 
+const premiumSurfaceClass = "border border-black/[0.055] bg-[#f8f8f6] shadow-[0_24px_72px_-52px_rgba(0,0,0,0.58)] dark:border-black/80 dark:bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.13),transparent_34%),linear-gradient(145deg,#050505_0%,#171717_48%,#030303_100%)] dark:shadow-[0_28px_84px_-58px_rgba(255,255,255,0.22)]";
+const premiumPanelClass = "border border-black/[0.045] bg-[linear-gradient(160deg,#ffffff_0%,#f4f3ef_52%,#ebe9e3_100%)] text-[#171514] dark:border-white/[0.06] dark:bg-[linear-gradient(160deg,#2a2727_0%,#201e1e_52%,#161414_100%)] dark:text-white";
+
 const SettingsPanel = ({ children, className }: { children: ReactNode; className?: string }) => (
-    <div className={cn("mobile-settings-embedded min-w-0 overflow-hidden rounded-[20px] border border-border/40 bg-card/65 p-2 dark:border-white/10 dark:bg-white/[0.025]", className)}>
+    <div className={cn("mobile-settings-embedded min-w-0 overflow-hidden rounded-[30px] p-3", premiumPanelClass, className)}>
         {children}
     </div>
 );
 
-const SubviewHeader = ({ title, description, onBack }: { title: string; description?: string; onBack: () => void }) => (
-    <MobilePageHeader
-        eyebrow="Ajustes"
-        title={title}
-        description={description}
-        leading={(
-            <Button type="button" variant="outline" size="icon" onClick={onBack} className="h-10 w-10 rounded-[14px]">
+const SettingsHero = ({ logoSrc, profileName }: { logoSrc: string; profileName?: string | null }) => (
+    <section className={cn("relative overflow-hidden rounded-[34px] px-6 pb-7 pt-6 text-center", premiumSurfaceClass)}>
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-white/82 shadow-[0_18px_50px_-34px_rgba(0,0,0,0.8)] dark:bg-black/34">
+            <img src={logoSrc} alt="NeuroNex" className="h-10 w-10 object-contain" />
+        </div>
+        <p className="mt-6 text-[8px] font-black uppercase tracking-[0.24em] text-current/42">Centro NeuroNex</p>
+        <h1 className="mx-auto mt-2 max-w-[14rem] text-[2.35rem] font-black leading-[0.88] tracking-[-0.06em] text-current">
+            Ajustes
+        </h1>
+        <p className="mx-auto mt-4 max-w-[17rem] text-[11px] font-semibold leading-relaxed text-current/55">
+            {profileName ? `${profileName}, organize conta, seguranca e integracoes em um unico lugar.` : "Conta, seguranca e integracoes com uma experiencia mais limpa."}
+        </p>
+    </section>
+);
+
+const SubviewHeader = ({ title, description, onBack, logoSrc }: { title: string; description?: string; onBack: () => void; logoSrc: string }) => (
+    <header className={cn("relative mb-4 overflow-hidden rounded-[32px] px-5 pb-6 pt-5 text-center", premiumSurfaceClass)}>
+        <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onBack}
+            className="absolute left-4 top-4 h-11 w-11 rounded-[16px] border-black/[0.065] bg-white/72 text-current shadow-sm backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.055]"
+        >
                 <ArrowLeft className="h-4 w-4" />
                 <span className="sr-only">Voltar</span>
-            </Button>
-        )}
-    />
+        </Button>
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[21px] bg-white/82 dark:bg-black/34">
+            <img src={logoSrc} alt="NeuroNex" className="h-8 w-8 object-contain" />
+        </div>
+        <p className="mt-5 text-[8px] font-black uppercase tracking-[0.22em] text-current/42">Ajustes</p>
+        <h1 className="mx-auto mt-2 max-w-[16rem] text-[2rem] font-black leading-[0.9] tracking-[-0.055em] text-current">
+            {title}
+        </h1>
+        {description ? (
+            <p className="mx-auto mt-3 max-w-[18rem] text-[11px] font-semibold leading-relaxed text-current/55">
+                {description}
+            </p>
+        ) : null}
+    </header>
 );
 
 const CustomMenuItem = ({ item, onClick }: { item: MenuItem; onClick: () => void }) => {
+    const rowClass = "group flex min-h-[76px] w-full items-center gap-3 px-4 py-3.5 text-left transition duration-200 active:scale-[0.992] active:bg-black/[0.035] dark:active:bg-white/[0.045]";
+
     if (item.icon) {
+        const Icon = item.icon;
         return (
-            <MobileActionListItem
-                icon={item.icon}
-                title={item.label}
-                description={item.description}
-                onClick={onClick}
-            />
+            <button type="button" onClick={onClick} className={rowClass}>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[17px] bg-black/[0.045] text-current transition group-active:scale-95 dark:bg-white/[0.075]">
+                    <Icon className="h-[18px] w-[18px]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-black tracking-[-0.012em] text-current">{item.label}</p>
+                    <p className="mt-1 line-clamp-2 text-[10px] font-semibold leading-relaxed text-current/48">{item.description}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-current/24 transition group-active:translate-x-0.5" />
+            </button>
         );
     }
 
     return (
-        <button type="button" onClick={onClick} className="flex w-full items-center gap-3 rounded-[20px] border border-border/40 bg-card/72 p-3.5 text-left active:bg-foreground/[0.045] dark:border-white/10 dark:bg-white/[0.028]">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-white shadow-sm">
+        <button type="button" onClick={onClick} className={rowClass}>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[17px] bg-white shadow-sm transition group-active:scale-95">
                 {item.customIcon}
             </div>
             <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-black text-foreground">{item.label}</p>
-                <p className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-relaxed text-muted-foreground/68">{item.description}</p>
+                <p className="truncate text-[13px] font-black tracking-[-0.012em] text-current">{item.label}</p>
+                <p className="mt-1 line-clamp-2 text-[10px] font-semibold leading-relaxed text-current/48">{item.description}</p>
             </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground/30" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-current/24 transition group-active:translate-x-0.5" />
         </button>
     );
 };
@@ -182,6 +220,13 @@ export const MobileSettings = () => {
 
     const currentOrganization = organizations?.[0];
     const professionalPlan = canAccess("advanced_finance");
+    const isDarkTheme = theme === "dark";
+    const logoSrc = isDarkTheme ? "/favicon-light.png" : "/favicon-dark.png";
+    const profileName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ");
+    const reducedMotion = Boolean(preferences?.reduced_motion);
+    const pageTransition = reducedMotion
+        ? { duration: 0.01 }
+        : { type: "spring" as const, stiffness: 330, damping: 34, mass: 0.82 };
 
     useEffect(() => {
         if (!user || view !== "communication") return;
