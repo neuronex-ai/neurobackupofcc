@@ -27,7 +27,7 @@ import {
   type StoredBiometricAccount,
 } from '@/lib/native-mobile-security';
 import type { Session } from '@supabase/supabase-js';
-import { Eye, EyeOff, Fingerprint, Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Fingerprint, Loader2, ShieldCheck } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -194,11 +194,26 @@ const AuthPageV2 = () => {
   }, [autoBiometricAttempted, biometricLoading, canUseBiometrics, loading]);
 
   const isDarkTheme = theme === 'dark';
-  const mobileShellClass = isDarkTheme ? "bg-[#050505] text-white" : "bg-[#f8f8f6] text-[#171514]";
-  const mobilePanelClass = isDarkTheme ? "bg-[#f8f8f6] text-[#171514]" : "bg-[#201e1e] text-white";
-  const mobilePrimaryButtonClass = isDarkTheme
-    ? "bg-[#201e1e] text-white hover:bg-black"
-    : "bg-[#fff2f5] text-[#171514] hover:bg-white";
+  const authShellClass = isDarkTheme ? "bg-[#020202] text-white" : "bg-[#f8f8f6] text-[#171514]";
+  const authFrameClass = isDarkTheme
+    ? "border-black/80 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.14),transparent_30%),linear-gradient(145deg,#020202_0%,#141414_48%,#030303_100%)] shadow-[0_28px_82px_-48px_rgba(255,255,255,0.2)]"
+    : "border-black/[0.055] bg-[#f8f8f6] shadow-[0_28px_82px_-50px_rgba(0,0,0,0.42)]";
+  const authPanelClass = isDarkTheme
+    ? "bg-[linear-gradient(160deg,#ffffff_0%,#f4f3ef_48%,#e7e6e0_100%)] text-[#171514]"
+    : "bg-[linear-gradient(160deg,#292626_0%,#201e1e_48%,#171515_100%)] text-white";
+  const authInputClass = cn(
+    "h-[3.25rem] rounded-[4px] border-x-0 border-t-0 bg-transparent px-3 text-sm font-semibold shadow-none backdrop-blur-0 transition-colors duration-200",
+    "focus-visible:ring-0 focus-visible:ring-offset-0",
+    isDarkTheme
+      ? "border-black/10 text-[#171514] placeholder:text-[#98a0ad] hover:bg-zinc-100/70 focus-visible:border-black/20 focus-visible:bg-zinc-200/80 selection:bg-white selection:text-black"
+      : "border-white/40 text-white placeholder:text-white/60 hover:bg-black/10 focus-visible:border-white/60 focus-visible:bg-black/25 selection:bg-white selection:text-[#171514]",
+  );
+  const authPrimaryButtonClass = isDarkTheme
+    ? "bg-[#201e1e] text-white shadow-[0_12px_24px_-18px_rgba(0,0,0,0.78)] hover:bg-black"
+    : "bg-[#fff1f4] text-[#171514] shadow-[0_12px_26px_-20px_rgba(255,255,255,0.72)] hover:bg-white";
+  const authSecondaryButtonClass = isDarkTheme
+    ? "border-black/10 bg-black/[0.035] text-[#171514] hover:bg-zinc-200/80"
+    : "border-white/16 bg-white/[0.035] text-white hover:bg-white/[0.075]";
   const logoSrc = isDarkTheme ? '/favicon-light.png' : '/favicon-dark.png';
 
   if (isMobile) {
