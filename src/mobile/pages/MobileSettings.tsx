@@ -6,6 +6,7 @@ import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { useTour } from "@/components/onboarding/TourContext";
 import { FiscalConfigPanel } from "@/components/settings/FiscalConfigPanel";
 import { MonthlyReportSettings } from "@/components/settings/MonthlyReportSettings";
+import { NeuroNexPayWizard } from "@/components/settings/NeuroNexPayWizard";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { ProfessionalProfileForm } from "@/components/settings/ProfessionalProfileForm";
 import { SecuritySettingsPanel } from "@/components/settings/SecuritySettingsPanel";
@@ -375,6 +376,9 @@ export const MobileSettings = () => {
                             <>
                                 <SubviewHeader title="NeuroFinance" description="Status da conta financeira e acesso às operações." onBack={() => setView("main")} />
                                 <div className="space-y-3">
+                                    <section className="rounded-[24px] border border-border/40 bg-card/68 p-3 dark:border-white/10 dark:bg-white/[0.025]">
+                                        <NeuroNexPayWizard isMobile onSuccess={() => void financialAccount.refetch()} />
+                                    </section>
                                     <section className="rounded-[22px] border border-border/40 bg-card/68 p-5 dark:border-white/10 dark:bg-white/[0.025]">
                                         <div className="flex items-center gap-3">
                                             <div className={cn("flex h-11 w-11 items-center justify-center rounded-[15px]", financialAccount.isConnected ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
