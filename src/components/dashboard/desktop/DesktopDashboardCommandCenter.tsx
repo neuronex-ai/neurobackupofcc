@@ -629,7 +629,7 @@ export const DesktopDashboardCommandCenter = () => {
   }, [activeUpcomingAppointments.length, financialConnected, navigate, nextAppointment, pendingPatients, todayAppointments.length]);
 
   return (
-    <div className="relative min-h-screen w-full bg-[#f4f4f5] pb-32 pt-10 font-sans selection:bg-black/10 selection:text-black dark:bg-[#050506] dark:selection:bg-white/10 dark:selection:text-white">
+    <div className="relative min-h-screen w-full bg-[#f4f4f5] pb-32 pt-28 font-sans selection:bg-black/10 selection:text-black dark:bg-[#050506] dark:selection:bg-white/10 dark:selection:text-white">
       <div className="liquid-mesh-bg !opacity-20 dark:!opacity-28" />
       <div className="brand-neutral-gradient opacity-40" />
       <div className="premium-noise fixed inset-0 z-0 opacity-[0.012] dark:opacity-[0.018]" />
