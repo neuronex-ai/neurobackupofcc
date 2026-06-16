@@ -54,6 +54,10 @@ const getMessagingClient = async () => {
   const firebase = window.firebase;
   if (!firebase) throw new Error('Firebase não foi inicializado.');
   const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(config);
+  if (firebase.messaging?.isSupported) {
+    const supported = await firebase.messaging.isSupported();
+    if (!supported) throw new Error('Notificacoes nativas nao sao suportadas neste navegador.');
+  }
   return app.messaging();
 };
 
