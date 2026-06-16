@@ -73,8 +73,8 @@ export const MediaReadinessPanel = ({
   }, [readiness.stream]);
 
   useEffect(() => {
-    onReadinessChange?.(readiness.isReady, selection);
-  }, [onReadinessChange, readiness.isReady, selection.audioEnabled, selection.audioInputId, selection.audioOutputId, selection.videoEnabled, selection.videoInputId]);
+    onReadinessChange?.(readiness.isReady, readiness.getSelection());
+  }, [onReadinessChange, readiness]);
 
   return (
     <div className={cn("space-y-4", className)}>
