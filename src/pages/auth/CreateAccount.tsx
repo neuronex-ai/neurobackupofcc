@@ -121,6 +121,12 @@ export default function CreateAccount() {
   const primaryButtonClass = isDarkTheme
     ? "bg-[#201e1e] text-white hover:bg-black"
     : "bg-[#fff1f4] text-[#171514] hover:bg-white";
+  const identityButtonClass = isDarkTheme
+    ? "bg-[#201e1e] text-white hover:bg-black"
+    : "bg-[#fff1f4] text-[#171514] hover:bg-white";
+  const selectContentClass = isDarkTheme
+    ? "border-black/10 bg-[#f7f6f1] text-[#171514]"
+    : "border-white/10 bg-[#111010] text-white";
   const mutedPanelClass = isDarkTheme
     ? "border-black/10 bg-black/[0.035] text-[#171514]"
     : "border-white/15 bg-white/[0.035] text-white";
@@ -267,6 +273,8 @@ export default function CreateAccount() {
                   draft={flow.draft}
                   inputClass={inputClass}
                   mutedPanelClass={mutedPanelClass}
+                  selectContentClass={selectContentClass}
+                  actionButtonClass={identityButtonClass}
                   loading={flow.loading}
                   onChange={updateDraft}
                   onSubmit={submitIdentity}
@@ -394,10 +402,11 @@ function CreateAccountSideRail({
             <div
               key={item.label}
               className={cn(
-                "rounded-[24px] border p-4 transition-colors",
-                active
-                  ? "border-current bg-current text-background"
-                  : "border-current/10 bg-current/[0.035] text-current/45",
+                "min-h-[6.6rem] rounded-[24px] border p-4 transition-colors",
+                active && isDarkTheme && "border-white bg-white text-black shadow-[0_18px_46px_-32px_rgba(255,255,255,0.55)]",
+                active && !isDarkTheme && "border-black bg-black text-white shadow-[0_18px_46px_-32px_rgba(0,0,0,0.55)]",
+                !active && isDarkTheme && "border-white/18 bg-white/[0.035] text-white/72",
+                !active && !isDarkTheme && "border-black/12 bg-white/55 text-black/62",
               )}
             >
               <item.icon className="h-5 w-5" />
@@ -418,6 +427,8 @@ function IdentityStep({
   draft,
   inputClass,
   mutedPanelClass,
+  selectContentClass,
+  actionButtonClass,
   loading,
   onChange,
   onSubmit,
@@ -425,6 +436,8 @@ function IdentityStep({
   draft: CreateAccountDraft;
   inputClass: string;
   mutedPanelClass: string;
+  selectContentClass: string;
+  actionButtonClass: string;
   loading: boolean;
   onChange: <K extends keyof CreateAccountDraft>(key: K, value: CreateAccountDraft[K]) => void;
   onSubmit: () => void;
@@ -502,9 +515,9 @@ function IdentityStep({
             <SelectTrigger className={cn("h-[3.25rem] rounded-[10px] border px-3 text-sm font-bold", mutedPanelClass)}>
               <SelectValue placeholder="Escolha uma opção" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className={cn("rounded-[18px] shadow-2xl", selectContentClass)}>
               {contextOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
+                <SelectItem key={option.value} value={option.value} className="rounded-[12px] focus:bg-current/10 focus:text-current">
                   {option.label}
                 </SelectItem>
               ))}
@@ -526,7 +539,23 @@ function IdentityStep({
           className="mt-0.5 h-4 w-4 accent-current"
         />
         <span>
-          Ao informar meus dados, eu concordo com a Política de Privacidade e os Termos de Uso da NeuroNex AI.
+          Ao informar meus dados, eu concordo com a{" "}
+          <Link
+            to="/help?view=privacy"
+            className="font-black underline underline-offset-4 hover:opacity-75"
+            onClick={(event) => event.stopPropagation()}
+          >
+            Política de Privacidade
+          </Link>{" "}
+          e os{" "}
+          <Link
+            to="/help?view=terms"
+            className="font-black underline underline-offset-4 hover:opacity-75"
+            onClick={(event) => event.stopPropagation()}
+          >
+            Termos de Uso
+          </Link>{" "}
+          da NeuroNex AI.
         </span>
       </label>
 
@@ -534,7 +563,7 @@ function IdentityStep({
         type="button"
         disabled={loading}
         onClick={() => void onSubmit()}
-        className="h-14 w-full rounded-[12px] bg-current text-background text-[11px] font-black uppercase tracking-[0.2em] hover:opacity-90"
+        className={cn("h-14 w-full rounded-[12px] text-[11px] font-black uppercase tracking-[0.2em]", actionButtonClass)}
       >
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
         Próximo
@@ -731,16 +760,17 @@ function EmailCodeConfirmSheet({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[92vw] rounded-[32px] border border-black/10 bg-white p-0 text-black shadow-2xl dark:border-white/10 dark:bg-[#080808] dark:text-white sm:max-w-[430px]">
-        <div className="p-6 sm:p-8">
-          <DialogHeader className="text-left">
+        <div className="p-6 text-center sm:p-8">
+          <DialogHeader className="items-center text-center">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-black text-white dark:bg-white dark:text-black">
               <MailCheck className="h-6 w-6" />
             </div>
             <DialogTitle className="text-2xl font-black tracking-[-0.04em]">
               Enviamos um código para o seu e-mail.
             </DialogTitle>
-            <DialogDescription className="pt-2 text-sm font-semibold leading-relaxed text-black/55 dark:text-white/55">
-              Digite o código que enviamos para <span className="font-black text-black dark:text-white">{email}</span>.
+            <DialogDescription className="mx-auto max-w-[20rem] pt-2 text-center text-sm font-semibold leading-relaxed text-black/55 dark:text-white/55">
+              Digite o código que enviamos para <span className="font-black text-black dark:text-white">{email}</span>{" "}
+              ou clique no botão <span className="font-black text-black dark:text-white">Confirmar e-mail</span> dentro da mensagem.
             </DialogDescription>
           </DialogHeader>
 
