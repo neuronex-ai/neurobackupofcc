@@ -132,7 +132,7 @@ const Ajustes = () => {
 
     const menuItems = [
         { val: "profile", label: "Meu Perfil", icon: User },
-        { val: "security", label: "Segurança", icon: Shield },
+        { val: "security", label: "Login e Segurança", icon: Shield },
         { val: "subscription", label: "Assinatura", icon: CreditCard },
         { val: "prefs", label: "Interface & Tour", icon: Monitor },
         // Only show Pagamentos for Professional/Enterprise

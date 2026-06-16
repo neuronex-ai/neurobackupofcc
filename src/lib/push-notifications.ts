@@ -12,6 +12,32 @@ const config = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+const requiredConfigKeys = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId',
+] as const;
+
+function getMissingFirebaseConfig() {
+  return requiredConfigKeys.filter((key) => !config[key]);
+}
+
+async function assertPushEnvironment() {
+  if (!window.isSecureContext) {
+    throw new Error('Notificacoes nativas exigem HTTPS ou localhost.');
+  }
+  if (!import.meta.env.VITE_FIREBASE_VAPID_KEY) {
+    throw new Error('Configure VITE_FIREBASE_VAPID_KEY para ativar notificacoes nativas.');
+  }
+  const missingConfig = getMissingFirebaseConfig();
+  if (missingConfig.length > 0) {
+    throw new Error(`Configure Firebase Web Push: ${missingConfig.join(', ')}.`);
+  }
+}
+
 const loadScript = (src: string) => new Promise<void>((resolve, reject) => {
   const existing = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
   if (existing?.dataset.loaded === 'true') return resolve();
