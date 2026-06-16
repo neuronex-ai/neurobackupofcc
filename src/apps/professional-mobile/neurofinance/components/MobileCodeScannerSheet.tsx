@@ -44,6 +44,8 @@ const formatHints = {
     BarcodeFormat.ITF,
     BarcodeFormat.CODE_128,
     BarcodeFormat.CODABAR,
+    BarcodeFormat.EAN_13,
+    BarcodeFormat.EAN_8,
   ],
 } satisfies Record<ScannerMode, BarcodeFormat[]>;
 
