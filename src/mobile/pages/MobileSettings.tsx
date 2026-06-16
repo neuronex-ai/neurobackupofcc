@@ -407,7 +407,14 @@ export const MobileSettings = () => {
                         </div>
                     </motion.div>
                 ) : (
-                    <motion.div key={view} initial={{ opacity: 0, x: 6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 6 }} transition={{ duration: 0.16 }} className="pb-2">
+                    <motion.div
+                        key={view}
+                        initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: 18, scale: 0.985 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: -12, scale: 0.99 }}
+                        transition={pageTransition}
+                        className="mobile-settings-subview pb-2"
+                    >
                         {view === "profile" ? (
                             <>
                                 <SubviewHeader title="Perfil profissional" description="Dados usados na sua conta e documentos." onBack={() => setView("main")} logoSrc={logoSrc} />
