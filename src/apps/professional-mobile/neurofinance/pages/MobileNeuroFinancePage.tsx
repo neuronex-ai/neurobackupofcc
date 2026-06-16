@@ -313,6 +313,58 @@ export function MobileNeuroFinancePage() {
             ]}
           />
 
+          <section className="space-y-3">
+            <MobileSectionTitle
+              title="Saude da conta"
+              trailing={
+                <MobileFinanceButton
+                  variant="ghost"
+                  className="min-h-9 px-2.5"
+                  onClick={() => void refresh()}
+                >
+                  Sincronizar
+                </MobileFinanceButton>
+              }
+            />
+            <div className={cn(
+              mobileFinanceSurface,
+              "space-y-4 p-4",
+            )}>
+              <div className={cn(
+                "flex items-start gap-3 rounded-[18px] border p-3.5",
+                healthToneClass[health.tone as keyof typeof healthToneClass],
+              )}>
+                <HealthIcon className="mt-0.5 h-5 w-5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-black tracking-[-0.02em]">{health.title}</p>
+                  <p className="mt-1 text-[11px] font-medium leading-relaxed opacity-75">{health.description}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                {(account.approvalStages || []).map((stage) => (
+                  <div key={stage.id} className="flex items-center gap-3 rounded-[16px] border border-border/35 bg-background/55 p-3 dark:border-white/10 dark:bg-white/[0.025]">
+                    <span className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px]",
+                      stageToneClass[stage.tone] || stageToneClass.neutral,
+                    )}>
+                      {stage.tone === "approved" ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12px] font-black text-foreground">{stage.label}</p>
+                      <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">{stage.statusLabel}</p>
+                    </div>
+                    {stage.actionable ? (
+                      <span className="rounded-full bg-amber-500/12 px-2 py-1 text-[7px] font-black uppercase tracking-[0.1em] text-amber-600 dark:text-amber-300">
+                        Acao
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
           <section className="space-y-4">
             <MobileSectionTitle
               title="Movimentar"
