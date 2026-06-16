@@ -89,10 +89,11 @@ export const MobileBottomNav = () => {
                     initial={{ y: 10, opacity: 0, x: "-50%" }}
                     animate={{ y: 0, opacity: 1, x: "-50%" }}
                     transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                    className="fixed bottom-[calc(0.55rem+env(safe-area-inset-bottom))] left-1/2 z-[100] w-[calc(100%-1.15rem)] max-w-[410px] md:hidden"
+                    className="fixed bottom-[calc(0.42rem+env(safe-area-inset-bottom))] left-1/2 z-[100] w-[calc(100%-1.15rem)] max-w-[410px] md:hidden"
                 >
-                    <div className="relative flex h-16 items-center justify-between overflow-hidden rounded-[30px] border border-foreground/[0.08] bg-background/70 px-2 shadow-[0_24px_60px_-34px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.11)] backdrop-blur-2xl dark:border-white/[0.13] dark:bg-white/[0.065]">
-                        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-white/20 dark:bg-white/18" />
+                    <div className="relative flex h-[4.2rem] items-center justify-between overflow-hidden rounded-[31px] border border-foreground/[0.08] bg-background/58 px-2 shadow-[0_26px_68px_-34px_rgba(0,0,0,0.72),0_1px_0_rgba(255,255,255,0.28)_inset] backdrop-blur-2xl dark:border-white/[0.13] dark:bg-white/[0.085]">
+                        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-white/35 dark:bg-white/20" />
+                        <div className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-black/5 dark:bg-white/8" />
                         {navItems.slice(0, 2).map((item) => {
                             const active = isActive(item.href);
                             return (

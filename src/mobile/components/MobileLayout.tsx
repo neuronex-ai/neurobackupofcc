@@ -56,7 +56,7 @@ export const MobileLayout = ({ children, className, showNav = true, showBottomNa
         </SheetContent>
       </Sheet>
 
-      <main className={cn("relative z-10 min-h-0 min-w-0 flex-1 overflow-hidden", showNav ? "pt-[calc(3.35rem+env(safe-area-inset-top))]" : "pt-0", showBottomNav ? "pb-[calc(4.85rem+env(safe-area-inset-bottom))]" : "pb-0", className)}>
+      <main className={cn("relative z-10 min-h-0 min-w-0 flex-1 overflow-hidden", showNav ? "pt-[calc(3.35rem+env(safe-area-inset-top))]" : "pt-0", "pb-0", className)}>
         {children}
       </main>
 

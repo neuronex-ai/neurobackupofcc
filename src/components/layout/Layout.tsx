@@ -4,7 +4,6 @@ import React from "react";
 import { Navbar } from "./Navbar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { DevBanner } from "@/components/ui/DevBanner";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { useTour } from "@/components/onboarding/TourContext";
 
@@ -32,8 +31,6 @@ export const Layout = ({ children }: LayoutProps) => {
       )}>
         {children}
       </main>
-      <DevBanner />
-
       {/* Global Tour Overlay */}
       <AppTour open={isTourOpen} onComplete={completeTour} />
     </div>

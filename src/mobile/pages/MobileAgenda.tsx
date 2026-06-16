@@ -458,7 +458,7 @@ export const MobileAgenda = () => {
                     </Button>
                   </div>
 
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-5 px-5 pb-1 snap-x">
+                  <div className="grid grid-cols-7 gap-1.5 pb-1">
                     {weekDays.map((day, i) => {
                       const isSelected = isSameDay(day, selectedDate);
                       const isToday = isSameDay(day, new Date());
@@ -470,9 +470,9 @@ export const MobileAgenda = () => {
                           key={day.toISOString()}
                           onClick={() => setSelectedDate(day)}
                           className={cn(
-                            "snap-start flex-shrink-0 w-[60px] py-3 rounded-[20px] flex flex-col items-center gap-1.5 transition-all duration-300 active:scale-90 relative overflow-hidden group border",
+                            "min-h-[70px] min-w-0 rounded-[18px] px-1 py-2.5 flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 relative overflow-hidden group border",
                             isSelected
-                              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-105 z-10 border-primary"
+                              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/18 z-10 border-primary"
                               : isToday
                                 ? "bg-secondary text-foreground border-border"
                                 : "bg-transparent text-muted-foreground border-transparent hover:bg-secondary/30"
@@ -494,7 +494,7 @@ export const MobileAgenda = () => {
                           >
                             {format(day, "d")}
                           </span>
-                          {isSelected && <div className="w-1 h-1 rounded-full bg-primary-foreground/40" />}
+                          {isSelected ? <div className="h-1 w-1 rounded-full bg-primary-foreground/45" /> : <div className="h-1 w-1" />}
                         </motion.button>
                       );
                     })}
