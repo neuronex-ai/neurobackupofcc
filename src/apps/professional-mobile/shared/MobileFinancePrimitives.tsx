@@ -102,15 +102,30 @@ export function MobileFinanceTabs<T extends string>({
   onValueChange: (value: T) => void;
   className?: string;
 }) {
+  const activeIndex = Math.max(
+    0,
+    options.findIndex((option) => option.value === value),
+  );
+  const indicatorWidth = `calc((100% - 0.5rem - ${(options.length - 1) * 0.25}rem) / ${options.length})`;
+
   return (
     <div
       role="tablist"
       aria-label="Areas do financeiro"
       className={cn(
-        "grid grid-cols-2 gap-1 rounded-[18px] border border-border/36 bg-background/76 p-1 shadow-[0_12px_34px_-28px_rgba(0,0,0,0.7)] backdrop-blur-xl dark:border-white/[0.055] dark:bg-white/[0.04]",
+        "relative grid gap-1 rounded-[18px] border border-border/36 bg-background/76 p-1 shadow-[0_12px_34px_-28px_rgba(0,0,0,0.7)] backdrop-blur-xl dark:border-white/[0.055] dark:bg-white/[0.04]",
         className,
       )}
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
     >
+      <span
+        aria-hidden="true"
+        className="absolute bottom-1 left-1 top-1 rounded-[14px] bg-foreground shadow-sm motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out"
+        style={{
+          width: indicatorWidth,
+          transform: `translateX(calc(${activeIndex} * (100% + 0.25rem)))`,
+        }}
+      />
       {options.map((option) => {
         const active = option.value === value;
         const Icon = option.icon;
@@ -123,13 +138,13 @@ export function MobileFinanceTabs<T extends string>({
             aria-selected={active}
             onClick={() => onValueChange(option.value)}
             className={cn(
-              "flex min-h-[54px] min-w-0 items-center gap-2 rounded-[14px] px-3 text-left transition active:opacity-80",
-              active ? "bg-foreground text-background" : "text-muted-foreground",
+              "relative z-10 flex min-h-[52px] min-w-0 items-center gap-2 rounded-[14px] px-3 text-left transition-colors active:opacity-80",
+              active ? "text-background" : "text-muted-foreground",
             )}
           >
             <span
               className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px]",
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] transition-colors",
                 active ? "bg-background/10" : "bg-foreground/[0.045]",
               )}
             >
@@ -231,11 +246,11 @@ export function MobileFinanceHero({
   const styles = toneStyles[tone];
 
   return (
-    <section className={cn("overflow-hidden rounded-[24px] border p-5", styles.surface)}>
-      <div className="flex items-start justify-between gap-3">
+    <section className={cn("overflow-hidden rounded-[24px] border p-4", styles.surface)}>
+      <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px]", styles.icon)}>
-            <Icon className="h-5 w-5" />
+          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]", styles.icon)}>
+            <Icon className="h-[18px] w-[18px]" />
           </div>
           <div className="min-w-0">
             <p className={cn("truncate text-[8px] font-black uppercase tracking-[0.17em]", styles.muted)}>
@@ -248,15 +263,15 @@ export function MobileFinanceHero({
         </div>
         {action}
       </div>
-      <p className={cn("mt-7 break-words text-[2.4rem] font-black leading-none tracking-[-0.065em]", styles.text)}>
+      <p className={cn("mt-5 break-words text-[2.25rem] font-black leading-none tracking-[-0.065em]", styles.text)}>
         {value}
       </p>
       {description ? (
-        <p className={cn("mt-3 text-[12px] font-medium leading-relaxed", styles.muted)}>
+        <p className={cn("mt-2 text-[11px] font-medium leading-relaxed", styles.muted)}>
           {description}
         </p>
       ) : null}
-      {children ? <div className="mt-5">{children}</div> : null}
+      {children ? <div className="mt-4">{children}</div> : null}
     </section>
   );
 }
