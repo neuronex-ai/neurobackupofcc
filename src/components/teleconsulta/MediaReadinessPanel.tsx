@@ -56,29 +56,11 @@ export const MediaReadinessPanel = ({
     initialVideoEnabled,
   });
   const {
-    audioEnabled,
-    audioInputId,
-    audioInputs,
-    audioOutputId,
-    audioOutputs,
     getSelection,
-    videoEnabled,
-    videoInputId,
-    videoInputs,
   } = readiness;
   const selection = useMemo(
     () => getSelection(),
-    [
-      audioEnabled,
-      audioInputId,
-      audioInputs,
-      audioOutputId,
-      audioOutputs,
-      getSelection,
-      videoEnabled,
-      videoInputId,
-      videoInputs,
-    ],
+    [getSelection],
   );
   const network = networkMeta[readiness.network];
   const NetworkIcon = network.icon;
