@@ -350,7 +350,11 @@ export const MobileSettings = () => {
     ];
 
     return (
-        <MobilePageScaffold showBottomNavigation={view === "main"}>
+        <MobilePageScaffold
+            showBottomNavigation={view === "main"}
+            className="mobile-settings-premium-shell"
+            contentClassName="mobile-settings-premium-content pt-3"
+        >
             <AnimatePresence mode="wait" initial={false}>
                 {view === "main" ? (
                     <motion.div key="settings-main" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
