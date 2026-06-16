@@ -1,8 +1,21 @@
+import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
+import {
+  deleteToken,
+  getMessaging,
+  getToken,
+  isSupported,
+  onMessage,
+  type Messaging,
+  type MessagePayload,
+  type Unsubscribe,
+} from 'firebase/messaging';
 import { supabase } from '@/integrations/supabase/client';
 
-declare global { interface Window { firebase?: any } }
-
 const db = supabase as any;
+const CLIENT_TIMEOUT_MS = 15_000;
+const TOKEN_TIMEOUT_MS = 15_000;
+const PUSH_FLOW_TIMEOUT_MS = 20_000;
+
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -21,6 +34,22 @@ const requiredConfigKeys = [
   'appId',
 ] as const;
 
+type PushLogStep =
+  | 'push:permission'
+  | 'push:worker-registered'
+  | 'push:sdk-loaded'
+  | 'push:get-token-start'
+  | 'push:get-token-success'
+  | 'push:subscription-upsert'
+  | 'push:settings-save';
+
+let firebaseAppPromise: Promise<FirebaseApp> | null = null;
+let messagingClientPromise: Promise<Messaging> | null = null;
+
+export function logPushStep(step: PushLogStep, details?: Record<string, unknown>) {
+  console.info(`[${step}]`, details || {});
+}
+
 function getMissingFirebaseConfig() {
   return requiredConfigKeys.filter((key) => !config[key]);
 }
@@ -38,70 +67,165 @@ async function assertPushEnvironment() {
   }
 }
 
-const loadScript = (src: string) => new Promise<void>((resolve, reject) => {
-  const existing = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
-  if (existing?.dataset.loaded === 'true') return resolve();
-  const script = existing || document.createElement('script');
-  script.src = src; script.async = true;
-  script.onload = () => { script.dataset.loaded = 'true'; resolve(); };
-  script.onerror = () => reject(new Error('Não foi possível carregar o serviço de notificações.'));
-  if (!existing) document.head.appendChild(script);
-});
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
 
-const getMessagingClient = async () => {
-  await loadScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
-  await loadScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
-  const firebase = window.firebase;
-  if (!firebase) throw new Error('Firebase não foi inicializado.');
-  const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(config);
-  if (firebase.messaging?.isSupported) {
-    const supported = await firebase.messaging.isSupported();
-    if (!supported) throw new Error('Notificacoes nativas nao sao suportadas neste navegador.');
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
+function createFirebaseApp() {
+  const app = getApps().length ? getApp() : initializeApp(config);
+  logPushStep('push:sdk-loaded', { projectId: config.projectId });
+  return app;
+}
+
+function getFirebaseApp() {
+  if (!firebaseAppPromise) {
+    firebaseAppPromise = Promise.resolve()
+      .then(createFirebaseApp)
+      .catch((error) => {
+        firebaseAppPromise = null;
+        throw error;
+      });
   }
-  return app.messaging();
-};
+  return firebaseAppPromise;
+}
+
+async function createMessagingClient() {
+  await assertPushEnvironment();
+  const supported = await isSupported();
+  if (!supported) {
+    throw new Error('Notificacoes nativas nao sao suportadas neste navegador.');
+  }
+  return getMessaging(await getFirebaseApp());
+}
+
+export async function getMessagingClient() {
+  if (!messagingClientPromise) {
+    messagingClientPromise = createMessagingClient().catch((error) => {
+      messagingClientPromise = null;
+      throw error;
+    });
+  }
+
+  try {
+    return await withTimeout(
+      messagingClientPromise,
+      CLIENT_TIMEOUT_MS,
+      'Tempo esgotado ao inicializar o Firebase Messaging.',
+    );
+  } catch (error) {
+    messagingClientPromise = null;
+    throw error;
+  }
+}
 
 const serviceWorkerUrl = () => `/firebase-messaging-sw.js?${new URLSearchParams(Object.entries(config).map(([key, value]) => [key, value || '']))}`;
+
+const getStoredDeviceId = () => localStorage.getItem('neuronex_device_id');
+
+const getOrCreateDeviceId = () => {
+  const stored = getStoredDeviceId();
+  if (stored) return stored;
+  const deviceId = crypto.randomUUID();
+  localStorage.setItem('neuronex_device_id', deviceId);
+  return deviceId;
+};
 
 const deviceInfo = () => {
   const agent = navigator.userAgent;
   const browser = /Edg/i.test(agent) ? 'Edge' : /Chrome/i.test(agent) ? 'Chrome' : /Firefox/i.test(agent) ? 'Firefox' : /Safari/i.test(agent) ? 'Safari' : 'Outro';
-  const deviceId = localStorage.getItem('neuronex_device_id') || crypto.randomUUID();
-  localStorage.setItem('neuronex_device_id', deviceId);
+  const deviceId = getOrCreateDeviceId();
   return { device_name: `${browser} em ${navigator.platform || 'dispositivo'}`, browser, platform: navigator.platform || 'unknown', device_id: deviceId };
 };
 
-export const enablePushNotifications = async (userId: string) => {
-  if (!('serviceWorker' in navigator) || typeof Notification === 'undefined') throw new Error('Notificacoes nativas nao sao suportadas neste dispositivo.');
-  await assertPushEnvironment();
+async function requestNotificationPermission() {
   if (Notification.permission === 'denied') {
     throw new Error('As notificacoes estao bloqueadas. Libere a permissao no navegador e tente novamente.');
   }
+
+  logPushStep('push:permission', { before: Notification.permission });
   const permission = await Notification.requestPermission();
+  logPushStep('push:permission', { after: permission });
   if (permission !== 'granted') throw new Error('A permissao de notificacoes nao foi concedida.');
+}
+
+async function registerPushWorker() {
   const registration = await navigator.serviceWorker.register(serviceWorkerUrl()).catch((error) => {
     throw new Error(error instanceof Error ? `Falha ao registrar notificacoes: ${error.message}` : 'Falha ao registrar notificacoes nativas.');
   });
-  await registration.update().catch(() => undefined);
-  const messaging = await getMessagingClient();
-  const token = await messaging.getToken({ vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY, serviceWorkerRegistration: registration });
+  logPushStep('push:worker-registered', { scope: registration.scope, state: registration.active?.state });
+  return registration;
+}
+
+async function resolveFcmToken(messaging: Messaging, registration: ServiceWorkerRegistration) {
+  logPushStep('push:get-token-start', { scope: registration.scope });
+  const token = await withTimeout(
+    getToken(messaging, {
+      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    }),
+    TOKEN_TIMEOUT_MS,
+    'Tempo esgotado ao obter token de notificacao do Firebase.',
+  );
   if (!token) throw new Error('O navegador nao retornou um token de notificacao.');
+  logPushStep('push:get-token-success', { tokenSuffix: token.slice(-8) });
+  return token;
+}
+
+async function enablePushNotificationsInner(userId: string) {
+  if (!('serviceWorker' in navigator) || typeof Notification === 'undefined') throw new Error('Notificacoes nativas nao sao suportadas neste dispositivo.');
+  await assertPushEnvironment();
+  await requestNotificationPermission();
+  const registration = await registerPushWorker();
+  const messaging = await getMessagingClient();
+  const token = await resolveFcmToken(messaging, registration);
+  logPushStep('push:subscription-upsert', { userId, deviceId: getOrCreateDeviceId() });
   const { error } = await db.from('push_subscriptions').upsert({ user_id: userId, fcm_token: token, ...deviceInfo(), enabled: true, permission: 'granted', last_seen_at: new Date().toISOString() }, { onConflict: 'user_id,fcm_token' });
   if (error) throw error;
   return token as string;
-};
+}
+
+export const enablePushNotifications = (userId: string) => withTimeout(
+  enablePushNotificationsInner(userId),
+  PUSH_FLOW_TIMEOUT_MS,
+  'Tempo esgotado ao ativar notificacoes nativas. Tente novamente em alguns instantes.',
+);
 
 export const disablePushNotifications = async (userId: string) => {
   const messaging = await getMessagingClient().catch(() => null);
-  if (messaging) await messaging.deleteToken().catch(() => false);
-  const deviceId = localStorage.getItem('neuronex_device_id');
+  if (messaging) await deleteToken(messaging).catch(() => false);
+  const deviceId = getStoredDeviceId();
   let query = db.from('push_subscriptions').update({ enabled: false, permission: typeof Notification === 'undefined' ? 'default' : Notification.permission }).eq('user_id', userId);
   if (deviceId) query = query.eq('device_id', deviceId);
   const { error } = await query;
   if (error) throw error;
 };
 
-export const listenForForegroundPush = async (handler: (title: string, body: string, actionUrl?: string) => void) => {
+export const hasActivePushSubscription = async (userId: string) => {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+  const deviceId = getStoredDeviceId();
+  if (!deviceId) return false;
+  const { data, error } = await db
+    .from('push_subscriptions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('device_id', deviceId)
+    .eq('enabled', true)
+    .limit(1);
+  if (error) {
+    console.warn('[push:subscription-check]', error);
+    return false;
+  }
+  return Boolean(data?.length);
+};
+
+export const listenForForegroundPush = async (handler: (title: string, body: string, actionUrl?: string) => void): Promise<Unsubscribe> => {
   const messaging = await getMessagingClient();
-  return messaging.onMessage((payload: any) => handler(payload.notification?.title || 'NeuroNex', payload.notification?.body || 'Nova atualização.', payload.data?.actionUrl));
+  return onMessage(messaging, (payload: MessagePayload) => handler(payload.notification?.title || 'NeuroNex', payload.notification?.body || 'Nova atualizacao.', payload.data?.actionUrl));
 };

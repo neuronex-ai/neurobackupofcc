@@ -1,6 +1,7 @@
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { listenForForegroundPush } from '@/lib/push-notifications';
+import { hasActivePushSubscription, listenForForegroundPush } from '@/lib/push-notifications';
+import { useNotificationSettings } from '@/hooks/use-notification-settings';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ const map = (row: Row): AppNotification => ({ id: row.id, userId: row.user_id, e
 
 export const useNotifications = () => {
   const { user } = useAuth();
+  const { settings } = useNotificationSettings();
   const userId = user?.id;
   const client = useQueryClient();
   const key = useMemo(() => ['notifications', userId] as const, [userId]);
@@ -45,11 +47,24 @@ export const useNotifications = () => {
   }, [invalidate, userId]);
 
   useEffect(() => {
-    if (!userId || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if (!userId || !settings?.push_enabled || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    let cancelled = false;
     let stop: (() => void) | undefined;
-    void listenForForegroundPush((title, body, actionUrl) => toast(title, { description: body, action: actionUrl ? { label: 'Abrir', onClick: () => { window.location.href = actionUrl; } } : undefined })).then((unsubscribe) => { stop = unsubscribe; }).catch(() => undefined);
-    return () => stop?.();
-  }, [userId]);
+    void hasActivePushSubscription(userId).then((active) => {
+      if (!active || cancelled) return undefined;
+      return listenForForegroundPush((title, body, actionUrl) => toast(title, { description: body, action: actionUrl ? { label: 'Abrir', onClick: () => { window.location.href = actionUrl; } } : undefined }));
+    }).then((unsubscribe) => {
+      if (!unsubscribe) return;
+      if (cancelled) unsubscribe();
+      else stop = unsubscribe;
+    }).catch((error) => {
+      console.error('[push:foreground-listener]', error);
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [settings?.push_enabled, userId]);
 
   const update = (values: Record<string, unknown>) => async (id?: string) => {
     if (!userId) return;
