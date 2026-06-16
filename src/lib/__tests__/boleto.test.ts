@@ -19,6 +19,11 @@ describe("boleto helpers", () => {
     expect(findBoletoCandidate(`boleto ${VALID_BOLETO} fim`)).toBe(VALID_BOLETO);
   });
 
+  it("finds direct 44-digit barcode candidates inside scanner noise", () => {
+    const barcode = "1".repeat(44);
+    expect(findBoletoCandidate(`raw=${barcode};confidence=0.87`)).toBe(barcode);
+  });
+
   it("removes an adjacent OCR digit instead of treating a bank slip as a 48-digit utility bill", () => {
     expect(VALID_BOLETO).toHaveLength(47);
     expect(isValidBoletoDigits(VALID_BOLETO)).toBe(true);

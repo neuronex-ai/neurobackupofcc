@@ -429,7 +429,7 @@ async function startNativeBoletoScanner({
 
   let frame = 0;
   let stopped = false;
-  const detector = new Detector({ formats: ["itf", "code_128", "codabar"] });
+  const detector = new Detector({ formats: ["itf", "code_128", "codabar", "ean_13", "ean_8"] });
   video.srcObject = stream;
   await video.play();
 

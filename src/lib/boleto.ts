@@ -57,14 +57,12 @@ export function findBoletoCandidate(text: string) {
     const compact = onlyDigits(segment);
 
     for (let start = 0; start < compact.length; start += 1) {
-      const preferredLengths = compact[start] === "8" ? [48, 47] : [47, 48];
+      const preferredLengths = compact[start] === "8" ? [48, 47, 44] : [47, 44, 48];
       for (const length of preferredLengths) {
         const candidate = compact.slice(start, start + length);
         if (candidate.length === length && isValidBoletoDigits(candidate)) return candidate;
       }
     }
-
-    if (compact.length === 44 && isValidBoletoDigits(compact)) return compact;
   }
 
   return null;

@@ -46,6 +46,7 @@ const BIOMETRIC_ACCOUNT_KEY = "neuronex.biometric.account.v1";
 const BIOMETRIC_PREFERENCE_PREFIX = "neuronex.biometric.preference.v1";
 const BIOMETRIC_ENABLED_PREFIX = "neuronex.biometric.enabled.v1";
 const BIOMETRIC_SESSION_PREFIX = "neuronex.biometric.session.v1";
+const WEBAUTHN_CREDENTIAL_PREFIX = "neuronex.biometric.webauthn.v1";
 const FINANCIAL_PIN_PREFIX = "neuronex.financial-pin.v1";
 const SUPABASE_AUTH_TOKEN_SUFFIX = "-auth-token";
 
@@ -60,6 +61,75 @@ function getNativeBridge(): NativeBridge | null {
     nativeWindow.NeuroNexAndroid ||
     null
   );
+}
+
+function hasSecureStorageBridge() {
+  const bridge = getNativeBridge();
+  return Boolean(
+    bridge?.secureStorageGet &&
+      bridge.secureStorageSet &&
+      bridge.secureStorageRemove,
+  );
+}
+
+function canAttemptWebAuthnPlatform() {
+  return Boolean(
+    typeof window !== "undefined" &&
+      window.isSecureContext &&
+      window.PublicKeyCredential &&
+      navigator.credentials &&
+      window.crypto?.getRandomValues,
+  );
+}
+
+async function isWebAuthnPlatformAvailable() {
+  if (!canAttemptWebAuthnPlatform()) return false;
+  try {
+    return Boolean(
+      await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.(),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function arrayBufferToBase64Url(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return window
+    .btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function base64UrlToArrayBuffer(value: string) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+  const binary = window.atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes.buffer;
+}
+
+function createWebAuthnChallenge() {
+  const challenge = new Uint8Array(32);
+  window.crypto.getRandomValues(challenge);
+  return challenge;
+}
+
+function createWebAuthnUserHandle(userId: string) {
+  return new TextEncoder().encode(userId).slice(0, 64);
+}
+
+function getStoredWebAuthnCredentialId(userId?: string | null) {
+  if (!userId) return null;
+  return localGet(keyWithUser(WEBAUTHN_CREDENTIAL_PREFIX, userId));
 }
 
 async function normalizeNativeResult<T>(result: unknown): Promise<T | null> {
@@ -177,11 +247,8 @@ async function secureRemove(key: string) {
 export function hasNativeSecureBridge() {
   const bridge = getNativeBridge();
   return Boolean(
-    bridge?.secureStorageGet &&
-      bridge.secureStorageSet &&
-      bridge.secureStorageRemove &&
-      bridge.getBiometricStatus &&
-      bridge.authenticateBiometric,
+    (hasSecureStorageBridge() && (bridge?.getBiometricStatus || bridge?.authenticateBiometric)) ||
+      canAttemptWebAuthnPlatform(),
   );
 }
 
@@ -190,13 +257,15 @@ export function canAttemptNativeBiometrics() {
   return Boolean(
     bridge?.getBiometricStatus ||
       bridge?.authenticateBiometric ||
+      canAttemptWebAuthnPlatform() ||
       isLikelyMobileDevice(),
   );
 }
 
 export function isBiometricStatusUsable(status?: BiometricStatus | null) {
   return Boolean(
-    status?.native &&
+    status &&
+      (status.native || status.biometryType === "platform") &&
       status.supported !== false &&
       (status.available || status.enrolled || status.reason === null),
   );
@@ -243,37 +312,160 @@ export async function getBiometricStatus(): Promise<BiometricStatus> {
     }
   }
 
+  if (bridge?.authenticateBiometric) {
+    return {
+      available: true,
+      enrolled: true,
+      supported: true,
+      native: true,
+      biometryType: "biometric",
+      reason: null,
+    };
+  }
+
+  if (await isWebAuthnPlatformAvailable()) {
+    return {
+      available: true,
+      enrolled: true,
+      supported: true,
+      native: false,
+      biometryType: "platform",
+      reason: null,
+    };
+  }
+
   return {
     available: false,
     enrolled: false,
-    supported: false,
+    supported: canAttemptWebAuthnPlatform(),
     native: false,
-    reason: "Biometria nativa indisponivel neste ambiente.",
+    biometryType: null,
+    reason: canAttemptWebAuthnPlatform()
+      ? "Configure biometria, senha ou bloqueio seguro no aparelho."
+      : "Biometria indisponivel neste ambiente. Use login normal.",
   };
 }
 
-export async function authenticateWithBiometrics(reason: string) {
-  const bridge = getNativeBridge();
-  if (!bridge?.authenticateBiometric) {
-    throw new Error("Biometria nativa indisponivel neste dispositivo.");
+async function registerWebAuthnCredential(params: {
+  userId: string;
+  email?: string | null;
+}) {
+  if (!canAttemptWebAuthnPlatform()) {
+    throw new Error("Autenticador de plataforma indisponivel neste aparelho.");
   }
 
-  const result = await normalizeNativeResult<Record<string, unknown>>(
-    bridge.authenticateBiometric({
-      title: "NeuroNex",
-      subtitle: reason,
-      description: "Confirme sua identidade com biometria ou bloqueio do aparelho.",
-      negativeButtonText: "Usar senha",
-      allowDeviceCredential: true,
-      confirmationRequired: true,
-    }),
+  const credential = (await navigator.credentials.create({
+    publicKey: {
+      challenge: createWebAuthnChallenge(),
+      rp: { name: "NeuroNex" },
+      user: {
+        id: createWebAuthnUserHandle(params.userId),
+        name: params.email || params.userId,
+        displayName: params.email || "NeuroNex",
+      },
+      pubKeyCredParams: [
+        { type: "public-key", alg: -7 },
+        { type: "public-key", alg: -257 },
+      ],
+      authenticatorSelection: {
+        authenticatorAttachment: "platform",
+        residentKey: "preferred",
+        userVerification: "required",
+      },
+      timeout: 60000,
+      attestation: "none",
+    },
+  })) as PublicKeyCredential | null;
+
+  if (!credential?.rawId) {
+    throw new Error("Biometria nao confirmada. Use login normal.");
+  }
+
+  localSet(
+    keyWithUser(WEBAUTHN_CREDENTIAL_PREFIX, params.userId),
+    arrayBufferToBase64Url(credential.rawId),
   );
 
-  if (result && result.success === false) {
-    throw new Error(String(result.reason || result.error || "Biometria nao confirmada."));
+  return true;
+}
+
+async function authenticateWithWebAuthn(params: {
+  reason: string;
+  userId?: string | null;
+  email?: string | null;
+  allowRegistration?: boolean;
+}) {
+  if (!params.userId) {
+    throw new Error("Conta biometrica nao encontrada neste aparelho.");
+  }
+
+  const storedCredentialId = getStoredWebAuthnCredentialId(params.userId);
+  if (!storedCredentialId && params.allowRegistration) {
+    return registerWebAuthnCredential({
+      userId: params.userId,
+      email: params.email,
+    });
+  }
+
+  if (!storedCredentialId) {
+    throw new Error("Biometria ainda nao esta vinculada neste aparelho.");
+  }
+
+  const credential = await navigator.credentials.get({
+    publicKey: {
+      challenge: createWebAuthnChallenge(),
+      allowCredentials: [
+        {
+          type: "public-key",
+          id: base64UrlToArrayBuffer(storedCredentialId),
+        },
+      ],
+      userVerification: "required",
+      timeout: 60000,
+    },
+  });
+
+  if (!credential) {
+    throw new Error("Biometria nao confirmada. Use senha ou PIN.");
   }
 
   return true;
+}
+
+export async function authenticateWithBiometrics(
+  reason: string,
+  options?: {
+    userId?: string | null;
+    email?: string | null;
+    allowRegistration?: boolean;
+  },
+) {
+  const bridge = getNativeBridge();
+  if (bridge?.authenticateBiometric) {
+    const result = await normalizeNativeResult<Record<string, unknown>>(
+      bridge.authenticateBiometric({
+        title: "NeuroNex",
+        subtitle: reason,
+        description: "Confirme sua identidade com biometria ou bloqueio do aparelho.",
+        negativeButtonText: "Usar senha",
+        allowDeviceCredential: true,
+        confirmationRequired: true,
+      }),
+    );
+
+    if (result && result.success === false) {
+      throw new Error(String(result.reason || result.error || "Biometria nao confirmada."));
+    }
+
+    return true;
+  }
+
+  return authenticateWithWebAuthn({
+    reason,
+    userId: options?.userId,
+    email: options?.email,
+    allowRegistration: options?.allowRegistration,
+  });
 }
 
 export function getStoredBiometricAccount(): StoredBiometricAccount | null {
