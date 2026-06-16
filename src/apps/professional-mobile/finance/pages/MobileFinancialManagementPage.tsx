@@ -240,26 +240,25 @@ export function MobileFinancialManagementPage() {
           <section className="space-y-4">
             <MobileSectionTitle
               title="Ações principais"
-              description="Tarefas frequentes com alvos grandes e decisão clara."
             />
             <div className="grid grid-cols-2 gap-3">
               <MobileActionButton
                 label="Registrar entrada"
-                description="Recebimento ou receita manual"
+                description="Receita manual"
                 icon={ArrowUpRight}
                 tone="success"
                 onClick={() => openEntry("income")}
               />
               <MobileActionButton
                 label="Registrar despesa"
-                description="Custo ou pagamento externo"
+                description="Custo externo"
                 icon={ArrowDownRight}
                 tone="danger"
                 onClick={() => openEntry("expense")}
               />
               <MobileActionButton
                 label="Ver pendências"
-                description="Valores ainda não recebidos"
+                description="A receber"
                 icon={ListChecks}
                 badge={`${pendingInvoices}`}
                 tone={pendingInvoices > 0 ? "warning" : "default"}
@@ -271,7 +270,7 @@ export function MobileFinancialManagementPage() {
               />
               <MobileActionButton
                 label="Analisar caixa"
-                description="Pergunte ao Synapse"
+                description="Synapse"
                 icon={Bot}
                 onClick={() => navigate("/synapse-ai")}
               />
@@ -282,8 +281,8 @@ export function MobileFinancialManagementPage() {
             <MobileFinanceListRow
               icon={Landmark}
               title="NeuroFinance"
-              description="Pix, cobranças, boleto, transferências e saldo real ficam na aba de conta."
-              meta="Operação bancária protegida por PIN"
+              description="Pix, boleto, transferencias e saldo real."
+              meta="Conta protegida por biometria/PIN"
               status="Conta"
               onClick={() => navigate("/financeiro/neurofinance")}
             />
@@ -292,7 +291,6 @@ export function MobileFinancialManagementPage() {
           <section className="space-y-4">
             <MobileSectionTitle
               title="Lançamentos recentes"
-              description="Movimentos administrativos registrados no consultório."
               trailing={
                 <MobileFinanceButton
                   variant="ghost"
@@ -328,7 +326,7 @@ export function MobileFinancialManagementPage() {
               <MobileEmptyState
                 icon={ListChecks}
                 title="Nenhum lançamento por aqui"
-                description="Registre uma entrada ou despesa para iniciar o acompanhamento financeiro."
+                description="Registre uma entrada ou despesa."
                 action={
                   <MobileFinanceButton onClick={() => openEntry("income")}>
                     <Plus className="h-4 w-4" />
