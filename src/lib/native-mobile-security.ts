@@ -35,7 +35,10 @@ export type StoredBiometricAccount = {
   enabledAt: string;
 };
 
+export type BiometricPreference = "enabled" | "disabled" | "unset";
+
 const BIOMETRIC_ACCOUNT_KEY = "neuronex.biometric.account.v1";
+const BIOMETRIC_PREFERENCE_PREFIX = "neuronex.biometric.preference.v1";
 const BIOMETRIC_ENABLED_PREFIX = "neuronex.biometric.enabled.v1";
 const BIOMETRIC_SESSION_PREFIX = "neuronex.biometric.session.v1";
 const FINANCIAL_PIN_PREFIX = "neuronex.financial-pin.v1";
@@ -262,6 +265,16 @@ export function isBiometricEnabledForUser(userId?: string | null) {
   return localGet(keyWithUser(BIOMETRIC_ENABLED_PREFIX, userId)) === "true";
 }
 
+export function getBiometricPreferenceForUser(userId?: string | null): BiometricPreference {
+  if (!userId) return "unset";
+  const value = localGet(keyWithUser(BIOMETRIC_PREFERENCE_PREFIX, userId));
+  return value === "enabled" || value === "disabled" ? value : "unset";
+}
+
+function setBiometricPreferenceForUser(userId: string, preference: Exclude<BiometricPreference, "unset">) {
+  localSet(keyWithUser(BIOMETRIC_PREFERENCE_PREFIX, userId), preference);
+}
+
 export async function enableBiometricSignIn(params: {
   userId: string;
   email?: string | null;
@@ -289,6 +302,7 @@ export async function enableBiometricSignIn(params: {
 
   localSet(BIOMETRIC_ACCOUNT_KEY, JSON.stringify(account));
   localSet(keyWithUser(BIOMETRIC_ENABLED_PREFIX, params.userId), "true");
+  setBiometricPreferenceForUser(params.userId, "enabled");
 
   await secureSet(
     keyWithUser(BIOMETRIC_SESSION_PREFIX, params.userId),
@@ -303,6 +317,18 @@ export async function enableBiometricSignIn(params: {
   );
 
   authVaultUnlocked = true;
+}
+
+export async function disableBiometricSignIn(userId: string) {
+  await secureRemove(keyWithUser(BIOMETRIC_SESSION_PREFIX, userId));
+  await secureRemove(keyWithUser(FINANCIAL_PIN_PREFIX, userId));
+  localRemove(keyWithUser(BIOMETRIC_ENABLED_PREFIX, userId));
+  setBiometricPreferenceForUser(userId, "disabled");
+
+  const account = getStoredBiometricAccount();
+  if (account?.userId === userId) {
+    localRemove(BIOMETRIC_ACCOUNT_KEY);
+  }
 }
 
 export async function restoreBiometricSession() {
@@ -387,11 +413,11 @@ export async function scanCodeWithNative(params: {
       formats:
         params.mode === "pix"
           ? ["QR_CODE"]
-          : ["ITF", "CODE_128", "EAN_13", "QR_CODE"],
+          : ["ITF", "CODE_128", "CODABAR"],
       prompt:
         params.mode === "pix"
           ? "Aponte a camera para o QR Code Pix."
-          : "Aponte a camera para o codigo de barras do boleto.",
+          : "Aponte a camera para as barras horizontais do boleto.",
       useMlKit: true,
       useCameraX: true,
     }),
