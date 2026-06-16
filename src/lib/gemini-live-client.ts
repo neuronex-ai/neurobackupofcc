@@ -230,8 +230,7 @@ export class GeminiLiveClient {
         this.disconnect();
     }
 
-    private handleSocketError(err: any) {
-        console.error('WebSocket Error:', err);
+    private handleSocketError(_err: unknown) {
         this.options.onError?.(new Error("Conexão falhou com a IA de áudio"));
         this.options.onStatusChange?.('error');
     }
