@@ -220,11 +220,12 @@ const AuthPageV2 = () => {
     return (
       <main className={cn(
         "relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[calc(1rem+env(safe-area-inset-top))]",
-        mobileShellClass,
+        authShellClass,
       )}>
         <section className={cn(
-          "relative w-full max-w-[23.5rem] overflow-hidden rounded-[38px] border border-current/10 bg-inherit px-0 pb-5 pt-8 shadow-2xl",
+          "relative w-full max-w-[23.5rem] overflow-hidden rounded-[40px] border px-0 pb-5 pt-8",
           "min-h-[min(82dvh,43rem)]",
+          authFrameClass,
         )}>
           <div className="flex min-h-[7.25rem] items-start justify-center pt-1 text-center">
             <img src={logoSrc} alt="NeuroNex" className="h-14 w-14 object-contain" />
@@ -233,7 +234,7 @@ const AuthPageV2 = () => {
 
           <div className={cn(
             "mx-0 min-h-[min(58dvh,32.5rem)] rounded-b-[36px] rounded-t-[34px] px-8 pb-7 pt-11 shadow-[0_-18px_44px_-34px_rgba(0,0,0,0.65)]",
-            mobilePanelClass,
+            authPanelClass,
           )}>
           <form onSubmit={submit} className="space-y-7">
             <Input
@@ -241,7 +242,7 @@ const AuthPageV2 = () => {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="Email"
-              className="h-12 rounded-none border-x-0 border-t-0 border-current/18 bg-transparent px-0 text-sm font-semibold text-current placeholder:text-current/70 focus-visible:ring-0"
+              className={authInputClass}
             />
             <div className="relative">
               <Input
@@ -249,9 +250,9 @@ const AuthPageV2 = () => {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Password"
-                className="h-12 rounded-none border-x-0 border-t-0 border-current/18 bg-transparent px-0 pr-9 text-sm font-semibold text-current placeholder:text-current/70 focus-visible:ring-0"
+                className={cn(authInputClass, "pr-10")}
               />
-              <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-0 top-1/2 -translate-y-1/2 text-current/60" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>
+              <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-current/60 transition-colors hover:text-current" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
@@ -261,7 +262,7 @@ const AuthPageV2 = () => {
               disabled={loading}
               className={cn(
                 "mt-8 h-12 w-full rounded-[10px] text-[11px] font-black",
-                mobilePrimaryButtonClass,
+                authPrimaryButtonClass,
               )}
             >
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Login'}
@@ -274,7 +275,10 @@ const AuthPageV2 = () => {
               variant="outline"
               disabled={biometricLoading || loading}
               onClick={() => void unlockWithBiometrics()}
-              className="mt-3 h-12 w-full rounded-[10px] border-current/20 bg-transparent text-[10px] font-black uppercase tracking-[.12em] text-current"
+              className={cn(
+                "mt-3 h-12 w-full rounded-[10px] text-[10px] font-black uppercase tracking-[.12em]",
+                authSecondaryButtonClass,
+              )}
             >
               {biometricLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Fingerprint className="mr-2 h-4 w-4" />}
               Entrar com biometria
@@ -330,9 +334,14 @@ const AuthPageV2 = () => {
     );
   }
 
-  return <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-5">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(139,92,246,.12),transparent_35%),radial-gradient(circle_at_90%_90%,rgba(255,255,255,.05),transparent_30%)]" />
-    <section className="relative w-full max-w-md rounded-[38px] border border-border/30 bg-card/80 p-8 shadow-2xl backdrop-blur-3xl md:p-11">
+  return <main className={cn(
+    "relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10",
+    authShellClass,
+  )}>
+    <section className={cn(
+      "relative w-full max-w-[31rem] overflow-hidden rounded-[44px] border px-0 pb-6 pt-10",
+      authFrameClass,
+    )}>
       <div className="mb-8 text-center"><img src="/favicon-light.png" alt="NeuroNex" className="mx-auto h-16 w-16 object-contain" /><h1 className="mt-5 text-3xl font-black tracking-tight">{role === 'patient' ? 'Área do paciente' : 'Acesso profissional'}</h1><p className="mt-2 text-xs font-bold uppercase tracking-[.2em] text-muted-foreground">Segurança NeuroNex</p></div>
       <form onSubmit={submit} className="space-y-4">
         <div className="relative"><Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="E-mail" className="h-14 rounded-2xl pl-11" /></div>
