@@ -194,25 +194,32 @@ const AuthPageV2 = () => {
   }, [autoBiometricAttempted, biometricLoading, canUseBiometrics, loading]);
 
   const isDarkTheme = theme === 'dark';
-  const mobilePanelIsLight = isMobile && isDarkTheme;
+  const mobileShellClass = isDarkTheme ? "bg-[#050505] text-white" : "bg-[#f8f8f6] text-[#171514]";
+  const mobilePanelClass = isDarkTheme ? "bg-[#f8f8f6] text-[#171514]" : "bg-[#201e1e] text-white";
+  const mobilePrimaryButtonClass = isDarkTheme
+    ? "bg-[#201e1e] text-white hover:bg-black"
+    : "bg-[#fff2f5] text-[#171514] hover:bg-white";
   const logoSrc = isDarkTheme ? '/favicon-light.png' : '/favicon-dark.png';
 
   if (isMobile) {
     return (
       <main className={cn(
         "relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[calc(1rem+env(safe-area-inset-top))]",
-        isDarkTheme ? "bg-black text-black" : "bg-white text-white",
+        mobileShellClass,
       )}>
         <section className={cn(
-          "relative w-full max-w-md rounded-[34px] px-7 pb-7 pt-10 shadow-2xl",
-          "min-h-[min(78dvh,42rem)]",
-          mobilePanelIsLight ? "bg-white text-black" : "bg-[#1f1d1d] text-white",
+          "relative w-full max-w-[23.5rem] overflow-hidden rounded-[38px] border border-current/10 bg-inherit px-0 pb-5 pt-8 shadow-2xl",
+          "min-h-[min(82dvh,43rem)]",
         )}>
-          <div className="mb-10 text-center">
-            <img src={logoSrc} alt="NeuroNex" className="mx-auto h-14 w-14 object-contain" />
+          <div className="flex min-h-[7.25rem] items-start justify-center pt-1 text-center">
+            <img src={logoSrc} alt="NeuroNex" className="h-14 w-14 object-contain" />
             <h1 className="sr-only">{role === 'patient' ? 'Area do paciente' : 'Acesso profissional'}</h1>
           </div>
 
+          <div className={cn(
+            "mx-0 min-h-[min(58dvh,32.5rem)] rounded-b-[36px] rounded-t-[34px] px-8 pb-7 pt-11 shadow-[0_-18px_44px_-34px_rgba(0,0,0,0.65)]",
+            mobilePanelClass,
+          )}>
           <form onSubmit={submit} className="space-y-7">
             <Input
               type="email"
@@ -239,23 +246,11 @@ const AuthPageV2 = () => {
               disabled={loading}
               className={cn(
                 "mt-8 h-12 w-full rounded-[10px] text-[11px] font-black",
-                mobilePanelIsLight
-                  ? "bg-[#1f1d1d] text-white hover:bg-black"
-                  : "bg-[#fff2f5] text-[#1f1d1d] hover:bg-white",
+                mobilePrimaryButtonClass,
               )}
             >
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Login'}
             </Button>
-
-            <label className="flex items-center gap-3 text-xs font-bold text-current">
-              <span className="mr-auto">Remember me</span>
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(event) => setRemember(event.target.checked)}
-                className="h-4 w-7 accent-current"
-              />
-            </label>
           </form>
 
           {canUseBiometrics ? (
@@ -273,6 +268,16 @@ const AuthPageV2 = () => {
 
           <button onClick={() => setForgotOpen(true)} className="mt-6 w-full text-center text-xs font-semibold text-current/70">Esqueci minha senha</button>
           <div className="mt-7 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-current/55"><ShieldCheck className="h-3.5 w-3.5" /> Sessao protegida</div>
+          </div>
+          <label className="flex items-center justify-end gap-3 px-8 pt-3 text-xs font-bold text-current">
+            <span>Remember me</span>
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(event) => setRemember(event.target.checked)}
+              className="h-4 w-7 accent-current"
+            />
+          </label>
         </section>
 
         <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
