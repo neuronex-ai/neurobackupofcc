@@ -1,345 +1,923 @@
 "use client";
 
+import { TotpMfaDialog } from "@/components/settings/TotpMfaDialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  CreateAccountDraft,
+  type PasswordStrength,
+  ProfessionalContext,
+  maskBrazilPhone,
+  normalizeEmail,
+  useCreateAccountFlow,
+} from "@/hooks/use-create-account-flow";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
-import { motion, type Variants } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, Loader2, LockKeyhole, ShieldCheck, UserRound } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Clock3,
+  Eye,
+  EyeOff,
+  Fingerprint,
+  Loader2,
+  Mail,
+  MailCheck,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-type Step = "identity" | "clinic" | "security";
-
-type FormState = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  crp: string;
-  clinicName: string;
-  clinicSize: string;
-  planIntent: string;
-  password: string;
-  confirmPassword: string;
-  acceptedTerms: boolean;
+const fadeSlide: Variants = {
+  hidden: { opacity: 0, y: 18, scale: 0.985 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.34, ease: [0.22, 1, 0.36, 1] as const },
+  },
+  exit: {
+    opacity: 0,
+    y: -12,
+    scale: 0.99,
+    transition: { duration: 0.18 },
+  },
 };
 
-const fadeIn: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] as const } },
-};
-
-const steps: Array<{ id: Step; label: string; icon: typeof UserRound }> = [
-  { id: "identity", label: "Profissional", icon: UserRound },
-  { id: "clinic", label: "Clinica", icon: ShieldCheck },
-  { id: "security", label: "Seguranca", icon: LockKeyhole },
+const contextOptions: Array<{ value: ProfessionalContext; label: string; description: string }> = [
+  {
+    value: "individual_professional",
+    label: "Sou profissional individual",
+    description: "Atendo com agenda e pacientes próprios.",
+  },
+  {
+    value: "clinic_admin",
+    label: "Sou administrador(a) de clínica",
+    description: "Cuido da operação de uma equipe clínica.",
+  },
+  {
+    value: "psychology_student",
+    label: "Sou estudante de psicologia",
+    description: "Quero organizar estudos, prática e evolução.",
+  },
 ];
 
-const initialForm: FormState = {
-  firstName: "",
-  lastName: "",
-  email: "",
-  phone: "",
-  crp: "",
-  clinicName: "",
-  clinicSize: "solo",
-  planIntent: "professional",
-  password: "",
-  confirmPassword: "",
-  acceptedTerms: false,
-};
-
-const onlyDigits = (value: string) => value.replace(/\D/g, "");
-const maskPhone = (value: string) =>
-  onlyDigits(value)
-    .replace(/^(\d{2})(\d)/, "($1) $2")
-    .replace(/(\d{5})(\d)/, "$1-$2")
-    .slice(0, 15);
+const passwordRules = [
+  { key: "minLength", label: "Mínimo de 8 caracteres" },
+  { key: "lower", label: "1 letra minúscula" },
+  { key: "upper", label: "1 letra maiúscula" },
+  { key: "special", label: "1 caractere especial: @ # < ! $ % & * ; / ?" },
+] as const;
 
 export default function CreateAccount() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<Step>("identity");
-  const [form, setForm] = useState<FormState>(initialForm);
+  const isMobile = useIsMobile();
+  const { theme } = useTheme();
+  const flow = useCreateAccountFlow();
   const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [twoFactorOpen, setTwoFactorOpen] = useState(false);
+  const [totpOpen, setTotpOpen] = useState(false);
+  const [successProgress, setSuccessProgress] = useState(12);
 
-  const stepIndex = steps.findIndex((item) => item.id === step);
-  const progress = ((stepIndex + 1) / steps.length) * 100;
-  const logoSrc = "/favicon-S-FUNDO-PRETA.ico";
+  const isDarkTheme = theme === "dark";
+  const logoSrc = isDarkTheme ? "/favicon-light.png" : "/favicon-dark.png";
+  const shellClass = isDarkTheme ? "bg-[#020202] text-white" : "bg-[#f8f8f6] text-[#171514]";
+  const frameClass = isDarkTheme
+    ? "border-black/80 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.13),transparent_30%),linear-gradient(145deg,#020202_0%,#141414_48%,#030303_100%)] shadow-[0_28px_82px_-48px_rgba(255,255,255,0.2)]"
+    : "border-black/[0.055] bg-[#f8f8f6] shadow-[0_28px_82px_-50px_rgba(0,0,0,0.42)]";
+  const panelClass = isDarkTheme
+    ? "bg-[linear-gradient(160deg,#ffffff_0%,#f4f3ef_48%,#e7e6e0_100%)] text-[#171514]"
+    : "bg-[linear-gradient(160deg,#292626_0%,#201e1e_48%,#171515_100%)] text-white";
+  const inputClass = cn(
+    "h-[3.25rem] rounded-[4px] border-x-0 border-t-0 bg-transparent px-3 text-sm font-semibold shadow-none transition-colors duration-200",
+    "focus-visible:ring-0 focus-visible:ring-offset-0",
+    isDarkTheme
+      ? "border-black/10 text-[#171514] placeholder:text-[#98a0ad] hover:bg-zinc-100/70 focus-visible:border-black/20 focus-visible:bg-zinc-200/80 selection:bg-white selection:text-black"
+      : "border-white/40 text-white placeholder:text-white/60 hover:bg-black/10 focus-visible:border-white/60 focus-visible:bg-black/25 selection:bg-white selection:text-[#171514]",
+  );
+  const primaryButtonClass = isDarkTheme
+    ? "bg-[#201e1e] text-white hover:bg-black"
+    : "bg-[#fff1f4] text-[#171514] hover:bg-white";
+  const mutedPanelClass = isDarkTheme
+    ? "border-black/10 bg-black/[0.035] text-[#171514]"
+    : "border-white/15 bg-white/[0.035] text-white";
+  const stepNumber = flow.step === "identity" ? 1 : flow.step === "password" ? 2 : 3;
+  const progress = flow.step === "identity" ? 34 : flow.step === "password" ? 68 : 100;
 
-  const fullName = useMemo(() => [form.firstName, form.lastName].filter(Boolean).join(" "), [form.firstName, form.lastName]);
+  const firstName = useMemo(() => flow.draft.fullName.trim().split(/\s+/)[0] || "profissional", [flow.draft.fullName]);
 
-  const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((current) => ({
-      ...current,
-      [key]: key === "phone" && typeof value === "string" ? maskPhone(value) : value,
-    }));
-  };
-
-  const validateStep = () => {
-    if (step === "identity") {
-      if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
-        toast.error("Preencha nome, sobrenome e e-mail.");
-        return false;
-      }
-      if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
-        toast.error("Informe um e-mail valido.");
-        return false;
-      }
-    }
-    if (step === "clinic") {
-      if (!form.crp.trim() || !form.clinicName.trim()) {
-        toast.error("Informe CRP e nome da clinica.");
-        return false;
-      }
-    }
-    if (step === "security") {
-      if (form.password.length < 8) {
-        toast.error("A senha precisa ter pelo menos 8 caracteres.");
-        return false;
-      }
-      if (form.password !== form.confirmPassword) {
-        toast.error("As senhas nao conferem.");
-        return false;
-      }
-      if (!form.acceptedTerms) {
-        toast.error("Aceite os termos para criar a conta.");
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const next = () => {
-    if (!validateStep()) return;
-    const nextStep = steps[stepIndex + 1]?.id;
-    if (nextStep) {
-      setStep(nextStep);
+  const updateDraft = <K extends keyof CreateAccountDraft>(key: K, value: CreateAccountDraft[K]) => {
+    if (key === "email" || key === "recoveryEmail") {
+      flow.setDraft({ [key]: normalizeEmail(String(value)) } as Partial<CreateAccountDraft>);
       return;
     }
-    void submit();
+    if (key === "phone") {
+      flow.setDraft({ phone: maskBrazilPhone(String(value)) });
+      return;
+    }
+    flow.setDraft({ [key]: value } as Partial<CreateAccountDraft>);
   };
 
-  const back = () => {
-    const previousStep = steps[stepIndex - 1]?.id;
-    if (previousStep) setStep(previousStep);
-  };
-
-  const submit = async () => {
-    if (!validateStep()) return;
-    setSubmitting(true);
+  const submitIdentity = async () => {
     try {
-      const email = form.email.trim().toLowerCase();
-      const { error } = await supabase.auth.signUp({
-        email,
-        password: form.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth?verified=true`,
-          data: {
-            first_name: form.firstName.trim(),
-            last_name: form.lastName.trim(),
-            full_name: fullName,
-            phone: form.phone,
-            crp: form.crp.trim(),
-            clinic_name: form.clinicName.trim(),
-            clinic_size: form.clinicSize,
-            plan_intent: form.planIntent,
-            role: "professional",
-            onboarding_source: "create-account",
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      toast.success("Conta criada. Verifique seu e-mail.");
-      navigate("/account-created", { state: { email, firstName: form.firstName.trim() || "Profissional" } });
+      await flow.sendVerificationEmail();
+      toast.success("Enviamos a confirmação para o seu e-mail.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nao foi possivel criar a conta.");
-    } finally {
-      setSubmitting(false);
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o e-mail de confirmação.");
     }
   };
 
+  const submitOtp = async () => {
+    try {
+      await flow.verifyEmailCode();
+      toast.success("E-mail confirmado. Agora crie sua senha.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Código inválido ou expirado.");
+    }
+  };
+
+  const resendOtp = async () => {
+    try {
+      await flow.resendVerification();
+      toast.success("E-mail reenviado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível reenviar agora.");
+    }
+  };
+
+  const submitPassword = async () => {
+    try {
+      await flow.createPassword();
+      setTwoFactorOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível criar sua senha.");
+    }
+  };
+
+  const finishSecurity = () => {
+    setTwoFactorOpen(false);
+    setTotpOpen(false);
+    flow.completeSignup();
+  };
+
+  useEffect(() => {
+    if (flow.step !== "success") return;
+    setSuccessProgress(20);
+    const marks = [36, 54, 72, 88, 100];
+    const timers = marks.map((mark, index) =>
+      window.setTimeout(() => setSuccessProgress(mark), 420 + index * 360),
+    );
+    const redirect = window.setTimeout(() => navigate("/initial-settings", { replace: true }), 2800);
+    return () => {
+      timers.forEach(window.clearTimeout);
+      window.clearTimeout(redirect);
+    };
+  }, [flow.step, navigate]);
+
   return (
-    <main className="min-h-screen overflow-hidden bg-white text-black selection:bg-black/10 dark:bg-black dark:text-white">
-      <div className="mx-auto grid min-h-screen w-full max-w-[1440px] lg:grid-cols-[0.92fr_1.08fr]">
-        <aside className="hidden border-r border-black/5 bg-[#f6f6f4] p-12 dark:border-white/10 dark:bg-[#050505] lg:flex lg:flex-col lg:justify-between">
-          <Link to="/" className="inline-flex w-fit items-center gap-3">
-            <img src={logoSrc} alt="NeuroNex" className="h-9 w-9 dark:invert" />
-            <span className="text-sm font-black uppercase tracking-[0.22em]">NeuroNex</span>
-          </Link>
-
-          <div className="max-w-xl">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-black/35 dark:text-white/35">Acesso profissional</p>
-            <h1 className="mt-6 text-7xl font-black tracking-[-0.07em] leading-[0.88]">
-              Crie sua conta clinica.
-            </h1>
-            <p className="mt-8 max-w-md text-lg font-semibold leading-relaxed text-black/48 dark:text-white/52">
-              Um cadastro direto para liberar a experiencia NeuroNex, com seguranca, notificacoes e configuracao financeira preparadas para a proxima etapa.
-            </p>
+    <main
+      className={cn(
+        "relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-[calc(1rem+env(safe-area-inset-top))]",
+        shellClass,
+      )}
+    >
+      <section
+        className={cn(
+          "relative grid w-full max-w-[68rem] overflow-hidden border",
+          isMobile
+            ? "min-h-[min(86dvh,45rem)] max-w-[24rem] rounded-[40px] pb-5 pt-8"
+            : "min-h-[42rem] grid-cols-[0.9fr_1.1fr] rounded-[44px] p-0",
+          frameClass,
+        )}
+      >
+        {!isMobile ? (
+          <CreateAccountSideRail
+            logoSrc={logoSrc}
+            isDarkTheme={isDarkTheme}
+            stepNumber={stepNumber}
+            progress={progress}
+          />
+        ) : (
+          <div className="flex min-h-[7.2rem] items-start justify-center pt-1">
+            <img src={logoSrc} alt="NeuroNex AI" className="h-14 w-14 object-contain" />
           </div>
+        )}
 
-          <div className="grid grid-cols-3 gap-3">
-            {steps.map((item, index) => {
-              const active = index <= stepIndex;
-              return (
-                <div key={item.id} className={cn("rounded-[24px] border p-4", active ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black" : "border-black/10 bg-white/55 text-black/45 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/45")}>
-                  <item.icon className="h-5 w-5" />
-                  <p className="mt-4 text-[10px] font-black uppercase tracking-[0.12em]">{item.label}</p>
-                </div>
-              );
-            })}
-          </div>
-        </aside>
-
-        <section className="flex min-h-screen items-center justify-center px-5 py-[calc(1rem+env(safe-area-inset-top))] sm:px-8 lg:p-12">
-          <motion.div initial="hidden" animate="visible" variants={fadeIn} className="w-full max-w-[520px]">
-            <div className="mb-7 flex items-center justify-between lg:hidden">
-              <Link to="/" className="inline-flex items-center gap-3">
-                <img src={logoSrc} alt="NeuroNex" className="h-10 w-10 dark:invert" />
-                <span className="text-sm font-black uppercase tracking-[0.18em]">NeuroNex</span>
-              </Link>
-              <Button asChild variant="ghost" className="h-11 rounded-full px-4 text-xs font-black">
-                <Link to="/auth">Entrar</Link>
-              </Button>
-            </div>
-
-            <div className="overflow-hidden rounded-[40px] border border-black/8 bg-white shadow-[0_28px_80px_-48px_rgba(0,0,0,0.55)] dark:border-white/10 dark:bg-[#060606]">
-              <header className="p-6 pb-5 sm:p-8">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/35 dark:text-white/35">Criar conta</p>
-                    <h2 className="mt-2 text-3xl font-black tracking-[-0.06em] sm:text-4xl">Comece pelo essencial.</h2>
-                  </div>
-                  <span className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-black text-white dark:bg-white dark:text-black">
-                    {step === "security" ? <LockKeyhole className="h-5 w-5" /> : step === "clinic" ? <ShieldCheck className="h-5 w-5" /> : <UserRound className="h-5 w-5" />}
-                  </span>
-                </div>
-                <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-black/6 dark:bg-white/10">
-                  <div className="h-full rounded-full bg-black transition-all duration-300 dark:bg-white" style={{ width: `${progress}%` }} />
-                </div>
-              </header>
-
-              <div className="min-h-[430px] px-6 pb-6 sm:px-8 sm:pb-8">
-                {step === "identity" ? (
-                  <FormSection>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Nome"><Input value={form.firstName} onChange={(event) => setField("firstName", event.target.value)} autoComplete="given-name" className="h-[52px] rounded-[18px]" /></Field>
-                      <Field label="Sobrenome"><Input value={form.lastName} onChange={(event) => setField("lastName", event.target.value)} autoComplete="family-name" className="h-[52px] rounded-[18px]" /></Field>
-                    </div>
-                    <Field label="E-mail"><Input value={form.email} onChange={(event) => setField("email", event.target.value)} type="email" autoComplete="email" inputMode="email" className="h-[52px] rounded-[18px]" /></Field>
-                    <Field label="Telefone"><Input value={form.phone} onChange={(event) => setField("phone", event.target.value)} type="tel" inputMode="tel" autoComplete="tel" className="h-[52px] rounded-[18px]" /></Field>
-                  </FormSection>
-                ) : null}
-
-                {step === "clinic" ? (
-                  <FormSection>
-                    <Field label="CRP"><Input value={form.crp} onChange={(event) => setField("crp", event.target.value)} placeholder="CRP 00/000000" className="h-[52px] rounded-[18px]" /></Field>
-                    <Field label="Nome da clinica"><Input value={form.clinicName} onChange={(event) => setField("clinicName", event.target.value)} className="h-[52px] rounded-[18px]" /></Field>
-                    <ChoiceGroup
-                      label="Tamanho da operacao"
-                      value={form.clinicSize}
-                      onChange={(value) => setField("clinicSize", value)}
-                      options={[
-                        { value: "solo", label: "Solo" },
-                        { value: "team", label: "Equipe" },
-                      ]}
-                    />
-                    <ChoiceGroup
-                      label="Plano inicial"
-                      value={form.planIntent}
-                      onChange={(value) => setField("planIntent", value)}
-                      options={[
-                        { value: "professional", label: "Profissional" },
-                        { value: "clinic", label: "Clinica" },
-                      ]}
-                    />
-                  </FormSection>
-                ) : null}
-
-                {step === "security" ? (
-                  <FormSection>
-                    <PasswordField label="Senha" value={form.password} show={showPassword} onToggle={() => setShowPassword((value) => !value)} onChange={(value) => setField("password", value)} />
-                    <PasswordField label="Confirmar senha" value={form.confirmPassword} show={showPassword} onToggle={() => setShowPassword((value) => !value)} onChange={(value) => setField("confirmPassword", value)} />
-                    <label className="flex items-start gap-3 rounded-[22px] border border-black/8 bg-black/[0.025] p-4 text-xs font-bold leading-relaxed text-black/62 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/62">
-                      <input
-                        type="checkbox"
-                        checked={form.acceptedTerms}
-                        onChange={(event) => setField("acceptedTerms", event.target.checked)}
-                        className="mt-0.5 h-5 w-5 rounded border-black/20 accent-black dark:accent-white"
-                      />
-                      Li e aceito os termos de uso e a politica de privacidade da NeuroNex.
-                    </label>
-                  </FormSection>
-                ) : null}
+        <div className={cn("flex min-h-full flex-col", isMobile ? "" : "justify-center p-8 lg:p-10")}>
+          <div
+            className={cn(
+              "mx-0 shadow-[0_-20px_54px_-38px_rgba(0,0,0,0.72)]",
+              isMobile
+                ? "min-h-[min(58dvh,33rem)] rounded-b-[36px] rounded-t-[34px] px-7 pb-7 pt-9"
+                : "rounded-[40px] px-10 py-10",
+              panelClass,
+            )}
+          >
+            <div className="mb-7">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <span
+                  className={cn(
+                    "inline-flex h-8 items-center gap-2 rounded-full border px-3 text-[9px] font-black uppercase tracking-[0.16em]",
+                    mutedPanelClass,
+                  )}
+                >
+                  <Clock3 className="h-3.5 w-3.5" />
+                  Cerca de 5 min
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-current/42">
+                  {stepNumber}/3
+                </span>
               </div>
-
-              <footer className="grid grid-cols-[0.78fr_1.22fr] gap-3 border-t border-black/6 bg-black/[0.018] p-5 dark:border-white/10 dark:bg-white/[0.035]">
-                <Button variant="outline" onClick={back} disabled={stepIndex === 0 || submitting} className="h-[52px] rounded-[18px] text-[10px] font-black uppercase tracking-[0.12em]">
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-                </Button>
-                <Button onClick={next} disabled={submitting} className="h-[52px] rounded-[18px] text-[10px] font-black uppercase tracking-[0.12em]">
-                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : step === "security" ? <Check className="mr-2 h-4 w-4" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-                  {step === "security" ? "Criar conta" : "Continuar"}
-                </Button>
-              </footer>
+              <div className="h-1.5 overflow-hidden rounded-full bg-current/10">
+                <motion.div
+                  className="h-full rounded-full bg-current"
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                />
+              </div>
             </div>
 
-            <p className="mt-6 text-center text-[11px] font-bold text-black/45 dark:text-white/45">
-              Ja tem uma conta? <Link to="/auth?role=pro" className="text-black underline-offset-4 hover:underline dark:text-white">Entrar no NeuroNex</Link>
+            <AnimatePresence mode="wait">
+              {flow.step === "identity" ? (
+                <IdentityStep
+                  key="identity"
+                  draft={flow.draft}
+                  inputClass={inputClass}
+                  mutedPanelClass={mutedPanelClass}
+                  loading={flow.loading}
+                  onChange={updateDraft}
+                  onSubmit={submitIdentity}
+                />
+              ) : null}
+
+              {flow.step === "password" ? (
+                <PasswordStep
+                  key="password"
+                  firstName={firstName}
+                  inputClass={inputClass}
+                  mutedPanelClass={mutedPanelClass}
+                  primaryButtonClass={primaryButtonClass}
+                  loading={flow.loading}
+                  password={flow.password}
+                  confirmPassword={flow.confirmPassword}
+                  showPassword={showPassword}
+                  strength={flow.passwordStrength}
+                  isMobile={isMobile}
+                  biometricEnabled={flow.biometricEnabled}
+                  biometricAvailable={flow.biometricAvailable}
+                  biometricReason={flow.biometricStatus?.reason}
+                  onPasswordChange={flow.setPassword}
+                  onConfirmPasswordChange={flow.setConfirmPassword}
+                  onTogglePassword={() => setShowPassword((value) => !value)}
+                  onBiometricChange={flow.setBiometricEnabled}
+                  onSubmit={submitPassword}
+                />
+              ) : null}
+
+              {flow.step === "success" ? (
+                <SuccessStep
+                  key="success"
+                  firstName={firstName}
+                  progress={successProgress}
+                  primaryButtonClass={primaryButtonClass}
+                />
+              ) : null}
+            </AnimatePresence>
+          </div>
+
+          {flow.step === "identity" ? (
+            <p className={cn("mt-5 text-center text-[11px] font-bold", isDarkTheme ? "text-white/45" : "text-black/45")}>
+              Já possui uma conta?{" "}
+              <Link to="/auth?role=pro" className="text-current underline-offset-4 hover:underline">
+                Fazer login
+              </Link>
             </p>
-          </motion.div>
-        </section>
-      </div>
+          ) : null}
+        </div>
+      </section>
+
+      <EmailCodeConfirmSheet
+        open={flow.emailDialogOpen}
+        onOpenChange={flow.setEmailDialogOpen}
+        email={flow.draft.email}
+        otp={flow.otp}
+        loading={flow.loading}
+        cooldown={flow.resendCooldown}
+        onOtpChange={flow.setOtp}
+        onConfirm={submitOtp}
+        onResend={resendOtp}
+      />
+
+      <TwoFactorIntroSheet
+        open={twoFactorOpen}
+        loading={flow.loading}
+        onOpenChange={setTwoFactorOpen}
+        onLater={finishSecurity}
+        onEnable={() => {
+          setTwoFactorOpen(false);
+          setTotpOpen(true);
+        }}
+      />
+
+      <TotpMfaDialog
+        open={totpOpen}
+        mode="enroll"
+        onOpenChange={setTotpOpen}
+        onSuccess={finishSecurity}
+        onCancel={finishSecurity}
+      />
     </main>
   );
 }
 
-function FormSection({ children }: { children: ReactNode }) {
-  return <motion.div initial="hidden" animate="visible" variants={fadeIn} className="grid gap-4">{children}</motion.div>;
+function CreateAccountSideRail({
+  logoSrc,
+  isDarkTheme,
+  stepNumber,
+  progress,
+}: {
+  logoSrc: string;
+  isDarkTheme: boolean;
+  stepNumber: number;
+  progress: number;
+}) {
+  const items = [
+    { label: "Dados", icon: UserRound },
+    { label: "Senha", icon: ShieldCheck },
+    { label: "Pronto", icon: CheckCircle2 },
+  ];
+
+  return (
+    <aside className={cn("flex flex-col justify-between border-r p-10", isDarkTheme ? "border-white/5" : "border-black/5")}>
+      <Link to="/" className="inline-flex w-fit items-center gap-3">
+        <img src={logoSrc} alt="NeuroNex AI" className="h-10 w-10 object-contain" />
+        <span className="text-xs font-black uppercase tracking-[0.24em]">NeuroNex AI</span>
+      </Link>
+
+      <div className="max-w-[24rem]">
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-current/35">Cadastro profissional</p>
+        <h1 className="mt-6 text-6xl font-black leading-[0.9] tracking-[-0.065em]">
+          Comece grátis. Sem cartão.
+        </h1>
+        <p className="mt-7 max-w-sm text-base font-semibold leading-relaxed text-current/50">
+          Validamos seu e-mail primeiro, protegemos sua sessão e só então abrimos as configurações iniciais do seu espaço clínico.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        {items.map((item, index) => {
+          const active = index + 1 <= stepNumber;
+          return (
+            <div
+              key={item.label}
+              className={cn(
+                "rounded-[24px] border p-4 transition-colors",
+                active
+                  ? "border-current bg-current text-background"
+                  : "border-current/10 bg-current/[0.035] text-current/45",
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.12em]">{item.label}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="h-1.5 overflow-hidden rounded-full bg-current/10">
+        <motion.div className="h-full bg-current" animate={{ width: `${progress}%` }} />
+      </div>
+    </aside>
+  );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function IdentityStep({
+  draft,
+  inputClass,
+  mutedPanelClass,
+  loading,
+  onChange,
+  onSubmit,
+}: {
+  draft: CreateAccountDraft;
+  inputClass: string;
+  mutedPanelClass: string;
+  loading: boolean;
+  onChange: <K extends keyof CreateAccountDraft>(key: K, value: CreateAccountDraft[K]) => void;
+  onSubmit: () => void;
+}) {
   return (
-    <label className="grid gap-2">
-      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-black/40 dark:text-white/40">{label}</span>
+    <motion.div variants={fadeSlide} initial="hidden" animate="visible" exit="exit" className="space-y-7">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-current/42">Criar conta</p>
+        <h2 className="mt-2 text-[2rem] font-black leading-[0.95] tracking-[-0.06em]">
+          Teste o NeuroNex AI grátis.
+        </h2>
+        <p className="mt-3 text-sm font-semibold leading-relaxed text-current/56">
+          Não pedimos seu cartão de crédito. Primeiro, só precisamos confirmar quem está chegando.
+        </p>
+      </div>
+
+      <div className="space-y-5">
+        <AuthField label="Seu nome completo">
+          <Input
+            value={draft.fullName}
+            onChange={(event) => onChange("fullName", event.target.value)}
+            autoComplete="name"
+            placeholder="Nome e sobrenome"
+            className={inputClass}
+          />
+        </AuthField>
+
+        <AuthField label="E-mail">
+          <Input
+            value={draft.email}
+            onChange={(event) => onChange("email", event.target.value)}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="voce@email.com"
+            className={inputClass}
+          />
+        </AuthField>
+
+        <AuthField label="E-mail de recuperação">
+          <Input
+            value={draft.recoveryEmail}
+            onChange={(event) => onChange("recoveryEmail", event.target.value)}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="email.alternativo@email.com"
+            className={inputClass}
+          />
+        </AuthField>
+
+        <AuthField label="Celular / WhatsApp">
+          <div className="grid grid-cols-[4.4rem_1fr] gap-2">
+            <div className={cn("flex h-[3.25rem] items-center justify-center gap-2 rounded-[10px] border text-sm font-black", mutedPanelClass)}>
+              <span aria-hidden="true">BR</span>
+              <span>+55</span>
+            </div>
+            <Input
+              value={draft.phone}
+              onChange={(event) => onChange("phone", event.target.value)}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel-national"
+              placeholder="(11) 99999-0000"
+              className={inputClass}
+            />
+          </div>
+        </AuthField>
+
+        <AuthField label="Conte um pouco sobre você">
+          <Select
+            value={draft.professionalContext}
+            onValueChange={(value) => onChange("professionalContext", value as ProfessionalContext)}
+          >
+            <SelectTrigger className={cn("h-[3.25rem] rounded-[10px] border px-3 text-sm font-bold", mutedPanelClass)}>
+              <SelectValue placeholder="Escolha uma opção" />
+            </SelectTrigger>
+            <SelectContent>
+              {contextOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {draft.professionalContext ? (
+            <p className="mt-2 text-[11px] font-semibold leading-relaxed text-current/45">
+              {contextOptions.find((item) => item.value === draft.professionalContext)?.description}
+            </p>
+          ) : null}
+        </AuthField>
+      </div>
+
+      <label className={cn("flex items-start gap-3 rounded-[18px] border p-4 text-[11px] font-semibold leading-relaxed", mutedPanelClass)}>
+        <input
+          type="checkbox"
+          checked={draft.acceptedTerms}
+          onChange={(event) => onChange("acceptedTerms", event.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-current"
+        />
+        <span>
+          Ao informar meus dados, eu concordo com a Política de Privacidade e os Termos de Uso da NeuroNex AI.
+        </span>
+      </label>
+
+      <Button
+        type="button"
+        disabled={loading}
+        onClick={() => void onSubmit()}
+        className="h-14 w-full rounded-[12px] bg-current text-background text-[11px] font-black uppercase tracking-[0.2em] hover:opacity-90"
+      >
+        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+        Próximo
+      </Button>
+    </motion.div>
+  );
+}
+
+function PasswordStep({
+  firstName,
+  inputClass,
+  mutedPanelClass,
+  primaryButtonClass,
+  loading,
+  password,
+  confirmPassword,
+  showPassword,
+  strength,
+  isMobile,
+  biometricEnabled,
+  biometricAvailable,
+  biometricReason,
+  onPasswordChange,
+  onConfirmPasswordChange,
+  onTogglePassword,
+  onBiometricChange,
+  onSubmit,
+}: {
+  firstName: string;
+  inputClass: string;
+  mutedPanelClass: string;
+  primaryButtonClass: string;
+  loading: boolean;
+  password: string;
+  confirmPassword: string;
+  showPassword: boolean;
+  strength: PasswordStrength;
+  isMobile: boolean;
+  biometricEnabled: boolean;
+  biometricAvailable: boolean;
+  biometricReason?: string | null;
+  onPasswordChange: (value: string) => void;
+  onConfirmPasswordChange: (value: string) => void;
+  onTogglePassword: () => void;
+  onBiometricChange: (value: boolean) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <motion.div variants={fadeSlide} initial="hidden" animate="visible" exit="exit" className="space-y-7">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-current/42">E-mail confirmado</p>
+        <h2 className="mt-2 text-[2rem] font-black leading-[0.95] tracking-[-0.06em]">
+          Parabéns, {firstName}. Sua conta foi criada.
+        </h2>
+        <p className="mt-3 text-sm font-semibold leading-relaxed text-current/56">
+          Agora crie uma senha para acessar a NeuroNex com segurança.
+        </p>
+      </div>
+
+      <div className="space-y-5">
+        <PasswordInput
+          label="Senha"
+          value={password}
+          show={showPassword}
+          className={inputClass}
+          onToggle={onTogglePassword}
+          onChange={onPasswordChange}
+        />
+        <PasswordStrengthCard strength={strength} mutedPanelClass={mutedPanelClass} />
+        <PasswordInput
+          label="Confirme sua senha"
+          value={confirmPassword}
+          show={showPassword}
+          className={inputClass}
+          onToggle={onTogglePassword}
+          onChange={onConfirmPasswordChange}
+        />
+
+        {isMobile ? (
+          <div className={cn("rounded-[22px] border p-4", mutedPanelClass)}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-current/10">
+                  <Fingerprint className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-black">Entrar usando biometria</p>
+                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-current/48">
+                    {biometricAvailable
+                      ? "Vamos validar agora e usar também em transações."
+                      : biometricReason || "Se não funcionar, você pode configurar depois em Ajustes > Login e Segurança."}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={biometricEnabled}
+                onCheckedChange={onBiometricChange}
+                disabled={!biometricAvailable}
+                aria-label="Entrar usando biometria"
+              />
+            </div>
+            <p className="mt-3 text-[10px] font-semibold leading-relaxed text-current/42">
+              Qualquer problema, seguimos com senha normal e você ajusta isso depois.
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      <Button
+        type="button"
+        disabled={loading}
+        onClick={() => void onSubmit()}
+        className={cn("h-14 w-full rounded-[12px] text-[11px] font-black", primaryButtonClass)}
+      >
+        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+        Criar senha
+      </Button>
+    </motion.div>
+  );
+}
+
+function SuccessStep({
+  firstName,
+  progress,
+  primaryButtonClass,
+}: {
+  firstName: string;
+  progress: number;
+  primaryButtonClass: string;
+}) {
+  return (
+    <motion.div variants={fadeSlide} initial="hidden" animate="visible" exit="exit" className="flex min-h-[28rem] flex-col items-center justify-center text-center">
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 180, damping: 18 }}
+        className="relative mb-8"
+      >
+        <div className="absolute inset-0 rounded-full bg-current/10 blur-3xl" />
+        <div className="relative flex h-24 w-24 items-center justify-center rounded-[32px] border border-current/10 bg-current/[0.04]">
+          <CheckCircle2 className="h-11 w-11" />
+        </div>
+        <Sparkles className="absolute -right-2 -top-2 h-5 w-5" />
+      </motion.div>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-current/42">Tudo certo</p>
+      <h2 className="mt-3 text-[2.35rem] font-black leading-[0.95] tracking-[-0.065em]">
+        Conta criada com sucesso, {firstName}.
+      </h2>
+      <p className="mt-4 max-w-[18rem] text-sm font-semibold leading-relaxed text-current/55">
+        Estamos preparando suas configurações iniciais e o tour de boas-vindas.
+      </p>
+      <div className="mt-9 w-full max-w-[18rem]">
+        <div className="mb-3 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.16em] text-current/45">
+          <span>Preparando</span>
+          <span>{progress}%</span>
+        </div>
+        <div className="h-2 overflow-hidden rounded-full bg-current/10">
+          <motion.div
+            className="h-full rounded-full bg-current"
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.35 }}
+          />
+        </div>
+      </div>
+      <Button disabled className={cn("mt-8 h-12 w-full max-w-[18rem] rounded-[12px] text-[11px] font-black", primaryButtonClass)}>
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Abrindo configurações
+      </Button>
+    </motion.div>
+  );
+}
+
+function EmailCodeConfirmSheet({
+  open,
+  onOpenChange,
+  email,
+  otp,
+  loading,
+  cooldown,
+  onOtpChange,
+  onConfirm,
+  onResend,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  email: string;
+  otp: string;
+  loading: boolean;
+  cooldown: number;
+  onOtpChange: (value: string) => void;
+  onConfirm: () => void;
+  onResend: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[92vw] rounded-[32px] border border-black/10 bg-white p-0 text-black shadow-2xl dark:border-white/10 dark:bg-[#080808] dark:text-white sm:max-w-[430px]">
+        <div className="p-6 sm:p-8">
+          <DialogHeader className="text-left">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-black text-white dark:bg-white dark:text-black">
+              <MailCheck className="h-6 w-6" />
+            </div>
+            <DialogTitle className="text-2xl font-black tracking-[-0.04em]">
+              Enviamos um código para o seu e-mail.
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-sm font-semibold leading-relaxed text-black/55 dark:text-white/55">
+              Digite o código que enviamos para <span className="font-black text-black dark:text-white">{email}</span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-7 flex justify-center">
+            <InputOTP maxLength={6} value={otp} onChange={onOtpChange} containerClassName="gap-2">
+              <InputOTPGroup className="gap-2">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <InputOTPSlot
+                    key={index}
+                    index={index}
+                    className="h-12 w-10 rounded-[14px] border border-black/10 bg-black/[0.035] text-lg font-black dark:border-white/10 dark:bg-white/[0.06]"
+                  />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+
+          <div className="mt-6 rounded-[22px] border border-black/8 bg-black/[0.025] p-4 text-xs font-semibold leading-relaxed text-black/55 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/55">
+            Para garantir sua segurança, fazemos uma validação em duas etapas via e-mail. Se não encontrar a mensagem, verifique Promoções ou Spam.
+          </div>
+
+          <div className="mt-6 grid grid-cols-[0.8fr_1.2fr] gap-3">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading} className="h-12 rounded-[16px]">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar
+            </Button>
+            <Button onClick={() => void onConfirm()} disabled={loading || otp.length < 6} className="h-12 rounded-[16px] bg-black text-white dark:bg-white dark:text-black">
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+              Confirmar
+            </Button>
+          </div>
+
+          <button
+            type="button"
+            disabled={loading || cooldown > 0}
+            onClick={() => void onResend()}
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 text-center text-xs font-black text-black/55 underline-offset-4 hover:text-black hover:underline disabled:opacity-45 dark:text-white/55 dark:hover:text-white"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            {cooldown > 0 ? `Reenviar em ${cooldown}s` : "Reenviar link para e-mail de cadastro"}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TwoFactorIntroSheet({
+  open,
+  loading,
+  onOpenChange,
+  onLater,
+  onEnable,
+}: {
+  open: boolean;
+  loading: boolean;
+  onOpenChange: (open: boolean) => void;
+  onLater: () => void;
+  onEnable: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[92vw] rounded-[32px] border border-black/10 bg-white p-6 text-black shadow-2xl dark:border-white/10 dark:bg-[#080808] dark:text-white sm:max-w-[430px] sm:p-8">
+        <DialogHeader className="text-left">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-[20px] bg-black text-white dark:bg-white dark:text-black">
+            <ShieldCheck className="h-6 w-6" />
+          </div>
+          <DialogTitle className="text-2xl font-black tracking-[-0.04em]">
+            Verificação em duas etapas
+          </DialogTitle>
+          <DialogDescription className="pt-2 text-sm font-semibold leading-relaxed text-black/55 dark:text-white/55">
+            Segurança é pilar indispensável por aqui. Recomendamos vincular um autenticador agora. Leva cerca de 2 minutos.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="mt-6 rounded-[24px] border border-black/8 bg-black/[0.025] p-4 text-xs font-semibold leading-relaxed text-black/55 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/55">
+          Você pode usar Google Authenticator, Microsoft Authenticator, 1Password ou outro app compatível com código TOTP.
+        </div>
+
+        <div className="mt-6 grid gap-3">
+          <Button onClick={onEnable} disabled={loading} className="h-13 rounded-[16px] bg-black text-white dark:bg-white dark:text-black">
+            Habilitar agora
+          </Button>
+          <Button variant="ghost" onClick={onLater} disabled={loading} className="h-12 rounded-[16px]">
+            Agora não
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AuthField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-current/45">{label}</span>
       {children}
     </label>
   );
 }
 
-function PasswordField({ label, value, show, onToggle, onChange }: { label: string; value: string; show: boolean; onToggle: () => void; onChange: (value: string) => void }) {
+function PasswordInput({
+  label,
+  value,
+  show,
+  className,
+  onToggle,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  show: boolean;
+  className: string;
+  onToggle: () => void;
+  onChange: (value: string) => void;
+}) {
   return (
-    <Field label={label}>
+    <AuthField label={label}>
       <div className="relative">
-        <Input value={value} onChange={(event) => onChange(event.target.value)} type={show ? "text" : "password"} autoComplete="new-password" className="h-[52px] rounded-[18px] pr-12" />
-        <button type="button" onClick={onToggle} className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-[14px] text-black/55 active:bg-black/5 dark:text-white/55 dark:active:bg-white/10" aria-label={show ? "Ocultar senha" : "Mostrar senha"}>
+        <Input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          type={show ? "text" : "password"}
+          autoComplete="new-password"
+          className={cn(className, "pr-11")}
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-[12px] text-current/62 transition-colors hover:bg-current/10 hover:text-current"
+          aria-label={show ? "Ocultar senha" : "Mostrar senha"}
+        >
           {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
-    </Field>
+    </AuthField>
   );
 }
 
-function ChoiceGroup({ label, value, options, onChange }: { label: string; value: string; options: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {
+function PasswordStrengthCard({
+  strength,
+  mutedPanelClass,
+}: {
+  strength: PasswordStrength;
+  mutedPanelClass: string;
+}) {
   return (
-    <div className="grid gap-2">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-black/40 dark:text-white/40">{label}</p>
-      <div className="grid grid-cols-2 gap-2 rounded-[22px] border border-black/8 bg-black/[0.025] p-1.5 dark:border-white/10 dark:bg-white/[0.035]">
-        {options.map((option) => {
-          const active = value === option.value;
+    <div className={cn("rounded-[22px] border p-4", mutedPanelClass)}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-current/45">Senha forte</p>
+        <div className="flex gap-1">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <motion.span
+              key={index}
+              className={cn("h-1.5 w-8 rounded-full", index < strength.score ? "bg-current" : "bg-current/12")}
+              animate={{ opacity: index < strength.score ? 1 : 0.45 }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-2">
+        {passwordRules.map((rule) => {
+          const ok = Boolean(strength[rule.key]);
           return (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onChange(option.value)}
-              className={cn("h-12 rounded-[17px] text-xs font-black transition-all active:scale-[0.98]", active ? "bg-black text-white dark:bg-white dark:text-black" : "text-black/45 dark:text-white/45")}
+            <motion.div
+              key={rule.key}
+              layout
+              className="flex items-center gap-2 text-[11px] font-semibold text-current/62"
             >
-              {option.label}
-            </button>
+              <motion.span
+                className={cn("flex h-5 w-5 items-center justify-center rounded-full border", ok ? "border-current bg-current text-background" : "border-current/18")}
+                animate={{ scale: ok ? 1.04 : 1 }}
+              >
+                {ok ? <Check className="h-3 w-3" /> : null}
+              </motion.span>
+              {rule.label}
+            </motion.div>
           );
         })}
       </div>
