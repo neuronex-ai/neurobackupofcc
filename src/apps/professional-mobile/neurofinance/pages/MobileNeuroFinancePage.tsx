@@ -2,10 +2,13 @@ import { useMemo, useState } from "react";
 import { addYears, format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
+  AlertCircle,
   ArrowDownRight,
   ArrowUpRight,
   Barcode,
+  CheckCircle2,
   CircleDollarSign,
+  Clock3,
   Eye,
   EyeOff,
   FileText,
@@ -84,6 +87,55 @@ const formatStatementDate = (transaction: MobileStatementTransaction) => {
   return format(date, "d MMM, HH:mm", { locale: ptBR });
 };
 
+const accountHealthCopy = {
+  active: {
+    title: "Saude da conta boa",
+    description: "Conta aprovada para cobrancas, Pix e repasses.",
+    tone: "success",
+  },
+  account_missing: {
+    title: "Conta desconectada",
+    description: "A conexao com a subconta precisa de suporte.",
+    tone: "danger",
+  },
+  restricted: {
+    title: "Regularizacao pendente",
+    description: "Revise as etapas solicitadas para liberar operacoes.",
+    tone: "warning",
+  },
+  pending_review: {
+    title: "Conta em analise",
+    description: "Aguardando retorno da verificacao cadastral.",
+    tone: "info",
+  },
+  onboarding: {
+    title: "Dados pendentes",
+    description: "Complete as informacoes de onboarding para continuar.",
+    tone: "warning",
+  },
+  not_started: {
+    title: "Onboarding nao iniciado",
+    description: "Ative a conta pelo onboarding mobile.",
+    tone: "warning",
+  },
+};
+
+const healthToneClass = {
+  success: "border-emerald-500/20 bg-emerald-500/[0.075] text-emerald-700 dark:text-emerald-300",
+  warning: "border-amber-500/20 bg-amber-500/[0.075] text-amber-700 dark:text-amber-300",
+  danger: "border-red-500/20 bg-red-500/[0.075] text-red-700 dark:text-red-300",
+  info: "border-blue-500/20 bg-blue-500/[0.075] text-blue-700 dark:text-blue-300",
+} as const;
+
+const stageToneClass = {
+  approved: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-300",
+  pending: "bg-amber-500/12 text-amber-600 dark:text-amber-300",
+  review: "bg-blue-500/12 text-blue-600 dark:text-blue-300",
+  rejected: "bg-red-500/12 text-red-600 dark:text-red-300",
+  missing: "bg-amber-500/12 text-amber-600 dark:text-amber-300",
+  neutral: "bg-foreground/[0.06] text-muted-foreground",
+} as const;
+
 export function MobileNeuroFinancePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -99,6 +151,13 @@ export function MobileNeuroFinancePage() {
   const transactions = ((statement.data || []) as MobileStatementTransaction[]).slice(0, 10);
   const availableBalance = Number(balance.data?.balance || 0);
   const pendingBalance = Number(balance.data?.pending || 0);
+  const healthKey = (account.uiStatus || "not_started") as keyof typeof accountHealthCopy;
+  const health = accountHealthCopy[healthKey] || accountHealthCopy.not_started;
+  const HealthIcon = approved
+    ? CheckCircle2
+    : account.isRestricted || account.isAccountMissing
+      ? AlertCircle
+      : Clock3;
 
   const openFlow = (flow: Exclude<Flow, null>) => {
     const routes: Record<Exclude<Flow, null>, string> = {
