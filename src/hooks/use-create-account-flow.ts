@@ -6,7 +6,7 @@ import {
   isBiometricStatusUsable,
   type BiometricStatus,
 } from "@/lib/native-mobile-security";
-import type { Session, User } from "@supabase/supabase-js";
+import type { EmailOtpType, Session, User } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -101,6 +101,19 @@ function writeDraftToStorage(draft: CreateAccountDraft) {
 function clearDraftStorage() {
   if (typeof window === "undefined") return;
   window.sessionStorage.removeItem(STORAGE_KEY);
+}
+
+function draftFromUser(user: User, fallback: CreateAccountDraft) {
+  const metadata = user.user_metadata || {};
+  const fullName = String(metadata.full_name || metadata.name || fallback.fullName || "").trim();
+  return {
+    ...fallback,
+    fullName,
+    email: normalizeEmail(user.email || fallback.email),
+    recoveryEmail: normalizeEmail(String(metadata.recovery_email || fallback.recoveryEmail || "")),
+    phone: String(metadata.phone || fallback.phone || ""),
+    professionalContext: (metadata.professional_context || fallback.professionalContext || "") as ProfessionalContext | "",
+  };
 }
 
 function splitFullName(fullName: string) {
@@ -365,18 +378,30 @@ export function useCreateAccountFlow() {
     let active = true;
     const resumeFromEmailLink = async () => {
       const params = new URLSearchParams(window.location.search);
-      const shouldResume = params.get("verified") === "1" || window.location.hash.includes("access_token");
+      const tokenHash = params.get("token_hash");
+      const otpType = (params.get("type") || "email") as EmailOtpType;
+      const shouldResume = params.get("verified") === "1" || Boolean(tokenHash) || window.location.hash.includes("access_token");
       if (!shouldResume) return;
-      const current = await supabase.auth.getSession();
-      const currentSession = current.data.session;
+
+      let currentSession: Session | null = null;
+      if (tokenHash) {
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: otpType,
+        });
+        if (error) throw error;
+        currentSession = data.session;
+      } else {
+        currentSession = (await supabase.auth.getSession()).data.session;
+      }
+
       if (!active || !currentSession?.user) return;
       const storedDraft = readDraftFromStorage();
-      if (!storedDraft.email && currentSession.user.email) {
-        storedDraft.email = currentSession.user.email;
-      }
-      if (storedDraft.email) {
-        setDraftState(storedDraft);
-        await persistDraftToProfile({ user: currentSession.user, draft: storedDraft }).catch(() => undefined);
+      const nextDraft = draftFromUser(currentSession.user, storedDraft);
+      if (nextDraft.email) {
+        writeDraftToStorage(nextDraft);
+        setDraftState(nextDraft);
+        await persistDraftToProfile({ user: currentSession.user, draft: nextDraft }).catch(() => undefined);
       }
       setSession(currentSession);
       setEmailDialogOpen(false);
@@ -384,7 +409,13 @@ export function useCreateAccountFlow() {
       window.history.replaceState({}, "", "/create-account");
     };
 
-    void resumeFromEmailLink();
+    void resumeFromEmailLink().catch((error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível confirmar o e-mail por este link. Tente o código recebido.",
+      );
+    });
     return () => {
       active = false;
     };
