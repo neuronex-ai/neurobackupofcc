@@ -163,3 +163,38 @@ enabled = true
 verify_jwt = false
 import_map = "./functions/n8n-agent-gateway/deno.json"
 entrypoint = "./functions/n8n-agent-gateway/index.ts"
+
+[functions.signup-email-status]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/signup-email-status/index.ts"
+
+[functions.signup-start]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/signup-start/index.ts"
+
+[functions.signup-verify]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/signup-verify/index.ts"
+
+[functions.signup-complete]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/signup-complete/index.ts"
+
+[functions.address-autocomplete]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/address-autocomplete/index.ts"
+
+[functions.address-validate]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/address-validate/index.ts"
+
+[functions.initial-settings-save]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/initial-settings-save/index.ts"

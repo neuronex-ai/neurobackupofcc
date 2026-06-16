@@ -6,7 +6,7 @@ import {
   isBiometricStatusUsable,
   type BiometricStatus,
 } from "@/lib/native-mobile-security";
-import type { EmailOtpType, Session, User } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,6 +16,20 @@ export type ProfessionalContext =
   | "psychology_student";
 
 export type CreateAccountStep = "identity" | "password" | "success";
+
+export type EmailAvailabilityStatus =
+  | "idle"
+  | "checking"
+  | "available"
+  | "exists"
+  | "invalid"
+  | "error";
+
+export type EmailAvailability = {
+  status: EmailAvailabilityStatus;
+  exists: boolean;
+  message?: string;
+};
 
 export type CreateAccountDraft = {
   fullName: string;
@@ -34,26 +48,25 @@ export type PasswordStrength = {
   score: number;
 };
 
-type PersistProfileParams = {
-  user: User;
-  draft: CreateAccountDraft;
+type SignupStartResponse = {
+  verificationId: string;
+  expiresIn: number;
+  resendCooldown?: number;
 };
 
-const STORAGE_KEY = "neuronex.create-account.draft.v1";
-const SPECIAL_CHARS = /[@#<!$%&*;/?:]/;
+type SignupVerifyResponse = {
+  signupToken: string;
+  expiresIn: number;
+};
 
-function createTemporarySignupPassword() {
-  const bytes = new Uint8Array(24);
-  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
-    window.crypto.getRandomValues(bytes);
-  } else {
-    for (let index = 0; index < bytes.length; index += 1) {
-      bytes[index] = Math.floor(Math.random() * 256);
-    }
-  }
-  const token = Array.from(bytes, (byte) => byte.toString(36).padStart(2, "0")).join("");
-  return `Nn@${token.slice(0, 28)}`;
-}
+type SignupCompleteResponse = {
+  userId: string;
+  email: string;
+};
+
+const STORAGE_KEY = "neuronex.create-account.draft.v2";
+const SPECIAL_CHARS = /[@#<!$%&*;/?:]/;
+const emptyAvailability: EmailAvailability = { status: "idle", exists: false };
 
 export const emptyCreateAccountDraft: CreateAccountDraft = {
   fullName: "",
@@ -90,11 +103,6 @@ export function getPasswordStrength(password: string): PasswordStrength {
   return { ...checks, score };
 }
 
-function getOrigin() {
-  if (typeof window === "undefined") return "";
-  return window.location.origin;
-}
-
 function readDraftFromStorage() {
   if (typeof window === "undefined") return emptyCreateAccountDraft;
   const raw = window.sessionStorage.getItem(STORAGE_KEY);
@@ -116,80 +124,75 @@ function clearDraftStorage() {
   window.sessionStorage.removeItem(STORAGE_KEY);
 }
 
-function draftFromUser(user: User, fallback: CreateAccountDraft) {
-  const metadata = user.user_metadata || {};
-  const fullName = String(metadata.full_name || metadata.name || fallback.fullName || "").trim();
-  return {
-    ...fallback,
-    fullName,
-    email: normalizeEmail(user.email || fallback.email),
-    recoveryEmail: normalizeEmail(String(metadata.recovery_email || fallback.recoveryEmail || "")),
-    phone: String(metadata.phone || fallback.phone || ""),
-    professionalContext: (metadata.professional_context || fallback.professionalContext || "") as ProfessionalContext | "",
-  };
-}
-
-function splitFullName(fullName: string) {
-  const parts = fullName.trim().replace(/\s+/g, " ").split(" ").filter(Boolean);
-  const firstName = parts.shift() || "";
-  return {
-    firstName,
-    lastName: parts.join(" "),
-  };
-}
-
-function toE164Phone(phone: string) {
-  const digits = onlyDigits(phone).replace(/^55/, "").slice(0, 11);
-  return digits ? `+55${digits}` : null;
-}
-
 function validateEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function isExistingUserError(error: unknown) {
-  if (!(error instanceof Error)) return false;
-  return /already|registered|exists|existente|registrado/i.test(error.message);
+function toE164Phone(phone: string) {
+  const digits = onlyDigits(phone).replace(/^55/, "").slice(0, 11);
+  return digits ? `+55${digits}` : "";
 }
 
-async function persistDraftToProfile({ user, draft }: PersistProfileParams) {
-  const { firstName, lastName } = splitFullName(draft.fullName);
-  const now = new Date().toISOString();
-  const payload = {
-    id: user.id,
-    first_name: firstName || null,
-    last_name: lastName || null,
-    full_name: draft.fullName.trim() || null,
-    name: draft.fullName.trim() || null,
-    recovery_email: normalizeEmail(draft.recoveryEmail) || null,
-    phone: toE164Phone(draft.phone),
-    professional_context: draft.professionalContext || null,
-    signup_completed_at: now,
-    setup_completed: false,
-    updated_at: now,
-  };
+async function invokeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(name, { body });
+  if (!error) return data as T;
 
-  const update = await supabase
-    .from("profiles")
-    .update(payload)
-    .eq("id", user.id)
-    .select("id")
-    .maybeSingle();
+  let message = error.message || "Não foi possível concluir esta ação.";
+  const context = (error as { context?: Response }).context;
+  if (context) {
+    try {
+      const payload = await context.clone().json();
+      if (typeof payload?.error === "string") message = payload.error;
+    } catch {
+      try {
+        const text = await context.clone().text();
+        if (text) message = text;
+      } catch {
+        // Keep the default message.
+      }
+    }
+  }
+  throw new Error(message);
+}
 
-  if (!update.error && update.data?.id) return;
+async function checkEmailAvailability(email: string): Promise<EmailAvailability> {
+  if (!email) return emptyAvailability;
+  if (!validateEmail(email)) {
+    return {
+      status: "invalid",
+      exists: false,
+      message: "Digite um e-mail válido.",
+    };
+  }
 
-  const { error } = await supabase.from("profiles").upsert(payload, {
-    onConflict: "id",
-  });
-
-  if (error) throw error;
+  try {
+    const result = await invokeFunction<{ status: EmailAvailabilityStatus; exists: boolean; error?: string }>(
+      "signup-email-status",
+      { email },
+    );
+    return {
+      status: result.exists ? "exists" : "available",
+      exists: Boolean(result.exists),
+      message: result.error,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      exists: false,
+      message: error instanceof Error ? error.message : "Não conseguimos verificar este e-mail agora.",
+    };
+  }
 }
 
 export function useCreateAccountFlow() {
   const isMobile = useIsMobile();
   const [step, setStep] = useState<CreateAccountStep>("identity");
   const [draft, setDraftState] = useState<CreateAccountDraft>(() => readDraftFromStorage());
+  const [emailAvailability, setEmailAvailability] = useState<EmailAvailability>(emptyAvailability);
+  const [recoveryEmailAvailability, setRecoveryEmailAvailability] = useState<EmailAvailability>(emptyAvailability);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [verificationId, setVerificationId] = useState("");
+  const [signupToken, setSignupToken] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -220,11 +223,19 @@ export function useCreateAccountFlow() {
     if (!validateEmail(email)) {
       throw new Error("Informe um e-mail válido.");
     }
-    if (!validateEmail(recoveryEmail)) {
-      throw new Error("Informe um e-mail de recuperação válido.");
+    if (emailAvailability.status === "exists") {
+      throw new Error("Já existe uma conta com este e-mail. Faça login para continuar.");
     }
-    if (email === recoveryEmail) {
-      throw new Error("Use um e-mail de recuperação diferente do e-mail principal.");
+    if (emailAvailability.status === "checking") {
+      throw new Error("Aguarde a verificação do e-mail.");
+    }
+    if (recoveryEmail) {
+      if (!validateEmail(recoveryEmail)) {
+        throw new Error("Informe um e-mail de recuperação válido ou deixe em branco.");
+      }
+      if (email === recoveryEmail) {
+        throw new Error("Use um e-mail de recuperação diferente do e-mail principal.");
+      }
     }
     if (digits.length < 10) {
       throw new Error("Informe um celular ou WhatsApp válido.");
@@ -235,58 +246,33 @@ export function useCreateAccountFlow() {
     if (!draft.acceptedTerms) {
       throw new Error("Aceite a Política de Privacidade e os Termos de Uso para continuar.");
     }
-  }, [draft]);
+  }, [draft, emailAvailability.status]);
 
   const sendVerificationEmail = useCallback(async () => {
     validateIdentity();
     setLoading(true);
     try {
-      const email = normalizeEmail(draft.email);
       const normalizedDraft = {
         ...draft,
-        email,
+        email: normalizeEmail(draft.email),
         recoveryEmail: normalizeEmail(draft.recoveryEmail),
         phone: maskBrazilPhone(draft.phone),
       };
-      const { firstName, lastName } = splitFullName(normalizedDraft.fullName);
       writeDraftToStorage(normalizedDraft);
       setDraftState(normalizedDraft);
 
-      const signup = await supabase.auth.signUp({
-        email,
-        password: createTemporarySignupPassword(),
-        options: {
-          emailRedirectTo: `${getOrigin()}/create-account?verified=1`,
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            full_name: normalizedDraft.fullName.trim(),
-            name: normalizedDraft.fullName.trim(),
-            recovery_email: normalizedDraft.recoveryEmail,
-            phone: toE164Phone(normalizedDraft.phone),
-            professional_context: normalizedDraft.professionalContext,
-            role: "professional",
-            onboarding_source: "create-account",
-          },
-        },
+      const result = await invokeFunction<SignupStartResponse>("signup-start", {
+        fullName: normalizedDraft.fullName,
+        email: normalizedDraft.email,
+        recoveryEmail: normalizedDraft.recoveryEmail || null,
+        phone: toE164Phone(normalizedDraft.phone),
+        professionalContext: normalizedDraft.professionalContext,
       });
-      if (signup.error) {
-        if (!isExistingUserError(signup.error)) throw signup.error;
 
-        const resend = await supabase.auth.resend({
-          type: "signup",
-          email,
-          options: {
-            emailRedirectTo: `${getOrigin()}/create-account?verified=1`,
-          },
-        });
-
-        if (resend.error) {
-          throw new Error("Este e-mail já possui uma conta. Faça login ou use outro e-mail para criar uma nova conta.");
-        }
-      }
+      setVerificationId(result.verificationId);
       setEmailDialogOpen(true);
-      setResendCooldown(45);
+      setResendCooldown(result.resendCooldown || 45);
+      setOtp("");
     } finally {
       setLoading(false);
     }
@@ -294,48 +280,32 @@ export function useCreateAccountFlow() {
 
   const verifyEmailCode = useCallback(async () => {
     const email = normalizeEmail(draft.email);
-    if (!email || otp.length < 6) {
+    const code = otp.replace(/\D/g, "");
+    if (!verificationId || !email || code.length < 6) {
       throw new Error("Digite o código de confirmação recebido por e-mail.");
     }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
+      const result = await invokeFunction<SignupVerifyResponse>("signup-verify", {
+        verificationId,
         email,
-        token: otp,
-        type: "signup",
+        code,
       });
-      if (error) throw error;
-      const verifiedSession = data.session || (await supabase.auth.getSession()).data.session;
-      if (!verifiedSession?.user) throw new Error("Não conseguimos abrir sua sessão. Reenvie o e-mail e tente de novo.");
 
-      await persistDraftToProfile({ user: verifiedSession.user, draft });
-      setSession(verifiedSession);
+      setSignupToken(result.signupToken);
       setEmailDialogOpen(false);
       setStep("password");
+      setOtp("");
     } finally {
       setLoading(false);
     }
-  }, [draft, otp]);
+  }, [draft.email, otp, verificationId]);
 
   const resendVerification = useCallback(async () => {
     if (resendCooldown > 0) return;
-    setLoading(true);
-    try {
-      const email = normalizeEmail(draft.email);
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email,
-        options: {
-          emailRedirectTo: `${getOrigin()}/create-account?verified=1`,
-        },
-      });
-      if (error) throw error;
-      setResendCooldown(45);
-    } finally {
-      setLoading(false);
-    }
-  }, [draft.email, resendCooldown]);
+    await sendVerificationEmail();
+  }, [resendCooldown, sendVerificationEmail]);
 
   const createPassword = useCallback(async () => {
     if (passwordStrength.score < 4) {
@@ -344,33 +314,31 @@ export function useCreateAccountFlow() {
     if (password !== confirmPassword) {
       throw new Error("As senhas não conferem.");
     }
+    if (!signupToken) {
+      throw new Error("Sua confirmação expirou. Confirme o e-mail novamente.");
+    }
 
     setLoading(true);
     try {
-      const currentSession = session || (await supabase.auth.getSession()).data.session;
-      if (!currentSession?.user) {
-        throw new Error("Sua confirmação expirou. Confirme o e-mail novamente.");
-      }
-
-      const { error } = await supabase.auth.updateUser({
+      await invokeFunction<SignupCompleteResponse>("signup-complete", {
+        signupToken,
         password,
-        data: {
-          full_name: draft.fullName.trim(),
-          recovery_email: normalizeEmail(draft.recoveryEmail),
-          professional_context: draft.professionalContext,
-        },
       });
-      if (error) throw error;
 
-      const refreshedSession = (await supabase.auth.getSession()).data.session || currentSession;
-      await persistDraftToProfile({ user: refreshedSession.user, draft });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizeEmail(draft.email),
+        password,
+      });
+
+      if (error) throw error;
+      if (!data.session?.user) throw new Error("Conta criada, mas não conseguimos abrir sua sessão.");
 
       if (isMobile && biometricEnabled) {
         try {
           await enableBiometricSignIn({
-            userId: refreshedSession.user.id,
-            email: refreshedSession.user.email,
-            session: refreshedSession,
+            userId: data.session.user.id,
+            email: data.session.user.email,
+            session: data.session,
           });
         } catch (error) {
           setBiometricEnabled(false);
@@ -382,11 +350,19 @@ export function useCreateAccountFlow() {
         }
       }
 
-      setSession(refreshedSession);
+      setSession(data.session);
     } finally {
       setLoading(false);
     }
-  }, [biometricEnabled, confirmPassword, draft, isMobile, password, passwordStrength.score, session]);
+  }, [
+    biometricEnabled,
+    confirmPassword,
+    draft.email,
+    isMobile,
+    password,
+    passwordStrength.score,
+    signupToken,
+  ]);
 
   const completeSignup = useCallback(() => {
     clearDraftStorage();
@@ -401,63 +377,65 @@ export function useCreateAccountFlow() {
   }, [isMobile]);
 
   useEffect(() => {
+    const email = normalizeEmail(draft.email);
+    if (!email) {
+      setEmailAvailability(emptyAvailability);
+      return;
+    }
+    if (!validateEmail(email)) {
+      setEmailAvailability({ status: "invalid", exists: false, message: "Digite um e-mail válido." });
+      return;
+    }
+
+    setEmailAvailability({ status: "checking", exists: false });
+    const timer = window.setTimeout(() => {
+      void checkEmailAvailability(email).then(setEmailAvailability);
+    }, 450);
+
+    return () => window.clearTimeout(timer);
+  }, [draft.email]);
+
+  useEffect(() => {
+    const email = normalizeEmail(draft.recoveryEmail);
+    if (!email) {
+      setRecoveryEmailAvailability(emptyAvailability);
+      return;
+    }
+    if (!validateEmail(email)) {
+      setRecoveryEmailAvailability({ status: "invalid", exists: false, message: "Digite um e-mail válido." });
+      return;
+    }
+
+    setRecoveryEmailAvailability({ status: "checking", exists: false });
+    const timer = window.setTimeout(() => {
+      void checkEmailAvailability(email).then((status) => {
+        if (status.status === "exists") {
+          setRecoveryEmailAvailability({
+            ...status,
+            message: "Pode usar como e-mail de recuperação.",
+          });
+          return;
+        }
+        setRecoveryEmailAvailability(status);
+      });
+    }, 450);
+
+    return () => window.clearTimeout(timer);
+  }, [draft.recoveryEmail]);
+
+  useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = window.setTimeout(() => setResendCooldown((value) => Math.max(0, value - 1)), 1000);
     return () => window.clearTimeout(timer);
   }, [resendCooldown]);
-
-  useEffect(() => {
-    let active = true;
-    const resumeFromEmailLink = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const tokenHash = params.get("token_hash");
-      const otpType = (params.get("type") || "email") as EmailOtpType;
-      const shouldResume = params.get("verified") === "1" || Boolean(tokenHash) || window.location.hash.includes("access_token");
-      if (!shouldResume) return;
-
-      let currentSession: Session | null = null;
-      if (tokenHash) {
-        const { data, error } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: otpType,
-        });
-        if (error) throw error;
-        currentSession = data.session;
-      } else {
-        currentSession = (await supabase.auth.getSession()).data.session;
-      }
-
-      if (!active || !currentSession?.user) return;
-      const storedDraft = readDraftFromStorage();
-      const nextDraft = draftFromUser(currentSession.user, storedDraft);
-      if (nextDraft.email) {
-        writeDraftToStorage(nextDraft);
-        setDraftState(nextDraft);
-        await persistDraftToProfile({ user: currentSession.user, draft: nextDraft }).catch(() => undefined);
-      }
-      setSession(currentSession);
-      setEmailDialogOpen(false);
-      setStep("password");
-      window.history.replaceState({}, "", "/create-account");
-    };
-
-    void resumeFromEmailLink().catch((error) => {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível confirmar o e-mail por este link. Tente o código recebido.",
-      );
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   return {
     step,
     setStep,
     draft,
     setDraft,
+    emailAvailability,
+    recoveryEmailAvailability,
     emailDialogOpen,
     setEmailDialogOpen,
     otp,
@@ -472,6 +450,7 @@ export function useCreateAccountFlow() {
     biometricStatus,
     biometricAvailable: isBiometricStatusUsable(biometricStatus),
     loading,
+    session,
     resendCooldown,
     sendVerificationEmail,
     verifyEmailCode,

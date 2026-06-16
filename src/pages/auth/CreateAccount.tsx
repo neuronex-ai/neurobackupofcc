@@ -21,6 +21,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import {
   CreateAccountDraft,
+  type EmailAvailability,
   type PasswordStrength,
   ProfessionalContext,
   maskBrazilPhone,
@@ -275,6 +276,8 @@ export default function CreateAccount() {
                   mutedPanelClass={mutedPanelClass}
                   selectContentClass={selectContentClass}
                   actionButtonClass={identityButtonClass}
+                  emailAvailability={flow.emailAvailability}
+                  recoveryEmailAvailability={flow.recoveryEmailAvailability}
                   loading={flow.loading}
                   onChange={updateDraft}
                   onSubmit={submitIdentity}
@@ -429,6 +432,8 @@ function IdentityStep({
   mutedPanelClass,
   selectContentClass,
   actionButtonClass,
+  emailAvailability,
+  recoveryEmailAvailability,
   loading,
   onChange,
   onSubmit,
@@ -438,6 +443,8 @@ function IdentityStep({
   mutedPanelClass: string;
   selectContentClass: string;
   actionButtonClass: string;
+  emailAvailability: EmailAvailability;
+  recoveryEmailAvailability: EmailAvailability;
   loading: boolean;
   onChange: <K extends keyof CreateAccountDraft>(key: K, value: CreateAccountDraft[K]) => void;
   onSubmit: () => void;
