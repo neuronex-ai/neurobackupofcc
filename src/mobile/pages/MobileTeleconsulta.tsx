@@ -1,124 +1,122 @@
 "use client";
 
-import { useAuth } from "@/components/auth/SessionContextProvider";
-import { Button } from "@/components/ui/button";
-import { useAppointments } from "@/hooks/use-appointments";
-import { supabase } from "@/integrations/supabase/client";
-import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
-import { cn } from "@/lib/utils";
-import { Appointment } from "@/types";
-import { useQuery } from "@tanstack/react-query";
-import { endOfDay, format, isAfter, isBefore, startOfDay } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useState, useMemo, useEffect } from "react";
+import { MobileLayout } from "../components/MobileLayout";
 import {
-    BrainCircuit,
-    CalendarClock,
-    ChevronRight,
-    Clock,
-    Play,
-    Search,
-    Send,
     Video,
-    X,
+    Play,
+    CalendarClock,
+    Clock,
+    Sparkles,
+    BrainCircuit,
+    Send,
+    ChevronRight,
+    Search,
+    X
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useAppointments } from "@/hooks/use-appointments";
+import { Appointment } from "@/types";
+import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
+import { format, isAfter, isBefore, startOfDay, endOfDay, isSameDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { MobileActiveSession } from "../components/MobileActiveSession";
-import {
-    MobileEmptyState,
-    MobilePageHeader,
-    MobilePageScaffold,
-    MobileSectionHeader,
-    MobileSegmentedControl,
-    MobileSkeletonCard,
-} from "../components/MobilePagePrimitives";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/auth/SessionContextProvider";
+import { motion, AnimatePresence } from "framer-motion";
 import { SessionReminderDrawer } from "../components/SessionReminderDrawer";
-
-type ViewMode = "upcoming" | "history";
+import { Input } from "@/components/ui/input";
 
 export const MobileTeleconsulta = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+
+    // States
     const [activeSession, setActiveSession] = useState<Appointment | null>(null);
-    const [viewMode, setViewMode] = useState<ViewMode>("upcoming");
+    const [viewMode, setViewMode] = useState<'upcoming' | 'history'>('upcoming');
     const [reminderAppointment, setReminderAppointment] = useState<Appointment | null>(null);
-    const [searchVisible, setSearchVisible] = useState(false);
+    const [isSearchVisible, setIsSearchVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
+    // Fetch latest session note for the Recap section
     const { data: latestNotes } = useQuery<any[]>({
-        queryKey: ["latestSessionNotes", user?.id],
+        queryKey: ['latestSessionNotes', user?.id],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from("session_notes")
-                .select("*, patients(id, name)")
-                .eq("user_id", user?.id)
-                .order("created_at", { ascending: false })
+                .from('session_notes')
+                .select('*, patients(id, name)')
+                .eq('user_id', user?.id)
+                .order('created_at', { ascending: false })
                 .limit(1);
             if (error) throw error;
             return data;
         },
-        enabled: Boolean(user?.id),
+        enabled: !!user?.id
     });
 
-    const now = useMemo(() => new Date(), []);
-    const { data: appointments, isLoading } = useAppointments({
-        startDate: startOfDay(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)),
-        endDate: endOfDay(new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)),
-    });
-
-    const filteredAppointments = useMemo(() => {
-        const normalizedSearch = searchQuery.trim().toLowerCase();
-        return (appointments || []).filter((appointment) => {
-            if (isCancelledAppointmentStatus(appointment.status, appointment.notes) || appointment.type === "block") return false;
-            if (!normalizedSearch) return true;
-            return `${appointment.patient_name || ""} ${appointment.notes || ""}`.toLowerCase().includes(normalizedSearch);
-        });
-    }, [appointments, searchQuery]);
-
-    const upcomingAppointments = useMemo(
-        () => filteredAppointments
-            .filter((appointment) => isAfter(new Date(appointment.end_time), new Date()))
-            .sort((left, right) => new Date(left.start_time).getTime() - new Date(right.start_time).getTime()),
-        [filteredAppointments],
-    );
-
-    const historyAppointments = useMemo(
-        () => filteredAppointments
-            .filter((appointment) => isBefore(new Date(appointment.end_time), new Date()))
-            .sort((left, right) => new Date(right.start_time).getTime() - new Date(left.start_time).getTime()),
-        [filteredAppointments],
-    );
-
-    const nextAppointment = upcomingAppointments[0];
     const lastSession = latestNotes?.[0];
 
+    // Fetch appointments - Ampliado para pegar histórico e futuro
+    const today = new Date();
+    const { data: appointments, isLoading } = useAppointments({
+        startDate: startOfDay(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)), // Últimos 30 dias
+        endDate: endOfDay(new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000))    // Próximos 30 dias
+    });
+
+    // Filtering Logic
+    const filteredAppointments = useMemo(() => {
+        if (!appointments) return [];
+        let filtered = appointments.filter(apt => !isCancelledAppointmentStatus(apt.status, apt.notes) && apt.type !== 'block');
+
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(apt =>
+                apt.patient_name?.toLowerCase().includes(query) ||
+                apt.notes?.toLowerCase().includes(query)
+            );
+        }
+        return filtered;
+    }, [appointments, searchQuery]);
+
+    const upcomingAppointments = useMemo(() => {
+        const now = new Date();
+        return filteredAppointments
+            ?.filter(apt => {
+                const endTime = new Date(apt.end_time);
+                return isAfter(endTime, now) || isSameDay(endTime, now);
+            })
+            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()) || [];
+    }, [filteredAppointments]);
+
+    const historyAppointments = useMemo(() => {
+        const now = new Date();
+        return filteredAppointments
+            ?.filter(apt => isBefore(new Date(apt.end_time), now))
+            .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()) || [];
+    }, [filteredAppointments]);
+
+    const nextAppointment = useMemo(() => {
+        return upcomingAppointments[0];
+    }, [upcomingAppointments]);
+
     useEffect(() => {
-        const appointmentId = location.state?.activeAppointmentId;
-        if (!appointmentId || !appointments || activeSession) return;
-        const sessionToActivate = appointments.find((appointment) => appointment.id === appointmentId);
-        if (sessionToActivate && isAfter(new Date(sessionToActivate.end_time), new Date())) {
-            setActiveSession(sessionToActivate);
-            window.history.replaceState({}, document.title, location.pathname);
+        if (location.state?.activeAppointmentId && appointments && !activeSession) {
+            const sessionToActivate = appointments.find(a => a.id === location.state.activeAppointmentId);
+            if (sessionToActivate) {
+                setActiveSession(sessionToActivate);
+                window.history.replaceState({}, document.title, location.pathname);
+            }
         }
-    }, [activeSession, appointments, location.pathname, location.state]);
+    }, [location.state, appointments, activeSession]);
 
-    const startSession = (appointment: Appointment) => {
-        if (isBefore(new Date(appointment.end_time), new Date())) {
-            toast.info("Esta sessão já foi encerrada.");
-            if (appointment.patient_id) navigate(`/pacientes/${appointment.patient_id}`);
-            return;
-        }
-        setActiveSession(appointment);
-    };
-
-    const openHistory = (appointment: Appointment) => {
-        if (appointment.patient_id) {
-            navigate(`/pacientes/${appointment.patient_id}`);
-            return;
-        }
-        toast.info("Não há prontuário vinculado a esta sessão.");
+    const handleStartSession = (appointment: Appointment) => {
+        navigate('/teleconsulta', { state: { activeAppointmentId: appointment.id } });
+        toast.info(`Conectando à sala de ${appointment.patient_name}...`);
     };
 
     if (activeSession) {
@@ -130,185 +128,263 @@ export const MobileTeleconsulta = () => {
         );
     }
 
-    const visibleAppointments = viewMode === "upcoming" ? upcomingAppointments : historyAppointments;
-
     return (
-        <MobilePageScaffold>
-            <MobilePageHeader
-                eyebrow="Salas virtuais"
-                title="Teleconsulta"
-                description="Entre em sessões futuras e consulte o histórico sem reabrir atendimentos encerrados."
-                actions={(
-                    <div className="flex gap-1.5">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => {
-                                setSearchVisible((current) => !current);
-                                if (searchVisible) setSearchQuery("");
-                            }}
-                            className="h-10 w-10 rounded-[14px]"
-                        >
-                            {searchVisible ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-                            <span className="sr-only">{searchVisible ? "Fechar busca" : "Buscar sessões"}</span>
-                        </Button>
-                        <Button type="button" size="icon" onClick={() => navigate("/agenda")} className="h-10 w-10 rounded-[14px]">
-                            <CalendarClock className="h-4 w-4" />
-                            <span className="sr-only">Abrir agenda</span>
-                        </Button>
-                    </div>
-                )}
-            />
+        <MobileLayout className="px-0 min-h-screen bg-background">
+            <div className="px-6 pb-32 pt-6">
+                {/* --- Header: MacOS Floating Bar --- */}
+                <div className="mb-6 relative z-40 w-full animate-fade-in">
+                    <div className="w-full h-[60px] flex items-center justify-between p-2 pl-4 pr-2 bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all duration-300">
+                        {!isSearchVisible ? (
+                            <>
+                                <div className="flex flex-col justify-center h-full -space-y-0.5">
+                                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest pl-0.5">Salas Virtuais</span>
+                                    <h1 className="text-base font-bold text-zinc-100 tracking-tight leading-none">Teleconsulta</h1>
+                                </div>
 
-            <div className="space-y-4 pb-2">
-                {searchVisible ? (
-                    <div className="relative">
-                        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
-                        <input
-                            autoFocus
-                            value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder="Buscar paciente ou anotação"
-                            className="h-11 w-full rounded-[15px] border border-border/45 bg-card/70 pl-10 pr-4 text-sm outline-none focus:border-foreground/25 dark:border-white/10 dark:bg-white/[0.03]"
-                        />
-                    </div>
-                ) : null}
-
-                {nextAppointment && !searchQuery ? (
-                    <section className="rounded-[22px] border border-foreground bg-foreground p-4.5 text-background">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <p className="text-[8px] font-black uppercase tracking-[0.15em] opacity-50">Próxima sessão</p>
-                                <p className="mt-2 text-[1.65rem] font-black leading-none tracking-[-0.045em]">
-                                    {format(new Date(nextAppointment.start_time), "HH:mm")}
-                                </p>
-                                <p className="mt-2 truncate text-[13px] font-black">{nextAppointment.patient_name || "Paciente"}</p>
-                                <p className="mt-1 text-[9px] font-medium opacity-55">
-                                    {format(new Date(nextAppointment.start_time), "EEEE, d 'de' MMMM", { locale: ptBR })}
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => startSession(nextAppointment)}
-                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-background text-foreground active:opacity-80"
-                                aria-label="Entrar na próxima sessão"
-                            >
-                                <Play className="ml-0.5 h-5 w-5 fill-current" />
-                            </button>
-                        </div>
-                        <Button onClick={() => startSession(nextAppointment)} className="mt-4 h-11 w-full rounded-[14px] bg-background text-[8px] font-black uppercase tracking-[0.12em] text-foreground hover:bg-background/90">
-                            <Video className="mr-2 h-4 w-4" /> Preparar teleconsulta
-                        </Button>
-                    </section>
-                ) : null}
-
-                {!searchQuery && lastSession ? (
-                    <section className="rounded-[20px] border border-border/40 bg-card/68 p-4 dark:border-white/10 dark:bg-white/[0.025]">
-                        <div className="flex items-start gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-foreground/[0.045] text-muted-foreground">
-                                <BrainCircuit className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-muted-foreground/55">Última sessão</p>
-                                <p className="mt-1 truncate text-[13px] font-black text-foreground">{lastSession.patients?.name || "Paciente"}</p>
-                                <p className="mt-2 line-clamp-3 text-[10px] font-medium leading-relaxed text-muted-foreground/68">
-                                    {lastSession.ai_summary?.summary || "O resumo aparecerá depois que a nota da sessão for finalizada."}
-                                </p>
-                                {lastSession.patients?.id ? (
-                                    <button type="button" onClick={() => navigate(`/pacientes/${lastSession.patients.id}`)} className="mt-2.5 inline-flex items-center text-[8px] font-black uppercase tracking-[0.11em] text-foreground">
-                                        Abrir prontuário <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setIsSearchVisible(true)}
+                                        className="w-9 h-9 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95"
+                                    >
+                                        <Search className="w-4 h-4" />
                                     </button>
-                                ) : null}
+                                    <button
+                                        onClick={() => navigate('/agenda')}
+                                        className="w-9 h-9 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
+                                    >
+                                        <CalendarClock className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex-1 flex items-center gap-2 w-full"
+                            >
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                                    <Input
+                                        autoFocus
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Buscar sala..."
+                                        className="h-9 pl-9 bg-white/5 border-transparent rounded-full text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-0 text-sm"
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setIsSearchVisible(false);
+                                        setSearchQuery("");
+                                    }}
+                                    className="w-9 h-9 rounded-full text-zinc-400 hover:text-white flex items-center justify-center"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </motion.div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="space-y-10">
+                    {/* Next Session Highlight Block */}
+                    {nextAppointment && !searchQuery && (
+                        <motion.section
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="relative"
+                        >
+                            <div className="flex items-center justify-between mb-5 px-1">
+                                <h3 className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em]">Próxima Consulta</h3>
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-400">Destaque</span>
+                                </div>
+                            </div>
+
+                            <div className="relative p-6 rounded-[32px] bg-foreground text-background shadow-2xl overflow-hidden group active:scale-[0.98] transition-transform" onClick={() => handleStartSession(nextAppointment)}>
+                                <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-20 -mt-20" />
+
+                                <div className="relative z-10 flex items-center justify-between">
+                                    <div className="space-y-4 flex-1">
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-background/50">
+                                                {isSameDay(new Date(nextAppointment.start_time), new Date()) ? 'Hoje' : format(new Date(nextAppointment.start_time), "dd 'de' MMM", { locale: ptBR })} às {format(new Date(nextAppointment.start_time), 'HH:mm')}
+                                            </p>
+                                            <h2 className="text-2xl font-black tracking-tight truncate pr-4">{nextAppointment.patient_name}</h2>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="px-3 py-1.5 rounded-xl bg-background/10 backdrop-blur-md border border-background/20 flex items-center gap-2">
+                                                <Video className="w-3.5 h-3.5" />
+                                                <span className="text-[10px] font-bold uppercase tracking-widest">Acessar Teleconsulta</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <motion.div
+                                        whileTap={{ scale: 0.9 }}
+                                        className="w-16 h-16 rounded-[24px] bg-background text-foreground flex items-center justify-center shadow-xl"
+                                    >
+                                        <Play className="w-6 h-6 fill-current ml-1" />
+                                    </motion.div>
+                                </div>
+                            </div>
+                        </motion.section>
+                    )}
+
+                    {/* AI Recap Section */}
+                    {!searchQuery && (
+                        <motion.section initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }}>
+                            <div className="flex items-center gap-2 mb-5 px-1">
+                                <Sparkles className="w-3.5 h-3.5 text-foreground/40" />
+                                <h3 className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em]">Recapitulação IA</h3>
+                            </div>
+
+                            <div className="group relative">
+                                <div className="absolute -inset-0.5 bg-gradient-to-r from-foreground/10 to-transparent rounded-[32px] blur-xl opacity-30 group-hover:opacity-50 transition-all duration-700" />
+                                <div className="relative bg-card border border-border/20 rounded-[28px] overflow-hidden shadow-2xl">
+                                    <div className="p-6 relative z-10">
+                                        <div className="flex justify-between items-start mb-6">
+                                            <div className="min-w-0 flex-1 pr-4">
+                                                <h2 className="text-xl font-bold text-foreground leading-tight mb-1">Última Sessão</h2>
+                                                <p className="text-sm text-muted-foreground truncate">{lastSession?.patients?.name || 'Inicie uma sessão para gerar insights'}</p>
+                                            </div>
+                                            <div className="w-10 h-10 rounded-xl bg-foreground/[0.04] border border-border/10 flex items-center justify-center shrink-0">
+                                                <BrainCircuit className="w-5 h-5 text-muted-foreground" />
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-foreground/[0.02] border border-border/10 rounded-[20px] p-5 mb-5 backdrop-blur-sm">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Análise</span>
+                                                <span className="text-[9px] font-bold uppercase tracking-widest text-foreground/70 px-2 py-0.5 bg-foreground/[0.04] rounded-md border border-border/10">
+                                                    {lastSession?.ai_summary?.sentiment || 'Padrão'}
+                                                </span>
+                                            </div>
+                                            <p className="text-[13px] font-medium text-muted-foreground leading-relaxed line-clamp-3">
+                                                {lastSession?.ai_summary?.summary || "O resumo inteligente aparecerá aqui após a finalização da nota da sessão do paciente."}
+                                            </p>
+                                        </div>
+
+                                        <Button
+                                            disabled={!lastSession?.patients?.id}
+                                            onClick={() => lastSession?.patients?.id && navigate(`/pacientes/${lastSession.patients.id}`)}
+                                            className="w-full h-12 rounded-xl bg-foreground text-background hover:bg-foreground/90 font-bold text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                                        >
+                                            Ver Detalhes do Prontuário
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.section>
+                    )}
+
+                    {/* Tabs / History Section */}
+                    <div className="px-1 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em]">Gestão de Sessões</h3>
+                            <div className="flex p-1 rounded-xl bg-foreground/[0.04] border border-border/10 backdrop-blur-md">
+                                <button
+                                    onClick={() => setViewMode('upcoming')}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all",
+                                        viewMode === 'upcoming' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                                    )}
+                                >
+                                    Próximas
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('history')}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all",
+                                        viewMode === 'history' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
+                                    )}
+                                >
+                                    Histórico
+                                </button>
                             </div>
                         </div>
-                    </section>
-                ) : null}
 
-                <MobileSegmentedControl
-                    value={viewMode}
-                    onValueChange={setViewMode}
-                    ariaLabel="Lista de sessões"
-                    options={[
-                        { value: "upcoming", label: "Próximas", icon: Video, badge: upcomingAppointments.length },
-                        { value: "history", label: "Histórico", icon: Clock, badge: historyAppointments.length },
-                    ]}
-                />
-
-                <section className="space-y-3">
-                    <MobileSectionHeader
-                        eyebrow="Sessões"
-                        title={viewMode === "upcoming" ? "Próximos atendimentos" : "Atendimentos encerrados"}
-                        description={viewMode === "upcoming" ? "Use o lembrete ou entre na sala quando estiver pronto." : "Sessões passadas abrem o prontuário, não uma nova sala."}
-                    />
-
-                    {isLoading ? (
-                        <div className="space-y-2">
-                            <MobileSkeletonCard lines={1} />
-                            <MobileSkeletonCard lines={1} />
-                        </div>
-                    ) : visibleAppointments.length === 0 ? (
-                        <MobileEmptyState
-                            icon={Clock}
-                            title={searchQuery ? "Nada encontrado" : viewMode === "upcoming" ? "Nenhuma sessão futura" : "Histórico vazio"}
-                            description={searchQuery ? "Nenhuma sessão corresponde à busca." : "Os atendimentos aparecerão aqui conforme a agenda for utilizada."}
-                            className="min-h-[230px] rounded-[20px] border border-dashed border-border/45"
-                        />
-                    ) : (
-                        <div className="space-y-2">
-                            {visibleAppointments.map((appointment) => {
-                                const online = appointment.type === "online" || appointment.type === "teleconsulta" || Boolean(appointment.google_meet_link);
-                                return (
-                                    <div key={appointment.id} className="flex items-center gap-3 rounded-[18px] border border-border/40 bg-card/68 p-3.5 dark:border-white/10 dark:bg-white/[0.025]">
-                                        <button
-                                            type="button"
-                                            onClick={() => viewMode === "upcoming" ? startSession(appointment) : openHistory(appointment)}
-                                            className="flex min-w-0 flex-1 items-center gap-3 text-left active:opacity-75"
-                                        >
-                                            <div className="shrink-0 text-center">
-                                                <p className="text-sm font-black text-foreground">{format(new Date(appointment.start_time), "HH:mm")}</p>
-                                                <p className="mt-1 text-[7px] font-black uppercase tracking-[0.09em] text-muted-foreground/50">{format(new Date(appointment.start_time), "dd MMM", { locale: ptBR })}</p>
-                                            </div>
-                                            <div className="min-w-0 flex-1 border-l border-border/40 pl-3 dark:border-white/10">
-                                                <p className="truncate text-[13px] font-black text-foreground">{appointment.patient_name || "Paciente"}</p>
-                                                <p className="mt-1 inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-[0.09em] text-muted-foreground/55">
-                                                    <span className={cn("h-1.5 w-1.5 rounded-full", online ? "bg-indigo-400" : "bg-orange-400")} />
-                                                    {online ? "Online" : "Presencial"}
-                                                </p>
-                                            </div>
-                                        </button>
-
-                                        {viewMode === "upcoming" ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => setReminderAppointment(appointment)}
-                                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-emerald-500/[0.08] text-emerald-600 active:opacity-75 dark:text-emerald-400"
-                                                aria-label="Enviar lembrete"
+                        {/* Sessions List */}
+                        <div className="space-y-4">
+                            {isLoading ? (
+                                [...Array(3)].map((_, i) => (
+                                    <div key={i} className="h-24 rounded-[28px] bg-foreground/[0.02] border border-border/10 animate-pulse" />
+                                ))
+                            ) : (
+                                <AnimatePresence mode="wait">
+                                    <motion.div
+                                        key={viewMode}
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="space-y-3"
+                                    >
+                                        {(viewMode === 'upcoming' ? upcomingAppointments : historyAppointments).map((apt) => (
+                                            <div
+                                                key={apt.id}
+                                                className="group relative"
                                             >
-                                                <Send className="h-4 w-4" />
-                                            </button>
-                                        ) : null}
-                                        <button
-                                            type="button"
-                                            onClick={() => viewMode === "upcoming" ? startSession(appointment) : openHistory(appointment)}
-                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-foreground/[0.04] text-muted-foreground active:opacity-75"
-                                            aria-label={viewMode === "upcoming" ? "Entrar na sessão" : "Abrir prontuário"}
-                                        >
-                                            {viewMode === "upcoming" ? <Play className="ml-0.5 h-3.5 w-3.5 fill-current" /> : <ChevronRight className="h-4 w-4" />}
-                                        </button>
-                                    </div>
-                                );
-                            })}
+                                                <div className="p-4 rounded-[28px] bg-card border border-border/30 shadow-sm flex items-center gap-4 transition-all active:scale-[0.98]" onClick={() => handleStartSession(apt)}>
+                                                    <div className="flex flex-col items-center justify-center min-w-[55px] space-y-1">
+                                                        <span className="text-[16px] font-black text-foreground">{format(new Date(apt.start_time), 'HH:mm')}</span>
+                                                        <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{format(new Date(apt.start_time), 'dd MMM', { locale: ptBR })}</span>
+                                                    </div>
+
+                                                    <div className="w-px h-10 bg-border/20" />
+
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-[14px] font-bold text-foreground truncate">{apt.patient_name}</h4>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <div className={cn(
+                                                                "w-1.5 h-1.5 rounded-full",
+                                                                apt.type === 'online' ? "bg-indigo-400" : "bg-orange-400"
+                                                            )} />
+                                                            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                                {apt.type === 'online' ? 'Online' : 'Presencial'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2">
+                                                        {viewMode === 'upcoming' && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setReminderAppointment(apt); }}
+                                                                className="w-10 h-10 rounded-[18px] bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 transition-all flex items-center justify-center shadow-inner"
+                                                            >
+                                                                <Send className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            className="w-10 h-10 rounded-[18px] bg-foreground/[0.03] border border-border/10 flex items-center justify-center group-active:bg-foreground group-active:text-background transition-all"
+                                                        >
+                                                            {viewMode === 'upcoming' ? <Play className="w-3.5 h-3.5 fill-current ml-0.5" /> : <ChevronRight className="w-4 h-4" />}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {(viewMode === 'upcoming' ? upcomingAppointments : historyAppointments).length === 0 && (
+                                            <div className="py-16 text-center bg-foreground/[0.01] rounded-[32px] border border-dashed border-border/30">
+                                                <Clock className="w-10 h-10 text-muted-foreground/20 mx-auto mb-4" />
+                                                <p className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em]">Nenhum agendamento encontrado</p>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                </AnimatePresence>
+                            )}
                         </div>
-                    )}
-                </section>
+                    </div>
+                </div>
             </div>
 
+            {/* Reminder Drawer */}
             <SessionReminderDrawer
-                isOpen={Boolean(reminderAppointment)}
+                isOpen={!!reminderAppointment}
                 onOpenChange={(open) => !open && setReminderAppointment(null)}
                 appointment={reminderAppointment}
             />
-        </MobilePageScaffold>
+        </MobileLayout>
     );
 };
