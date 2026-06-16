@@ -49,18 +49,32 @@ export function MobilePixPaymentFlow({
     }
   }, [consultation]);
 
-  const consult = async () => {
-    if (!payload.trim()) return;
+  const consult = useCallback(async (nextPayload = payload) => {
+    const trimmedPayload = nextPayload.trim();
+    if (!trimmedPayload || trimmedPayload.length < 10) {
+      toast.error("Codigo Pix invalido.");
+      return;
+    }
+    setPayload(trimmedPayload);
     setBusy(true);
     try {
-      const data = await consultPixPayment(payload.trim());
+      const data = await consultPixPayment(trimmedPayload);
       setConsultation(data.consultation);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Pix inválido.");
     } finally {
       setBusy(false);
     }
-  };
+  }, [payload]);
+
+  const handleScannedPix = useCallback(async (value: string) => {
+    const scannedPayload = value.trim();
+    if (scannedPayload.length < 10) {
+      toast.error("QR Code Pix invalido.");
+      return;
+    }
+    await consult(scannedPayload);
+  }, [consult]);
 
   const authorizeAndExecute = async (pin: string) => {
     if (!consultation) return;
