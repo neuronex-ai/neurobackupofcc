@@ -357,7 +357,14 @@ export const MobileSettings = () => {
         >
             <AnimatePresence mode="wait" initial={false}>
                 {view === "main" ? (
-                    <motion.div key="settings-main" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
+                    <motion.div
+                        key="settings-main"
+                        initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.985 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.99 }}
+                        transition={pageTransition}
+                        className="mobile-settings-main space-y-5"
+                    >
                         <MobilePageHeader
                             eyebrow="Centro de controle"
                             title="Ajustes"
