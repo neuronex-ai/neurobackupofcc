@@ -1,401 +1,745 @@
-"use client";
-
-import { useState, useMemo, useEffect } from "react";
-import { MobileLayout } from "../components/MobileLayout";
-import {
-    Video,
-    Play,
-    CalendarClock,
-    Clock,
-    Sparkles,
-    BrainCircuit,
-    Send,
-    ChevronRight,
-    Search,
-    X
-} from "lucide-react";
-import { useAppointments } from "@/hooks/use-appointments";
-import { Appointment } from "@/types";
-import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
-import { format, isAfter, isBefore, startOfDay, endOfDay, isSameDay } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
+import { AsaasRegulatoryFooter } from "@/components/financeiro/AsaasRegulatoryFooter";
+import { CustomOnboardingFlow } from "@/components/financeiro/CustomOnboardingFlow";
+import { NewInvoiceModal } from "@/components/financeiro/NewInvoiceModal";
+import { NewTransactionModal } from "@/components/financeiro/NewTransactionModal";
+import { RequirementsList } from "@/components/financeiro/RequirementsList";
+import { FeatureGate } from "@/components/subscription";
 import { Button } from "@/components/ui/button";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useFinancialAccount } from "@/hooks/use-financial-account";
+import { useFinancialMetrics } from "@/hooks/use-financial-metrics";
+import { useNeuroFinanceBalance } from "@/hooks/use-neurofinance-balance";
+import { useTransactions } from "@/hooks/use-transactions";
+import { cn, formatCurrency } from "@/lib/utils";
+import { format, subMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+    AlertTriangle,
+    ArrowDownRight,
+    ArrowRight,
+    ArrowRightLeft,
+    ArrowUpRight,
+    Barcode,
+    CalendarRange,
+    ChevronRight,
+    CircleDollarSign,
+    Eye,
+    EyeOff,
+    FileBarChart,
+    FileText,
+    Landmark,
+    ListFilter,
+    Loader2,
+    Plus,
+    QrCode,
+    Receipt,
+    ShieldCheck,
+    Sparkles,
+    Target,
+    TrendingUp,
+    Users,
+    Wallet,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
-import { MobileActiveSession } from "../components/MobileActiveSession";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/components/auth/SessionContextProvider";
-import { motion, AnimatePresence } from "framer-motion";
-import { SessionReminderDrawer } from "../components/SessionReminderDrawer";
-import { Input } from "@/components/ui/input";
 
-type LatestSessionNote = {
-    patients?: {
-        id: string;
-        name?: string | null;
-    } | null;
-    ai_summary?: {
-        sentiment?: string | null;
-        summary?: string | null;
-    } | null;
-};
+import {
+    MobileActionListItem,
+    MobileEmptyState,
+    MobileLoadingState,
+    MobilePageHeader,
+    MobilePageScaffold,
+    MobileSectionHeader,
+    MobileSegmentedControl,
+    MobileSkeletonCard,
+    MobileStatusBanner,
+} from "../components/MobilePagePrimitives";
 
-export const MobileTeleconsulta = () => {
-    const navigate = useNavigate();
+type FinanceArea = "management" | "neurofinance";
+type TransactionFilter = "all" | "income" | "expense";
+
+const MANAGEMENT_MODULES = [
+    {
+        id: "overview",
+        icon: Landmark,
+        title: "Visão geral",
+        description: "Resultado do mês, previsão, recebíveis e pendências.",
+        status: "Ativo",
+    },
+    {
+        id: "cashflow",
+        icon: TrendingUp,
+        title: "Fluxo de caixa",
+        description: "Acompanhe o movimento recente e a tendência do consultório.",
+        status: "Ativo",
+    },
+    {
+        id: "income",
+        icon: ArrowUpRight,
+        title: "Receitas",
+        description: "Entradas confirmadas e fontes de receita.",
+        status: "Ativo",
+    },
+    {
+        id: "expense",
+        icon: ArrowDownRight,
+        title: "Despesas",
+        description: "Custos fixos, variáveis e categorias.",
+        status: "Ativo",
+    },
+] as const;
+
+const UPCOMING_MANAGEMENT_MODULES = [
+    {
+        icon: Users,
+        title: "Inadimplência",
+        description: "Pacientes, valores em aberto e atrasos.",
+    },
+    {
+        icon: Target,
+        title: "Planejamento",
+        description: "Metas, ponto de equilíbrio e previsibilidade.",
+    },
+    {
+        icon: FileBarChart,
+        title: "Relatórios",
+        description: "DRE simplificada, fluxo e resumo para contador.",
+    },
+] as const;
+
+export const MobileFinanceiro = () => {
     const location = useLocation();
-    const { user } = useAuth();
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const area: FinanceArea = location.pathname.includes("/neurofinance") ? "neurofinance" : "management";
 
-    // States
-    const [activeSession, setActiveSession] = useState<Appointment | null>(null);
-    const [viewMode, setViewMode] = useState<'upcoming' | 'history'>('upcoming');
-    const [reminderAppointment, setReminderAppointment] = useState<Appointment | null>(null);
-    const [isSearchVisible, setIsSearchVisible] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
+    const { data: metrics, isLoading: isLoadingMetrics } = useFinancialMetrics();
+    const { data: transactions, isLoading: isLoadingTransactions } = useTransactions(subMonths(new Date(), 3));
+    const {
+        hasAccount,
+        isApproved,
+        isLoading: isLoadingAccount,
+        isAwaitingDocuments,
+        isAwaitingApproval,
+        isPending,
+        needsInitialOnboarding,
+        refetch: refetchStatus,
+        syncAccount,
+    } = useFinancialAccount();
+    const { data: balanceData, isLoading: isLoadingBalance } = useNeuroFinanceBalance();
 
-    // Fetch latest session note for the Recap section
-    const { data: latestNotes } = useQuery<LatestSessionNote[]>({
-        queryKey: ['latestSessionNotes', user?.id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('session_notes')
-                .select('*, patients(id, name)')
-                .eq('user_id', user?.id)
-                .order('created_at', { ascending: false })
-                .limit(1);
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!user?.id
-    });
+    const [showBalance, setShowBalance] = useState(true);
+    const [activeTab, setActiveTab] = useState<TransactionFilter>("all");
+    const [showUpdateModal, setShowUpdateModal] = useState(false);
+    const [onboardingStep, setOnboardingStep] = useState<"welcome" | "wizard">("welcome");
+    const cashflowRef = useRef<HTMLDivElement>(null);
+    const transactionsRef = useRef<HTMLDivElement>(null);
 
-    const lastSession = latestNotes?.[0];
-
-    // Fetch appointments - Ampliado para pegar histórico e futuro
-    const today = new Date();
-    const { data: appointments, isLoading } = useAppointments({
-        startDate: startOfDay(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)), // Últimos 30 dias
-        endDate: endOfDay(new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000))    // Próximos 30 dias
-    });
-
-    // Filtering Logic
-    const filteredAppointments = useMemo(() => {
-        if (!appointments) return [];
-        let filtered = appointments.filter(apt => !isCancelledAppointmentStatus(apt.status, apt.notes) && apt.type !== 'block');
-
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(apt =>
-                apt.patient_name?.toLowerCase().includes(query) ||
-                apt.notes?.toLowerCase().includes(query)
-            );
-        }
-        return filtered;
-    }, [appointments, searchQuery]);
-
-    const upcomingAppointments = useMemo(() => {
-        const now = new Date();
-        return filteredAppointments
-            ?.filter(apt => {
-                const endTime = new Date(apt.end_time);
-                return isAfter(endTime, now) || isSameDay(endTime, now);
-            })
-            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()) || [];
-    }, [filteredAppointments]);
-
-    const historyAppointments = useMemo(() => {
-        const now = new Date();
-        return filteredAppointments
-            ?.filter(apt => isBefore(new Date(apt.end_time), now))
-            .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()) || [];
-    }, [filteredAppointments]);
-
-    const nextAppointment = useMemo(() => {
-        return upcomingAppointments[0];
-    }, [upcomingAppointments]);
+    const balance = balanceData || { balance: 0, pending: 0 };
+    const isPendingActivation = hasAccount && !isApproved;
 
     useEffect(() => {
-        if (location.state?.activeAppointmentId && appointments && !activeSession) {
-            const sessionToActivate = appointments.find(a => a.id === location.state.activeAppointmentId);
-            if (sessionToActivate) {
-                setActiveSession(sessionToActivate);
-                window.history.replaceState({}, document.title, location.pathname);
-            }
-        }
-    }, [location.pathname, location.state, appointments, activeSession]);
+        let shouldUpdateParams = false;
+        const onboardingStatus = searchParams.get("onboarding");
 
-    const handleStartSession = (appointment: Appointment) => {
-        navigate('/teleconsulta', { state: { activeAppointmentId: appointment.id } });
-        toast.info(`Conectando à sala de ${appointment.patient_name}...`);
+        if (onboardingStatus === "complete" || onboardingStatus === "refresh") {
+            syncAccount.mutate(undefined, {
+                onSettled: () => {
+                    const next = new URLSearchParams(searchParams);
+                    next.delete("onboarding");
+                    setSearchParams(next, { replace: true });
+                },
+            });
+        }
+
+        const paymentStatus = searchParams.get("payment");
+        if (paymentStatus) {
+            if (paymentStatus === "success") toast.success("Cobrança processada com sucesso.");
+            if (paymentStatus === "canceled") toast.info("Pagamento cancelado ou não concluído.");
+            const next = new URLSearchParams(searchParams);
+            next.delete("payment");
+            next.delete("id");
+            setSearchParams(next, { replace: true });
+            shouldUpdateParams = true;
+        }
+
+        return () => {
+            void shouldUpdateParams;
+        };
+    }, [searchParams, setSearchParams, syncAccount]);
+
+    const chartData = useMemo(
+        () => [...(transactions || [])]
+            .slice(0, 24)
+            .reverse()
+            .map((transaction) => ({ value: Number(transaction.amount || 0) })),
+        [transactions],
+    );
+
+    const filteredTransactions = useMemo(
+        () => (transactions || []).filter((transaction) => {
+            if (activeTab === "all") return true;
+            return transaction.type === activeTab;
+        }),
+        [activeTab, transactions],
+    );
+
+    const switchArea = (nextArea: FinanceArea) => {
+        if (nextArea === "management") navigate("/financeiro");
+        else navigate("/financeiro/neurofinance");
     };
 
-    if (activeSession) {
+    const focusTransactions = (filter: TransactionFilter) => {
+        setActiveTab(filter);
+        requestAnimationFrame(() => transactionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    };
+
+    const handleManagementModule = (moduleId: typeof MANAGEMENT_MODULES[number]["id"]) => {
+        if (moduleId === "overview") window.scrollTo({ top: 0, behavior: "smooth" });
+        if (moduleId === "cashflow") cashflowRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (moduleId === "income") focusTransactions("income");
+        if (moduleId === "expense") focusTransactions("expense");
+    };
+
+    if (area === "neurofinance" && onboardingStep === "wizard") {
         return (
-            <MobileActiveSession
-                activeAppointment={activeSession}
-                onSessionEnd={() => setActiveSession(null)}
-            />
+            <MobilePageScaffold
+                immersive
+                showNavigation={false}
+                showBottomNavigation={false}
+                contentClassName="h-[100dvh] overflow-y-auto overscroll-y-contain px-0 pb-0 [-webkit-overflow-scrolling:touch]"
+            >
+                <div className="min-h-[100dvh] bg-background">
+                    <CustomOnboardingFlow
+                        fullScreen
+                        onCancel={() => setOnboardingStep("welcome")}
+                        onComplete={async () => {
+                            await syncAccount.mutateAsync();
+                            await refetchStatus();
+                            setOnboardingStep("welcome");
+                        }}
+                    />
+                </div>
+            </MobilePageScaffold>
         );
     }
 
     return (
-        <MobileLayout className="px-0 min-h-screen bg-background">
-            <div className="px-6 pb-32 pt-6">
-                {/* --- Header: MacOS Floating Bar --- */}
-                <div className="mb-6 relative z-40 w-full animate-fade-in">
-                    <div className="w-full h-[60px] flex items-center justify-between p-2 pl-4 pr-2 bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.3)] transition-all duration-300">
-                        {!isSearchVisible ? (
-                            <>
-                                <div className="flex flex-col justify-center h-full -space-y-0.5">
-                                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest pl-0.5">Salas Virtuais</span>
-                                    <h1 className="text-base font-bold text-zinc-100 tracking-tight leading-none">Teleconsulta</h1>
-                                </div>
+        <MobilePageScaffold
+            contentClassName="h-[100dvh] overflow-y-auto overscroll-y-contain pt-[5.75rem] pb-[calc(7rem+env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]"
+        >
+            <MobilePageHeader
+                eyebrow="Finanças do consultório"
+                title="Financeiro"
+                description={area === "management"
+                    ? "Organize o caixa sem depender de uma conta bancária."
+                    : "Movimente dinheiro real pela sua conta NeuroFinance."}
+                actions={area === "management" ? (
+                    <NewTransactionModal>
+                        <Button size="icon" className="h-11 w-11 rounded-2xl shadow-sm active:scale-[0.98]">
+                            <Plus className="h-5 w-5" />
+                            <span className="sr-only">Nova transação</span>
+                        </Button>
+                    </NewTransactionModal>
+                ) : null}
+            />
 
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => setIsSearchVisible(true)}
-                                        className="w-9 h-9 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95"
-                                    >
-                                        <Search className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => navigate('/agenda')}
-                                        className="w-9 h-9 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
-                                    >
-                                        <CalendarClock className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="flex-1 flex items-center gap-2 w-full"
-                            >
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-                                    <Input
-                                        autoFocus
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Buscar sala..."
-                                        className="h-9 pl-9 bg-white/5 border-transparent rounded-full text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-0 text-sm"
-                                    />
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        setIsSearchVisible(false);
-                                        setSearchQuery("");
-                                    }}
-                                    className="w-9 h-9 rounded-full text-zinc-400 hover:text-white flex items-center justify-center"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </motion.div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="space-y-10">
-                    {/* Next Session Highlight Block */}
-                    {nextAppointment && !searchQuery && (
-                        <motion.section
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="relative"
-                        >
-                            <div className="flex items-center justify-between mb-5 px-1">
-                                <h3 className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em]">Próxima Consulta</h3>
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                                    <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-400">Destaque</span>
-                                </div>
-                            </div>
-
-                            <div className="relative p-6 rounded-[32px] bg-foreground text-background shadow-2xl overflow-hidden group active:scale-[0.98] transition-transform" onClick={() => handleStartSession(nextAppointment)}>
-                                <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-20 -mt-20" />
-
-                                <div className="relative z-10 flex items-center justify-between">
-                                    <div className="min-w-0 flex-1 space-y-4">
-                                        <div className="space-y-1">
-                                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-background/50">
-                                                {isSameDay(new Date(nextAppointment.start_time), new Date()) ? 'Hoje' : format(new Date(nextAppointment.start_time), "dd 'de' MMM", { locale: ptBR })} às {format(new Date(nextAppointment.start_time), 'HH:mm')}
-                                            </p>
-                                            <h2 className="text-2xl font-black tracking-tight truncate pr-4">{nextAppointment.patient_name}</h2>
-                                        </div>
-                                        <div className="flex min-w-0 items-center gap-3">
-                                            <div className="flex min-w-0 max-w-full items-center gap-2 rounded-xl border border-background/20 bg-background/10 px-3 py-1.5 backdrop-blur-md">
-                                                <Video className="h-3.5 w-3.5 shrink-0" />
-                                                <span className="truncate text-[10px] font-bold uppercase tracking-[0.14em]">Acessar Teleconsulta</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <motion.div
-                                        whileTap={{ scale: 0.9 }}
-                                        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-background text-foreground shadow-xl"
-                                    >
-                                        <Play className="w-6 h-6 fill-current ml-1" />
-                                    </motion.div>
-                                </div>
-                            </div>
-                        </motion.section>
-                    )}
-
-                    {/* AI Recap Section */}
-                    {!searchQuery && (
-                        <motion.section initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }}>
-                            <div className="flex items-center gap-2 mb-5 px-1">
-                                <Sparkles className="w-3.5 h-3.5 text-foreground/40" />
-                                <h3 className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em]">Recapitulação IA</h3>
-                            </div>
-
-                            <div className="group relative">
-                                <div className="absolute -inset-0.5 bg-gradient-to-r from-foreground/10 to-transparent rounded-[32px] blur-xl opacity-30 group-hover:opacity-50 transition-all duration-700" />
-                                <div className="relative bg-card border border-border/20 rounded-[28px] overflow-hidden shadow-2xl">
-                                    <div className="p-6 relative z-10">
-                                        <div className="flex justify-between items-start mb-6">
-                                            <div className="min-w-0 flex-1 pr-4">
-                                                <h2 className="text-xl font-bold text-foreground leading-tight mb-1">Última Sessão</h2>
-                                                <p className="text-sm text-muted-foreground truncate">{lastSession?.patients?.name || 'Inicie uma sessão para gerar insights'}</p>
-                                            </div>
-                                            <div className="w-10 h-10 rounded-xl bg-foreground/[0.04] border border-border/10 flex items-center justify-center shrink-0">
-                                                <BrainCircuit className="w-5 h-5 text-muted-foreground" />
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-foreground/[0.02] border border-border/10 rounded-[20px] p-5 mb-5 backdrop-blur-sm">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Análise</span>
-                                                <span className="text-[9px] font-bold uppercase tracking-widest text-foreground/70 px-2 py-0.5 bg-foreground/[0.04] rounded-md border border-border/10">
-                                                    {lastSession?.ai_summary?.sentiment || 'Padrão'}
-                                                </span>
-                                            </div>
-                                            <p className="text-[13px] font-medium text-muted-foreground leading-relaxed line-clamp-3">
-                                                {lastSession?.ai_summary?.summary || "O resumo inteligente aparecerá aqui após a finalização da nota da sessão do paciente."}
-                                            </p>
-                                        </div>
-
-                                        <Button
-                                            disabled={!lastSession?.patients?.id}
-                                            onClick={() => lastSession?.patients?.id && navigate(`/pacientes/${lastSession.patients.id}`)}
-                                            className="w-full h-12 rounded-xl bg-foreground text-background hover:bg-foreground/90 font-bold text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all"
-                                        >
-                                            Ver Detalhes do Prontuário
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.section>
-                    )}
-
-                    {/* Tabs / History Section */}
-                    <div className="px-1 space-y-6">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <h3 className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em]">Gestão de Sessões</h3>
-                            <div className="flex shrink-0 p-1 rounded-xl bg-foreground/[0.04] border border-border/10 backdrop-blur-md">
-                                <button
-                                    onClick={() => setViewMode('upcoming')}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-[0.14em] transition-all",
-                                        viewMode === 'upcoming' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-                                    )}
-                                >
-                                    Próximas
-                                </button>
-                                <button
-                                    onClick={() => setViewMode('history')}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-[0.14em] transition-all",
-                                        viewMode === 'history' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"
-                                    )}
-                                >
-                                    Histórico
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Sessions List */}
-                        <div className="space-y-4">
-                            {isLoading ? (
-                                [...Array(3)].map((_, i) => (
-                                    <div key={i} className="h-24 rounded-[28px] bg-foreground/[0.02] border border-border/10 animate-pulse" />
-                                ))
-                            ) : (
-                                <AnimatePresence mode="wait">
-                                    <motion.div
-                                        key={viewMode}
-                                        initial={{ opacity: 0, x: 20 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -20 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="space-y-3"
-                                    >
-                                        {(viewMode === 'upcoming' ? upcomingAppointments : historyAppointments).map((apt) => (
-                                            <div
-                                                key={apt.id}
-                                                className="group relative"
-                                            >
-                                                <div className="flex items-center gap-3 rounded-[28px] border border-border/30 bg-card p-4 shadow-sm transition-all active:scale-[0.98]" onClick={() => handleStartSession(apt)}>
-                                                    <div className="flex flex-col items-center justify-center min-w-[55px] space-y-1">
-                                                        <span className="text-[16px] font-black text-foreground">{format(new Date(apt.start_time), 'HH:mm')}</span>
-                                                        <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{format(new Date(apt.start_time), 'dd MMM', { locale: ptBR })}</span>
-                                                    </div>
-
-                                                    <div className="h-10 w-px shrink-0 bg-border/20" />
-
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="text-[14px] font-bold text-foreground truncate">{apt.patient_name}</h4>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <div className={cn(
-                                                                "w-1.5 h-1.5 rounded-full",
-                                                                apt.type === 'online' ? "bg-indigo-400" : "bg-orange-400"
-                                                            )} />
-                                                            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
-                                                                {apt.type === 'online' ? 'Online' : 'Presencial'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex shrink-0 items-center gap-1.5">
-                                                        {viewMode === 'upcoming' && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); setReminderAppointment(apt); }}
-                                                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] bg-emerald-500/5 text-emerald-600 shadow-inner transition-all hover:bg-emerald-500/10"
-                                                            >
-                                                                <Send className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border border-border/10 bg-foreground/[0.03] transition-all group-active:bg-foreground group-active:text-background"
-                                                        >
-                                                            {viewMode === 'upcoming' ? <Play className="w-3.5 h-3.5 fill-current ml-0.5" /> : <ChevronRight className="w-4 h-4" />}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {(viewMode === 'upcoming' ? upcomingAppointments : historyAppointments).length === 0 && (
-                                            <div className="py-16 text-center bg-foreground/[0.01] rounded-[32px] border border-dashed border-border/30">
-                                                <Clock className="w-10 h-10 text-muted-foreground/20 mx-auto mb-4" />
-                                                <p className="text-[10px] font-black text-foreground/20 uppercase tracking-[0.2em]">Nenhum agendamento encontrado</p>
-                                            </div>
-                                        )}
-                                    </motion.div>
-                                </AnimatePresence>
-                            )}
-                        </div>
-                    </div>
-                </div>
+            <div className="sticky top-3 z-20 -mx-1 rounded-[24px] bg-background/80 px-1 py-1 backdrop-blur-xl">
+                <MobileSegmentedControl
+                    value={area}
+                    onValueChange={switchArea}
+                    ariaLabel="Área financeira"
+                    options={[
+                        { value: "management", label: "Gestão", icon: TrendingUp },
+                        { value: "neurofinance", label: "NeuroFinance", icon: Wallet },
+                    ]}
+                />
             </div>
 
-            {/* Reminder Drawer */}
-            <SessionReminderDrawer
-                isOpen={!!reminderAppointment}
-                onOpenChange={(open) => !open && setReminderAppointment(null)}
-                appointment={reminderAppointment}
-            />
-        </MobileLayout>
+            <AnimatePresence mode="wait">
+                {area === "management" ? (
+                    <motion.div
+                        key="management"
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 12 }}
+                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                        className="space-y-7 pt-7"
+                    >
+                        <section className="grid grid-cols-2 gap-3">
+                            {[
+                                {
+                                    label: "Receitas",
+                                    value: metrics?.currentMonthRevenue || 0,
+                                    helper: "Confirmadas no mês",
+                                    icon: ArrowUpRight,
+                                },
+                                {
+                                    label: "Despesas",
+                                    value: metrics?.currentMonthExpenses || 0,
+                                    helper: "Registradas no mês",
+                                    icon: ArrowDownRight,
+                                },
+                                {
+                                    label: "Resultado",
+                                    value: metrics?.netProfit || 0,
+                                    helper: (metrics?.netProfit || 0) >= 0 ? "Saldo operacional positivo" : "Atenção ao caixa",
+                                    icon: CircleDollarSign,
+                                },
+                                {
+                                    label: "A receber",
+                                    value: metrics?.pendingInvoices || 0,
+                                    helper: "Cobranças pendentes",
+                                    icon: CalendarRange,
+                                },
+                            ].map(({ label, value, helper, icon: Icon }) => (
+                                <div
+                                    key={label}
+                                    className="relative overflow-hidden rounded-[26px] border border-border/40 bg-card/75 p-4 shadow-sm transition-all active:scale-[0.99] dark:border-white/10 dark:bg-white/[0.03]"
+                                >
+                                    <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-foreground/[0.035] blur-2xl" />
+
+                                    <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-foreground/[0.05] text-muted-foreground">
+                                        <Icon className="h-4 w-4" />
+                                    </div>
+
+                                    <p className="relative mt-4 text-[8px] font-black uppercase tracking-[0.17em] text-muted-foreground/60">
+                                        {label}
+                                    </p>
+
+                                    <p className="relative mt-1 text-lg font-black tracking-[-0.04em] text-foreground">
+                                        {isLoadingMetrics ? "—" : formatCurrency(value)}
+                                    </p>
+
+                                    <p className="relative mt-1.5 text-[9px] font-medium leading-relaxed text-muted-foreground/55">
+                                        {helper}
+                                    </p>
+                                </div>
+                            ))}
+                        </section>
+
+                        <section className="space-y-3">
+                            <MobileSectionHeader
+                                eyebrow="Atalhos"
+                                title="Gestão do consultório"
+                                description="A conta NeuroFinance é opcional para estes recursos."
+                            />
+
+                            <div className="grid gap-2.5">
+                                {MANAGEMENT_MODULES.map((module) => (
+                                    <MobileActionListItem
+                                        key={module.id}
+                                        icon={module.icon}
+                                        title={module.title}
+                                        description={module.description}
+                                        status={module.status}
+                                        onClick={() => handleManagementModule(module.id)}
+                                    />
+                                ))}
+
+                                <NewInvoiceModal>
+                                    <button type="button" className="w-full text-left active:scale-[0.99]">
+                                        <MobileActionListItem
+                                            icon={Receipt}
+                                            title="Cobranças"
+                                            description="Gere cobranças vinculadas aos seus pacientes."
+                                            status="Ativo"
+                                            trailing={<ChevronRight className="h-4 w-4 text-muted-foreground/35" />}
+                                        />
+                                    </button>
+                                </NewInvoiceModal>
+
+                                {UPCOMING_MANAGEMENT_MODULES.map((module) => (
+                                    <MobileActionListItem
+                                        key={module.title}
+                                        icon={module.icon}
+                                        title={module.title}
+                                        description={module.description}
+                                        status="Próxima etapa"
+                                        disabled
+                                    />
+                                ))}
+                            </div>
+                        </section>
+
+                        <section ref={cashflowRef} className="scroll-mt-32 space-y-3">
+                            <MobileSectionHeader
+                                eyebrow="Últimos lançamentos"
+                                title="Fluxo recente"
+                                description="Movimentação gerencial registrada no consultório."
+                            />
+
+                            <div className="rounded-[28px] border border-border/40 bg-card/75 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
+                                {isLoadingTransactions ? (
+                                    <MobileSkeletonCard className="border-0 bg-transparent p-0" />
+                                ) : chartData.length > 1 ? (
+                                    <div className="h-36 w-full text-foreground">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={chartData}>
+                                                <defs>
+                                                    <linearGradient id="managementCashflow" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="0%" stopColor="currentColor" stopOpacity={0.2} />
+                                                        <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
+                                                    </linearGradient>
+                                                </defs>
+
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="value"
+                                                    stroke="currentColor"
+                                                    strokeWidth={2}
+                                                    fill="url(#managementCashflow)"
+                                                />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                ) : (
+                                    <MobileEmptyState
+                                        icon={TrendingUp}
+                                        title="Fluxo ainda vazio"
+                                        description="Registre receitas e despesas para visualizar a evolução do caixa."
+                                        className="min-h-[220px]"
+                                        action={(
+                                            <NewTransactionModal>
+                                                <Button className="h-11 rounded-2xl px-5 text-[9px] font-black uppercase tracking-[0.14em]">
+                                                    Registrar transação
+                                                </Button>
+                                            </NewTransactionModal>
+                                        )}
+                                    />
+                                )}
+                            </div>
+                        </section>
+
+                        <section ref={transactionsRef} className="scroll-mt-32 space-y-4">
+                            <MobileSectionHeader
+                                eyebrow="Caixa gerencial"
+                                title="Transações"
+                                action={(
+                                    <NewTransactionModal>
+                                        <Button variant="outline" size="sm" className="h-9 rounded-xl text-[8px] font-black uppercase tracking-[0.12em]">
+                                            <Plus className="mr-1.5 h-3.5 w-3.5" />
+                                            Nova
+                                        </Button>
+                                    </NewTransactionModal>
+                                )}
+                            />
+
+                            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 no-scrollbar">
+                                {[
+                                    { value: "all", label: "Todas" },
+                                    { value: "income", label: "Receitas" },
+                                    { value: "expense", label: "Despesas" },
+                                ].map((filter) => (
+                                    <button
+                                        key={filter.value}
+                                        type="button"
+                                        onClick={() => setActiveTab(filter.value as TransactionFilter)}
+                                        className={cn(
+                                            "min-h-10 shrink-0 rounded-xl px-4 text-[8px] font-black uppercase tracking-[0.13em] transition-all active:scale-[0.98]",
+                                            activeTab === filter.value
+                                                ? "bg-foreground text-background shadow-sm"
+                                                : "border border-border/40 bg-card/60 text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]",
+                                        )}
+                                    >
+                                        {filter.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {isLoadingTransactions ? (
+                                <div className="space-y-2">
+                                    <MobileSkeletonCard lines={1} />
+                                    <MobileSkeletonCard lines={1} />
+                                </div>
+                            ) : filteredTransactions.length ? (
+                                <div className="space-y-2">
+                                    {filteredTransactions.slice(0, 12).map((transaction) => (
+                                        <div
+                                            key={transaction.id}
+                                            className="flex items-center gap-3 rounded-[22px] border border-border/40 bg-card/75 p-4 shadow-sm transition-all active:scale-[0.99] dark:border-white/10 dark:bg-white/[0.03]"
+                                        >
+                                            <div className={cn(
+                                                "flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px]",
+                                                transaction.type === "income"
+                                                    ? "bg-emerald-500/10 text-emerald-500"
+                                                    : "bg-rose-500/10 text-rose-500",
+                                            )}>
+                                                {transaction.type === "income" ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+                                            </div>
+
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-[13px] font-black text-foreground">
+                                                    {transaction.description || transaction.category || "Transação"}
+                                                </p>
+
+                                                <p className="mt-1 text-[9px] font-medium text-muted-foreground/60">
+                                                    {transaction.date ? format(new Date(transaction.date), "d MMM, HH:mm", { locale: ptBR }) : "Recente"}
+                                                </p>
+                                            </div>
+
+                                            <div className="text-right">
+                                                <p className={cn("text-[12px] font-black", transaction.type === "income" ? "text-emerald-500" : "text-foreground")}>
+                                                    {transaction.type === "income" ? "+" : "−"} {formatCurrency(Math.abs(Number(transaction.amount || 0)))}
+                                                </p>
+
+                                                <p className="mt-1 text-[8px] font-black uppercase tracking-[0.11em] text-muted-foreground/50">
+                                                    {transaction.status === "completed" || transaction.status === "paid" ? "Concluída" : "Pendente"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <MobileEmptyState
+                                    icon={ListFilter}
+                                    title="Nenhuma transação"
+                                    description="Não encontramos lançamentos para este filtro."
+                                    className="min-h-[260px]"
+                                />
+                            )}
+                        </section>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="neurofinance"
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -12 }}
+                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                        className="space-y-7 pt-7"
+                    >
+                        <FeatureGate
+                            feature="advanced_finance"
+                            fallback={(
+                                <MobileStatusBanner
+                                    variant="warning"
+                                    title="NeuroFinance disponível no plano Profissional"
+                                    description="A Gestão Financeira continua liberada. Pix, pagamentos, saques e saldo real exigem o módulo bancário."
+                                    action={(
+                                        <Button onClick={() => switchArea("management")} variant="outline" className="h-10 rounded-xl text-[8px] font-black uppercase tracking-[0.13em]">
+                                            Voltar para Gestão
+                                        </Button>
+                                    )}
+                                />
+                            )}
+                        >
+                            {isLoadingAccount ? (
+                                <MobileLoadingState label="Sincronizando conta" />
+                            ) : needsInitialOnboarding ? (
+                                <section className="relative overflow-hidden rounded-[32px] border border-border/40 bg-foreground p-6 text-background shadow-xl dark:border-white/10">
+                                    <div className="pointer-events-none absolute -right-20 -top-20 h-48 w-48 rounded-full bg-background/10 blur-3xl" />
+
+                                    <div className="relative flex h-14 w-14 items-center justify-center rounded-[20px] bg-background/10">
+                                        <Sparkles className="h-6 w-6" />
+                                    </div>
+
+                                    <p className="relative mt-8 text-[9px] font-black uppercase tracking-[0.2em] opacity-55">
+                                        Conta digital
+                                    </p>
+
+                                    <h2 className="relative mt-2 text-3xl font-black leading-[0.95] tracking-[-0.055em]">
+                                        Ative o NeuroFinance.
+                                    </h2>
+
+                                    <p className="relative mt-4 text-sm font-medium leading-relaxed opacity-65">
+                                        A Gestão já está disponível. Abra a conta somente para movimentar dinheiro real, usar Pix, pagar boletos e acompanhar saldo bancário.
+                                    </p>
+
+                                    <div className="relative mt-6 grid gap-2">
+                                        {["Pix, boleto e cobranças", "Transferências e saques", "Saldo e extrato bancário"].map((item) => (
+                                            <div key={item} className="rounded-2xl border border-background/10 bg-background/[0.06] px-4 py-3 text-[10px] font-black uppercase tracking-[0.11em] opacity-75">
+                                                {item}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <Button
+                                        onClick={() => setOnboardingStep("wizard")}
+                                        className="relative mt-7 h-13 w-full rounded-2xl bg-background text-[9px] font-black uppercase tracking-[0.17em] text-foreground hover:bg-background/90 active:scale-[0.99]"
+                                    >
+                                        Começar agora <ArrowRight className="ml-2 h-4 w-4" />
+                                    </Button>
+
+                                    <div className="relative mt-6 opacity-60">
+                                        <AsaasRegulatoryFooter />
+                                    </div>
+                                </section>
+                            ) : (
+                                <div className="space-y-6">
+                                    {isPendingActivation ? (
+                                        <MobileStatusBanner
+                                            variant="warning"
+                                            title={isAwaitingDocuments
+                                                ? "Documentos necessários"
+                                                : isAwaitingApproval
+                                                    ? "Conta em análise"
+                                                    : isPending
+                                                        ? "Ativação em andamento"
+                                                        : "Existem pendências na conta"}
+                                            description={isAwaitingDocuments
+                                                ? "Envie os documentos solicitados para liberar Pix e transferências."
+                                                : isAwaitingApproval
+                                                    ? "A análise pode levar até 48 horas. Você pode acompanhar o status abaixo."
+                                                    : "Abra o centro de verificação para conferir a situação atual."}
+                                            action={(
+                                                <Button onClick={() => setShowUpdateModal(true)} variant="outline" className="h-10 rounded-xl text-[8px] font-black uppercase tracking-[0.13em]">
+                                                    Abrir verificação
+                                                </Button>
+                                            )}
+                                        />
+                                    ) : null}
+
+                                    <section className="relative overflow-hidden rounded-[30px] border border-border/40 bg-card/80 p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
+                                        <div className="absolute -right-20 -top-20 h-44 w-44 rounded-full bg-foreground/[0.05] blur-3xl" />
+
+                                        <div className="relative flex items-center justify-between gap-4">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[17px] bg-foreground/[0.05] text-muted-foreground">
+                                                    <Wallet className="h-5 w-5" />
+                                                </div>
+
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-[8px] font-black uppercase tracking-[0.18em] text-muted-foreground/55">
+                                                        Saldo disponível
+                                                    </p>
+
+                                                    <p className="mt-1 truncate text-[10px] font-bold text-muted-foreground">
+                                                        Conta NeuroFinance
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowBalance((current) => !current)}
+                                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-foreground/[0.045] text-muted-foreground transition-all active:scale-[0.96]"
+                                            >
+                                                {showBalance ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                            </button>
+                                        </div>
+
+                                        <div className="relative mt-8">
+                                            {isLoadingBalance ? (
+                                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/35" />
+                                            ) : (
+                                                <p className="break-words text-4xl font-black tracking-[-0.06em] text-foreground">
+                                                    {showBalance ? formatCurrency(balance.balance || 0) : "R$ ••••••"}
+                                                </p>
+                                            )}
+
+                                            <p className="mt-2 text-[10px] font-bold text-muted-foreground/55">
+                                                {showBalance ? `${formatCurrency(balance.pending || 0)} a liberar` : "Saldo protegido"}
+                                            </p>
+                                        </div>
+                                    </section>
+
+                                    <section className="space-y-3">
+                                        <MobileSectionHeader
+                                            eyebrow="Movimentação bancária"
+                                            title="Ações da conta"
+                                            description="Recursos que já possuem fluxo mobile aparecem como ativos."
+                                        />
+
+                                        <div className="grid gap-2.5">
+                                            <NewInvoiceModal>
+                                                <button type="button" className="w-full text-left active:scale-[0.99]">
+                                                    <MobileActionListItem
+                                                        icon={Receipt}
+                                                        title="Cobrar"
+                                                        description="Gere uma cobrança bancária para um paciente."
+                                                        status="Ativo"
+                                                        trailing={<ChevronRight className="h-4 w-4 text-muted-foreground/35" />}
+                                                    />
+                                                </button>
+                                            </NewInvoiceModal>
+
+                                            <MobileActionListItem
+                                                icon={QrCode}
+                                                title="Pix"
+                                                description="Pagar, receber, gerar QR Code e gerenciar chaves."
+                                                status="Em adaptação"
+                                                disabled
+                                            />
+
+                                            <MobileActionListItem
+                                                icon={ArrowRightLeft}
+                                                title="Transferências"
+                                                description="Envios Pix e transferências protegidas pelo PIN financeiro."
+                                                status="Em adaptação"
+                                                disabled
+                                            />
+
+                                            <MobileActionListItem
+                                                icon={Barcode}
+                                                title="Pagar boleto"
+                                                description="Leitura, confirmação e comprovante em fluxo mobile."
+                                                status="Em adaptação"
+                                                disabled
+                                            />
+
+                                            <MobileActionListItem
+                                                icon={FileText}
+                                                title="Extrato"
+                                                description="Movimentações realizadas, futuras e assinaturas."
+                                                status="Em adaptação"
+                                                disabled
+                                            />
+
+                                            <MobileActionListItem
+                                                icon={ShieldCheck}
+                                                title="Saúde da conta"
+                                                description="Pendências cadastrais, limites e situação operacional."
+                                                status={isApproved ? "Regular" : "Requer ação"}
+                                                onClick={() => setShowUpdateModal(true)}
+                                            />
+                                        </div>
+                                    </section>
+                                </div>
+                            )}
+                        </FeatureGate>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <Dialog
+                open={showUpdateModal}
+                onOpenChange={(open) => {
+                    setShowUpdateModal(open);
+                    if (open) refetchStatus();
+                }}
+            >
+                <DialogContent className="flex h-[88dvh] max-h-[88dvh] w-[calc(100vw-1rem)] max-w-lg flex-col overflow-hidden rounded-[28px] border-border/40 bg-background p-0 dark:border-white/10">
+                    <DialogHeader className="shrink-0 border-b border-border/40 p-5 text-left dark:border-white/10">
+                        <DialogTitle className="text-xl font-black tracking-[-0.04em]">
+                            Saúde da conta
+                        </DialogTitle>
+
+                        <DialogDescription className="text-xs font-medium leading-relaxed">
+                            Acompanhe pendências e conclua as etapas necessárias.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]">
+                        <RequirementsList onSelectRequirement={() => undefined} activeRequirement={null} />
+
+                        {showUpdateModal ? (
+                            <div className="mt-4 overflow-hidden rounded-[24px] border border-border/40 dark:border-white/10">
+                                <CustomOnboardingFlow
+                                    fullScreen={false}
+                                    onComplete={() => {
+                                        setShowUpdateModal(false);
+                                        syncAccount.mutate();
+                                    }}
+                                />
+                            </div>
+                        ) : null}
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </MobilePageScaffold>
     );
 };
