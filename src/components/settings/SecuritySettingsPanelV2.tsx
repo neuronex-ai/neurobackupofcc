@@ -151,6 +151,32 @@ export const SecuritySettingsPanelV2 = () => {
       <AuthenticatorSettings />
 
       <Card>
+        <div className="flex items-start justify-between gap-5">
+          <div className="flex gap-5">
+            <Fingerprint className="mt-1 h-6 w-6 text-muted-foreground" />
+            <div>
+              <h3 className="font-bold">Entrar com biometria</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Use digital, rosto ou bloqueio do aparelho para abrir o app mobile e confirmar pagamentos.
+              </p>
+              <p className="mt-3 text-xs font-medium text-muted-foreground">
+                {biometricStatusText}
+              </p>
+            </div>
+          </div>
+          {biometricBusy ? (
+            <Loader2 className="mt-1 h-5 w-5 animate-spin text-muted-foreground" />
+          ) : (
+            <Switch
+              checked={biometricEnabled}
+              disabled={!user?.id || (!biometricAvailable && !biometricEnabled)}
+              onCheckedChange={(value) => void toggleBiometrics(value)}
+            />
+          )}
+        </div>
+      </Card>
+
+      <Card>
         <div className="flex gap-5">
           <Mail className="mt-1 h-6 w-6 text-muted-foreground" />
           <div className="flex-1 space-y-4">
