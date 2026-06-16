@@ -219,7 +219,28 @@ const openDocument = (url: string, unavailableMessage: string) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
-const shareText = async ({ title, text, url, email }: { title: string; text: string; url?: string; email?: string | null }) => {
+const shareText = async ({
+  title,
+  text,
+  url,
+  email,
+  channel = "share",
+}: {
+  title: string;
+  text: string;
+  url?: string;
+  email?: string | null;
+  channel?: "share" | "email";
+}) => {
+  if (channel === "email") {
+    if (!email) {
+      toast.info("E-mail do paciente indisponível.");
+      return;
+    }
+    window.location.href = `mailto:${email}?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${text}${url ? `\n${url}` : ""}`)}`;
+    return;
+  }
+
   if (navigator.share) {
     try {
       await navigator.share({ title, text, url });
@@ -227,11 +248,6 @@ const shareText = async ({ title, text, url, email }: { title: string; text: str
     } catch (error) {
       if ((error as Error)?.name === "AbortError") return;
     }
-  }
-
-  if (email) {
-    window.location.href = `mailto:${email}?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${text}${url ? `\n${url}` : ""}`)}`;
-    return;
   }
 
   window.open(`https://wa.me/?text=${encodeURIComponent(`${text}${url ? `\n${url}` : ""}`)}`, "_blank", "noopener,noreferrer");
@@ -747,6 +763,10 @@ function ToggleGrid({ value, options, onChange }: { value: string; options: Arra
 function TransactionDetailSheet({ transaction, hidden, onOpenChange }: { transaction: MobileStatementTransaction | null; hidden: boolean; onOpenChange: (open: boolean) => void }) {
   const receiptUrl = transaction ? getTransactionDocumentUrl(transaction, "receipt") : "";
   const invoiceUrl = transaction ? getTransactionDocumentUrl(transaction, "invoice") : "";
+  const patientEmail =
+    transaction?.patients?.email ||
+    (transaction as (MobileStatementTransaction & { patient_email?: string | null }) | null)?.patient_email ||
+    null;
   const documentText = transaction
     ? `${transaction.description || "Movimentação NeuroFinance"} - ${formatMoney(Math.abs(Number(transaction.amount || 0)))}`
     : "";
@@ -770,6 +790,7 @@ function TransactionDetailSheet({ transaction, hidden, onOpenChange }: { transac
               invoiceUrl={invoiceUrl}
               shareTitle="Movimentação NeuroFinance"
               shareText={documentText}
+              email={patientEmail}
             />
           }
         />
@@ -896,7 +917,7 @@ function DetailActions({
       <MobileFinanceButton
         variant="secondary"
         className="h-12"
-        onClick={() => void shareText({ title: shareTitle, text, url: shareUrl, email })}
+        onClick={() => void shareText({ title: shareTitle, text, url: shareUrl, email, channel: "email" })}
       >
         <Mail className="h-4 w-4" />
         Gmail
