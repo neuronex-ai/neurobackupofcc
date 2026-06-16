@@ -66,6 +66,13 @@ const formatTransactionDate = (transaction: MobileFinanceTransaction) => {
   return format(date, "d MMM, HH:mm", { locale: ptBR });
 };
 
+const getTransactionTime = (transaction: MobileFinanceTransaction) => {
+  const rawDate = transaction.date || transaction.created_at;
+  if (!rawDate) return 0;
+  const time = new Date(rawDate).getTime();
+  return Number.isFinite(time) ? time : 0;
+};
+
 export function MobileFinancialManagementPage() {
   const navigate = useNavigate();
   const { data: metrics, isLoading } = useFinancialMetrics();
@@ -80,8 +87,8 @@ export function MobileFinancialManagementPage() {
       [...transactions]
         .sort(
           (a, b) =>
-            new Date(b.date || b.created_at).getTime() -
-            new Date(a.date || a.created_at).getTime(),
+            getTransactionTime(b) -
+            getTransactionTime(a),
         )
         .slice(0, 16),
     [transactions],

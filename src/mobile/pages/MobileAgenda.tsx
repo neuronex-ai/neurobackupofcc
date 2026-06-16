@@ -23,6 +23,16 @@ import { useNavigate } from "react-router-dom";
 import { MobileLayout } from "../components/MobileLayout";
 
 type ViewMode = "week" | "month";
+type MobileAgendaAppointment = {
+  id: string;
+  type?: string | null;
+  start_time: string | Date;
+  end_time: string | Date;
+  status?: string | null;
+  notes?: string | null;
+  patient_name?: string | null;
+  patient_id?: string | null;
+};
 
 // Sheet snap points (from bottom of viewport)
 const SHEET_HALF = 0.52; // 52% of viewport
@@ -152,7 +162,7 @@ export const MobileAgenda = () => {
   };
 
   // Sheet drag handling — smooth snapping
-  const handleSheetDragEnd = (_: any, info: PanInfo) => {
+  const handleSheetDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const { velocity, offset } = info;
 
 
@@ -184,7 +194,7 @@ export const MobileAgenda = () => {
   );
 
   // Shared appointment card renderer
-  const renderAppointmentCard = (apt: any, i: number, compact = false) => {
+  const renderAppointmentCard = (apt: MobileAgendaAppointment, i: number, compact = false) => {
     const isPast = new Date(apt.end_time) < new Date();
     const isOngoing = new Date(apt.start_time) <= new Date() && new Date(apt.end_time) > new Date();
     const statusMeta = getAppointmentStatusMeta(apt.status, apt.notes);
