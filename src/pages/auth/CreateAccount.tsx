@@ -459,7 +459,7 @@ function IdentityStep({
             type="email"
             inputMode="email"
             autoComplete="email"
-            placeholder="voce@email.com"
+            placeholder="voce@exemplo.com"
             className={inputClass}
           />
         </AuthField>

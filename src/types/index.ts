@@ -41,6 +41,8 @@ export interface Profile {
   crp: string | null;
   address: string | null;
   phone: string | null;
+  recovery_email?: string | null;
+  professional_context?: string | null;
   bio: string | null;
   avatar_url: string | null;
   subscription_plan?: string | null;
@@ -48,6 +50,11 @@ export interface Profile {
   two_factor_enabled?: boolean;
   sms_notifications_enabled?: boolean;
   setup_completed?: boolean;
+  signup_completed_at?: string | null;
+  initial_preferences?: Record<string, unknown> | null;
+  calendar_sync_enabled?: boolean;
+  gmail_send_enabled?: boolean;
+  neurofinance_intro_choice?: 'create_now' | 'later' | string | null;
   working_hours?: any;
 }
 
