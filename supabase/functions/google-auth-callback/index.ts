@@ -12,7 +12,7 @@ const PRODUCTION_DOMAIN = "https://neuronex.site";
 function sanitizeReturnTo(value: unknown) {
     const raw = String(value || "").trim();
     if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\\\")) {
-        return "/ajustes?status=success&service=google";
+        return "/dashboard?status=success&service=google";
     }
     return raw;
 }
@@ -55,7 +55,7 @@ serve(async (req) => {
 
         // Parse state to get userId
         let userId: string;
-        let returnTo = "/ajustes?status=success&service=google";
+        let returnTo = "/dashboard?status=success&service=google";
         try {
             const stateData = JSON.parse(atob(state));
             userId = stateData.userId;
@@ -132,11 +132,12 @@ serve(async (req) => {
             return Response.redirect(`${REDIRECT_FAILURE_URL}&message=Database%20error`, 302);
         }
 
-        console.log("[google-auth-callback] Tokens saved! Redirecting to success page...");
-        return Response.redirect(
-            `${baseUrl}/google-connection-success?status=success&service=google&returnTo=${encodeURIComponent(returnTo)}`,
-            302,
-        );
+        const successTarget = returnTo.includes("status=success")
+            ? returnTo
+            : `${returnTo}${returnTo.includes("?") ? "&" : "?"}status=success&service=google`;
+
+        console.log("[google-auth-callback] Tokens saved! Redirecting to:", successTarget);
+        return Response.redirect(`${baseUrl}${successTarget}`, 302);
 
     } catch (error: any) {
         console.error("[google-auth-callback] Unhandled error:", error);

@@ -42,10 +42,22 @@ type ThemeChoice = "light" | "dark" | "system";
 type GoogleChoice = "connect" | "skip" | "";
 type NeuroFinanceChoice = "create_now" | "later" | "";
 
+type InitialSettingsSavePayload = {
+  theme: ThemeChoice;
+  clinicName: string;
+  crp: string;
+  address: string;
+  professionalAddress: ProfessionalAddress | Record<string, never>;
+  bio: string;
+  googleChoice: "connect" | "skip";
+  googleConnected: boolean;
+  neurofinanceIntroChoice: "create_now" | "later";
+};
+
 type AddressSuggestion = {
   id: string;
   label: string;
-  source: "google" | "viacep";
+  source: "google" | "viacep" | "manual";
   metadata?: Record<string, unknown>;
 };
 
@@ -137,6 +149,21 @@ function isValidWizardStep(value: string | null): value is WizardStep {
   return Boolean(value && steps.some((item) => item.id === value));
 }
 
+function canUseManualAddress(value: string) {
+  const trimmed = value.trim();
+  return trimmed.length >= 8 && /\d/.test(trimmed);
+}
+
+function manualAddressSuggestion(value: string): AddressSuggestion | null {
+  const trimmed = value.trim();
+  if (!canUseManualAddress(trimmed)) return null;
+  return {
+    id: `manual:${trimmed}`,
+    label: trimmed,
+    source: "manual",
+  };
+}
+
 async function invokeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (!error) return data as T;
@@ -152,6 +179,69 @@ async function invokeFunction<T>(name: string, body: Record<string, unknown>): P
     }
   }
   throw new Error(message);
+}
+
+async function saveInitialSettingsWithFallback(userId: string, payload: InitialSettingsSavePayload) {
+  try {
+    return await invokeFunction<{ success: boolean; error?: string }>("initial-settings-save", payload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!/failed to send|edge function|fetch|network/i.test(message)) {
+      throw error;
+    }
+
+    const googleEnabled = payload.googleChoice === "connect" && payload.googleConnected;
+    const now = new Date().toISOString();
+    const updatePayload = {
+      id: userId,
+      clinic_name: payload.clinicName.trim() || null,
+      crp: payload.crp.trim() || null,
+      address: payload.address.trim() || null,
+      bio: payload.bio.trim() || null,
+      setup_completed: true,
+      calendar_sync_enabled: googleEnabled,
+      gmail_send_enabled: googleEnabled,
+      neurofinance_intro_choice: payload.neurofinanceIntroChoice,
+      professional_address: payload.professionalAddress || {},
+      initial_preferences: {
+        theme: payload.theme,
+        google_choice: payload.googleChoice,
+        google_connected: payload.googleConnected,
+        professional_address: payload.professionalAddress || {},
+        initial_settings_completed_at: now,
+        save_fallback: "client",
+      },
+      updated_at: now,
+    };
+
+    const persistProfile = async (payload: Record<string, unknown>) => {
+      const update = await supabase
+        .from("profiles")
+        .update(payload)
+        .eq("id", userId)
+        .select("id")
+        .maybeSingle();
+
+      if (!update.error && update.data?.id) {
+        return { success: true };
+      }
+
+      const { error: upsertError } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
+      if (upsertError) throw upsertError;
+
+      return { success: true };
+    };
+
+    try {
+      return await persistProfile(updatePayload);
+    } catch (persistError) {
+      const persistMessage = persistError instanceof Error ? persistError.message : "";
+      if (!/professional_address/i.test(persistMessage)) throw persistError;
+
+      const { professional_address: _professionalAddress, ...compatiblePayload } = updatePayload;
+      return await persistProfile(compatiblePayload);
+    }
+  }
 }
 
 export default function InitialSettings() {
@@ -277,12 +367,21 @@ export default function InitialSettings() {
         query: draft.address,
       })
         .then((result) => {
-          setAddressSuggestions(result.suggestions || []);
-          setAddressError(result.message || null);
+          const remoteSuggestions = result.suggestions || [];
+          const manualSuggestion = manualAddressSuggestion(draft.address);
+          setAddressSuggestions(remoteSuggestions.length > 0 ? remoteSuggestions : manualSuggestion ? [manualSuggestion] : []);
+          setAddressError(remoteSuggestions.length > 0 ? null : result.message || null);
         })
         .catch((error) => {
-          setAddressSuggestions([]);
-          setAddressError(error instanceof Error ? error.message : "Não conseguimos buscar endereços agora.");
+          const manualSuggestion = manualAddressSuggestion(draft.address);
+          setAddressSuggestions(manualSuggestion ? [manualSuggestion] : []);
+          setAddressError(
+            manualSuggestion
+              ? "Validação automática indisponível. Você pode usar o endereço digitado."
+              : error instanceof Error
+                ? error.message
+                : "Não conseguimos buscar endereços agora.",
+          );
         })
         .finally(() => setAddressLoading(false));
     }, 450);
@@ -294,6 +393,18 @@ export default function InitialSettings() {
   }, [draft.address, draft.professionalAddress?.label]);
 
   const selectAddress = async (suggestion: AddressSuggestion) => {
+    if (suggestion.source === "manual") {
+      const address = {
+        label: suggestion.label,
+        source: "manual",
+        validatedAt: new Date().toISOString(),
+      };
+      setDraft({ address: suggestion.label, professionalAddress: address });
+      setAddressSuggestions([]);
+      setAddressError(null);
+      return;
+    }
+
     setValidatingAddressId(suggestion.id);
     try {
       const result = await invokeFunction<{ valid: boolean; address: ProfessionalAddress; error?: string }>(
@@ -362,7 +473,7 @@ export default function InitialSettings() {
     setSaving(true);
     try {
       const googleChoice = isGoogleConnected ? "connect" : draft.googleWorkspaceChoice || "skip";
-      const result = await invokeFunction<{ success: boolean; error?: string }>("initial-settings-save", {
+      const result = await saveInitialSettingsWithFallback(user.id, {
         theme: draft.theme,
         clinicName: draft.clinicName,
         crp: draft.crp,
@@ -378,6 +489,7 @@ export default function InitialSettings() {
 
       removeStoredDraft(user.id);
       toast.success("Configurações iniciais salvas.");
+      localStorage.removeItem("neuro_nex_tour_completed");
       startTour();
       navigate("/dashboard", { replace: true });
     } catch (error) {
@@ -399,7 +511,13 @@ export default function InitialSettings() {
         )}
       >
         {!isMobile ? (
-          <InitialSettingsRail logoSrc={logoSrc} firstName={firstName} step={step} progress={progress} />
+          <InitialSettingsRail
+            logoSrc={logoSrc}
+            firstName={firstName}
+            step={step}
+            progress={progress}
+            isDarkTheme={isDarkTheme}
+          />
         ) : (
           <div className="flex min-h-[7.2rem] flex-col items-center justify-start gap-3 pt-1">
             <img src={logoSrc} alt="NeuroNex AI" className="h-14 w-14 object-contain" />
@@ -536,14 +654,18 @@ function InitialSettingsRail({
   firstName,
   step,
   progress,
+  isDarkTheme,
 }: {
   logoSrc: string;
   firstName: string;
   step: WizardStep;
   progress: number;
+  isDarkTheme: boolean;
 }) {
+  const railCards = steps.filter((item) => item.id === "profile" || item.id === "connections");
+
   return (
-    <aside className="flex flex-col justify-between border-r border-current/5 p-10">
+    <aside className={cn("flex flex-col justify-between p-10", isDarkTheme ? "border-r-0" : "border-r border-current/5")}>
       <div className="inline-flex w-fit items-center gap-3">
         <img src={logoSrc} alt="NeuroNex AI" className="h-10 w-10 object-contain" />
         <span className="text-xs font-black uppercase tracking-[0.24em]">NeuroNex AI</span>
@@ -560,14 +682,14 @@ function InitialSettingsRail({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {steps.map((item) => {
+        {railCards.map((item) => {
           const active = item.id === step;
           return (
             <div
               key={item.id}
               className={cn(
-                "rounded-[24px] border p-4 transition-colors",
-                active ? "border-current bg-current text-background" : "border-current/10 bg-current/[0.035] text-current/45",
+                "rounded-[24px] p-4 transition-colors",
+                active ? "bg-current text-background" : "bg-current/[0.045] text-current/55",
               )}
             >
               <item.icon className="h-5 w-5" />

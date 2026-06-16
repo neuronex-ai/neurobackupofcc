@@ -3,12 +3,24 @@ import { corsHeaders, jsonResponse } from "../_shared/signup.ts";
 type AddressSuggestion = {
   id: string;
   label: string;
-  source: "google" | "viacep";
+  source: "google" | "viacep" | "manual";
   metadata?: Record<string, unknown>;
 };
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function manualSuggestion(query: string): AddressSuggestion[] {
+  const trimmed = query.trim();
+  if (trimmed.length < 8 || !/\d/.test(trimmed)) return [];
+  return [
+    {
+      id: `manual:${trimmed}`,
+      label: trimmed,
+      source: "manual",
+    },
+  ];
 }
 
 Deno.serve(async (req) => {
@@ -72,9 +84,9 @@ Deno.serve(async (req) => {
     }
 
     return jsonResponse({
-      suggestions: [],
+      suggestions: manualSuggestion(query),
       provider: "viacep",
-      message: "Digite um CEP completo para validar o endereço.",
+      message: "Digite um CEP completo ou selecione o endereço digitado.",
     });
   } catch (error) {
     console.error("address-autocomplete:error", error);

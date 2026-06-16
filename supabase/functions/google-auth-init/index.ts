@@ -19,7 +19,7 @@ const GOOGLE_SCOPES = [
 
 function sanitizeReturnTo(value: string | null) {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\\\")) {
-    return "/ajustes?status=success&service=google";
+    return "/dashboard?status=success&service=google";
   }
   return value;
 }

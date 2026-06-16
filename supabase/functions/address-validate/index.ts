@@ -24,6 +24,21 @@ Deno.serve(async (req) => {
     const label = String(body.label || body.suggestion?.label || body.address || "").trim();
     const googleKey = Deno.env.get("GOOGLE_MAPS_API_KEY");
 
+    if (placeId.startsWith("manual:")) {
+      if (label.length < 8 || !/\d/.test(label)) {
+        return jsonResponse({ valid: false, error: "Informe um endereço com número." }, 400);
+      }
+
+      return jsonResponse({
+        valid: true,
+        address: {
+          label,
+          source: "manual",
+          validatedAt: new Date().toISOString(),
+        },
+      });
+    }
+
     if (placeId.startsWith("viacep:")) {
       const cep = onlyDigits(placeId);
       const response = await fetch(`https://viacep.com.br/ws/${cep.slice(0, 8)}/json/`);
