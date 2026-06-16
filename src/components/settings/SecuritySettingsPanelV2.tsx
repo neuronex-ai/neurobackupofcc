@@ -1,11 +1,22 @@
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useFinancialSettings } from '@/hooks/use-financial-settings';
 import { useProfile } from '@/hooks/use-profile';
 import { supabase } from '@/integrations/supabase/client';
-import { KeyRound, Loader2, Mail, Phone } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import {
+  disableBiometricSignIn,
+  enableBiometricSignIn,
+  getBiometricPreferenceForUser,
+  getBiometricStatus,
+  hasNativeSecureBridge,
+  isBiometricEnabledForUser,
+  type BiometricPreference,
+  type BiometricStatus,
+} from '@/lib/native-mobile-security';
+import { Fingerprint, KeyRound, Loader2, Mail, Phone } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { AuthenticatorSettings } from './AuthenticatorSettings';
 import { SetPinModal } from './SetPinModal';
