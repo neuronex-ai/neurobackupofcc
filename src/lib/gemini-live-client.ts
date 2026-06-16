@@ -155,7 +155,6 @@ export class GeminiLiveClient {
 
         // Handle setupComplete — this is the critical handshake step
         if (msg.setupComplete) {
-            console.log("[Gemini Live] Setup complete! Connection is ready.");
             this.setupCompleted = true;
             this.options.onStatusChange?.('connected');
             // Now we can start sending audio
@@ -176,7 +175,7 @@ export class GeminiLiveClient {
 
         // Turn complete signal
         if (msg.serverContent?.turnComplete) {
-            console.log("[Gemini Live] Server turn complete.");
+            return;
         }
 
         // Interrupt signal from server
