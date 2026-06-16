@@ -96,6 +96,7 @@ export function MobilePixPaymentFlow({
       toast.success("Pagamento Pix enviado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Pix não concluído.");
+      throw error;
     } finally {
       setBusy(false);
     }
@@ -107,6 +108,7 @@ export function MobilePixPaymentFlow({
     setEditableAmount("");
     setResult(null);
     setPinOpen(false);
+    setScannerOpen(false);
   };
 
   return (
@@ -235,14 +237,26 @@ export function MobilePixPaymentFlow({
                 />
               </label>
 
-              <Button
-                disabled={busy || !payload.trim()}
-                onClick={() => void consult()}
-                className="mt-5 h-14 w-full rounded-[20px] text-xs font-semibold uppercase tracking-[0.16em]"
-              >
-                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Consultar Pix
-              </Button>
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setScannerOpen(true)}
+                  className="h-14 rounded-[20px] text-xs font-semibold uppercase tracking-[0.12em]"
+                >
+                  <Camera className="mr-2 h-4 w-4" />
+                  Ler QR
+                </Button>
+                <Button
+                  disabled={busy || !payload.trim()}
+                  onClick={() => void consult()}
+                  className="h-14 rounded-[20px] text-xs font-semibold uppercase tracking-[0.12em]"
+                >
+                  {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Consultar
+                </Button>
+              </div>
             </div>
           )}
       </MobileFinanceSheet>
@@ -253,6 +267,13 @@ export function MobilePixPaymentFlow({
         busy={busy}
         title="Autorizar pagamento Pix"
         onConfirm={authorizeAndExecute}
+      />
+      <MobileCodeScannerSheet
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        mode="pix"
+        busy={busy}
+        onDetected={handleScannedPix}
       />
     </>
   );

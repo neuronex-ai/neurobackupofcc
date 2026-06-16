@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
-import { Check, Loader2, ReceiptText, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Camera, Check, Loader2, ReceiptText, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { normalizeBoletoInput } from "@/lib/boleto";
 import { cn } from "@/lib/utils";
 import {
   MobileFinanceSheet,
   formatMoney,
   mobileFinanceSurface,
 } from "../../shared/MobileFinancePrimitives";
+import { MobileCodeScannerSheet } from "./MobileCodeScannerSheet";
 import { MobileFinancialPinSheet } from "./MobileFinancialPinSheet";
 import {
   authorizeBillPayment,
@@ -32,6 +34,7 @@ export function MobileBillPaymentFlow({
   const [mode, setMode] = useState<"now" | "scheduled">("now");
   const [scheduleDate, setScheduleDate] = useState("");
   const [pinOpen, setPinOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<OperationResult | null>(null);
 
