@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { addYears, format, isAfter, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -14,10 +14,13 @@ import {
   Download,
   Eye,
   EyeOff,
+  ExternalLink,
   FileText,
   Filter,
   Landmark,
   Loader2,
+  Mail,
+  MessageCircle,
   MoreHorizontal,
   QrCode,
   Receipt,
@@ -37,6 +40,7 @@ import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { useInvoicesPage } from "@/hooks/use-invoices";
 import { useNeuroFinanceBalance } from "@/hooks/use-neurofinance-balance";
 import { useNeuroFinanceStatement } from "@/hooks/use-neurofinance-statement";
+import { usePatients } from "@/hooks/use-patients";
 import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
 import { MobileLayout } from "@/mobile/components/MobileLayout";
@@ -51,7 +55,6 @@ import {
   MobileFinanceListRow,
   MobileFinanceSheet,
   MobileFinanceTabs,
-  MobileMetricCard,
   MobileSectionTitle,
   formatMoney,
   mobileFinanceSurface,
@@ -94,14 +97,14 @@ const formatStatementDate = (transaction: MobileStatementTransaction) => {
 };
 
 const healthCopy = {
-  active: { title: "Conta ativa", description: "Pix, boletos, cobrancas e repasses liberados.", tone: "success" },
+  active: { title: "Conta ativa", description: "Pix, boletos, cobranças e repasses liberados.", tone: "success" },
   account_missing: { title: "Conta desconectada", description: "A subconta precisa de suporte para reconectar.", tone: "danger" },
-  restricted: { title: "Regularizacao pendente", description: "Resolva as etapas abertas para liberar operacoes.", tone: "warning" },
-  pending_review: { title: "Conta em analise", description: "Aguardando retorno da verificacao cadastral.", tone: "info" },
-  onboarding: { title: "Dados em andamento", description: "Finalize as informacoes solicitadas.", tone: "warning" },
-  pending: { title: "Validacao pendente", description: "Estamos acompanhando o retorno do provedor.", tone: "info" },
-  not_started: { title: "Onboarding nao iniciado", description: "Abra a conta para liberar saldo real.", tone: "warning" },
-  disabled: { title: "Conta restrita", description: "Operacoes temporariamente indisponiveis.", tone: "danger" },
+  restricted: { title: "Regularização pendente", description: "Resolva as etapas abertas para liberar operações.", tone: "warning" },
+  pending_review: { title: "Conta em análise", description: "Aguardando retorno da verificação cadastral.", tone: "info" },
+  onboarding: { title: "Dados em andamento", description: "Finalize as informações solicitadas.", tone: "warning" },
+  pending: { title: "Validação pendente", description: "Estamos acompanhando o retorno do provedor.", tone: "info" },
+  not_started: { title: "Onboarding não iniciado", description: "Abra a conta para liberar saldo real.", tone: "warning" },
+  disabled: { title: "Conta restrita", description: "Operações temporariamente indisponíveis.", tone: "danger" },
 };
 
 const healthToneClass = {
@@ -122,9 +125,117 @@ const stageToneClass = {
 
 const chargeStatusCopy: Record<string, { label: string; tone: "success" | "warning" | "danger" | "default" }> = {
   paid: { label: "Recebida", tone: "success" },
+  received: { label: "Recebida", tone: "success" },
+  confirmed: { label: "Recebida", tone: "success" },
   overdue: { label: "Vencida", tone: "danger" },
   cancelled: { label: "Cancelada", tone: "default" },
+  canceled: { label: "Cancelada", tone: "default" },
   pending: { label: "Pendente", tone: "warning" },
+  processing: { label: "Em processamento", tone: "warning" },
+};
+
+const statementStatusCopy: Record<string, string> = {
+  paid: "Pago",
+  received: "Recebido",
+  confirmed: "Confirmado",
+  completed: "Processada",
+  processed: "Processada",
+  pending: "Pendente",
+  scheduled: "Agendada",
+  overdue: "Vencida",
+  cancelled: "Cancelada",
+  canceled: "Cancelada",
+  failed: "Falhou",
+  refunded: "Estornada",
+};
+
+const firstString = (...values: unknown[]) =>
+  values.find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim() || "";
+
+const statementStatusLabel = (transaction: MobileStatementTransaction) => {
+  const raw = String(transaction.status || "").toLowerCase();
+  return statementStatusCopy[raw] || transaction.category || "Processada";
+};
+
+const invoiceStatusLabel = (status?: string | null) => {
+  const raw = String(status || "pending").toLowerCase();
+  return chargeStatusCopy[raw]?.label || statementStatusCopy[raw] || "Pendente";
+};
+
+const getTransactionDocumentUrl = (transaction: MobileStatementTransaction, kind: "receipt" | "invoice") => {
+  const metadata = ((transaction as { metadata?: Record<string, unknown> | null }).metadata || {}) as Record<string, unknown>;
+  if (kind === "receipt") {
+    return firstString(
+      transaction.receipt_url,
+      metadata.receipt_url,
+      metadata.transaction_receipt_url,
+      metadata.asaas_transaction_receipt_url,
+      transaction.attachment_url,
+    );
+  }
+
+  return firstString(
+    transaction.invoice_url,
+    transaction.bank_slip_url,
+    metadata.invoice_url,
+    metadata.checkout_url,
+    metadata.payment_url,
+    metadata.bank_slip_url,
+    metadata.asaas_invoice_url,
+    metadata.asaas_bank_slip_url,
+  );
+};
+
+const getInvoiceDocumentUrl = (invoice: Invoice, kind: "receipt" | "invoice") => {
+  const data = invoice as Invoice & {
+    receipt_url?: string | null;
+    bank_slip_url?: string | null;
+    invoice_url?: string | null;
+    checkout_url?: string | null;
+    metadata?: Record<string, unknown> | null;
+  };
+  const metadata = data.metadata || {};
+  if (kind === "receipt") {
+    return firstString(data.receipt_url, metadata.receipt_url, metadata.transaction_receipt_url, metadata.asaas_transaction_receipt_url);
+  }
+  return firstString(
+    data.bank_slip_url,
+    data.pdf_url,
+    data.invoice_url,
+    data.payment_url,
+    data.checkout_url,
+    metadata.bank_slip_url,
+    metadata.asaas_bank_slip_url,
+    metadata.invoice_url,
+    metadata.checkout_url,
+    metadata.payment_url,
+  );
+};
+
+const openDocument = (url: string, unavailableMessage: string) => {
+  if (!url) {
+    toast.info(unavailableMessage);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+const shareText = async ({ title, text, url, email }: { title: string; text: string; url?: string; email?: string | null }) => {
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, text, url });
+      return;
+    } catch (error) {
+      if ((error as Error)?.name === "AbortError") return;
+    }
+  }
+
+  if (email) {
+    window.location.href = `mailto:${email}?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${text}${url ? `\n${url}` : ""}`)}`;
+    return;
+  }
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(`${text}${url ? `\n${url}` : ""}`)}`, "_blank", "noopener,noreferrer");
 };
 
 export function MobileNeuroFinancePage() {
@@ -133,6 +244,7 @@ export function MobileNeuroFinancePage() {
   const account = useFinancialAccount();
   const balance = useNeuroFinanceBalance();
   const { data: profile } = useProfile();
+  const { data: patients = [] } = usePatients();
   const { plan, isLoading: subscriptionLoading, canAccess, isDevAccount } = useSubscription();
   const statementStart = useMemo(() => subMonths(new Date(), 6), []);
   const statementEnd = useMemo(() => addYears(new Date(), 2), []);
@@ -157,7 +269,11 @@ export function MobileNeuroFinancePage() {
   const psychologistName =
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
     (profile as { full_name?: string } | undefined)?.full_name ||
-    "Psicologo";
+    "Psicólogo";
+  const patientsById = useMemo(
+    () => new Map((patients as Array<{ id: string; name?: string | null; email?: string | null; phone?: string | null }>).map((patient) => [patient.id, patient])),
+    [patients],
+  );
 
   const invoicesQuery = useInvoicesPage({
     page: 1,
@@ -224,12 +340,12 @@ export function MobileNeuroFinancePage() {
       await account.refetch();
       toast.success("NeuroFinance atualizado.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nao foi possivel atualizar agora.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar agora.");
     }
   };
 
   const exportPdf = (view: ActivityView) => {
-    toast.info(`Preparando ${view === "statement" ? "extrato" : "cobrancas"} para PDF.`);
+    toast.info(`Preparando ${view === "statement" ? "extrato" : "cobranças"} para PDF.`);
     window.print();
   };
 
@@ -251,7 +367,7 @@ export function MobileNeuroFinancePage() {
             value="neurofinance"
             onValueChange={switchArea}
             options={[
-              { value: "management", label: "Gestao", description: "Controle", icon: TrendingUp },
+              { value: "management", label: "Gestão", description: "Controle", icon: TrendingUp },
               { value: "neurofinance", label: "NeuroFinance", description: "Conta", icon: Wallet },
             ]}
             className="sticky top-2 z-30"
@@ -263,7 +379,7 @@ export function MobileNeuroFinancePage() {
             <p className="mt-6 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/55">Plano Professional</p>
             <h1 className="mt-2 text-3xl font-black leading-[0.92] tracking-[-0.06em]">NeuroFinance libera dinheiro real.</h1>
             <p className="mt-4 text-sm font-semibold leading-relaxed text-muted-foreground/70">
-              A Gestao Financeira continua disponivel no plano Essential. Para criar conta NeuroFinance, pagar Pix, boletos, sacar e receber saldo real, atualize o plano.
+              A Gestão Financeira continua disponível no plano Essential. Para criar conta NeuroFinance, pagar Pix, boletos, sacar e receber saldo real, atualize o plano.
             </p>
             <Button onClick={() => setUpsellOpen(true)} className="mt-6 h-14 w-full rounded-[20px] text-[10px] font-black uppercase tracking-[0.16em]">
               Ver planos
@@ -283,7 +399,7 @@ export function MobileNeuroFinancePage() {
             value="neurofinance"
             onValueChange={switchArea}
             options={[
-              { value: "management", label: "Gestao", description: "Controle", icon: TrendingUp },
+              { value: "management", label: "Gestão", description: "Controle", icon: TrendingUp },
               { value: "neurofinance", label: "NeuroFinance", description: "Conta", icon: Wallet },
             ]}
             className="sticky top-2 z-30"
@@ -294,10 +410,10 @@ export function MobileNeuroFinancePage() {
             </div>
             <h1 className="mt-5 text-3xl font-black leading-[0.92] tracking-[-0.06em]">Crie sua conta NeuroFinance.</h1>
             <p className="mx-auto mt-3 max-w-xs text-sm font-semibold leading-relaxed text-muted-foreground/70">
-              Envie os dados pelo celular para liberar cobrancas, Pix, boletos, saques e saldo real.
+              Envie os dados pelo celular para liberar cobranças, Pix, boletos, saques e saldo real.
             </p>
             <Button onClick={() => setOnboardingOpen(true)} className="mt-6 h-14 w-full rounded-[20px] text-[10px] font-black uppercase tracking-[0.16em]">
-              Comecar onboarding
+              Começar onboarding
             </Button>
           </section>
         </div>
@@ -318,17 +434,17 @@ export function MobileNeuroFinancePage() {
             value="neurofinance"
             onValueChange={switchArea}
             options={[
-              { value: "management", label: "Gestao", description: "Controle", icon: TrendingUp },
+              { value: "management", label: "Gestão", description: "Controle", icon: TrendingUp },
               { value: "neurofinance", label: "NeuroFinance", description: "Conta", icon: Wallet },
             ]}
             className="sticky top-2 z-30"
           />
 
           <MobileFinanceHero
-            eyebrow="Saldo disponivel"
+            eyebrow="Saldo disponível"
             title={psychologistName}
             value={balance.isLoading ? "..." : showBalance ? formatMoney(availableBalance) : "R$ ******"}
-            description={showBalance ? `${formatMoney(pendingBalance)} a liberar.` : "Saldo oculto nesta sessao."}
+            description={showBalance ? `${formatMoney(pendingBalance)} a liberar.` : "Saldo oculto nesta sessão."}
             tone={approved ? "default" : "warning"}
             action={
               <div className="flex items-center gap-2">
@@ -346,25 +462,25 @@ export function MobileNeuroFinancePage() {
                 />
               </div>
             }
-          >
-            <div className="-mx-1 overflow-x-auto pb-1">
-              <div className="flex min-w-max gap-2 px-1">
-                <MiniMetric label="Quanto entrou" value={totalReceived} hidden={!showBalance} icon={ArrowUpRight} onClick={() => setDetailList("income")} />
-                <MiniMetric label="Quanto saiu" value={paidOut} hidden={!showBalance} icon={ArrowDownRight} onClick={() => setDetailList("expense")} />
-                <MiniMetric label="Quanto vai cair" value={pendingBalance} hidden={!showBalance} icon={Calendar} onClick={() => setDetailList("pending")} />
-              </div>
+          />
+
+          <div className="-mt-2 -mx-1 overflow-x-auto pb-1">
+            <div className="flex min-w-max gap-2 px-1">
+              <MiniMetric label="Entrou" value={totalReceived} hidden={!showBalance} icon={ArrowUpRight} onClick={() => setDetailList("income")} />
+              <MiniMetric label="Saiu" value={paidOut} hidden={!showBalance} icon={ArrowDownRight} onClick={() => setDetailList("expense")} />
+              <MiniMetric label="Vai cair" value={pendingBalance} hidden={!showBalance} icon={Calendar} onClick={() => setDetailList("pending")} />
             </div>
-          </MobileFinanceHero>
+          </div>
 
           <section className="space-y-4">
-            <MobileSectionTitle title="Acoes" />
+            <MobileSectionTitle title="Ações" />
             <div className="grid grid-cols-2 gap-3">
               <MobileActionButton label="Cobrar" description="Pix ou boleto" icon={Receipt} tone="success" onClick={() => openFlow("charge")} disabled={!approved} />
               <MobileActionButton label="Pagar boleto" description="Agora ou agendar" icon={Barcode} onClick={() => openFlow("bill")} disabled={!approved} />
               <MobileActionButton label="Pagar Pix" description="Copia e Cola" icon={QrCode} onClick={() => openFlow("pix-payment")} disabled={!approved} />
               <MobileActionButton label="Transferir Pix" description="Chave validada" icon={Send} onClick={() => openFlow("pix-transfer")} disabled={!approved} />
               <MobileActionButton label="Minha conta" description="Conta cadastrada" icon={Landmark} onClick={() => openFlow("bank-payout")} disabled={!approved} />
-              <MobileActionButton label="Gestao" description="Controle" icon={CircleDollarSign} onClick={() => navigate("/financeiro")} />
+              <MobileActionButton label="Gestão" description="Controle" icon={CircleDollarSign} onClick={() => navigate("/financeiro")} />
             </div>
           </section>
 
@@ -397,7 +513,7 @@ export function MobileNeuroFinancePage() {
                         <p className="truncate text-[12px] font-black text-foreground">{stage.label}</p>
                         <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">{stage.statusLabel}</p>
                       </div>
-                      {stage.actionable ? <span className="rounded-full bg-amber-500/12 px-2 py-1 text-[7px] font-black uppercase tracking-[0.1em] text-amber-600 dark:text-amber-300">Acao</span> : null}
+                      {stage.actionable ? <span className="rounded-full bg-amber-500/12 px-2 py-1 text-[7px] font-black uppercase tracking-[0.1em] text-amber-600 dark:text-amber-300">Ação</span> : null}
                     </div>
                   ))}
                 </div>
@@ -411,7 +527,7 @@ export function MobileNeuroFinancePage() {
               trailing={
                 <MobileFinanceIconButton
                   icon={MoreHorizontal}
-                  label="Acoes"
+                  label="Ações"
                   onClick={() => setActionSheet(activityView)}
                   className="h-10 w-10 rounded-[14px]"
                 />
@@ -422,7 +538,7 @@ export function MobileNeuroFinancePage() {
               onValueChange={setActivityView}
               options={[
                 { value: "statement", label: "Extrato", description: `${filteredTransactions.length} itens`, icon: FileText },
-                { value: "charges", label: "Cobrancas", description: `${invoices.length} itens`, icon: Receipt },
+                { value: "charges", label: "Cobranças", description: `${invoices.length} itens`, icon: Receipt },
               ]}
             />
             {activityView === "statement" ? (
@@ -454,7 +570,7 @@ export function MobileNeuroFinancePage() {
         onClose={() => setActionSheet(null)}
       />
       <TransactionDetailSheet transaction={selectedTransaction} hidden={!showBalance} onOpenChange={(open) => !open && setSelectedTransaction(null)} />
-      <InvoiceDetailSheet invoice={selectedInvoice} hidden={!showBalance} onOpenChange={(open) => !open && setSelectedInvoice(null)} />
+      <InvoiceDetailSheet invoice={selectedInvoice} patient={selectedInvoice ? patientsById.get(selectedInvoice.patient_id) : null} hidden={!showBalance} onOpenChange={(open) => !open && setSelectedInvoice(null)} />
       <MetricDetailSheet kind={detailList} transactions={detailTransactions} hidden={!showBalance} onOpenChange={(open) => !open && setDetailList(null)} />
 
       <MobileChargeFlow open={routeFlow === "charge"} onOpenChange={(open) => !open && closeFlow()} onCompleted={() => void refresh()} />
@@ -468,22 +584,22 @@ export function MobileNeuroFinancePage() {
 
 function MiniMetric({ label, value, hidden, icon, onClick }: { label: string; value: number; hidden: boolean; icon: typeof ArrowUpRight; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="w-[148px] shrink-0 rounded-[18px] border border-border/35 bg-background/68 p-3 text-left shadow-sm backdrop-blur-xl transition active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.035]">
-      <span className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-foreground/[0.055] text-foreground">
+    <button type="button" onClick={onClick} className="w-[118px] shrink-0 rounded-[16px] border border-border/35 bg-background/80 p-2.5 text-left shadow-sm backdrop-blur-xl transition active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.04]">
+      <span className="flex h-7 w-7 items-center justify-center rounded-[11px] bg-foreground/[0.055] text-foreground">
         {(() => {
           const Icon = icon;
-          return <Icon className="h-4 w-4" />;
+          return <Icon className="h-3.5 w-3.5" />;
         })()}
       </span>
-      <p className="mt-3 text-[8px] font-black uppercase tracking-[0.14em] text-muted-foreground/60">{label}</p>
-      <p className="mt-1 truncate text-lg font-black tracking-[-0.04em]">{hidden ? "R$ ******" : formatMoney(value)}</p>
+      <p className="mt-2 text-[7px] font-black uppercase tracking-[0.12em] text-muted-foreground/60">{label}</p>
+      <p className="mt-1 truncate text-base font-black tracking-[-0.04em]">{hidden ? "R$ ******" : formatMoney(value)}</p>
     </button>
   );
 }
 
 function StatementList({ isLoading, transactions, hidden, onOpen }: { isLoading: boolean; transactions: MobileStatementTransaction[]; hidden: boolean; onOpen: (transaction: MobileStatementTransaction) => void }) {
   if (isLoading) return <LoadingCard />;
-  if (transactions.length === 0) return <MobileEmptyState icon={FileText} title="Nenhuma movimentacao" description="Operacoes confirmadas aparecem aqui." />;
+  if (transactions.length === 0) return <MobileEmptyState icon={FileText} title="Nenhuma movimentação" description="Operações confirmadas aparecem aqui." />;
 
   return (
     <div className="space-y-2">
@@ -494,8 +610,8 @@ function StatementList({ isLoading, transactions, hidden, onOpen }: { isLoading:
           <MobileFinanceListRow
             key={transaction.id}
             icon={income ? ArrowUpRight : ArrowDownRight}
-            title={transaction.description || "Movimentacao"}
-            description={transaction.status || transaction.category || "Processada"}
+            title={transaction.description || "Movimentação"}
+            description={statementStatusLabel(transaction)}
             meta={formatStatementDate(transaction)}
             value={hidden ? "******" : `${income ? "+" : "-"} ${formatMoney(amount)}`}
             tone={income ? "success" : "danger"}
@@ -510,7 +626,7 @@ function StatementList({ isLoading, transactions, hidden, onOpen }: { isLoading:
 
 function ChargesList({ isLoading, invoices, hidden, onOpen }: { isLoading: boolean; invoices: Invoice[]; hidden: boolean; onOpen: (invoice: Invoice) => void }) {
   if (isLoading) return <LoadingCard />;
-  if (invoices.length === 0) return <MobileEmptyState icon={Receipt} title="Nenhuma cobranca" description="Cobrancas geradas pelo NeuroFinance aparecem aqui." />;
+  if (invoices.length === 0) return <MobileEmptyState icon={Receipt} title="Nenhuma cobrança" description="Cobranças geradas pelo NeuroFinance aparecem aqui." />;
 
   return (
     <div className="space-y-2">
@@ -521,7 +637,7 @@ function ChargesList({ isLoading, invoices, hidden, onOpen }: { isLoading: boole
           <MobileFinanceListRow
             key={invoice.id}
             icon={Receipt}
-            title={invoice.description || "Cobranca NeuroFinance"}
+            title={invoice.description || "Cobrança NeuroFinance"}
             description={copy.label}
             meta={invoice.due_date ? `Vence ${format(new Date(invoice.due_date), "dd/MM")}` : "Sem vencimento"}
             value={hidden ? "******" : formatMoney(Number(invoice.amount || 0))}
@@ -567,8 +683,8 @@ function ActivityActionsSheet({
         <div className="py-7">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/55">Acoes</p>
-              <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">{view === "statement" ? "Extrato" : "Cobrancas"}</h2>
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/55">Ações</p>
+              <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">{view === "statement" ? "Extrato" : "Cobranças"}</h2>
             </div>
             <Filter className="h-5 w-5 text-muted-foreground" />
           </div>
@@ -580,7 +696,7 @@ function ActivityActionsSheet({
                 options={[
                   ["all", "Todos"],
                   ["income", "Entradas"],
-                  ["expense", "Saidas"],
+                  ["expense", "Saídas"],
                   ["pending", "A cair"],
                 ]}
                 onChange={(value) => onStatementFilter(value as StatementFilter)}
@@ -630,39 +746,81 @@ function ToggleGrid({ value, options, onChange }: { value: string; options: Arra
 }
 
 function TransactionDetailSheet({ transaction, hidden, onOpenChange }: { transaction: MobileStatementTransaction | null; hidden: boolean; onOpenChange: (open: boolean) => void }) {
+  const receiptUrl = transaction ? getTransactionDocumentUrl(transaction, "receipt") : "";
+  const invoiceUrl = transaction ? getTransactionDocumentUrl(transaction, "invoice") : "";
+  const documentText = transaction
+    ? `${transaction.description || "Movimentação NeuroFinance"} - ${formatMoney(Math.abs(Number(transaction.amount || 0)))}`
+    : "";
+
   return (
     <MobileFinanceSheet open={Boolean(transaction)} onOpenChange={onOpenChange} contentClassName="h-auto max-h-[82dvh]">
       {transaction ? (
         <DetailContent
-          eyebrow="Movimentacao"
-          title={transaction.description || "Movimentacao NeuroFinance"}
+          eyebrow="Movimentação"
+          title={transaction.description || "Movimentação NeuroFinance"}
           amount={hidden ? "******" : formatMoney(Math.abs(Number(transaction.amount || 0)))}
           rows={[
-            ["Tipo", transaction.type === "income" ? "Entrada" : "Saida"],
-            ["Status", transaction.status || "Processada"],
+            ["Tipo", transaction.type === "income" ? "Entrada" : "Saída"],
+            ["Status", statementStatusLabel(transaction)],
             ["Data", formatStatementDate(transaction)],
             ["Categoria", transaction.category || "NeuroFinance"],
           ]}
+          actions={
+            <DetailActions
+              receiptUrl={receiptUrl}
+              invoiceUrl={invoiceUrl}
+              shareTitle="Movimentação NeuroFinance"
+              shareText={documentText}
+            />
+          }
         />
       ) : null}
     </MobileFinanceSheet>
   );
 }
 
-function InvoiceDetailSheet({ invoice, hidden, onOpenChange }: { invoice: Invoice | null; hidden: boolean; onOpenChange: (open: boolean) => void }) {
+function InvoiceDetailSheet({
+  invoice,
+  patient,
+  hidden,
+  onOpenChange,
+}: {
+  invoice: Invoice | null;
+  patient?: { name?: string | null; email?: string | null; phone?: string | null } | null;
+  hidden: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const receiptUrl = invoice ? getInvoiceDocumentUrl(invoice, "receipt") : "";
+  const invoiceUrl = invoice ? getInvoiceDocumentUrl(invoice, "invoice") : "";
+  const paymentUrl = invoice ? firstString(invoice.payment_url, invoiceUrl) : "";
+  const patientName = patient?.name || "paciente";
+  const shareMessage = invoice
+    ? `Olá ${patientName.split(" ")[0]}! Segue sua cobrança NeuroFinance (${formatMoney(Number(invoice.amount || 0))}).`
+    : "";
+
   return (
     <MobileFinanceSheet open={Boolean(invoice)} onOpenChange={onOpenChange} contentClassName="h-auto max-h-[82dvh]">
       {invoice ? (
         <DetailContent
-          eyebrow="Cobranca"
-          title={invoice.description || "Cobranca NeuroFinance"}
+          eyebrow="Cobrança"
+          title={invoice.description || "Cobrança NeuroFinance"}
           amount={hidden ? "******" : formatMoney(Number(invoice.amount || 0))}
           rows={[
-            ["Status", String((invoice as { status?: string }).status || "Pendente")],
+            ["Status", invoiceStatusLabel(invoice.status)],
             ["Vencimento", invoice.due_date ? format(new Date(invoice.due_date), "dd/MM/yyyy") : "Sem data"],
-            ["Numero", invoice.invoice_number || invoice.id],
-            ["Link", invoice.payment_url ? "Disponivel" : "Indisponivel"],
+            ["Número", invoice.invoice_number || invoice.id],
+            ["Link", paymentUrl ? "Disponível" : "Indisponível"],
           ]}
+          actions={
+            <DetailActions
+              receiptUrl={receiptUrl}
+              invoiceUrl={invoiceUrl}
+              shareTitle="Cobrança NeuroFinance"
+              shareText={shareMessage}
+              shareUrl={paymentUrl}
+              email={patient?.email}
+            />
+          }
         />
       ) : null}
     </MobileFinanceSheet>
@@ -678,7 +836,7 @@ function MetricDetailSheet({ kind, transactions, hidden, onOpenChange }: { kind:
         <h2 className="mt-1 text-2xl font-black tracking-[-0.05em]">{title}</h2>
         <div className="mt-6 space-y-2">
           {transactions.length === 0 ? (
-            <MobileEmptyState icon={FileText} title="Sem registros" description="Nenhuma movimentacao encontrada para este grupo." />
+            <MobileEmptyState icon={FileText} title="Sem registros" description="Nenhuma movimentação encontrada para este grupo." />
           ) : (
             transactions.slice(0, 30).map((transaction) => {
               const income = transaction.type === "income";
@@ -687,8 +845,8 @@ function MetricDetailSheet({ kind, transactions, hidden, onOpenChange }: { kind:
                 <MobileFinanceListRow
                   key={transaction.id}
                   icon={income ? ArrowUpRight : ArrowDownRight}
-                  title={transaction.description || "Movimentacao"}
-                  description={transaction.status || transaction.category || "Processada"}
+                  title={transaction.description || "Movimentação"}
+                  description={statementStatusLabel(transaction)}
                   meta={formatStatementDate(transaction)}
                   value={hidden ? "******" : `${income ? "+" : "-"} ${formatMoney(amount)}`}
                   tone={income ? "success" : "danger"}
@@ -703,7 +861,52 @@ function MetricDetailSheet({ kind, transactions, hidden, onOpenChange }: { kind:
   );
 }
 
-function DetailContent({ eyebrow, title, amount, rows }: { eyebrow: string; title: string; amount: string; rows: Array<[string, string]> }) {
+function DetailActions({
+  receiptUrl,
+  invoiceUrl,
+  shareTitle,
+  shareText: text,
+  shareUrl,
+  email,
+}: {
+  receiptUrl: string;
+  invoiceUrl: string;
+  shareTitle: string;
+  shareText: string;
+  shareUrl?: string;
+  email?: string | null;
+}) {
+  return (
+    <div className="mt-6 grid grid-cols-2 gap-2">
+      <MobileFinanceButton variant="secondary" className="h-12" onClick={() => openDocument(receiptUrl, "Recibo ainda não disponível.")}>
+        <Receipt className="h-4 w-4" />
+        Recibo
+      </MobileFinanceButton>
+      <MobileFinanceButton variant="secondary" className="h-12" onClick={() => openDocument(invoiceUrl, "Fatura ainda não disponível.")}>
+        <FileText className="h-4 w-4" />
+        Fatura
+      </MobileFinanceButton>
+      <MobileFinanceButton
+        variant="secondary"
+        className="h-12"
+        onClick={() => void shareText({ title: shareTitle, text, url: shareUrl })}
+      >
+        <MessageCircle className="h-4 w-4" />
+        WhatsApp
+      </MobileFinanceButton>
+      <MobileFinanceButton
+        variant="secondary"
+        className="h-12"
+        onClick={() => void shareText({ title: shareTitle, text, url: shareUrl, email })}
+      >
+        <Mail className="h-4 w-4" />
+        Gmail
+      </MobileFinanceButton>
+    </div>
+  );
+}
+
+function DetailContent({ eyebrow, title, amount, rows, actions }: { eyebrow: string; title: string; amount: string; rows: Array<[string, string]>; actions?: ReactNode }) {
   return (
     <div className="py-7">
       <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/55">{eyebrow}</p>
@@ -717,6 +920,7 @@ function DetailContent({ eyebrow, title, amount, rows }: { eyebrow: string; titl
           </div>
         ))}
       </div>
+      {actions}
     </div>
   );
 }
