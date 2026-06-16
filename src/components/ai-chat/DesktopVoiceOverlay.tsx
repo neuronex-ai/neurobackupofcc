@@ -18,17 +18,12 @@ export const DesktopVoiceOverlay = ({
 }: DesktopVoiceOverlayProps) => {
   const [displayText, setDisplayText] = useState("");
 
-  // Fetch API key securely from backend
-  const { apiKey } = useVoiceConfig();
+  const { token, model, voiceName, isLoading: voiceConfigLoading, refresh: refreshVoiceConfig } = useVoiceConfig();
 
   // Stable callbacks to prevent re-renders
-  const handleSpeakingStart = useCallback(() => {
-    console.log('[VoiceOverlay] AI started speaking');
-  }, []);
+  const handleSpeakingStart = useCallback(() => undefined, []);
 
-  const handleSpeakingEnd = useCallback(() => {
-    console.log('[VoiceOverlay] AI finished speaking');
-  }, []);
+  const handleSpeakingEnd = useCallback(() => undefined, []);
 
   const handleResponseText = useCallback((text: string) => {
     setDisplayText(prev => prev + text);
@@ -47,7 +42,8 @@ export const DesktopVoiceOverlay = ({
     toggleListening,
     error,
   } = useGeminiVoice({
-    apiKey,
+    token,
+    model,
     systemInstruction: `Você é o Synapse AI, um assistente de voz inteligente, empático e muito capaz para profissionais de saúde mental.
         
 Você pode ajudar com:
@@ -59,7 +55,7 @@ Você pode ajudar com:
 
 Responda de forma conversacional, natural e concisa em português brasileiro. 
 Seja prestativo, empático e profissional. Mantenha respostas curtas (1-3 frases) para manter a conversa fluida.`,
-    voiceName: 'Kore', // Warm, professional voice
+    voiceName,
     language: 'pt-BR',
     onSpeakingStart: handleSpeakingStart,
     onSpeakingEnd: handleSpeakingEnd,
@@ -68,10 +64,10 @@ Seja prestativo, empático e profissional. Mantenha respostas curtas (1-3 frases
 
   // Auto-start session when overlay opens
   useEffect(() => {
-    if (isOpen && !isConnected && apiKey) {
+    if (isOpen && !isConnected && token) {
       startSession();
     }
-  }, [isOpen, isConnected, apiKey, startSession]);
+  }, [isOpen, isConnected, token, startSession]);
 
   // End session when overlay closes
   useEffect(() => {
@@ -119,10 +115,12 @@ Seja prestativo, empático e profissional. Mantenha respostas curtas (1-3 frases
   const handleReset = useCallback(() => {
     setDisplayText("");
     endSession();
-    setTimeout(() => {
-      startSession();
+    window.setTimeout(() => {
+      refreshVoiceConfig()
+        .then(() => startSession())
+        .catch(() => undefined);
     }, 500);
-  }, [endSession, startSession]);
+  }, [endSession, refreshVoiceConfig, startSession]);
 
   // Get status indicator
   const getStatusConfig = () => {
@@ -316,7 +314,7 @@ Seja prestativo, empático e profissional. Mantenha respostas curtas (1-3 frases
               {/* Main Action Button */}
               <Button
                 onClick={toggleListening}
-                disabled={isProcessing || !apiKey}
+                disabled={isProcessing || voiceConfigLoading || !token}
                 className={cn(
                   "h-20 w-20 rounded-full transition-all duration-300 shadow-2xl",
                   isListening
