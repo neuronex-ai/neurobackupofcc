@@ -16,6 +16,7 @@ import {
   enableBiometricSignIn,
   getBiometricStatus,
   getStoredBiometricAccount,
+  hasNativeSecureBridge,
   restoreBiometricSession,
   type BiometricStatus,
   type StoredBiometricAccount,
@@ -65,7 +66,7 @@ const AuthPageV2 = () => {
     if (!session?.user || role === 'patient') return false;
     const status = biometricStatus || await getBiometricStatus();
     const account = getStoredBiometricAccount();
-    if (!status.native || !status.available || !status.enrolled) return false;
+    if (!hasNativeSecureBridge() || !status.native || !status.available || !status.enrolled) return false;
     if (account?.userId === session.user.id) return false;
     setPendingBiometricSession(session);
     setBiometricPromptOpen(true);
@@ -168,6 +169,7 @@ const AuthPageV2 = () => {
   const canUseBiometrics =
     role !== 'patient' &&
     biometricStatus?.native &&
+    hasNativeSecureBridge() &&
     biometricStatus.available &&
     biometricStatus.enrolled &&
     biometricAccount;
@@ -199,7 +201,14 @@ const AuthPageV2 = () => {
     </section>
     <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
     <TotpMfaDialog open={mfaOpen} mode="challenge" onOpenChange={setMfaOpen} onSuccess={finishAuthenticatedSession} onCancel={cancelMfa} />
-    <Dialog open={biometricPromptOpen} onOpenChange={(open) => !biometricLoading && setBiometricPromptOpen(open)}>
+    <Dialog
+      open={biometricPromptOpen}
+      onOpenChange={(open) => {
+        if (biometricLoading) return;
+        if (!open) void skipBiometrics();
+        else setBiometricPromptOpen(open);
+      }}
+    >
       <DialogContent className="max-w-sm rounded-[28px] p-6">
         <DialogHeader>
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-[18px] border border-border/40 bg-card">

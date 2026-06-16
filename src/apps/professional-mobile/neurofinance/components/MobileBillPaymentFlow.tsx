@@ -48,21 +48,32 @@ export function MobileBillPaymentFlow({
     }
   }, [consultation]);
 
-  const consult = async () => {
-    if (line.replace(/\D/g, "").length < 20) {
-      toast.error("Informe a linha digitável completa.");
+  const consult = useCallback(async (nextLine = line) => {
+    const normalized = normalizeBoletoInput(nextLine);
+    if (!normalized.isValid) {
+      toast.error("Informe uma linha digitavel ou codigo de barras valido.");
       return;
     }
+    setLine(normalized.digits);
     setBusy(true);
     try {
-      const data = await consultBillPayment(line);
+      const data = await consultBillPayment(normalized.digits);
       setConsultation(data.consultation);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Boleto não localizado.");
     } finally {
       setBusy(false);
     }
-  };
+  }, [line]);
+
+  const handleScannedBill = useCallback(async (value: string) => {
+    const normalized = normalizeBoletoInput(value);
+    if (!normalized.isValid) {
+      toast.error("Codigo de boleto invalido.");
+      return;
+    }
+    await consult(normalized.digits);
+  }, [consult]);
 
   const authorizeAndExecute = async (pin: string) => {
     if (!consultation) return;
@@ -87,6 +98,7 @@ export function MobileBillPaymentFlow({
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Operação não concluída.");
+      throw error;
     } finally {
       setBusy(false);
     }
@@ -97,6 +109,7 @@ export function MobileBillPaymentFlow({
     setConsultation(null);
     setResult(null);
     setPinOpen(false);
+    setScannerOpen(false);
   };
 
   return (
@@ -246,7 +259,7 @@ export function MobileBillPaymentFlow({
                 className="mt-6 h-14 w-full rounded-[20px] text-xs font-semibold uppercase tracking-[0.16em]"
               >
                 <ShieldCheck className="mr-2 h-4 w-4" />
-                Confirmar com PIN
+                Confirmar com biometria/PIN
               </Button>
             </div>
           ) : (
@@ -274,14 +287,26 @@ export function MobileBillPaymentFlow({
                 />
               </label>
 
-              <Button
-                disabled={busy || line.replace(/\D/g, "").length < 20}
-                onClick={() => void consult()}
-                className="mt-5 h-14 w-full rounded-[20px] text-xs font-semibold uppercase tracking-[0.16em]"
-              >
-                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Consultar boleto
-              </Button>
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setScannerOpen(true)}
+                  className="h-14 rounded-[20px] text-xs font-semibold uppercase tracking-[0.12em]"
+                >
+                  <Camera className="mr-2 h-4 w-4" />
+                  Ler codigo
+                </Button>
+                <Button
+                  disabled={busy || !normalizeBoletoInput(line).isValid}
+                  onClick={() => void consult()}
+                  className="h-14 rounded-[20px] text-xs font-semibold uppercase tracking-[0.12em]"
+                >
+                  {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Consultar
+                </Button>
+              </div>
             </div>
           )}
       </MobileFinanceSheet>
@@ -292,6 +317,13 @@ export function MobileBillPaymentFlow({
         busy={busy}
         title={mode === "scheduled" ? "Autorizar agendamento" : "Autorizar pagamento"}
         onConfirm={authorizeAndExecute}
+      />
+      <MobileCodeScannerSheet
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        mode="boleto"
+        busy={busy}
+        onDetected={handleScannedBill}
       />
     </>
   );

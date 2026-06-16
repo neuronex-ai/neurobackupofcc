@@ -207,7 +207,7 @@ export function MobilePixPaymentFlow({
                 className="mt-6 h-14 w-full rounded-[20px] text-xs font-semibold uppercase tracking-[0.16em]"
               >
                 <ShieldCheck className="mr-2 h-4 w-4" />
-                Confirmar com PIN
+                Confirmar com biometria/PIN
               </Button>
             </div>
           ) : (

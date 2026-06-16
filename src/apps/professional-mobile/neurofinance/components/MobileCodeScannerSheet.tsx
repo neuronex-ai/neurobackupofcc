@@ -83,7 +83,11 @@ export function MobileCodeScannerSheet({
         setState("native");
         try {
           const value = await scanCodeWithNative({ mode });
-          if (cancelled || !value) return;
+          if (cancelled) return;
+          if (!value) {
+            onOpenChange(false);
+            return;
+          }
           detectedRef.current = true;
           onOpenChange(false);
           await onDetected(value);

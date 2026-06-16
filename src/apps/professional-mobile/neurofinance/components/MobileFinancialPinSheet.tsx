@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
-import { LockKeyhole, Loader2 } from "lucide-react";
+import { Fingerprint, LockKeyhole, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
+import { useAuth } from "@/components/auth/SessionContextProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  canUseBiometricTransaction,
+  forgetFinancialPinForBiometrics,
+  getFinancialPinWithBiometrics,
+  rememberFinancialPinForBiometrics,
+} from "@/lib/native-mobile-security";
 import { MobileFinanceSheet } from "../../shared/MobileFinancePrimitives";
 
 export function MobileFinancialPinSheet({
@@ -20,16 +28,73 @@ export function MobileFinancialPinSheet({
   busy?: boolean;
   onConfirm: (pin: string) => Promise<void> | void;
 }) {
+  const { user } = useAuth();
   const [pin, setPin] = useState("");
+  const [biometricReady, setBiometricReady] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
 
   useEffect(() => {
     if (!open) setPin("");
   }, [open]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const refresh = async () => {
+      if (!open || !user?.id) {
+        setBiometricReady(false);
+        return;
+      }
+
+      const ready = await canUseBiometricTransaction(user.id).catch(() => false);
+      if (!cancelled) setBiometricReady(ready);
+    };
+
+    void refresh();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user?.id]);
+
   const submit = async () => {
     if (!/^\d{6}$/.test(pin)) return;
-    await onConfirm(pin);
+    try {
+      await onConfirm(pin);
+      if (user?.id) {
+        await rememberFinancialPinForBiometrics(user.id, pin).catch(() => undefined);
+      }
+    } catch {
+      // The payment flow already shows the specific provider/PIN error.
+    }
   };
+
+  const confirmWithBiometrics = async () => {
+    if (!user?.id) return;
+    setBiometricBusy(true);
+    try {
+      const storedPin = await getFinancialPinWithBiometrics({
+        userId: user.id,
+        reason: title,
+      });
+      try {
+        await onConfirm(storedPin);
+      } catch {
+        await forgetFinancialPinForBiometrics(user.id).catch(() => undefined);
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Use o PIN financeiro para continuar.",
+      );
+    } finally {
+      setBiometricBusy(false);
+    }
+  };
+
+  const effectiveDescription = biometricReady
+    ? "Use a biometria deste aparelho ou digite o PIN financeiro de 6 digitos."
+    : description;
 
   return (
     <MobileFinanceSheet
@@ -44,10 +109,26 @@ export function MobileFinancialPinSheet({
       <div className="mx-auto mt-5 max-w-sm text-center">
         <h2 className="text-xl font-black tracking-[-0.04em]">{title}</h2>
         <p className="mt-2 text-xs font-medium leading-relaxed text-muted-foreground/70">
-          {description}
+          {effectiveDescription}
         </p>
       </div>
       <div className="mx-auto mt-7 w-full max-w-sm">
+        {biometricReady ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy || biometricBusy}
+            onClick={() => void confirmWithBiometrics()}
+            className="mb-4 h-14 w-full rounded-[20px] text-xs font-semibold uppercase tracking-[0.14em]"
+          >
+            {biometricBusy ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Fingerprint className="mr-2 h-4 w-4" />
+            )}
+            Usar biometria
+          </Button>
+        ) : null}
         <Input
           autoFocus
           value={pin}

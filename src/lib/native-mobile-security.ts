@@ -93,6 +93,49 @@ function isSupabaseAuthTokenKey(key: string) {
   return key.endsWith(SUPABASE_AUTH_TOKEN_SUFFIX);
 }
 
+function readSessionFromAuthStorageValue(value: string) {
+  try {
+    const parsed = JSON.parse(value) as Partial<Session> & {
+      currentSession?: Partial<Session>;
+    };
+    const session = parsed.currentSession || parsed;
+    if (!session.access_token || !session.refresh_token) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+async function syncBiometricSessionFromAuthValue(value: string) {
+  const account = getStoredBiometricAccount();
+  if (!account || !isBiometricEnabledForUser(account.userId)) return;
+
+  const session = readSessionFromAuthStorageValue(value);
+  if (!session) return;
+
+  await secureSet(
+    keyWithUser(BIOMETRIC_SESSION_PREFIX, account.userId),
+    JSON.stringify({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_at: session.expires_at,
+      expires_in: session.expires_in,
+      token_type: session.token_type,
+    }),
+    { requireAuthentication: true },
+  );
+}
+
+async function clearBiometricSessionAfterSignOut() {
+  const account = getStoredBiometricAccount();
+  if (!account) return;
+
+  await secureRemove(keyWithUser(BIOMETRIC_SESSION_PREFIX, account.userId));
+  await secureRemove(keyWithUser(FINANCIAL_PIN_PREFIX, account.userId));
+  localRemove(keyWithUser(BIOMETRIC_ENABLED_PREFIX, account.userId));
+  localRemove(BIOMETRIC_ACCOUNT_KEY);
+}
+
 async function secureGet(key: string, options?: Record<string, unknown>) {
   const bridge = getNativeBridge();
   if (bridge?.secureStorageGet) {
@@ -224,6 +267,10 @@ export async function enableBiometricSignIn(params: {
   email?: string | null;
   session: Session;
 }) {
+  if (!hasNativeSecureBridge()) {
+    throw new Error("Cofre nativo Android indisponivel neste ambiente.");
+  }
+
   const status = await getBiometricStatus();
   if (!status.native || !status.available || !status.enrolled) {
     throw new Error(
@@ -259,6 +306,10 @@ export async function enableBiometricSignIn(params: {
 }
 
 export async function restoreBiometricSession() {
+  if (!hasNativeSecureBridge()) {
+    throw new Error("Biometria nativa indisponivel. Entre com e-mail e senha.");
+  }
+
   const account = getStoredBiometricAccount();
   if (!account || !isBiometricEnabledForUser(account.userId)) {
     throw new Error("Biometria nao esta ativa neste dispositivo.");
@@ -290,6 +341,7 @@ export async function restoreBiometricSession() {
 }
 
 export async function canUseBiometricTransaction(userId?: string | null) {
+  if (!hasNativeSecureBridge()) return false;
   if (!userId || !isBiometricEnabledForUser(userId)) return false;
   const status = await getBiometricStatus();
   return status.native && status.available && status.enrolled;
@@ -318,6 +370,10 @@ export async function rememberFinancialPinForBiometrics(userId: string, pin: str
   await secureSet(keyWithUser(FINANCIAL_PIN_PREFIX, userId), pin, {
     requireAuthentication: true,
   });
+}
+
+export async function forgetFinancialPinForBiometrics(userId: string) {
+  await secureRemove(keyWithUser(FINANCIAL_PIN_PREFIX, userId));
 }
 
 export async function scanCodeWithNative(params: {
@@ -359,7 +415,17 @@ export function createSupabaseAuthStorage() {
       }
       return secureGet(key);
     },
-    setItem: async (key: string, value: string) => secureSet(key, value),
-    removeItem: async (key: string) => secureRemove(key),
+    setItem: async (key: string, value: string) => {
+      await secureSet(key, value);
+      if (isSupabaseAuthTokenKey(key)) {
+        await syncBiometricSessionFromAuthValue(value).catch(() => undefined);
+      }
+    },
+    removeItem: async (key: string) => {
+      await secureRemove(key);
+      if (isSupabaseAuthTokenKey(key)) {
+        await clearBiometricSessionAfterSignOut().catch(() => undefined);
+      }
+    },
   };
 }

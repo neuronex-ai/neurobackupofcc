@@ -72,6 +72,7 @@ export function MobileTransferFlow({
       toast.success(isTransfer ? "Transferência enviada." : "Saque enviado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Operação não concluída.");
+      throw error;
     } finally {
       setBusy(false);
     }
@@ -151,7 +152,7 @@ export function MobileTransferFlow({
                 className="mt-6 h-14 w-full rounded-[20px] text-xs font-semibold uppercase tracking-[0.16em]"
               >
                 <ShieldCheck className="mr-2 h-4 w-4" />
-                Confirmar com PIN
+                Confirmar com biometria/PIN
               </Button>
             </div>
           ) : (
