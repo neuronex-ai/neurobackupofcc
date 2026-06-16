@@ -182,7 +182,7 @@ export function MobileFinancialManagementPage() {
             <MobileMetricCard
               label="Recebido"
               value={isLoading ? "—" : formatMoney(metrics?.currentMonthRevenue)}
-              caption="Entradas confirmadas"
+              caption="Confirmado"
               icon={ArrowUpRight}
               tone="success"
               onClick={() => setFilter("income")}
@@ -190,7 +190,7 @@ export function MobileFinancialManagementPage() {
             <MobileMetricCard
               label="A receber"
               value={isLoading ? "—" : formatMoney(metrics?.projectedRevenue)}
-              caption={`${pendingInvoices} pendência(s)`}
+              caption={`${pendingInvoices} pend.`}
               icon={WalletCards}
               tone={pendingInvoices > 0 ? "warning" : "default"}
               onClick={() =>
@@ -202,7 +202,7 @@ export function MobileFinancialManagementPage() {
             <MobileMetricCard
               label="Despesas"
               value={isLoading ? "—" : formatMoney(metrics?.currentMonthExpenses)}
-              caption="Custos registrados"
+              caption="Registradas"
               icon={ArrowDownRight}
               tone="danger"
               onClick={() => setFilter("expense")}
@@ -210,7 +210,7 @@ export function MobileFinancialManagementPage() {
             <MobileMetricCard
               label="Resultado"
               value={isLoading ? "—" : formatMoney(metrics?.netProfit)}
-              caption="Receitas menos despesas"
+              caption="Saldo do mes"
               icon={CircleDollarSign}
               tone={resultTone}
             />
