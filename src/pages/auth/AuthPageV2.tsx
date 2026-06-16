@@ -1,10 +1,27 @@
 import { ForgotPasswordModal } from '@/components/auth/ForgotPasswordModal';
 import { TotpMfaDialog } from '@/components/settings/TotpMfaDialog';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { getAccountAssurance } from '@/hooks/use-account-security';
 import { supabase } from '@/integrations/supabase/client';
-import { Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
+import {
+  enableBiometricSignIn,
+  getBiometricStatus,
+  getStoredBiometricAccount,
+  restoreBiometricSession,
+  type BiometricStatus,
+  type StoredBiometricAccount,
+} from '@/lib/native-mobile-security';
+import type { Session } from '@supabase/supabase-js';
+import { Eye, EyeOff, Fingerprint, Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -18,6 +35,11 @@ const AuthPageV2 = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(localStorage.getItem('neuronex_remember_me') === 'true');
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const [biometricStatus, setBiometricStatus] = useState<BiometricStatus | null>(null);
+  const [biometricAccount, setBiometricAccount] = useState<StoredBiometricAccount | null>(null);
+  const [biometricPromptOpen, setBiometricPromptOpen] = useState(false);
+  const [pendingBiometricSession, setPendingBiometricSession] = useState<Session | null>(null);
   const [mfaOpen, setMfaOpen] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
 
@@ -30,16 +52,45 @@ const AuthPageV2 = () => {
     navigate(profile.data?.setup_completed ? '/dashboard' : '/initial-settings', { replace: true });
   };
 
+  const refreshBiometricState = async () => {
+    const [status, account] = await Promise.all([
+      getBiometricStatus(),
+      Promise.resolve(getStoredBiometricAccount()),
+    ]);
+    setBiometricStatus(status);
+    setBiometricAccount(account);
+  };
+
+  const shouldOfferBiometric = async (session: Session | null) => {
+    if (!session?.user || role === 'patient') return false;
+    const status = biometricStatus || await getBiometricStatus();
+    const account = getStoredBiometricAccount();
+    if (!status.native || !status.available || !status.enrolled) return false;
+    if (account?.userId === session.user.id) return false;
+    setPendingBiometricSession(session);
+    setBiometricPromptOpen(true);
+    return true;
+  };
+
+  const finishAuthenticatedSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (await shouldOfferBiometric(session)) return;
+    await redirect();
+  };
+
   const evaluateSession = async () => {
     const session = await supabase.auth.getSession();
     if (!session.data.session) return;
     const assurance = await getAccountAssurance();
     if (assurance.error) throw assurance.error;
     if (assurance.data.nextLevel === 'aal2' && assurance.data.currentLevel !== 'aal2') setMfaOpen(true);
-    else await redirect();
+    else await finishAuthenticatedSession();
   };
 
-  useEffect(() => { void evaluateSession().catch(() => undefined); }, []);
+  useEffect(() => {
+    void refreshBiometricState().catch(() => undefined);
+    void evaluateSession().catch(() => undefined);
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -60,7 +111,66 @@ const AuthPageV2 = () => {
     finally { setLoading(false); }
   };
 
+  const unlockWithBiometrics = async () => {
+    setBiometricLoading(true);
+    try {
+      const restored = await restoreBiometricSession();
+      const { error } = await supabase.auth.setSession({
+        access_token: restored.session.access_token,
+        refresh_token: restored.session.refresh_token,
+      });
+      if (error) throw error;
+      toast.success('SessÃ£o desbloqueada com biometria.');
+      await evaluateSession();
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error
+          ? cause.message
+          : 'Use e-mail e senha para entrar neste dispositivo.',
+      );
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
+  const enableBiometrics = async () => {
+    if (!pendingBiometricSession?.user) return;
+    setBiometricLoading(true);
+    try {
+      await enableBiometricSignIn({
+        userId: pendingBiometricSession.user.id,
+        email: pendingBiometricSession.user.email,
+        session: pendingBiometricSession,
+      });
+      await refreshBiometricState();
+      setBiometricPromptOpen(false);
+      setPendingBiometricSession(null);
+      toast.success('Entrar com biometria ativado neste aparelho.');
+      await redirect();
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error
+          ? cause.message
+          : 'NÃ£o foi possÃ­vel ativar biometria agora.',
+      );
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
+
+  const skipBiometrics = async () => {
+    setBiometricPromptOpen(false);
+    setPendingBiometricSession(null);
+    await redirect();
+  };
+
   const cancelMfa = async () => { setMfaOpen(false); await supabase.auth.signOut(); };
+  const canUseBiometrics =
+    role !== 'patient' &&
+    biometricStatus?.native &&
+    biometricStatus.available &&
+    biometricStatus.enrolled &&
+    biometricAccount;
 
   return <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-5">
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(139,92,246,.12),transparent_35%),radial-gradient(circle_at_90%_90%,rgba(255,255,255,.05),transparent_30%)]" />
