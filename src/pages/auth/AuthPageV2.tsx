@@ -13,7 +13,9 @@ import { Input } from '@/components/ui/input';
 import { getAccountAssurance } from '@/hooks/use-account-security';
 import { supabase } from '@/integrations/supabase/client';
 import {
+  disableBiometricSignIn,
   enableBiometricSignIn,
+  getBiometricPreferenceForUser,
   getBiometricStatus,
   getStoredBiometricAccount,
   hasNativeSecureBridge,
@@ -66,8 +68,10 @@ const AuthPageV2 = () => {
     if (!session?.user || role === 'patient') return false;
     const status = biometricStatus || await getBiometricStatus();
     const account = getStoredBiometricAccount();
+    const preference = getBiometricPreferenceForUser(session.user.id);
     if (!hasNativeSecureBridge() || !status.native || !status.available || !status.enrolled) return false;
     if (account?.userId === session.user.id) return false;
+    if (preference !== "unset") return false;
     setPendingBiometricSession(session);
     setBiometricPromptOpen(true);
     return true;
@@ -160,6 +164,10 @@ const AuthPageV2 = () => {
   };
 
   const skipBiometrics = async () => {
+    if (pendingBiometricSession?.user?.id) {
+      await disableBiometricSignIn(pendingBiometricSession.user.id).catch(() => undefined);
+      await refreshBiometricState().catch(() => undefined);
+    }
     setBiometricPromptOpen(false);
     setPendingBiometricSession(null);
     await redirect();
