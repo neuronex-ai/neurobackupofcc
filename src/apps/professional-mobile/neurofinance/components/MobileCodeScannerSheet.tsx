@@ -373,3 +373,78 @@ function normalizeDetectedValue(mode: ScannerMode, value?: string | null) {
   if (mode === "boleto") return findBoletoCandidate(text);
   return text;
 }
+
+async function startNativeBoletoScanner({
+  video,
+  onDetected,
+  onInvalid,
+}: {
+  video: HTMLVideoElement;
+  onDetected: (value: string) => Promise<void> | void;
+  onInvalid: () => void;
+}): Promise<{ stop: () => void } | null> {
+  const Detector = (window as BarcodeWindow).BarcodeDetector;
+  if (!Detector) return null;
+
+  await lockLandscapeBestEffort();
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+      aspectRatio: { ideal: 16 / 9 },
+    },
+  });
+
+  let frame = 0;
+  let stopped = false;
+  const detector = new Detector({ formats: ["itf", "code_128", "codabar"] });
+  video.srcObject = stream;
+  await video.play();
+
+  const stop = () => {
+    stopped = true;
+    if (frame) window.cancelAnimationFrame(frame);
+    stream.getTracks().forEach((track) => track.stop());
+    video.srcObject = null;
+    void unlockOrientationBestEffort();
+  };
+
+  const scan = async () => {
+    if (stopped) return;
+    try {
+      const barcodes = await detector.detect(video);
+      for (const barcode of barcodes) {
+        const candidate = normalizeDetectedValue("boleto", barcode.rawValue || barcode.displayValue || "");
+        if (candidate) {
+          stop();
+          await onDetected(candidate);
+          return;
+        }
+        if (barcode.rawValue || barcode.displayValue) onInvalid();
+      }
+    } catch (error) {
+      stop();
+      throw error;
+    }
+    if (!stopped) frame = window.requestAnimationFrame(scan);
+  };
+
+  frame = window.requestAnimationFrame(scan);
+  return { stop };
+}
+
+async function lockLandscapeBestEffort() {
+  const orientation = screen.orientation as ScreenOrientation & {
+    lock?: (orientation: OrientationLockType) => Promise<void>;
+  };
+  await orientation?.lock?.("landscape").catch(() => undefined);
+}
+
+async function unlockOrientationBestEffort() {
+  const orientation = screen.orientation as ScreenOrientation & {
+    unlock?: () => void;
+  };
+  orientation?.unlock?.();
+}
