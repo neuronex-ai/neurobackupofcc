@@ -41,7 +41,7 @@ interface UseGeminiVoiceReturn {
     /** Last response from AI */
     lastResponse: string;
     /** Start the voice session */
-    startSession: () => Promise<void>;
+    startSession: (override?: { token?: string; model?: string; voiceName?: string }) => Promise<void>;
     /** End the voice session */
     endSession: () => void;
     /** Toggle listening on/off */
@@ -241,9 +241,13 @@ export function useGeminiVoice({
     }, [_onTranscript, onResponseText, playPcmAudio, stopAudioPlayback]);
 
     // Start voice session
-    const startSession = useCallback(async () => {
+    const startSession = useCallback(async (override?: { token?: string; model?: string; voiceName?: string }) => {
         if (isConnected) return;
-        if (!token) {
+        const liveToken = override?.token || token;
+        const liveModel = override?.model || model;
+        const liveVoiceName = override?.voiceName || voiceName;
+
+        if (!liveToken) {
             setError('Token de voz indisponível');
             return;
         }
@@ -302,21 +306,21 @@ export function useGeminiVoice({
 
             source.connect(workletNodeRef.current);
 
-            const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=${encodeURIComponent(token)}`;
+            const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=${encodeURIComponent(liveToken)}`;
             wsRef.current = new WebSocket(wsUrl);
 
             wsRef.current.onopen = () => {
                 // Send setup message
                 wsRef.current?.send(JSON.stringify({
                     setup: {
-                        model: `models/${model}`,
+                        model: `models/${liveModel}`,
                         generationConfig: {
                             responseModalities: ['AUDIO'],
                             temperature: 0.5,
                             speechConfig: {
                                 voiceConfig: {
                                     prebuiltVoiceConfig: {
-                                        voiceName: voiceName,
+                                        voiceName: liveVoiceName,
                                     },
                                 },
                             },
