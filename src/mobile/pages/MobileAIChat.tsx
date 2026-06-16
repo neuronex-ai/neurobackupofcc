@@ -256,6 +256,21 @@ export const MobileAIChat = () => {
     }
   }, [isVoiceConnected, refreshVoiceConfig, startVoiceSession, toggleVoiceListening]);
 
+  const restartVoiceSession = useCallback(async () => {
+    endVoiceSession();
+    try {
+      const config = await refreshVoiceConfig();
+      await startVoiceSession({
+        token: config.token,
+        model: config.model,
+        voiceName: config.voiceName,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Nao foi possivel reiniciar o modo voz.";
+      toast.error(message);
+    }
+  }, [endVoiceSession, refreshVoiceConfig, startVoiceSession]);
+
   const toggleVoiceMode = () => {
     setMode((current) => {
       if (current === "chat") return "voice";
@@ -332,10 +347,7 @@ export const MobileAIChat = () => {
               lastResponse={voiceLastResponse}
               error={voiceRuntimeError || voiceConfigError}
               onToggleRecording={() => void handleVoiceToggle()}
-              onReset={() => {
-                endVoiceSession();
-                void handleVoiceToggle();
-              }}
+              onReset={() => void restartVoiceSession()}
             />
           </motion.div>
         ) : (
