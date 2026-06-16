@@ -426,7 +426,9 @@ async function startNativeBoletoScanner({
       }
     } catch (error) {
       stop();
-      throw error;
+      console.warn("[BoletoScanner] BarcodeDetector stopped", error);
+      toast.error("Nao foi possivel manter a leitura nativa do boleto.");
+      return;
     }
     if (!stopped) frame = window.requestAnimationFrame(scan);
   };
