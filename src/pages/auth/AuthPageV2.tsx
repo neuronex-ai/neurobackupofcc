@@ -20,7 +20,6 @@ import {
   getBiometricPreferenceForUser,
   getBiometricStatus,
   getStoredBiometricAccount,
-  hasNativeSecureBridge,
   isBiometricStatusUsable,
   restoreBiometricSession,
   type BiometricStatus,
@@ -76,7 +75,7 @@ const AuthPageV2 = () => {
     const status = biometricStatus || await getBiometricStatus();
     const account = getStoredBiometricAccount();
     const preference = getBiometricPreferenceForUser(session.user.id);
-    if (!hasNativeSecureBridge() || !isBiometricStatusUsable(status)) return false;
+    if (!isBiometricStatusUsable(status)) return false;
     if (account?.userId === session.user.id) return false;
     if (preference !== 'unset') return false;
     setPendingBiometricSession(session);
@@ -190,7 +189,6 @@ const AuthPageV2 = () => {
 
   const canUseBiometrics =
     role !== 'patient' &&
-    hasNativeSecureBridge() &&
     isBiometricStatusUsable(biometricStatus) &&
     biometricAccount;
 

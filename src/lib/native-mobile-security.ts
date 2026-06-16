@@ -499,10 +499,6 @@ export async function enableBiometricSignIn(params: {
   email?: string | null;
   session: Session;
 }) {
-  if (!hasNativeSecureBridge()) {
-    throw new Error("Cofre nativo Android indisponivel neste ambiente.");
-  }
-
   const status = await getBiometricStatus();
   if (!isBiometricStatusUsable(status)) {
     throw new Error(
@@ -511,7 +507,11 @@ export async function enableBiometricSignIn(params: {
     );
   }
 
-  await authenticateWithBiometrics("Ativar Entrar com biometria");
+  await authenticateWithBiometrics("Ativar Entrar com biometria", {
+    userId: params.userId,
+    email: params.email,
+    allowRegistration: true,
+  });
 
   const account: StoredBiometricAccount = {
     userId: params.userId,
@@ -551,10 +551,6 @@ export async function disableBiometricSignIn(userId: string) {
 }
 
 export async function restoreBiometricSession() {
-  if (!hasNativeSecureBridge()) {
-    throw new Error("Biometria nativa indisponivel. Entre com e-mail e senha.");
-  }
-
   const account = getStoredBiometricAccount();
   if (!account || !isBiometricEnabledForUser(account.userId)) {
     throw new Error("Biometria nao esta ativa neste dispositivo.");
@@ -568,7 +564,10 @@ export async function restoreBiometricSession() {
     );
   }
 
-  await authenticateWithBiometrics("Entrar no NeuroNex");
+  await authenticateWithBiometrics("Entrar no NeuroNex", {
+    userId: account.userId,
+    email: account.email,
+  });
   authVaultUnlocked = true;
 
   const raw = await secureGet(keyWithUser(BIOMETRIC_SESSION_PREFIX, account.userId));
@@ -586,7 +585,6 @@ export async function restoreBiometricSession() {
 }
 
 export async function canUseBiometricTransaction(userId?: string | null) {
-  if (!hasNativeSecureBridge()) return false;
   if (!userId || !isBiometricEnabledForUser(userId)) return false;
   const status = await getBiometricStatus();
   return isBiometricStatusUsable(status);
@@ -600,7 +598,9 @@ export async function getFinancialPinWithBiometrics(params: {
     throw new Error("Biometria nao esta ativa para transacoes neste dispositivo.");
   }
 
-  await authenticateWithBiometrics(params.reason);
+  await authenticateWithBiometrics(params.reason, {
+    userId: params.userId,
+  });
   const raw = await secureGet(keyWithUser(FINANCIAL_PIN_PREFIX, params.userId), {
     requireAuthentication: true,
   });
@@ -632,7 +632,7 @@ export async function scanCodeWithNative(params: {
       formats:
         params.mode === "pix"
           ? ["QR_CODE"]
-          : ["ITF", "CODE_128", "CODABAR"],
+          : ["ITF", "CODE_128", "CODABAR", "EAN_13", "EAN_8"],
       prompt:
         params.mode === "pix"
           ? "Aponte a camera para o QR Code Pix."

@@ -11,7 +11,6 @@ import {
   canAttemptNativeBiometrics,
   getBiometricPreferenceForUser,
   getBiometricStatus,
-  hasNativeSecureBridge,
   isBiometricStatusUsable,
   isBiometricEnabledForUser,
   type BiometricPreference,
@@ -129,12 +128,12 @@ export const SecuritySettingsPanelV2 = () => {
   };
 
   const biometricEnabled = Boolean(user?.id && isBiometricEnabledForUser(user.id));
-  const biometricAvailable = Boolean(hasNativeSecureBridge() && isBiometricStatusUsable(biometricStatus));
+  const biometricAvailable = Boolean(isBiometricStatusUsable(biometricStatus));
   const biometricCanAttempt = biometricAvailable || canAttemptNativeBiometrics();
-  const biometricStatusText = !hasNativeSecureBridge()
+  const biometricStatusText = !biometricAvailable
     ? biometricCanAttempt
       ? 'Toque para validar a biometria neste aparelho.'
-      : 'Disponivel apenas no app Android com cofre nativo.'
+      : 'Disponivel em aparelhos com biometria, bloqueio seguro ou autenticador de plataforma.'
     : biometricAvailable
       ? biometricPreference === 'disabled'
         ? 'Desativado por escolha neste aparelho.'
