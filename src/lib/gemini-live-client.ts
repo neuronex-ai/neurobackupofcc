@@ -1,13 +1,62 @@
 // src/lib/gemini-live-client.ts
 
 export type GeminiLiveStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
-export type ToolCallHandler = (name: string, params: any) => Promise<any>;
+export type ToolCallHandler = (name: string, params: unknown) => Promise<unknown> | unknown;
+
+type GeminiFunctionCall = {
+    id?: string;
+    name: string;
+    args?: unknown;
+};
+
+type GeminiLivePart = {
+    inlineData?: {
+        mimeType?: string;
+        data: string;
+    };
+    functionCall?: GeminiFunctionCall;
+};
+
+type GeminiLiveMessage = {
+    setupComplete?: boolean;
+    serverContent?: {
+        modelTurn?: {
+            parts?: GeminiLivePart[];
+        };
+        turnComplete?: boolean;
+        interrupted?: boolean;
+    };
+    error?: {
+        message?: string;
+    };
+};
+
+type GeminiSetupMessage = {
+    setup: {
+        model: string;
+        generationConfig: {
+            responseModalities: string[];
+            temperature: number;
+            speechConfig: {
+                voiceConfig: {
+                    prebuiltVoiceConfig: {
+                        voiceName: string;
+                    };
+                };
+            };
+        };
+        systemInstruction?: {
+            parts: Array<{ text: string }>;
+        };
+        tools?: Array<{ functionDeclarations: unknown[] }>;
+    };
+};
 
 export interface GeminiClientOptions {
     token: string;
     model?: string;
     systemInstruction?: string;
-    tools?: any[];
+    tools?: unknown[];
     onStatusChange?: (status: GeminiLiveStatus) => void;
     onSpeechStatusChange?: (isSpeaking: boolean) => void;
     onVolumeChange?: (volume: number) => void;
@@ -65,7 +114,7 @@ export class GeminiLiveClient {
 
             // Set up volume polling
             this.pollVolume();
-        } catch (e: any) {
+        } catch (e: unknown) {
             this.handleSocketError(e);
         }
     }
@@ -106,7 +155,7 @@ export class GeminiLiveClient {
     private handleSocketOpen() {
         // Do NOT set connected yet — must wait for setupComplete from server
         // Send Initial Setup
-        const msg: any = {
+        const msg: GeminiSetupMessage = {
             setup: {
                 model: `models/${this.options.model || 'gemini-3.1-flash-live-preview'}`,
                 generationConfig: {
@@ -140,9 +189,9 @@ export class GeminiLiveClient {
     }
 
     private handleSocketMessage(evt: MessageEvent) {
-        let msg = null;
+        let msg: GeminiLiveMessage;
         if (typeof evt.data === 'string') {
-            msg = JSON.parse(evt.data);
+            msg = JSON.parse(evt.data) as GeminiLiveMessage;
         } else {
             // It might be a Blob if we set binaryType, but Gemini uses stringified JSON or base64 JSON
             const reader = new FileReader();
@@ -163,7 +212,7 @@ export class GeminiLiveClient {
         }
 
         if (msg.serverContent?.modelTurn) {
-            const parts = msg.serverContent.modelTurn.parts;
+            const parts = msg.serverContent.modelTurn.parts || [];
             for (const part of parts) {
                 if (part.inlineData?.mimeType.startsWith('audio/pcm')) {
                     this.playReceivedAudio(part.inlineData.data);
@@ -192,7 +241,7 @@ export class GeminiLiveClient {
         }
     }
 
-    private async executeTool(functionCall: any) {
+    private async executeTool(functionCall: GeminiFunctionCall) {
         // Stop playing audio while executing tools
         if (this.options.onToolCall) {
             try {

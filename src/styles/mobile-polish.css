@@ -90,22 +90,21 @@
   }
 
   .nn-mobile-shell > nav {
-    bottom: calc(0.7rem + env(safe-area-inset-bottom)) !important;
-    width: calc(100% - 1rem) !important;
-    max-width: 430px !important;
+    bottom: calc(0.55rem + env(safe-area-inset-bottom)) !important;
+    width: calc(100% - 1.15rem) !important;
+    max-width: 410px !important;
   }
 
-  .nn-mobile-shell > nav > div > div:last-child {
-    border-radius: 24px !important;
-    padding: 0.3rem 0.4rem !important;
-    box-shadow: 0 14px 38px -24px rgb(0 0 0 / 0.55) !important;
+  .nn-mobile-shell > nav > div {
+    border-radius: 30px !important;
+    box-shadow: 0 24px 60px -34px rgb(0 0 0 / 0.78), inset 0 1px 0 rgb(255 255 255 / 0.11) !important;
   }
 
   .nn-mobile-shell > nav a[class*="flex-col"],
   .nn-mobile-shell > nav button[class*="flex-col"] {
-    width: 3rem !important;
-    height: 2.65rem !important;
-    border-radius: 14px !important;
+    width: 3.25rem !important;
+    height: 3rem !important;
+    border-radius: 18px !important;
   }
 
   .nn-mobile-shell > nav [class~="w-[58px]"] {

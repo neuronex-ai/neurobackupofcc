@@ -120,6 +120,7 @@ export function useGeminiVoice({
     const audioContextRef = useRef<AudioContext | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
+    const silenceNodeRef = useRef<GainNode | null>(null);
     const activeAudioSourcesRef = useRef<AudioBufferSourceNode[]>([]);
     const nextPlayTimeRef = useRef(0);
     const isListeningRef = useRef(false);
@@ -202,6 +203,9 @@ export function useGeminiVoice({
                 const content = data.serverContent;
 
                 if (content.inputTranscription?.text) {
+                    if (content.inputTranscription.finished) {
+                        _setTranscript((previous) => `${previous} ${content.inputTranscription.text}`.trim());
+                    }
                     _onTranscript?.(content.inputTranscription.text, Boolean(content.inputTranscription.finished));
                 }
 
@@ -305,6 +309,10 @@ export function useGeminiVoice({
             };
 
             source.connect(workletNodeRef.current);
+            silenceNodeRef.current = audioContextRef.current.createGain();
+            silenceNodeRef.current.gain.value = 0;
+            workletNodeRef.current.connect(silenceNodeRef.current);
+            silenceNodeRef.current.connect(audioContextRef.current.destination);
 
             const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=${encodeURIComponent(liveToken)}`;
             wsRef.current = new WebSocket(wsUrl);
@@ -365,6 +373,11 @@ export function useGeminiVoice({
         if (workletNodeRef.current) {
             workletNodeRef.current.disconnect();
             workletNodeRef.current = null;
+        }
+
+        if (silenceNodeRef.current) {
+            silenceNodeRef.current.disconnect();
+            silenceNodeRef.current = null;
         }
 
         if (streamRef.current) {

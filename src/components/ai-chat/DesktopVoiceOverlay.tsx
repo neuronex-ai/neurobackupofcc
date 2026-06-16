@@ -80,12 +80,14 @@ Seja prestativo, empático e profissional. Mantenha respostas curtas (1-3 frases
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        handleClose();
+        endSession();
+        setDisplayText("");
+        onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  }, [endSession, isOpen, onClose]);
 
   // Update display text based on state
   useEffect(() => {

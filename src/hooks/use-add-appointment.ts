@@ -107,7 +107,7 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
 
   if (shouldSyncToGoogle) {
     try {
-      toast.info("Tentando sincronizar com o Google Calendar...");
+      toast.info("Sincronizando com o Google Calendar...");
       const syncResult = await syncAppointmentToGoogle(
         {
           ...appointmentData,
@@ -125,7 +125,7 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
       googleEventId = syncResult.googleEventId || null;
       googleMeetLink = syncResult.googleMeetLink || null;
       toast.success("Agendamento sincronizado com Google Calendar!");
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.warn("Google Sync Failed:", toLogMessage(e));
       metadata.syncStatus = 'failed';
       toast.warning(`Agendamento criado, mas falha na sincronizacao com Google: ${toLogMessage(e)}`);

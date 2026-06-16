@@ -137,6 +137,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/gemini-text-chat/index.ts"
 
+[functions.get-voice-config]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/get-voice-config/index.ts"
+
 [functions.synapse-whatsapp-in]
 enabled = true
 verify_jwt = false
