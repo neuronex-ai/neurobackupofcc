@@ -52,7 +52,30 @@ interface UseGeminiVoiceReturn {
     error: string | null;
 }
 
-// Audio worklet for processing microphone input
+type LiveMessage = {
+    setupComplete?: boolean;
+    serverContent?: {
+        inputTranscription?: { text?: string; finished?: boolean };
+        outputTranscription?: { text?: string };
+        modelTurn?: {
+            parts?: Array<{
+                text?: string;
+                inlineData?: {
+                    mimeType?: string;
+                    data: string;
+                };
+            }>;
+        };
+        interrupted?: boolean;
+        turnComplete?: boolean;
+    };
+    error?: {
+        message?: string;
+        status?: string;
+        code?: number;
+    };
+};
+
 const AUDIO_WORKLET_CODE = `
 class AudioProcessor extends AudioWorkletProcessor {
     constructor() {
@@ -69,7 +92,6 @@ class AudioProcessor extends AudioWorkletProcessor {
             for (let i = 0; i < channelData.length; i++) {
                 this.buffer[this.bufferIndex++] = channelData[i];
                 if (this.bufferIndex >= this.bufferSize) {
-                    // Convert to 16-bit PCM
                     const pcm16 = new Int16Array(this.bufferSize);
                     for (let j = 0; j < this.bufferSize; j++) {
                         pcm16[j] = Math.max(-32768, Math.min(32767, Math.floor(this.buffer[j] * 32768)));
@@ -78,8 +100,7 @@ class AudioProcessor extends AudioWorkletProcessor {
                     this.bufferIndex = 0;
                 }
             }
-            
-            // Calculate intensity
+
             let sum = 0;
             for (let i = 0; i < channelData.length; i++) {
                 sum += Math.abs(channelData[i]);
@@ -93,11 +114,62 @@ class AudioProcessor extends AudioWorkletProcessor {
 registerProcessor('audio-processor', AudioProcessor);
 `;
 
+const DEFAULT_MODEL = 'gemini-3.1-flash-live-preview';
+const DEFAULT_VOICE = 'Puck';
+
+const toFriendlyVoiceError = (message?: string) => {
+    const raw = message || '';
+    if (
+        raw.includes('<!DOCTYPE') ||
+        raw.includes('Unexpected token') ||
+        raw.includes('not valid JSON') ||
+        raw.includes('BidiGenerateContent') ||
+        raw.includes('401') ||
+        raw.includes('403')
+    ) {
+        return 'A credencial temporaria de voz nao foi aceita pelo Live API. Gere uma nova sessao e tente novamente.';
+    }
+    if (raw.includes('Permission') || raw.includes('denied') || raw.includes('NotAllowedError')) {
+        return 'Permissao de microfone bloqueada. Libere o microfone no navegador e tente novamente.';
+    }
+    if (raw.includes('Token') || raw.includes('token')) {
+        return 'Token de voz indisponivel. Tente iniciar a voz novamente.';
+    }
+    return raw || 'Nao foi possivel iniciar o modo voz.';
+};
+
+const uint8ToBase64 = (bytes: Uint8Array) => {
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+        const chunk = bytes.subarray(index, index + chunkSize);
+        binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+};
+
+const parseLiveMessage = (raw: unknown): LiveMessage => {
+    if (typeof raw !== 'string') {
+        throw new Error('Evento de voz em formato inesperado.');
+    }
+
+    const trimmed = raw.trim();
+    if (!trimmed) {
+        throw new Error('Evento de voz vazio.');
+    }
+
+    if (trimmed.startsWith('<')) {
+        throw new Error('Resposta HTML recebida do Live API.');
+    }
+
+    return JSON.parse(trimmed) as LiveMessage;
+};
+
 export function useGeminiVoice({
     token,
-    model = 'gemini-3.1-flash-live-preview',
-    systemInstruction = 'Você é o Synapse AI, um assistente de voz inteligente e empático. Responda de forma conversacional, natural e concisa em português brasileiro. Seja prestativo e amigável.',
-    voiceName = 'Puck',
+    model = DEFAULT_MODEL,
+    systemInstruction = 'Voce e o Synapse AI, um assistente de voz inteligente e empatico. Responda de forma conversacional, natural e concisa em portugues brasileiro. Seja prestativo e amigavel.',
+    voiceName = DEFAULT_VOICE,
     language: _language = 'pt-BR',
     onSpeakingStart,
     onSpeakingEnd,
@@ -124,7 +196,8 @@ export function useGeminiVoice({
     const activeAudioSourcesRef = useRef<AudioBufferSourceNode[]>([]);
     const nextPlayTimeRef = useRef(0);
     const isListeningRef = useRef(false);
-    const isConnectedRef = useRef(false);
+    const setupCompleteRef = useRef(false);
+    const manualCloseRef = useRef(false);
 
     const stopAudioPlayback = useCallback(() => {
         activeAudioSourcesRef.current.forEach((source) => {
@@ -139,6 +212,40 @@ export function useGeminiVoice({
         setIsSpeaking(false);
         onSpeakingEnd?.();
     }, [onSpeakingEnd]);
+
+    const cleanupResources = useCallback(() => {
+        stopAudioPlayback();
+
+        if (workletNodeRef.current) {
+            workletNodeRef.current.disconnect();
+            workletNodeRef.current = null;
+        }
+
+        if (silenceNodeRef.current) {
+            silenceNodeRef.current.disconnect();
+            silenceNodeRef.current = null;
+        }
+
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+        }
+
+        if (audioContextRef.current) {
+            const context = audioContextRef.current;
+            audioContextRef.current = null;
+            void context.close().catch(() => undefined);
+        }
+
+        setIsConnected(false);
+        setIsListening(false);
+        setIsSpeaking(false);
+        setIsProcessing(false);
+        setAudioIntensity(0);
+        audioIntensityRef.current = 0;
+        isListeningRef.current = false;
+        setupCompleteRef.current = false;
+    }, [stopAudioPlayback]);
 
     const playPcmAudio = useCallback((base64Audio: string) => {
         const audioContext = audioContextRef.current;
@@ -186,90 +293,117 @@ export function useGeminiVoice({
         };
     }, [onSpeakingEnd, onSpeakingStart]);
 
-    // Handle WebSocket messages
-    const handleMessage = useCallback((event: MessageEvent) => {
-        try {
-            const data = JSON.parse(event.data);
+    const handleParsedMessage = useCallback((data: LiveMessage) => {
+        if (data.error) {
+            setError(toFriendlyVoiceError(data.error.message || data.error.status));
+            setIsProcessing(false);
+            return;
+        }
 
-            if (data.setupComplete) {
-                isConnectedRef.current = true;
-                setIsConnected(true);
-                setIsListening(true);
-                isListeningRef.current = true;
-                return;
+        if (data.setupComplete) {
+            setupCompleteRef.current = true;
+            setIsConnected(true);
+            setIsListening(true);
+            setIsProcessing(false);
+            isListeningRef.current = true;
+            return;
+        }
+
+        const content = data.serverContent;
+        if (!content) return;
+
+        if (content.inputTranscription?.text) {
+            if (content.inputTranscription.finished) {
+                _setTranscript((previous) => `${previous} ${content.inputTranscription?.text || ''}`.trim());
             }
+            _onTranscript?.(content.inputTranscription.text, Boolean(content.inputTranscription.finished));
+        }
 
-            if (data.serverContent) {
-                const content = data.serverContent;
+        if (content.outputTranscription?.text) {
+            setLastResponse((previous) => `${previous}${content.outputTranscription?.text || ''}`);
+            onResponseText?.(content.outputTranscription.text);
+        }
 
-                if (content.inputTranscription?.text) {
-                    if (content.inputTranscription.finished) {
-                        _setTranscript((previous) => `${previous} ${content.inputTranscription.text}`.trim());
-                    }
-                    _onTranscript?.(content.inputTranscription.text, Boolean(content.inputTranscription.finished));
+        if (content.modelTurn) {
+            const parts = content.modelTurn.parts || [];
+            for (const part of parts) {
+                if (part.text) {
+                    setLastResponse((previous) => previous + part.text);
+                    onResponseText?.(part.text);
                 }
-
-                if (content.outputTranscription?.text) {
-                    setLastResponse((previous) => `${previous}${content.outputTranscription.text}`);
-                    onResponseText?.(content.outputTranscription.text);
-                }
-
-                // Handle model turn (AI response)
-                if (content.modelTurn) {
-                    const parts = content.modelTurn.parts || [];
-                    for (const part of parts) {
-                        if (part.text) {
-                            setLastResponse(prev => prev + part.text);
-                            onResponseText?.(part.text);
-                        }
-                        if (part.inlineData?.mimeType?.startsWith('audio/')) {
-                            playPcmAudio(part.inlineData.data);
-                        }
-                    }
-                }
-
-                if (content.interrupted) {
-                    stopAudioPlayback();
-                }
-
-                // Handle turn complete
-                if (content.turnComplete) {
-                    setIsProcessing(false);
+                if (part.inlineData?.mimeType?.startsWith('audio/')) {
+                    playPcmAudio(part.inlineData.data);
                 }
             }
+        }
 
-        } catch (e) {
-            const message = e instanceof Error ? e.message : 'Falha ao ler evento de voz.';
-            setError(message);
+        if (content.interrupted) {
+            stopAudioPlayback();
+        }
+
+        if (content.turnComplete) {
+            setIsProcessing(false);
         }
     }, [_onTranscript, onResponseText, playPcmAudio, stopAudioPlayback]);
 
-    // Start voice session
+    const handleMessage = useCallback((event: MessageEvent) => {
+        if (typeof event.data === 'string') {
+            try {
+                handleParsedMessage(parseLiveMessage(event.data));
+            } catch (caught) {
+                setError(toFriendlyVoiceError(caught instanceof Error ? caught.message : undefined));
+                setIsProcessing(false);
+            }
+            return;
+        }
+
+        if (event.data instanceof Blob) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    handleParsedMessage(parseLiveMessage(reader.result));
+                } catch (caught) {
+                    setError(toFriendlyVoiceError(caught instanceof Error ? caught.message : undefined));
+                    setIsProcessing(false);
+                }
+            };
+            reader.onerror = () => {
+                setError('Nao consegui ler a resposta do canal de voz.');
+                setIsProcessing(false);
+            };
+            reader.readAsText(event.data);
+            return;
+        }
+
+        setError('Evento de voz em formato inesperado.');
+        setIsProcessing(false);
+    }, [handleParsedMessage]);
+
     const startSession = useCallback(async (override?: { token?: string; model?: string; voiceName?: string }) => {
-        if (isConnected) return;
+        if (setupCompleteRef.current || wsRef.current?.readyState === WebSocket.CONNECTING) return;
         const liveToken = override?.token || token;
         const liveModel = override?.model || model;
         const liveVoiceName = override?.voiceName || voiceName;
 
         if (!liveToken) {
-            setError('Token de voz indisponível');
+            setError('Token de voz indisponivel.');
             return;
         }
 
         try {
+            manualCloseRef.current = false;
+            setupCompleteRef.current = false;
             setError(null);
             setLastResponse('');
+            setIsProcessing(true);
 
-            // Create audio context
             audioContextRef.current = new AudioContext({ sampleRate: 16000 });
 
-            // Create audio worklet
             const workletBlob = new Blob([AUDIO_WORKLET_CODE], { type: 'application/javascript' });
             const workletUrl = URL.createObjectURL(workletBlob);
             await audioContextRef.current.audioWorklet.addModule(workletUrl);
             URL.revokeObjectURL(workletUrl);
 
-            // Get microphone access
             streamRef.current = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,
@@ -280,7 +414,6 @@ export function useGeminiVoice({
                 },
             });
 
-            // Connect microphone to worklet
             const source = audioContextRef.current.createMediaStreamSource(streamRef.current);
             workletNodeRef.current = new AudioWorkletNode(audioContextRef.current, 'audio-processor');
 
@@ -288,15 +421,16 @@ export function useGeminiVoice({
                 if (event.data.type === 'intensity') {
                     audioIntensityRef.current = event.data.value;
                     const now = Date.now();
-                    // Throttle React state updates to 100ms to avoid breaking the UI
                     if (now - lastIntensityUpdateRef.current > 100) {
                         setAudioIntensity(event.data.value);
                         lastIntensityUpdateRef.current = now;
                     }
                     onAudioIntensity?.(event.data.value);
-                } else if (event.data.type === 'audio' && wsRef.current?.readyState === WebSocket.OPEN && isListeningRef.current) {
-                    // Send audio to Gemini
-                    const base64Audio = btoa(String.fromCharCode(...new Uint8Array(event.data.data)));
+                    return;
+                }
+
+                if (event.data.type === 'audio' && wsRef.current?.readyState === WebSocket.OPEN && isListeningRef.current) {
+                    const base64Audio = uint8ToBase64(new Uint8Array(event.data.data));
                     wsRef.current.send(JSON.stringify({
                         realtimeInput: {
                             mediaChunks: [{
@@ -318,7 +452,6 @@ export function useGeminiVoice({
             wsRef.current = new WebSocket(wsUrl);
 
             wsRef.current.onopen = () => {
-                // Send setup message
                 wsRef.current?.send(JSON.stringify({
                     setup: {
                         model: `models/${liveModel}`,
@@ -345,75 +478,46 @@ export function useGeminiVoice({
             wsRef.current.onmessage = handleMessage;
 
             wsRef.current.onerror = () => {
-                setError('Falha na conexão de voz.');
+                setError('Falha ao conectar com o modo voz. Tente iniciar uma nova sessao.');
+                setIsProcessing(false);
             };
 
             wsRef.current.onclose = () => {
-                isConnectedRef.current = false;
-                isListeningRef.current = false;
-                setIsConnected(false);
-                setIsListening(false);
+                wsRef.current = null;
+                const wasSetupComplete = setupCompleteRef.current;
+                cleanupResources();
+                if (!manualCloseRef.current && !wasSetupComplete) {
+                    setError('A conexao de voz foi encerrada antes da confirmacao do Live API.');
+                }
             };
-
-        } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : 'Não foi possível iniciar o modo voz.';
-            setError(message);
+        } catch (caught: unknown) {
+            cleanupResources();
+            setError(toFriendlyVoiceError(caught instanceof Error ? caught.message : undefined));
         }
-    }, [handleMessage, isConnected, model, onAudioIntensity, systemInstruction, token, voiceName]);
+    }, [cleanupResources, handleMessage, model, onAudioIntensity, systemInstruction, token, voiceName]);
 
-    // End voice session
     const endSession = useCallback(() => {
-        stopAudioPlayback();
-
+        manualCloseRef.current = true;
         if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
         }
+        cleanupResources();
+    }, [cleanupResources]);
 
-        if (workletNodeRef.current) {
-            workletNodeRef.current.disconnect();
-            workletNodeRef.current = null;
-        }
-
-        if (silenceNodeRef.current) {
-            silenceNodeRef.current.disconnect();
-            silenceNodeRef.current = null;
-        }
-
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-
-        if (audioContextRef.current) {
-            audioContextRef.current.close();
-            audioContextRef.current = null;
-        }
-
-        setIsConnected(false);
-        setIsListening(false);
-        isConnectedRef.current = false;
-        isListeningRef.current = false;
-        setIsSpeaking(false);
-        setIsProcessing(false);
-        setAudioIntensity(0);
-        audioIntensityRef.current = 0;
-    }, [stopAudioPlayback]);
-
-    // Toggle listening
     const toggleListening = useCallback(() => {
         if (!isConnected) {
-            startSession();
-        } else {
-            setIsListening((previous) => {
-                const next = !previous;
-                isListeningRef.current = next;
-                return next;
-            });
+            void startSession();
+            return;
         }
+
+        setIsListening((previous) => {
+            const next = !previous;
+            isListeningRef.current = next;
+            return next;
+        });
     }, [isConnected, startSession]);
 
-    // Send text message
     const sendTextMessage = useCallback((text: string) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
@@ -427,12 +531,12 @@ export function useGeminiVoice({
         }));
     }, []);
 
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            endSession();
-        };
-    }, [endSession]);
+    useEffect(() => () => {
+        manualCloseRef.current = true;
+        cleanupResources();
+        wsRef.current?.close();
+        wsRef.current = null;
+    }, [cleanupResources]);
 
     return {
         isConnected,

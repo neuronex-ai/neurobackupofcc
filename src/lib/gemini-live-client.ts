@@ -52,6 +52,28 @@ type GeminiSetupMessage = {
     };
 };
 
+const toFriendlyLiveError = (message?: string) => {
+    const raw = message || "";
+    if (
+        raw.includes("<!DOCTYPE") ||
+        raw.includes("Unexpected token") ||
+        raw.includes("not valid JSON") ||
+        raw.includes("401") ||
+        raw.includes("403")
+    ) {
+        return "A credencial temporaria de voz nao foi aceita pelo Live API. Gere uma nova sessao e tente novamente.";
+    }
+    return raw || "Conexao falhou com a IA de audio";
+};
+
+const parseLiveMessage = (raw: unknown): GeminiLiveMessage => {
+    if (typeof raw !== "string") throw new Error("Evento de voz em formato inesperado.");
+    const text = raw.trim();
+    if (!text) throw new Error("Evento de voz vazio.");
+    if (text.startsWith("<")) throw new Error("Resposta HTML recebida do Live API.");
+    return JSON.parse(text) as GeminiLiveMessage;
+};
+
 export interface GeminiClientOptions {
     token: string;
     model?: string;
@@ -191,12 +213,22 @@ export class GeminiLiveClient {
     private handleSocketMessage(evt: MessageEvent) {
         let msg: GeminiLiveMessage;
         if (typeof evt.data === 'string') {
-            msg = JSON.parse(evt.data) as GeminiLiveMessage;
+            try {
+                msg = parseLiveMessage(evt.data);
+            } catch (error: unknown) {
+                this.options.onError?.(new Error(toFriendlyLiveError(error instanceof Error ? error.message : undefined)));
+                this.options.onStatusChange?.('error');
+                return;
+            }
         } else {
             // It might be a Blob if we set binaryType, but Gemini uses stringified JSON or base64 JSON
             const reader = new FileReader();
             reader.onload = () => {
                 this.handleSocketMessage(new MessageEvent('message', { data: reader.result }));
+            };
+            reader.onerror = () => {
+                this.options.onError?.(new Error("Nao consegui ler a resposta do canal de voz."));
+                this.options.onStatusChange?.('error');
             };
             reader.readAsText(evt.data);
             return;
@@ -214,7 +246,7 @@ export class GeminiLiveClient {
         if (msg.serverContent?.modelTurn) {
             const parts = msg.serverContent.modelTurn.parts || [];
             for (const part of parts) {
-                if (part.inlineData?.mimeType.startsWith('audio/pcm')) {
+                if (part.inlineData?.mimeType?.startsWith('audio/pcm')) {
                     this.playReceivedAudio(part.inlineData.data);
                 } else if (part.functionCall) {
                     this.executeTool(part.functionCall);
@@ -237,7 +269,7 @@ export class GeminiLiveClient {
 
         // Error handling
         if (msg.error) {
-            this.options.onError?.(new Error(msg.error.message || "Erro no Live API"));
+            this.options.onError?.(new Error(toFriendlyLiveError(msg.error.message)));
         }
     }
 
