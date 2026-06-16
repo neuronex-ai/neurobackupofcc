@@ -206,24 +206,24 @@ export const MobileTeleconsulta = () => {
                                 <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-20 -mt-20" />
 
                                 <div className="relative z-10 flex items-center justify-between">
-                                    <div className="space-y-4 flex-1">
+                                    <div className="min-w-0 flex-1 space-y-4">
                                         <div className="space-y-1">
                                             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-background/50">
                                                 {isSameDay(new Date(nextAppointment.start_time), new Date()) ? 'Hoje' : format(new Date(nextAppointment.start_time), "dd 'de' MMM", { locale: ptBR })} às {format(new Date(nextAppointment.start_time), 'HH:mm')}
                                             </p>
                                             <h2 className="text-2xl font-black tracking-tight truncate pr-4">{nextAppointment.patient_name}</h2>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="px-3 py-1.5 rounded-xl bg-background/10 backdrop-blur-md border border-background/20 flex items-center gap-2">
-                                                <Video className="w-3.5 h-3.5" />
-                                                <span className="text-[10px] font-bold uppercase tracking-widest">Acessar Teleconsulta</span>
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <div className="flex min-w-0 max-w-full items-center gap-2 rounded-xl border border-background/20 bg-background/10 px-3 py-1.5 backdrop-blur-md">
+                                                <Video className="h-3.5 w-3.5 shrink-0" />
+                                                <span className="truncate text-[10px] font-bold uppercase tracking-[0.14em]">Acessar Teleconsulta</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     <motion.div
                                         whileTap={{ scale: 0.9 }}
-                                        className="w-16 h-16 rounded-[24px] bg-background text-foreground flex items-center justify-center shadow-xl"
+                                        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-background text-foreground shadow-xl"
                                     >
                                         <Play className="w-6 h-6 fill-current ml-1" />
                                     </motion.div>
