@@ -141,8 +141,15 @@ export const MobileBottomNav = () => {
                 </motion.nav>
             )}
 
+            <MobileMainMenuSheet
+                open={menuOpen}
+                onOpenChange={setMenuOpen}
+                publicMode={publicMode}
+                onWaitlist={() => setWaitlistOpen(true)}
+            />
+
             <AnimatePresence>
-                {menuOpen ? (
+                {false && menuOpen ? (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
