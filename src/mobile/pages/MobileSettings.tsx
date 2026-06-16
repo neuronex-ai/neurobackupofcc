@@ -320,6 +320,35 @@ export const MobileSettings = () => {
         },
     ];
 
+    const refinedMenuGroups: Array<{ title: string; items: MenuItem[] }> = [
+        {
+            title: "Conta",
+            items: [
+                { value: "profile", label: "Perfil profissional", description: "Identidade, CRP e dados publicos.", icon: User },
+                { value: "security", label: "Login e seguranca", description: "Biometria, senha, MFA e PIN.", icon: Shield },
+                { value: "subscription", label: "Plano", description: "Assinatura e recursos ativos.", icon: CreditCard },
+            ],
+        },
+        {
+            title: "Sistema",
+            items: [
+                { value: "prefs", label: "Interface", description: "Tema, idioma, fuso e movimento.", icon: Monitor },
+                { value: "notifications", label: "Notificacoes", description: "E-mail, app e push nativo.", icon: Bell },
+                { value: "google", label: "Google Sync", description: "Agenda e servicos conectados.", customIcon: <GoogleIcon className="h-5 w-5" /> },
+                { value: "communication", label: "Mensagens", description: "Modelos para lembretes e cobrancas.", icon: MessageSquare },
+            ],
+        },
+        {
+            title: "Clinica e financeiro",
+            items: [
+                { value: "payments", label: "NeuroFinance", description: "Conta, status e operacoes.", icon: Wallet },
+                { value: "reports", label: "Relatorios", description: "Resumo clinico mensal.", icon: FileBarChart },
+                { value: "fiscal", label: "Fiscal", description: "Dados para emissao fiscal.", icon: Building },
+                ...(canAccess("multiple_professionals") ? [{ value: "organization" as SettingsView, label: "Clinica e equipe", description: "Profissionais e permissoes.", icon: Building }] : []),
+            ],
+        },
+    ];
+
     return (
         <MobilePageScaffold showBottomNavigation={view === "main"}>
             <AnimatePresence mode="wait" initial={false}>
