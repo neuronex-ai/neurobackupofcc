@@ -22,6 +22,11 @@ type MobilePatientOption = {
   name?: string | null;
 };
 
+const entryTypes: Array<{ value: EntryType; label: string; icon: typeof ArrowUpRight }> = [
+  { value: "income", label: "Entrada", icon: ArrowUpRight },
+  { value: "expense", label: "Despesa", icon: ArrowDownRight },
+];
+
 export function MobileFinancialEntrySheet({
   open,
   onOpenChange,
@@ -101,44 +106,55 @@ export function MobileFinancialEntrySheet({
           disabled={!valid}
           loading={addTransaction.isPending}
           onClick={() => void submit()}
-          className="min-h-14 w-full rounded-[18px]"
+          className="min-h-14 w-full rounded-2xl"
         >
           Salvar lançamento
         </MobileFinanceButton>
       }
     >
       <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-2 rounded-[20px] border border-border/40 bg-card/60 p-1.5 dark:border-white/10 dark:bg-white/[0.03]">
-          {[
-            { value: "income" as const, label: "Entrada", icon: ArrowUpRight },
-            { value: "expense" as const, label: "Despesa", icon: ArrowDownRight },
-          ].map((item) => {
-            const Icon = item.icon;
-            const active = type === item.value;
-            return (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setType(item.value)}
-                className={cn(
-                  "flex h-12 items-center justify-center gap-2 rounded-[15px] text-[11px] font-black uppercase tracking-[0.1em] transition",
-                  active
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground active:bg-foreground/[0.045]",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
+        <fieldset>
+          <legend className="text-xs font-semibold uppercase text-muted-foreground">
+            Tipo de lançamento
+          </legend>
+          <div className="mt-2 grid grid-cols-2 gap-1 rounded-2xl border border-border/60 bg-background p-1 dark:border-white/10">
+            {entryTypes.map((item) => {
+              const Icon = item.icon;
+              const active = type === item.value;
+
+              return (
+                <label
+                  key={item.value}
+                  className={cn(
+                    "relative flex min-h-12 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background motion-reduce:transition-none",
+                    active
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:bg-muted/70",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="mobile-finance-entry-type"
+                    value={item.value}
+                    checked={active}
+                    onChange={() => setType(item.value)}
+                    className="sr-only"
+                  />
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  {item.label}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
 
         <MobileFinanceField label="Descrição">
           <Input
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             placeholder="Ex.: sessão, aluguel, material"
+            autoComplete="off"
+            aria-invalid={description.length > 0 && description.trim().length < 2}
             className={mobileFinanceInputClassName}
           />
         </MobileFinanceField>
@@ -149,7 +165,8 @@ export function MobileFinancialEntrySheet({
             onChange={(event) => setAmount(event.target.value)}
             inputMode="decimal"
             placeholder="0,00"
-            className={cn(mobileFinanceInputClassName, "h-14 text-xl font-black tracking-[-0.03em]")}
+            aria-invalid={amount.length > 0 && numericAmount <= 0}
+            className={cn(mobileFinanceInputClassName, "h-14 text-xl font-semibold")}
           />
         </MobileFinanceField>
 
@@ -159,6 +176,7 @@ export function MobileFinancialEntrySheet({
               value={date}
               onChange={(event) => setDate(event.target.value)}
               type="date"
+              aria-invalid={!date}
               className={mobileFinanceInputClassName}
             />
           </MobileFinanceField>
@@ -167,6 +185,7 @@ export function MobileFinancialEntrySheet({
               value={category}
               onChange={(event) => setCategory(event.target.value)}
               placeholder="Opcional"
+              autoComplete="off"
               className={mobileFinanceInputClassName}
             />
           </MobileFinanceField>
