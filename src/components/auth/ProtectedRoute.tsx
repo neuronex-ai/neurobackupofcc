@@ -14,6 +14,6 @@ export const ProtectedRoute = ({ children, isFullScreen = false }: ProtectedRout
   useUserPreferences();
   if (isLoading) return null;
   if (!user) return <Navigate to="/auth" replace />;
-  const content = <><SettingsSimplifierRuntime /><SessionAssuranceOverlay /><WelcomeTourModal />{children}</>;
+  const content = <><SettingsSimplifierRuntime /><SessionAssuranceOverlay />{!isFullScreen && <WelcomeTourModal />}{children}</>;
   return isFullScreen ? content : <Layout>{content}</Layout>;
 };
