@@ -156,7 +156,7 @@ export function MobileFinancialManagementPage() {
                 : "O mês pede atenção: revise despesas e pendências antes de projetar novos compromissos."
             }
             icon={Scale}
-            tone={resultTone}
+            tone="default"
           >
             <div className="grid grid-cols-2 gap-2.5">
               <MobileFinanceButton

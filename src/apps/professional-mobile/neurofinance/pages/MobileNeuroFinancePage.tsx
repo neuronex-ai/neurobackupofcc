@@ -209,7 +209,7 @@ export function MobileNeuroFinancePage() {
                 : "Valores ocultos nesta sessão. As operações continuam protegidas por PIN."
             }
             icon={Wallet}
-            tone={approved ? "dark" : "warning"}
+            tone={approved ? "default" : "warning"}
             action={
               <MobileFinanceButton
                 variant={approved ? "light" : "secondary"}
