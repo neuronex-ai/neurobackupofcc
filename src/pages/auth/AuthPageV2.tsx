@@ -26,12 +26,12 @@ import {
   type BiometricStatus,
   type StoredBiometricAccount,
 } from '@/lib/native-mobile-security';
+import { cn } from '@/lib/utils';
 import type { Session } from '@supabase/supabase-js';
 import { Eye, EyeOff, Fingerprint, Loader2, ShieldCheck } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
 
 const AuthPageV2 = () => {
   const navigate = useNavigate();
@@ -78,7 +78,7 @@ const AuthPageV2 = () => {
     const preference = getBiometricPreferenceForUser(session.user.id);
     if (!hasNativeSecureBridge() || !isBiometricStatusUsable(status)) return false;
     if (account?.userId === session.user.id) return false;
-    if (preference !== "unset") return false;
+    if (preference !== 'unset') return false;
     setPendingBiometricSession(session);
     setBiometricPromptOpen(true);
     return true;
@@ -119,8 +119,11 @@ const AuthPageV2 = () => {
         localStorage.removeItem('neuronex_remembered_email');
       }
       await evaluateSession();
-    } catch (cause) { toast.error(cause instanceof Error ? cause.message : 'Não foi possível entrar.'); }
-    finally { setLoading(false); }
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'Nao foi possivel entrar.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const unlockWithBiometrics = async () => {
@@ -180,7 +183,11 @@ const AuthPageV2 = () => {
     await redirect();
   };
 
-  const cancelMfa = async () => { setMfaOpen(false); await supabase.auth.signOut(); };
+  const cancelMfa = async () => {
+    setMfaOpen(false);
+    await supabase.auth.signOut();
+  };
+
   const canUseBiometrics =
     role !== 'patient' &&
     hasNativeSecureBridge() &&
@@ -194,37 +201,168 @@ const AuthPageV2 = () => {
   }, [autoBiometricAttempted, biometricLoading, canUseBiometrics, loading]);
 
   const isDarkTheme = theme === 'dark';
-  const authShellClass = isDarkTheme ? "bg-[#020202] text-white" : "bg-[#f8f8f6] text-[#171514]";
+  const authShellClass = isDarkTheme ? 'bg-[#020202] text-white' : 'bg-[#f8f8f6] text-[#171514]';
   const authFrameClass = isDarkTheme
-    ? "border-black/80 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.14),transparent_30%),linear-gradient(145deg,#020202_0%,#141414_48%,#030303_100%)] shadow-[0_28px_82px_-48px_rgba(255,255,255,0.2)]"
-    : "border-black/[0.055] bg-[#f8f8f6] shadow-[0_28px_82px_-50px_rgba(0,0,0,0.42)]";
+    ? 'border-black/80 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.14),transparent_30%),linear-gradient(145deg,#020202_0%,#141414_48%,#030303_100%)] shadow-[0_28px_82px_-48px_rgba(255,255,255,0.2)]'
+    : 'border-black/[0.055] bg-[#f8f8f6] shadow-[0_28px_82px_-50px_rgba(0,0,0,0.42)]';
   const authPanelClass = isDarkTheme
-    ? "bg-[linear-gradient(160deg,#ffffff_0%,#f4f3ef_48%,#e7e6e0_100%)] text-[#171514]"
-    : "bg-[linear-gradient(160deg,#292626_0%,#201e1e_48%,#171515_100%)] text-white";
+    ? 'bg-[linear-gradient(160deg,#ffffff_0%,#f4f3ef_48%,#e7e6e0_100%)] text-[#171514]'
+    : 'bg-[linear-gradient(160deg,#292626_0%,#201e1e_48%,#171515_100%)] text-white';
   const authInputClass = cn(
-    "h-[3.25rem] rounded-[4px] border-x-0 border-t-0 bg-transparent px-3 text-sm font-semibold shadow-none backdrop-blur-0 transition-colors duration-200",
-    "focus-visible:ring-0 focus-visible:ring-offset-0",
+    'h-[3.25rem] rounded-[4px] border-x-0 border-t-0 bg-transparent px-3 text-sm font-semibold shadow-none backdrop-blur-0 transition-colors duration-200',
+    'focus-visible:ring-0 focus-visible:ring-offset-0',
     isDarkTheme
-      ? "border-black/10 text-[#171514] placeholder:text-[#98a0ad] hover:bg-zinc-100/70 focus-visible:border-black/20 focus-visible:bg-zinc-200/80 selection:bg-white selection:text-black"
-      : "border-white/40 text-white placeholder:text-white/60 hover:bg-black/10 focus-visible:border-white/60 focus-visible:bg-black/25 selection:bg-white selection:text-[#171514]",
+      ? 'border-black/10 text-[#171514] placeholder:text-[#98a0ad] hover:bg-zinc-100/70 focus-visible:border-black/20 focus-visible:bg-zinc-200/80 selection:bg-white selection:text-black'
+      : 'border-white/40 text-white placeholder:text-white/60 hover:bg-black/10 focus-visible:border-white/60 focus-visible:bg-black/25 selection:bg-white selection:text-[#171514]',
   );
   const authPrimaryButtonClass = isDarkTheme
-    ? "bg-[#201e1e] text-white shadow-[0_12px_24px_-18px_rgba(0,0,0,0.78)] hover:bg-black"
-    : "bg-[#fff1f4] text-[#171514] shadow-[0_12px_26px_-20px_rgba(255,255,255,0.72)] hover:bg-white";
+    ? 'bg-[#201e1e] text-white shadow-[0_12px_24px_-18px_rgba(0,0,0,0.78)] hover:bg-black'
+    : 'bg-[#fff1f4] text-[#171514] shadow-[0_12px_26px_-20px_rgba(255,255,255,0.72)] hover:bg-white';
   const authSecondaryButtonClass = isDarkTheme
-    ? "border-black/10 bg-black/[0.035] text-[#171514] hover:bg-zinc-200/80"
-    : "border-white/16 bg-white/[0.035] text-white hover:bg-white/[0.075]";
+    ? 'border-black/10 bg-black/[0.035] text-[#171514] hover:bg-zinc-200/80'
+    : 'border-white/15 bg-white/[0.035] text-white hover:bg-white/[0.075]';
   const logoSrc = isDarkTheme ? '/favicon-light.png' : '/favicon-dark.png';
+
+  const renderAuthPanel = (size: 'mobile' | 'desktop') => {
+    const isDesktopPanel = size === 'desktop';
+    return (
+      <div className={cn(
+        'mx-0 shadow-[0_-20px_54px_-38px_rgba(0,0,0,0.72)]',
+        isDesktopPanel
+          ? 'rounded-b-[40px] rounded-t-[38px] px-10 pb-10 pt-12'
+          : 'min-h-[min(58dvh,32.5rem)] rounded-b-[36px] rounded-t-[34px] px-8 pb-7 pt-11',
+        authPanelClass,
+      )}>
+        <form onSubmit={submit} className="space-y-7">
+          <Input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder={isDesktopPanel ? 'E-mail' : 'Email'}
+            className={authInputClass}
+          />
+          <div className="relative">
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder={isDesktopPanel ? 'Senha' : 'Password'}
+              className={cn(authInputClass, 'pr-10')}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-current/60 transition-colors hover:text-current"
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className={cn(
+              isDesktopPanel ? 'mt-8 h-14 rounded-[12px]' : 'mt-8 h-12 rounded-[10px]',
+              'w-full text-[11px] font-black',
+              authPrimaryButtonClass,
+            )}
+          >
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Login'}
+          </Button>
+        </form>
+
+        {canUseBiometrics ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={biometricLoading || loading}
+            onClick={() => void unlockWithBiometrics()}
+            className={cn(
+              isDesktopPanel ? 'mt-3 h-14 rounded-[12px]' : 'mt-3 h-12 rounded-[10px]',
+              'w-full text-[10px] font-black uppercase tracking-[.12em]',
+              authSecondaryButtonClass,
+            )}
+          >
+            {biometricLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Fingerprint className="mr-2 h-4 w-4" />}
+            Entrar com biometria
+          </Button>
+        ) : null}
+
+        <button
+          onClick={() => setForgotOpen(true)}
+          className="mt-7 w-full text-center text-xs font-semibold text-current/72 transition-colors hover:text-current"
+        >
+          Esqueci minha senha
+        </button>
+        <div className="mt-8 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-current/55">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Sessao protegida
+        </div>
+      </div>
+    );
+  };
+
+  const renderRememberControl = (size: 'mobile' | 'desktop') => (
+    <label className={cn(
+      'flex items-center justify-end gap-3 text-xs font-bold text-current',
+      size === 'desktop' ? 'px-10 pt-4' : 'px-8 pt-3',
+    )}>
+      <span>Remember me</span>
+      <input
+        type="checkbox"
+        checked={remember}
+        onChange={(event) => setRemember(event.target.checked)}
+        className="h-4 w-7 accent-current"
+      />
+    </label>
+  );
+
+  const authDialogs = (
+    <>
+      <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
+      <TotpMfaDialog open={mfaOpen} mode="challenge" onOpenChange={setMfaOpen} onSuccess={finishAuthenticatedSession} onCancel={cancelMfa} />
+      <Dialog
+        open={biometricPromptOpen}
+        onOpenChange={(open) => {
+          if (biometricLoading) return;
+          if (!open) void skipBiometrics();
+          else setBiometricPromptOpen(open);
+        }}
+      >
+        <DialogContent className="max-w-sm rounded-[28px] p-6">
+          <DialogHeader>
+            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-[18px] border border-border/40 bg-card">
+              <Fingerprint className="h-5 w-5" />
+            </div>
+            <DialogTitle>Entrar com biometria?</DialogTitle>
+            <DialogDescription>
+              Ative neste aparelho para desbloquear o app com digital, rosto ou senha do dispositivo. Se falhar, o login normal continua disponivel.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:space-x-0">
+            <Button type="button" variant="ghost" disabled={biometricLoading} onClick={() => void skipBiometrics()}>
+              Agora nao
+            </Button>
+            <Button type="button" disabled={biometricLoading} onClick={() => void enableBiometrics()}>
+              {biometricLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Ativar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 
   if (isMobile) {
     return (
       <main className={cn(
-        "relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[calc(1rem+env(safe-area-inset-top))]",
+        'relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-[calc(1rem+env(safe-area-inset-top))]',
         authShellClass,
       )}>
         <section className={cn(
-          "relative w-full max-w-[23.5rem] overflow-hidden rounded-[40px] border px-0 pb-5 pt-8",
-          "min-h-[min(82dvh,43rem)]",
+          'relative w-full max-w-[23.5rem] overflow-hidden rounded-[40px] border px-0 pb-5 pt-8',
+          'min-h-[min(82dvh,43rem)]',
           authFrameClass,
         )}>
           <div className="flex min-h-[7.25rem] items-start justify-center pt-1 text-center">
@@ -232,179 +370,36 @@ const AuthPageV2 = () => {
             <h1 className="sr-only">{role === 'patient' ? 'Area do paciente' : 'Acesso profissional'}</h1>
           </div>
 
-          <div className={cn(
-            "mx-0 min-h-[min(58dvh,32.5rem)] rounded-b-[36px] rounded-t-[34px] px-8 pb-7 pt-11 shadow-[0_-18px_44px_-34px_rgba(0,0,0,0.65)]",
-            authPanelClass,
-          )}>
-          <form onSubmit={submit} className="space-y-7">
-            <Input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Email"
-              className={authInputClass}
-            />
-            <div className="relative">
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Password"
-                className={cn(authInputClass, "pr-10")}
-              />
-              <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-current/60 transition-colors hover:text-current" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className={cn(
-                "mt-8 h-12 w-full rounded-[10px] text-[11px] font-black",
-                authPrimaryButtonClass,
-              )}
-            >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Login'}
-            </Button>
-          </form>
-
-          {canUseBiometrics ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={biometricLoading || loading}
-              onClick={() => void unlockWithBiometrics()}
-              className={cn(
-                "mt-3 h-12 w-full rounded-[10px] text-[10px] font-black uppercase tracking-[.12em]",
-                authSecondaryButtonClass,
-              )}
-            >
-              {biometricLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Fingerprint className="mr-2 h-4 w-4" />}
-              Entrar com biometria
-            </Button>
-          ) : null}
-
-          <button onClick={() => setForgotOpen(true)} className="mt-6 w-full text-center text-xs font-semibold text-current/70">Esqueci minha senha</button>
-          <div className="mt-7 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-current/55"><ShieldCheck className="h-3.5 w-3.5" /> Sessao protegida</div>
-          </div>
-          <label className="flex items-center justify-end gap-3 px-8 pt-3 text-xs font-bold text-current">
-            <span>Remember me</span>
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(event) => setRemember(event.target.checked)}
-              className="h-4 w-7 accent-current"
-            />
-          </label>
+          {renderAuthPanel('mobile')}
+          {renderRememberControl('mobile')}
         </section>
 
-        <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
-        <TotpMfaDialog open={mfaOpen} mode="challenge" onOpenChange={setMfaOpen} onSuccess={finishAuthenticatedSession} onCancel={cancelMfa} />
-        <Dialog
-          open={biometricPromptOpen}
-          onOpenChange={(open) => {
-            if (biometricLoading) return;
-            if (!open) void skipBiometrics();
-            else setBiometricPromptOpen(open);
-          }}
-        >
-          <DialogContent className="max-w-sm rounded-[28px] p-6">
-            <DialogHeader>
-              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-[18px] border border-border/40 bg-card">
-                <Fingerprint className="h-5 w-5" />
-              </div>
-              <DialogTitle>Entrar com biometria?</DialogTitle>
-              <DialogDescription>
-                Ative neste aparelho para desbloquear o app com digital, rosto ou senha do dispositivo. Se falhar, o login normal continua disponivel.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="gap-2 sm:space-x-0">
-              <Button type="button" variant="ghost" disabled={biometricLoading} onClick={() => void skipBiometrics()}>
-                Agora nao
-              </Button>
-              <Button type="button" disabled={biometricLoading} onClick={() => void enableBiometrics()}>
-                {biometricLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Ativar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {authDialogs}
       </main>
     );
   }
 
-  return <main className={cn(
-    "relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10",
-    authShellClass,
-  )}>
-    <section className={cn(
-      "relative w-full max-w-[31rem] overflow-hidden rounded-[44px] border px-0 pb-6 pt-10",
-      authFrameClass,
+  return (
+    <main className={cn(
+      'relative flex min-h-screen items-center justify-center overflow-hidden px-6 py-10',
+      authShellClass,
     )}>
-      <div className="mb-8 text-center"><img src="/favicon-light.png" alt="NeuroNex" className="mx-auto h-16 w-16 object-contain" /><h1 className="mt-5 text-3xl font-black tracking-tight">{role === 'patient' ? 'Área do paciente' : 'Acesso profissional'}</h1><p className="mt-2 text-xs font-bold uppercase tracking-[.2em] text-muted-foreground">Segurança NeuroNex</p></div>
-      <form onSubmit={submit} className="space-y-4">
-        <div className="relative"><Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="E-mail" className="h-14 rounded-2xl pl-11" /></div>
-        <div className="relative"><Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Senha" className="h-14 rounded-2xl px-11" /><button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div>
-        <label className="flex items-center gap-3 text-xs text-muted-foreground"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /> Manter meu e-mail neste dispositivo</label>
-        <Button type="submit" disabled={loading} className="h-14 w-full rounded-2xl font-black uppercase tracking-[.2em]">{loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Entrar'}</Button>
-      </form>
-      {canUseBiometrics ? (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={biometricLoading || loading}
-          onClick={() => void unlockWithBiometrics()}
-          className="mt-3 h-14 w-full rounded-2xl font-black uppercase tracking-[.16em]"
-        >
-          {biometricLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Fingerprint className="mr-2 h-4 w-4" />}
-          Entrar com biometria
-        </Button>
-      ) : null}
-      <button onClick={() => setForgotOpen(true)} className="mt-6 w-full text-center text-xs font-semibold text-muted-foreground hover:text-foreground">Esqueci minha senha</button>
-      <div className="mt-7 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-muted-foreground"><ShieldCheck className="h-3.5 w-3.5" /> Sessão protegida</div>
-    </section>
-    <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
-    <TotpMfaDialog open={mfaOpen} mode="challenge" onOpenChange={setMfaOpen} onSuccess={finishAuthenticatedSession} onCancel={cancelMfa} />
-    <Dialog
-      open={biometricPromptOpen}
-      onOpenChange={(open) => {
-        if (biometricLoading) return;
-        if (!open) void skipBiometrics();
-        else setBiometricPromptOpen(open);
-      }}
-    >
-      <DialogContent className="max-w-sm rounded-[28px] p-6">
-        <DialogHeader>
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-[18px] border border-border/40 bg-card">
-            <Fingerprint className="h-5 w-5" />
-          </div>
-          <DialogTitle>Entrar com biometria?</DialogTitle>
-          <DialogDescription>
-            Ative neste aparelho para desbloquear o app com digital, rosto ou senha do dispositivo. Se falhar, o login normal continua disponivel.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="gap-2 sm:space-x-0">
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={biometricLoading}
-            onClick={() => void skipBiometrics()}
-          >
-            Agora nao
-          </Button>
-          <Button
-            type="button"
-            disabled={biometricLoading}
-            onClick={() => void enableBiometrics()}
-          >
-            {biometricLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Ativar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  </main>;
+      <section className={cn(
+        'relative w-full max-w-[31rem] overflow-hidden rounded-[44px] border px-0 pb-6 pt-10',
+        authFrameClass,
+      )}>
+        <div className="flex min-h-[9.25rem] items-start justify-center pt-2 text-center">
+          <img src={logoSrc} alt="NeuroNex" className="h-16 w-16 object-contain" />
+          <h1 className="sr-only">{role === 'patient' ? 'Area do paciente' : 'Acesso profissional'}</h1>
+        </div>
+
+        {renderAuthPanel('desktop')}
+        {renderRememberControl('desktop')}
+      </section>
+
+      {authDialogs}
+    </main>
+  );
 };
 
 export default AuthPageV2;
