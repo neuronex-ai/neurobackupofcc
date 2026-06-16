@@ -140,7 +140,7 @@ const SettingsHero = ({ logoSrc, profileName }: { logoSrc: string; profileName?:
     </section>
 );
 
-const SubviewHeader = ({ title, description, onBack, logoSrc }: { title: string; description?: string; onBack: () => void; logoSrc: string }) => (
+const SubviewHeader = ({ title, description, onBack, logoSrc }: { title: string; description?: string; onBack: () => void; logoSrc?: string }) => (
     <header className={cn("relative mb-4 overflow-hidden rounded-[32px] px-5 pb-6 pt-5 text-center", premiumSurfaceClass)}>
         <Button
             type="button"
@@ -153,7 +153,11 @@ const SubviewHeader = ({ title, description, onBack, logoSrc }: { title: string;
                 <span className="sr-only">Voltar</span>
         </Button>
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[21px] bg-white/82 dark:bg-black/34">
-            <img src={logoSrc} alt="NeuroNex" className="h-8 w-8 object-contain" />
+            <img
+                src={logoSrc || (typeof document !== "undefined" && document.documentElement.classList.contains("dark") ? "/favicon-light.png" : "/favicon-dark.png")}
+                alt="NeuroNex"
+                className="h-8 w-8 object-contain"
+            />
         </div>
         <p className="mt-5 text-[8px] font-black uppercase tracking-[0.22em] text-current/42">Ajustes</p>
         <h1 className="mx-auto mt-2 max-w-[16rem] text-[2rem] font-black leading-[0.9] tracking-[-0.055em] text-current">
@@ -348,6 +352,9 @@ export const MobileSettings = () => {
             ],
         },
     ];
+    const MobilePageHeader = (_props: { eyebrow?: string; title: string; description?: string }) => (
+        <SettingsHero logoSrc={logoSrc} profileName={profileName} />
+    );
 
     return (
         <MobilePageScaffold
@@ -403,7 +410,7 @@ export const MobileSettings = () => {
                     <motion.div key={view} initial={{ opacity: 0, x: 6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 6 }} transition={{ duration: 0.16 }} className="pb-2">
                         {view === "profile" ? (
                             <>
-                                <SubviewHeader title="Perfil profissional" description="Dados usados na sua conta e documentos." onBack={() => setView("main")} />
+                                <SubviewHeader title="Perfil profissional" description="Dados usados na sua conta e documentos." onBack={() => setView("main")} logoSrc={logoSrc} />
                                 <SettingsPanel><ProfessionalProfileForm /></SettingsPanel>
                             </>
                         ) : null}
