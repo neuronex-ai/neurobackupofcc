@@ -1,54 +1,66 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-const VOICE_CONFIG_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/get-voice-config";
-
 interface VoiceConfig {
-    key: string;
+    token: string;
+    expiresAt: string;
+    newSessionExpiresAt: string;
+    model: string;
+    voiceName: string;
 }
 
 export function useVoiceConfig() {
-    const [apiKey, setApiKey] = useState<string | null>(null);
+    const [token, setToken] = useState<string | null>(null);
+    const [expiresAt, setExpiresAt] = useState<string | null>(null);
+    const [newSessionExpiresAt, setNewSessionExpiresAt] = useState<string | null>(null);
+    const [model, setModel] = useState('gemini-3.1-flash-live-preview');
+    const [voiceName, setVoiceName] = useState('Kore');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchConfig = async () => {
-            setIsLoading(true);
-            setError(null);
+    const refresh = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
 
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session?.access_token) {
-                    setError('Not authenticated');
-                    setIsLoading(false);
-                    return;
-                }
+        try {
+            const { data, error: invokeError } = await supabase.functions.invoke<VoiceConfig>('get-voice-config', {
+                method: 'POST',
+            });
 
-                const response = await fetch(VOICE_CONFIG_URL, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${session.access_token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
+            if (invokeError) throw new Error(invokeError.message);
+            if (!data?.token) throw new Error('Token de voz indisponível.');
 
-                if (!response.ok) {
-                    throw new Error('Failed to fetch voice config');
-                }
-
-                const data: VoiceConfig = await response.json();
-                setApiKey(data.key);
-            } catch (e: any) {
-                console.error('[useVoiceConfig] Error:', e);
-                setError(e.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchConfig();
+            setToken(data.token);
+            setExpiresAt(data.expiresAt);
+            setNewSessionExpiresAt(data.newSessionExpiresAt);
+            setModel(data.model || 'gemini-3.1-flash-live-preview');
+            setVoiceName(data.voiceName || 'Kore');
+            return data;
+        } catch (caught) {
+            const message = caught instanceof Error ? caught.message : 'Não foi possível preparar o modo voz.';
+            setError(message);
+            throw new Error(message);
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
 
-    return { apiKey, isLoading, error };
+    useEffect(() => {
+        refresh().catch(() => {
+            if (typeof window !== 'undefined') {
+                setIsLoading(false);
+            }
+        });
+    }, [refresh]);
+
+    return {
+        token,
+        expiresAt,
+        newSessionExpiresAt,
+        model,
+        voiceName,
+        isLoading,
+        error,
+        refresh,
+    };
 }
