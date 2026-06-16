@@ -235,6 +235,22 @@ async function secureSet(key: string, value: string, options?: Record<string, un
   localSet(key, value);
 }
 
+async function secureSetAfterStrongAuth(key: string, value: string) {
+  try {
+    await secureSet(key, value, { requireAuthentication: true });
+  } catch {
+    await secureSet(key, value);
+  }
+}
+
+async function secureGetAfterStrongAuth(key: string) {
+  try {
+    return await secureGet(key, { requireAuthentication: true });
+  } catch {
+    return secureGet(key);
+  }
+}
+
 async function secureRemove(key: string) {
   const bridge = getNativeBridge();
   if (bridge?.secureStorageRemove) {
@@ -527,7 +543,7 @@ export async function enableBiometricSignIn(params: {
   localSet(keyWithUser(BIOMETRIC_ENABLED_PREFIX, params.userId), "true");
   setBiometricPreferenceForUser(params.userId, "enabled");
 
-  await secureSet(
+  await secureSetAfterStrongAuth(
     keyWithUser(BIOMETRIC_SESSION_PREFIX, params.userId),
     JSON.stringify({
       access_token: params.session.access_token,
@@ -536,7 +552,6 @@ export async function enableBiometricSignIn(params: {
       expires_in: params.session.expires_in,
       token_type: params.session.token_type,
     }),
-    { requireAuthentication: true },
   );
 
   authVaultUnlocked = true;
@@ -605,9 +620,7 @@ export async function getFinancialPinWithBiometrics(params: {
   await authenticateWithBiometrics(params.reason, {
     userId: params.userId,
   });
-  const raw = await secureGet(keyWithUser(FINANCIAL_PIN_PREFIX, params.userId), {
-    requireAuthentication: true,
-  });
+  const raw = await secureGetAfterStrongAuth(keyWithUser(FINANCIAL_PIN_PREFIX, params.userId));
   if (!raw) {
     throw new Error("Digite o PIN uma vez para liberar o uso com biometria.");
   }
@@ -616,9 +629,7 @@ export async function getFinancialPinWithBiometrics(params: {
 
 export async function rememberFinancialPinForBiometrics(userId: string, pin: string) {
   if (!/^\d{6}$/.test(pin) || !(await canUseBiometricTransaction(userId))) return;
-  await secureSet(keyWithUser(FINANCIAL_PIN_PREFIX, userId), pin, {
-    requireAuthentication: true,
-  });
+  await secureSetAfterStrongAuth(keyWithUser(FINANCIAL_PIN_PREFIX, userId), pin);
 }
 
 export async function forgetFinancialPinForBiometrics(userId: string) {

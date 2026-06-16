@@ -100,7 +100,7 @@ export function MobileCodeScannerSheet({
       setError(null);
       if (mode === "boleto") await lockLandscapeBestEffort();
 
-      if (hasNativeCodeScanner()) {
+      if (mode === "pix" && hasNativeCodeScanner()) {
         setState("native");
         try {
           const value = await scanCodeWithNative({ mode });
@@ -391,7 +391,7 @@ function normalizeDetectedValue(mode: ScannerMode, value?: string | null) {
 async function waitForVideoElement(
   ref: RefObject<HTMLVideoElement>,
   isCancelled: () => boolean,
-  timeoutMs = 1600,
+  timeoutMs = 4200,
 ) {
   const startedAt = Date.now();
 

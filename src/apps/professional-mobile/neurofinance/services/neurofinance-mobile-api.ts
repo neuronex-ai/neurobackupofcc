@@ -117,6 +117,30 @@ export type ChargeResult = {
   billing_type: string;
 };
 
+async function extractFunctionError(error: unknown, fallback?: string) {
+  if (!error) return fallback || "";
+
+  const context = (error as { context?: unknown }).context;
+  if (context && typeof Response !== "undefined" && context instanceof Response) {
+    try {
+      const payload = await context.clone().json() as Record<string, unknown>;
+      const message = payload.error || payload.message || payload.details;
+      if (message) return String(message);
+    } catch {
+      try {
+        const text = await context.clone().text();
+        if (text && !/Edge Function/i.test(text)) return text;
+      } catch {
+        // Keep the fallback below.
+      }
+    }
+  }
+
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (/Edge Function/i.test(message) && fallback) return fallback;
+  return message || fallback || "";
+}
+
 async function invoke<T>(
   functionName: string,
   body: Record<string, unknown>,
@@ -130,6 +154,8 @@ async function invoke<T>(
       : "";
 
   if (error || (responseError && !explicitSuccess)) {
+    const message = await extractFunctionError(error, responseError);
+    throw new Error(message || "Nao foi possivel concluir a operacao.");
     throw new Error(
       responseError || error?.message || "Não foi possível concluir a operação.",
     );
