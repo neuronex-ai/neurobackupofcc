@@ -326,13 +326,13 @@ export const MobileTeleconsulta = () => {
                                                 key={apt.id}
                                                 className="group relative"
                                             >
-                                                <div className="p-4 rounded-[28px] bg-card border border-border/30 shadow-sm flex items-center gap-4 transition-all active:scale-[0.98]" onClick={() => handleStartSession(apt)}>
+                                                <div className="flex items-center gap-3 rounded-[28px] border border-border/30 bg-card p-4 shadow-sm transition-all active:scale-[0.98]" onClick={() => handleStartSession(apt)}>
                                                     <div className="flex flex-col items-center justify-center min-w-[55px] space-y-1">
                                                         <span className="text-[16px] font-black text-foreground">{format(new Date(apt.start_time), 'HH:mm')}</span>
                                                         <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{format(new Date(apt.start_time), 'dd MMM', { locale: ptBR })}</span>
                                                     </div>
 
-                                                    <div className="w-px h-10 bg-border/20" />
+                                                    <div className="h-10 w-px shrink-0 bg-border/20" />
 
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="text-[14px] font-bold text-foreground truncate">{apt.patient_name}</h4>
@@ -347,17 +347,17 @@ export const MobileTeleconsulta = () => {
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex shrink-0 items-center gap-1.5">
                                                         {viewMode === 'upcoming' && (
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); setReminderAppointment(apt); }}
-                                                                className="w-10 h-10 rounded-[18px] bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 transition-all flex items-center justify-center shadow-inner"
+                                                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] bg-emerald-500/5 text-emerald-600 shadow-inner transition-all hover:bg-emerald-500/10"
                                                             >
                                                                 <Send className="w-4 h-4" />
                                                             </button>
                                                         )}
                                                         <button
-                                                            className="w-10 h-10 rounded-[18px] bg-foreground/[0.03] border border-border/10 flex items-center justify-center group-active:bg-foreground group-active:text-background transition-all"
+                                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border border-border/10 bg-foreground/[0.03] transition-all group-active:bg-foreground group-active:text-background"
                                                         >
                                                             {viewMode === 'upcoming' ? <Play className="w-3.5 h-3.5 fill-current ml-0.5" /> : <ChevronRight className="w-4 h-4" />}
                                                         </button>
