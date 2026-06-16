@@ -150,7 +150,7 @@ export default function CreateAccount() {
   const submitIdentity = async () => {
     try {
       await flow.sendVerificationEmail();
-      toast.success("Enviamos a confirmação para o seu e-mail.");
+      toast.success("Enviamos o código para o seu e-mail.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível enviar o e-mail de confirmação.");
     }

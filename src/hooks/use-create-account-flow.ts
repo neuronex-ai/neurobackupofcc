@@ -147,6 +147,11 @@ function validateEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function isExistingUserError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  return /already|registered|exists|existente|registrado/i.test(error.message);
+}
+
 async function persistDraftToProfile({ user, draft }: PersistProfileParams) {
   const { firstName, lastName } = splitFullName(draft.fullName);
   const now = new Date().toISOString();
@@ -247,7 +252,7 @@ export function useCreateAccountFlow() {
       writeDraftToStorage(normalizedDraft);
       setDraftState(normalizedDraft);
 
-      const { error } = await supabase.auth.signUp({
+      const signup = await supabase.auth.signUp({
         email,
         password: createTemporarySignupPassword(),
         options: {
@@ -265,7 +270,21 @@ export function useCreateAccountFlow() {
           },
         },
       });
-      if (error) throw error;
+      if (signup.error) {
+        if (!isExistingUserError(signup.error)) throw signup.error;
+
+        const resend = await supabase.auth.resend({
+          type: "signup",
+          email,
+          options: {
+            emailRedirectTo: `${getOrigin()}/create-account?verified=1`,
+          },
+        });
+
+        if (resend.error) {
+          throw new Error("Este e-mail já possui uma conta. Faça login ou use outro e-mail para criar uma nova conta.");
+        }
+      }
       setEmailDialogOpen(true);
       setResendCooldown(45);
     } finally {
