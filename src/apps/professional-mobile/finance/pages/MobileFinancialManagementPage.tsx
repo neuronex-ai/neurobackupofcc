@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { format, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -25,6 +25,7 @@ import { MobileLayout } from "@/mobile/components/MobileLayout";
 
 import { MobileFinancialEntrySheet } from "../components/MobileFinancialEntrySheet";
 import {
+  MobileActionButton,
   MobileEmptyState,
   MobileFinanceButton,
   MobileFinanceHero,
@@ -57,12 +58,6 @@ const filters: Array<{ value: TransactionFilter; label: string }> = [
   { value: "expense", label: "Despesas" },
 ];
 
-const filterLabels: Record<TransactionFilter, string> = {
-  all: "Todas",
-  income: "Receitas",
-  expense: "Despesas",
-};
-
 const formatTransactionDate = (transaction: MobileFinanceTransaction) => {
   const rawDate = transaction.date || transaction.created_at;
   if (!rawDate) return "Recente";
@@ -78,13 +73,8 @@ const getTransactionTime = (transaction: MobileFinanceTransaction) => {
   return Number.isFinite(time) ? time : 0;
 };
 
-const prefersReducedMotion = () =>
-  typeof window !== "undefined" &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
 export function MobileFinancialManagementPage() {
   const navigate = useNavigate();
-  const transactionsRef = useRef<HTMLElement>(null);
   const { data: metrics, isLoading } = useFinancialMetrics();
   const { data: transactionData = [] } = useTransactions(subMonths(new Date(), 3));
   const transactions = transactionData as MobileFinanceTransaction[];
@@ -95,7 +85,11 @@ export function MobileFinancialManagementPage() {
   const recent = useMemo(
     () =>
       [...transactions]
-        .sort((a, b) => getTransactionTime(b) - getTransactionTime(a))
+        .sort(
+          (a, b) =>
+            getTransactionTime(b) -
+            getTransactionTime(a),
+        )
         .slice(0, 16),
     [transactions],
   );
@@ -112,10 +106,6 @@ export function MobileFinancialManagementPage() {
   const result = Number(metrics?.netProfit || 0);
   const pendingInvoices = Number(metrics?.pendingInvoices || 0);
   const resultTone = result >= 0 ? "success" : "warning";
-  const resultDescription =
-    result >= 0
-      ? "A operação está positiva no período. Continue acompanhando recebíveis e despesas recorrentes."
-      : "O período pede atenção. Revise despesas e pendências antes de assumir novos compromissos.";
 
   const openEntry = (type: EntryType) => {
     setEntryType(type);
@@ -126,28 +116,14 @@ export function MobileFinancialManagementPage() {
     navigate(area === "management" ? "/financeiro" : "/financeiro/neurofinance");
   };
 
-  const focusTransactions = (nextFilter: TransactionFilter) => {
-    setFilter(nextFilter);
-    requestAnimationFrame(() => {
-      transactionsRef.current?.scrollIntoView({
-        block: "start",
-        behavior: prefersReducedMotion() ? "auto" : "smooth",
-      });
-    });
-  };
-
-  const announcePending = () => {
-    toast.info(`${pendingInvoices} pendência(s) identificada(s) neste período.`);
-  };
-
   return (
     <MobileLayout className="min-h-screen bg-background px-0">
-      <div className="mobile-scroll-owner h-full overflow-y-auto overflow-x-hidden px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-3">
-        <div className="mx-auto max-w-md space-y-5">
+      <div className="mobile-scroll-owner h-full overflow-y-auto overflow-x-hidden px-5 pb-32 pt-4">
+        <div className="space-y-6">
           <MobilePageTitle
             eyebrow="Operação do consultório"
             title="Financeiro"
-            description="Controle receitas, despesas e previsibilidade sem movimentar dinheiro real."
+            description="Controle administrativo para receitas, despesas e previsibilidade sem movimentar dinheiro real."
             action={
               <MobileFinanceIconButton
                 icon={Plus}
@@ -179,65 +155,71 @@ export function MobileFinancialManagementPage() {
 
           <MobileFinanceHero
             eyebrow="Resultado do mês"
-            title="Resumo operacional"
-            value={isLoading ? "-" : formatMoney(result)}
-            description={resultDescription}
+            title="Gestão Financeira"
+            value={isLoading ? "—" : formatMoney(result)}
+            description={
+              result >= 0
+                ? "A operação está positiva neste período. Continue acompanhando recebíveis e despesas recorrentes."
+                : "O mês pede atenção: revise despesas e pendências antes de projetar novos compromissos."
+            }
             icon={Scale}
-            tone={result >= 0 ? "default" : "warning"}
+            tone="default"
           >
             <div className="grid grid-cols-2 gap-2.5">
-              <MobileFinanceButton onClick={() => openEntry("income")}>
-                <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+              <MobileFinanceButton
+                variant="primary"
+                onClick={() => openEntry("income")}
+              >
+                <ArrowUpRight className="h-4 w-4" />
                 Entrada
               </MobileFinanceButton>
               <MobileFinanceButton
                 variant="secondary"
+                className="border-foreground/10 bg-background/70 text-foreground"
                 onClick={() => openEntry("expense")}
               >
-                <ArrowDownRight className="h-4 w-4" aria-hidden="true" />
+                <ArrowDownRight className="h-4 w-4" />
                 Despesa
               </MobileFinanceButton>
             </div>
           </MobileFinanceHero>
 
-          <section className="space-y-3" aria-labelledby="finance-metrics-title">
-            <MobileSectionTitle
-              title="Indicadores"
-              description="Toque em uma métrica para filtrar lançamentos relacionados."
+          <section className="grid grid-cols-2 gap-3">
+            <MobileMetricCard
+              label="Recebido"
+              value={isLoading ? "—" : formatMoney(metrics?.currentMonthRevenue)}
+              caption="Entradas confirmadas"
+              icon={ArrowUpRight}
+              tone="success"
+              onClick={() => setFilter("income")}
             />
-            <div id="finance-metrics-title" className="grid grid-cols-2 gap-3">
-              <MobileMetricCard
-                label="Recebido"
-                value={isLoading ? "-" : formatMoney(metrics?.currentMonthRevenue)}
-                caption="Entradas confirmadas"
-                icon={ArrowUpRight}
-                tone="success"
-                onClick={() => focusTransactions("income")}
-              />
-              <MobileMetricCard
-                label="A receber"
-                value={isLoading ? "-" : formatMoney(metrics?.projectedRevenue)}
-                caption={`${pendingInvoices} pendência(s)`}
-                icon={WalletCards}
-                tone={pendingInvoices > 0 ? "warning" : "default"}
-                onClick={announcePending}
-              />
-              <MobileMetricCard
-                label="Despesas"
-                value={isLoading ? "-" : formatMoney(metrics?.currentMonthExpenses)}
-                caption="Custos registrados"
-                icon={ArrowDownRight}
-                tone="danger"
-                onClick={() => focusTransactions("expense")}
-              />
-              <MobileMetricCard
-                label="Resultado"
-                value={isLoading ? "-" : formatMoney(metrics?.netProfit)}
-                caption="Receitas menos despesas"
-                icon={CircleDollarSign}
-                tone={resultTone}
-              />
-            </div>
+            <MobileMetricCard
+              label="A receber"
+              value={isLoading ? "—" : formatMoney(metrics?.projectedRevenue)}
+              caption={`${pendingInvoices} pendência(s)`}
+              icon={WalletCards}
+              tone={pendingInvoices > 0 ? "warning" : "default"}
+              onClick={() =>
+                toast.info(
+                  `${pendingInvoices} pendência(s) identificada(s) neste período.`,
+                )
+              }
+            />
+            <MobileMetricCard
+              label="Despesas"
+              value={isLoading ? "—" : formatMoney(metrics?.currentMonthExpenses)}
+              caption="Custos registrados"
+              icon={ArrowDownRight}
+              tone="danger"
+              onClick={() => setFilter("expense")}
+            />
+            <MobileMetricCard
+              label="Resultado"
+              value={isLoading ? "—" : formatMoney(metrics?.netProfit)}
+              caption="Receitas menos despesas"
+              icon={CircleDollarSign}
+              tone={resultTone}
+            />
           </section>
 
           <MobileFinanceInsightStrip
@@ -261,40 +243,42 @@ export function MobileFinancialManagementPage() {
             ]}
           />
 
-          <section className="space-y-3">
+          <section className="space-y-4">
             <MobileSectionTitle
               title="Ações principais"
-              description="Tarefas frequentes com revisão clara antes de salvar."
+              description="Tarefas frequentes com alvos grandes e decisão clara."
             />
-            <div className="space-y-2" role="list">
-              <MobileFinanceListRow
+            <div className="grid grid-cols-2 gap-3">
+              <MobileActionButton
+                label="Registrar entrada"
+                description="Recebimento ou receita manual"
                 icon={ArrowUpRight}
-                title="Registrar entrada"
-                description="Recebimento, sessão ou receita manual."
-                status="Gestão"
                 tone="success"
                 onClick={() => openEntry("income")}
               />
-              <MobileFinanceListRow
+              <MobileActionButton
+                label="Registrar despesa"
+                description="Custo ou pagamento externo"
                 icon={ArrowDownRight}
-                title="Registrar despesa"
-                description="Custo, pagamento externo ou ajuste administrativo."
-                status="Gestão"
                 tone="danger"
                 onClick={() => openEntry("expense")}
               />
-              <MobileFinanceListRow
+              <MobileActionButton
+                label="Ver pendências"
+                description="Valores ainda não recebidos"
                 icon={ListChecks}
-                title="Ver pendências"
-                description="Recebíveis que ainda precisam de acompanhamento."
-                value={`${pendingInvoices}`}
-                tone={pendingInvoices > 0 ? "warning" : "success"}
-                onClick={announcePending}
+                badge={`${pendingInvoices}`}
+                tone={pendingInvoices > 0 ? "warning" : "default"}
+                onClick={() =>
+                  toast.info(
+                    `${pendingInvoices} pendência(s) identificada(s) neste período.`,
+                  )
+                }
               />
-              <MobileFinanceListRow
+              <MobileActionButton
+                label="Analisar caixa"
+                description="Pergunte ao Synapse"
                 icon={Bot}
-                title="Analisar caixa"
-                description="Abra o Synapse para interpretar o período atual."
                 onClick={() => navigate("/synapse-ai")}
               />
             </div>
@@ -311,14 +295,14 @@ export function MobileFinancialManagementPage() {
             />
           </section>
 
-          <section ref={transactionsRef} className="scroll-mt-24 space-y-3">
+          <section className="space-y-4">
             <MobileSectionTitle
               title="Lançamentos recentes"
               description="Movimentos administrativos registrados no consultório."
               trailing={
                 <MobileFinanceButton
                   variant="ghost"
-                  className="min-h-10 px-3"
+                  className="min-h-9 px-2.5"
                   onClick={() => navigate("/synapse-ai")}
                 >
                   Relatório
@@ -326,37 +310,24 @@ export function MobileFinancialManagementPage() {
               }
             />
 
-            <p className="sr-only" aria-live="polite">
-              Filtro atual: {filterLabels[filter]}. {visibleTransactions.length} lançamento(s).
-            </p>
-
-            <div
-              role="tablist"
-              aria-label="Filtro de lançamentos"
-              className="grid grid-cols-3 gap-1 rounded-2xl border border-border/60 bg-background/85 p-1 dark:border-white/10"
-            >
-              {filters.map((item) => {
-                const active = filter === item.value;
-
-                return (
+            <div className="-mx-5 overflow-x-auto px-5 pb-1 no-scrollbar">
+              <div className="flex gap-2">
+                {filters.map((item) => (
                   <button
                     key={item.value}
                     type="button"
-                    role="tab"
-                    aria-selected={active}
-                    aria-controls="finance-transactions-panel"
                     onClick={() => setFilter(item.value)}
                     className={cn(
-                      "min-h-11 rounded-xl px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none",
-                      active
+                      "min-h-10 shrink-0 rounded-[13px] px-4 text-[8px] font-black uppercase tracking-[0.12em] transition",
+                      filter === item.value
                         ? "bg-foreground text-background"
-                        : "text-muted-foreground hover:bg-muted/70",
+                        : "border border-border/40 bg-card/70 text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]",
                     )}
                   >
                     {item.label}
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
 
             {visibleTransactions.length === 0 ? (
@@ -366,18 +337,13 @@ export function MobileFinancialManagementPage() {
                 description="Registre uma entrada ou despesa para iniciar o acompanhamento financeiro."
                 action={
                   <MobileFinanceButton onClick={() => openEntry("income")}>
-                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <Plus className="h-4 w-4" />
                     Novo lançamento
                   </MobileFinanceButton>
                 }
               />
             ) : (
-              <div
-                id="finance-transactions-panel"
-                role="list"
-                aria-live="polite"
-                className="space-y-2"
-              >
+              <div className="space-y-2">
                 {visibleTransactions.slice(0, 10).map((transaction) => {
                   const income = transaction.type === "income";
                   const amount = Math.abs(Number(transaction.amount || 0));
@@ -389,7 +355,7 @@ export function MobileFinancialManagementPage() {
                       title={transaction.description || "Lançamento"}
                       description={transaction.category || "Sem categoria"}
                       meta={formatTransactionDate(transaction)}
-                      value={`${income ? "+" : "-"} ${formatMoney(amount)}`}
+                      value={`${income ? "+" : "−"} ${formatMoney(amount)}`}
                       tone={income ? "success" : "danger"}
                     />
                   );
