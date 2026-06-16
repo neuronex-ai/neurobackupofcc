@@ -42,6 +42,19 @@ type PersistProfileParams = {
 const STORAGE_KEY = "neuronex.create-account.draft.v1";
 const SPECIAL_CHARS = /[@#<!$%&*;/?:]/;
 
+function createTemporarySignupPassword() {
+  const bytes = new Uint8Array(24);
+  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+    window.crypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Math.floor(Math.random() * 256);
+    }
+  }
+  const token = Array.from(bytes, (byte) => byte.toString(36).padStart(2, "0")).join("");
+  return `Nn@${token.slice(0, 28)}`;
+}
+
 export const emptyCreateAccountDraft: CreateAccountDraft = {
   fullName: "",
   email: "",
@@ -234,10 +247,10 @@ export function useCreateAccountFlow() {
       writeDraftToStorage(normalizedDraft);
       setDraftState(normalizedDraft);
 
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signUp({
         email,
+        password: createTemporarySignupPassword(),
         options: {
-          shouldCreateUser: true,
           emailRedirectTo: `${getOrigin()}/create-account?verified=1`,
           data: {
             first_name: firstName,
@@ -271,7 +284,7 @@ export function useCreateAccountFlow() {
       const { data, error } = await supabase.auth.verifyOtp({
         email,
         token: otp,
-        type: "email",
+        type: "signup",
       });
       if (error) throw error;
       const verifiedSession = data.session || (await supabase.auth.getSession()).data.session;
@@ -291,10 +304,10 @@ export function useCreateAccountFlow() {
     setLoading(true);
     try {
       const email = normalizeEmail(draft.email);
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.resend({
+        type: "signup",
         email,
         options: {
-          shouldCreateUser: true,
           emailRedirectTo: `${getOrigin()}/create-account?verified=1`,
         },
       });

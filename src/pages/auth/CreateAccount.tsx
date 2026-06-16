@@ -769,8 +769,8 @@ function EmailCodeConfirmSheet({
               Enviamos um código para o seu e-mail.
             </DialogTitle>
             <DialogDescription className="mx-auto max-w-[20rem] pt-2 text-center text-sm font-semibold leading-relaxed text-black/55 dark:text-white/55">
-              Digite o código que enviamos para <span className="font-black text-black dark:text-white">{email}</span>{" "}
-              ou clique no botão <span className="font-black text-black dark:text-white">Confirmar e-mail</span> dentro da mensagem.
+              Digite o código de 6 dígitos que enviamos para{" "}
+              <span className="font-black text-black dark:text-white">{email}</span>.
             </DialogDescription>
           </DialogHeader>
 
@@ -789,7 +789,7 @@ function EmailCodeConfirmSheet({
           </div>
 
           <div className="mt-6 rounded-[22px] border border-black/8 bg-black/[0.025] p-4 text-xs font-semibold leading-relaxed text-black/55 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/55">
-            Para garantir sua segurança, fazemos uma validação em duas etapas via e-mail. Se não encontrar a mensagem, verifique Promoções ou Spam.
+            O e-mail de cadastro contém somente o código. Se não encontrar a mensagem, verifique Promoções ou Spam.
           </div>
 
           <div className="mt-6 grid grid-cols-[0.8fr_1.2fr] gap-3">
@@ -810,7 +810,7 @@ function EmailCodeConfirmSheet({
             className="mt-5 inline-flex w-full items-center justify-center gap-2 text-center text-xs font-black text-black/55 underline-offset-4 hover:text-black hover:underline disabled:opacity-45 dark:text-white/55 dark:hover:text-white"
           >
             <Mail className="h-3.5 w-3.5" />
-            {cooldown > 0 ? `Reenviar em ${cooldown}s` : "Reenviar link para e-mail de cadastro"}
+            {cooldown > 0 ? `Reenviar em ${cooldown}s` : "Reenviar código por e-mail"}
           </button>
         </div>
       </DialogContent>
