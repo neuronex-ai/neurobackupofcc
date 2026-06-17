@@ -262,15 +262,17 @@ export default function Notes() {
             {/* Master Texture Overlay */}
             <div className="pointer-events-none absolute inset-0 z-0 premium-noise opacity-[0.035] mix-blend-overlay [.light_&]:opacity-[0.02]" />
 
-            {/* Ambient Background Glows */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="liquid-mesh-bg !opacity-35 dark:!opacity-55" />
-                <div className="brand-neutral-gradient opacity-65" />
-            </div>
+            {/* Ambient Background Glows moved to Stage */}
 
             <div className="relative isolate z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 items-stretch px-5 pb-5 pt-28 [contain:layout_paint]">
-                {/* Master Clipping Stage - O "quadrado" solicitado para acoplar os canvas */}
+                {/* Master Clipping Stage - O "quadrado" solicitado para acoplar os canvas e gradientes */}
                 <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[30px] [clip-path:inset(0_round_30px)] [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
+                    {/* Ambient Background Glows - Agora vinculados à moldura da janela */}
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+                        <div className="liquid-mesh-bg !opacity-35 dark:!opacity-55" />
+                        <div className="brand-neutral-gradient opacity-65" />
+                    </div>
+
                     <motion.div
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
