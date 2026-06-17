@@ -21,6 +21,8 @@ type DestinationBody = {
   pix?: {
     key?: string;
     type?: string;
+    normalizedKey?: string;
+    normalized_key?: string;
   };
 };
 
@@ -58,6 +60,7 @@ function normalizedPix(input: DestinationBody["pix"]) {
   if (!key) return null;
   return {
     key,
+    normalizedKey: clean(input.normalizedKey || input.normalized_key, 140) || key,
     type: clean(input.type, 32) || "manual",
     updatedAt: new Date().toISOString(),
   };

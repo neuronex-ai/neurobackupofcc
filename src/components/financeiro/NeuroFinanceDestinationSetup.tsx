@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDocumentInput, formatPixKeyInput, onlyDigits } from "@/lib/financial-input";
+import { formatDocumentInput, formatPixKeyInput, normalizePixKeyInput, onlyDigits, type PixKeyInputType } from "@/lib/financial-input";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface NeuroFinanceDestinationSetupProps {
@@ -24,7 +24,16 @@ export function NeuroFinanceDestinationSetup({ onComplete }: NeuroFinanceDestina
     account: "",
     digit: "",
   });
+  const [pixKeyType, setPixKeyType] = useState<PixKeyInputType>("cpf");
   const [pixKey, setPixKey] = useState("");
+
+  const pixKeyTypes: Array<{ value: PixKeyInputType; label: string; hint: string }> = [
+    { value: "cpf", label: "CPF", hint: "000.000.000-00" },
+    { value: "cnpj", label: "CNPJ", hint: "00.000.000/0000-00" },
+    { value: "email", label: "E-mail", hint: "voce@email.com" },
+    { value: "telefone", label: "Telefone", hint: "+55 (00) 00000-0000" },
+    { value: "evp", label: "Aleatória", hint: "Chave aleatória Pix" },
+  ];
 
   const setBankField = (field: keyof typeof bank, value: string) => {
     setBank((current) => ({ ...current, [field]: value }));
@@ -44,6 +53,11 @@ export function NeuroFinanceDestinationSetup({ onComplete }: NeuroFinanceDestina
       return;
     }
 
+    if (hasPixData && !normalizePixKeyInput(pixKey, pixKeyType)) {
+      toast.error("Informe uma chave Pix válida.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke("neurofinance-post-onboarding", {
@@ -58,7 +72,11 @@ export function NeuroFinanceDestinationSetup({ onComplete }: NeuroFinanceDestina
             digit: onlyDigits(bank.digit),
             accountType: "CONTA_CORRENTE",
           } : undefined,
-          pix: hasPixData ? { key: pixKey.trim(), type: "manual" } : undefined,
+          pix: hasPixData ? {
+            key: pixKey.trim(),
+            normalizedKey: normalizePixKeyInput(pixKey, pixKeyType),
+            type: pixKeyType,
+          } : undefined,
         },
       });
 
@@ -107,8 +125,27 @@ export function NeuroFinanceDestinationSetup({ onComplete }: NeuroFinanceDestina
               <h4 className="text-sm font-black text-zinc-950 dark:text-white">Para saques rápidos</h4>
             </div>
           </div>
+          <div className="mb-3 grid grid-cols-3 gap-2">
+            {pixKeyTypes.map((type) => (
+              <button
+                key={type.value}
+                type="button"
+                onClick={() => {
+                  setPixKeyType(type.value);
+                  setPixKey((current) => formatPixKeyInput(current, type.value));
+                }}
+                className={`h-10 rounded-2xl border text-[9px] font-black uppercase tracking-[0.12em] transition-colors ${
+                  pixKeyType === type.value
+                    ? "border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950"
+                    : "border-zinc-200 bg-white/70 text-zinc-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-400"
+                }`}
+              >
+                {type.label}
+              </button>
+            ))}
+          </div>
           <Field label="Sua chave Pix pessoal">
-            <Input value={pixKey} onChange={(e) => setPixKey(formatPixKeyInput(e.target.value))} placeholder="CPF, e-mail, telefone ou chave aleatória" />
+            <Input value={pixKey} onChange={(e) => setPixKey(formatPixKeyInput(e.target.value, pixKeyType))} placeholder={pixKeyTypes.find((type) => type.value === pixKeyType)?.hint || "Digite a chave Pix"} />
           </Field>
           <p className="mt-4 rounded-2xl border border-zinc-200/70 bg-white/70 p-4 text-[11px] font-semibold leading-relaxed text-zinc-500 dark:border-white/10 dark:bg-white/[0.035] dark:text-zinc-400">
             Você pode informar só a chave Pix, só a conta bancária ou ambos. Esses dados ficam disponíveis em Ajustes &gt; Conta bancária e na tela de Saques.

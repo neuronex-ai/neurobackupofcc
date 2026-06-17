@@ -69,6 +69,7 @@ Deno.serve(async (req: Request) => {
         const profile = body.profile || {};
         const businessProfile = body.business_profile || {};
         const bankAccount = body.bank_account || {};
+        const pixDestination = body.pix_destination || body.pix || null;
         const normalizedAccount = normalizeAccountNumber(bankAccount.account_number, bankAccount.account_digit);
         const cpfCnpjDigits = sanitizeDigits(cpfCnpj);
         const bankCode = sanitizeDigits(bankAccount.bank_code);
@@ -216,6 +217,18 @@ Deno.serve(async (req: Request) => {
                 asaas_account_id: subAccount.id,
                 asaas_account_number: subAccount.accountNumber || null,
                 bank_account_info_submitted: Boolean(bankUpdateResult),
+                payout_destination: body.payout_destination || null,
+                destinations: {
+                    ...(pixDestination?.key ? {
+                        pix: {
+                            type: pixDestination.type || 'manual',
+                            key: pixDestination.key,
+                            normalized_key: pixDestination.normalized_key || pixDestination.normalizedKey || pixDestination.key,
+                            updated_at: now,
+                        },
+                    } : {}),
+                    updated_at: now,
+                },
             },
         });
 

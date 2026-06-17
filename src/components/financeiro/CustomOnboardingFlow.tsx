@@ -6,10 +6,16 @@ import {
     ArrowRight,
     Briefcase,
     Building2,
+    Camera,
     CheckCircle2,
+    CreditCard,
+    FileUp,
+    KeyRound,
     Loader2,
     MapPin,
     Pencil,
+    QrCode,
+    ReceiptText,
     ShieldCheck,
     Upload,
     User,
@@ -22,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { TermsOfUseModal } from "./TermsOfUseModal";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
+import { useNeuroFinanceTariffs } from "@/hooks/use-neurofinance-tariffs";
 import { AsaasStamp } from "./AsaasStamp";
 import {
     Select,
@@ -31,6 +38,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { NeuroFinanceCardVisual } from "@/components/landing/Feature3DVisuals";
+import { formatPixKeyInput, normalizePixKeyInput, type PixKeyInputType } from "@/lib/financial-input";
+import type { TariffRule } from "@/lib/neurofinance-types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface CustomOnboardingFlowProps {
@@ -48,6 +57,7 @@ type Step =
     | "success";
 
 type PepValue = "none" | "existing";
+type PayoutMethod = "pix" | "bank" | "both";
 
 type FormData = {
     firstName: string;
@@ -73,6 +83,9 @@ type FormData = {
     bankCode: string;
     agency: string;
     accountNumber: string;
+    payoutMethod: PayoutMethod;
+    pixKeyType: PixKeyInputType;
+    pixKey: string;
 
     tosAccepted: boolean;
 };
@@ -106,9 +119,72 @@ const INITIAL_FORM: FormData = {
     bankCode: "",
     agency: "",
     accountNumber: "",
+    payoutMethod: "pix",
+    pixKeyType: "cpf",
+    pixKey: "",
 
     tosAccepted: false,
 };
+
+const PIX_KEY_TYPES: Array<{ value: PixKeyInputType; label: string; hint: string }> = [
+    { value: "cpf", label: "CPF", hint: "000.000.000-00" },
+    { value: "cnpj", label: "CNPJ", hint: "00.000.000/0000-00" },
+    { value: "email", label: "E-mail", hint: "voce@email.com" },
+    { value: "telefone", label: "Telefone", hint: "+55 (00) 00000-0000" },
+    { value: "evp", label: "Aleatória", hint: "Chave aleatória Pix" },
+];
+
+const payoutMethodOptions: Array<{ id: PayoutMethod; title: string; description: string; icon: React.ElementType }> = [
+    { id: "pix", title: "Chave Pix", description: "Mais simples para receber repasses.", icon: KeyRound },
+    { id: "bank", title: "Conta bancária", description: "Agência e conta de mesma titularidade.", icon: Building2 },
+    { id: "both", title: "Pix + banco", description: "Deixe os dois destinos prontos.", icon: ShieldCheck },
+];
+
+const fallbackPaymentFees = [
+    { key: "pix", title: "Pix", icon: QrCode, price: "Tabela vigente", settlement: "Instantâneo" },
+    { key: "boleto", title: "Boleto", icon: ReceiptText, price: "Tabela vigente", settlement: "1 a 2 dias úteis" },
+    { key: "credit", title: "Cartão crédito", icon: CreditCard, price: "Tabela vigente", settlement: "Conforme parcela" },
+    { key: "debit", title: "Cartão débito", icon: CreditCard, price: "Tabela vigente", settlement: "Até 1 dia útil" },
+];
+
+function resolveTariff(ruleSet: TariffRule[], matcher: (rule: TariffRule) => boolean) {
+    return ruleSet.find(matcher);
+}
+
+function buildPaymentFeeCards(ruleSet: TariffRule[] = []) {
+    const findByTerms = (...terms: string[]) =>
+        resolveTariff(ruleSet, (rule) => {
+            const haystack = [
+                rule.code,
+                rule.category,
+                rule.operation,
+                rule.payment_method,
+                rule.display_name,
+                rule.description,
+            ].join(" ").toLowerCase();
+            return terms.every((term) => haystack.includes(term));
+        });
+
+    const mapped = [
+        { ...fallbackPaymentFees[0], rule: findByTerms("pix") },
+        { ...fallbackPaymentFees[1], rule: findByTerms("boleto") },
+        { ...fallbackPaymentFees[2], rule: findByTerms("cart") || findByTerms("credit") || findByTerms("crédito") },
+        { ...fallbackPaymentFees[3], rule: findByTerms("deb") || findByTerms("débito") },
+    ];
+
+    return mapped.map((item) => ({
+        ...item,
+        price: item.rule?.price_label || item.price,
+        settlement: item.rule?.settlement_label || item.settlement,
+    }));
+}
+
+function coercePixKeyType(value: unknown): PixKeyInputType {
+    const normalized = String(value || "").toLowerCase();
+    return ["cpf", "cnpj", "email", "telefone", "evp"].includes(normalized)
+        ? (normalized as PixKeyInputType)
+        : "cpf";
+}
 
 function onlyDigits(value: string) {
     return value.replace(/\D/g, "");
@@ -205,6 +281,14 @@ function buildOnboardingPayload(
             account_number: onlyDigits(formData.accountNumber),
             account_type: "CONTA_CORRENTE",
         },
+        pix_destination: formData.pixKey.trim()
+            ? {
+                type: formData.pixKeyType,
+                key: formData.pixKey.trim(),
+                normalized_key: normalizePixKeyInput(formData.pixKey, formData.pixKeyType),
+            }
+            : null,
+        payout_destination: formData.payoutMethod,
         documents: {
             front_file_id: docs.front || null,
             back_file_id: docs.back || null,
@@ -259,6 +343,75 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     );
 }
 
+function BrandComplianceStrip({ className }: { className?: string }) {
+    return (
+        <div className={cn(
+            "inline-flex items-center gap-3 rounded-full border border-black/10 bg-white/70 px-3 py-2 backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.04]",
+            className
+        )}>
+            <span className="inline-flex items-center gap-2">
+                <img src="/favicon-dark.png" alt="" className="h-5 w-5 dark:hidden" />
+                <img src="/favicon-light.png" alt="" className="hidden h-5 w-5 dark:block" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-950 dark:text-white">
+                    NeuroNex
+                </span>
+            </span>
+            <span className="h-4 w-px bg-black/10 dark:bg-white/15" aria-hidden />
+            <AsaasStamp className="scale-[0.78] origin-left opacity-75 hover:opacity-100" />
+        </div>
+    );
+}
+
+function PaymentFeesPreview({
+    items,
+}: {
+    items: Array<{
+        key: string;
+        title: string;
+        price: string;
+        settlement: string;
+        icon: React.ElementType;
+    }>;
+}) {
+    return (
+        <div className="rounded-[24px] border border-black/10 bg-black/[0.025] p-4 dark:border-white/10 dark:bg-white/[0.025]">
+            <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+                        Taxas e liquidação
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        Resumo para cobranças geradas pelo NeuroFinance.
+                    </p>
+                </div>
+                <ShieldCheck className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                {items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                        <div
+                            key={item.key}
+                            className="rounded-[18px] border border-black/10 bg-white/70 p-3 dark:border-white/10 dark:bg-white/[0.04]"
+                        >
+                            <div className="mb-3 flex items-center justify-between gap-2">
+                                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+                                    <Icon className="h-4 w-4" />
+                                </span>
+                                <span className="text-right text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                                    {item.settlement}
+                                </span>
+                            </div>
+                            <p className="text-sm font-black text-zinc-950 dark:text-white">{item.title}</p>
+                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{item.price}</p>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 export const CustomOnboardingFlow = ({
     onComplete,
     onCancel,
@@ -278,6 +431,8 @@ export const CustomOnboardingFlow = ({
     const fileInputFrontRef = useRef<HTMLInputElement>(null);
     const fileInputBackRef = useRef<HTMLInputElement>(null);
     const hasPrefilledRef = useRef(false);
+    const { data: tariffRules = [] } = useNeuroFinanceTariffs();
+    const paymentFeeCards = useMemo(() => buildPaymentFeeCards(tariffRules), [tariffRules]);
 
     const {
         account,
@@ -296,6 +451,15 @@ export const CustomOnboardingFlow = ({
         const profile = snapshot.profile || {};
         const businessProfile = snapshot.business_profile || {};
         const bankAccount = snapshot.bank_account || {};
+        const destinations = metadata.destinations || {};
+        const pixDestination = snapshot.pix_destination || destinations.pix || {};
+        const hasBankSnapshot = Boolean(
+            account.bank_code ||
+            account.bank_account ||
+            bankAccount.bank_code ||
+            bankAccount.account_number
+        );
+        const hasPixSnapshot = Boolean(pixDestination.key || pixDestination.normalized_key);
         const accountNumber = [
             account.bank_account || bankAccount.account_number || "",
             account.bank_account_digit || bankAccount.account_digit || "",
@@ -323,6 +487,9 @@ export const CustomOnboardingFlow = ({
             bankCode: account.bank_code || bankAccount.bank_code || prev.bankCode,
             agency: account.bank_agency || bankAccount.agency || prev.agency,
             accountNumber: accountNumber || prev.accountNumber,
+            payoutMethod: hasBankSnapshot && hasPixSnapshot ? "both" : hasBankSnapshot ? "bank" : "pix",
+            pixKeyType: coercePixKeyType(pixDestination.type || prev.pixKeyType),
+            pixKey: pixDestination.key || pixDestination.normalized_key || prev.pixKey,
             tosAccepted: Boolean(account.tos_accepted_at || snapshot.tos?.accepted || prev.tosAccepted),
         }));
 
@@ -352,9 +519,19 @@ export const CustomOnboardingFlow = ({
             nextValue = onlyDigits(String(value)).slice(0, 3) as FormData[K];
         if (field === "agency")
             nextValue = onlyDigits(String(value)).slice(0, 10) as FormData[K];
+        if (field === "pixKey")
+            nextValue = formatPixKeyInput(String(value), formData.pixKeyType) as FormData[K];
 
         setFormData((prev) => ({ ...prev, [field]: nextValue }));
     };
+
+    function setPixKeyType(value: PixKeyInputType) {
+        setFormData((prev) => ({
+            ...prev,
+            pixKeyType: value,
+            pixKey: formatPixKeyInput(prev.pixKey, value),
+        }));
+    }
 
 
     async function uploadDocumentsIfNeeded() {
@@ -404,7 +581,7 @@ export const CustomOnboardingFlow = ({
         return null;
     }
 
-    function validateBankingStep() {
+    function validateBankAccountFields() {
         if (onlyDigits(formData.bankCode).length !== 3) {
             return "Informe um código bancário com 3 dígitos.";
         }
@@ -414,6 +591,21 @@ export const CustomOnboardingFlow = ({
         if (onlyDigits(formData.accountNumber).length < 4) {
             return "Informe uma conta bancária válida.";
         }
+        return null;
+    }
+
+    function validateBankingStep() {
+        const needsPix = formData.payoutMethod === "pix" || formData.payoutMethod === "both";
+        const needsBank = formData.payoutMethod === "bank" || formData.payoutMethod === "both";
+
+        if (needsPix && !normalizePixKeyInput(formData.pixKey, formData.pixKeyType)) {
+            return "Informe uma chave Pix válida para receber repasses.";
+        }
+
+        if (needsBank) {
+            return validateBankAccountFields();
+        }
+
         return null;
     }
 
@@ -589,9 +781,12 @@ export const CustomOnboardingFlow = ({
                     <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-zinc-950 dark:text-white">
-                                Ativar NeuroFinance
+                                NeuroFinance
                             </h1>
                             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-md leading-relaxed">
+                                Cobranças, repasses e status financeiro em uma experiência integrada.
+                            </p>
+                            <p className="hidden">
                                 A NeuroNex é a sua plataforma de gestão de alta performance. Toda a infraestrutura financeira (BaaS) é provida de forma segura e transparente pela Asaas.
                             </p>
                         </div>
@@ -866,11 +1061,85 @@ export const CustomOnboardingFlow = ({
 
                     {step === "banking" && (
                         <GlassCard
-                            title="Conta bancária"
-                            subtitle="Conta de mesma titularidade para receber repasses."
-                            icon={<Building2 className="h-5 w-5" />}
+                            title="Recebimento"
+                            subtitle="Escolha como prefere receber os repasses das cobranças."
+                            icon={<KeyRound className="h-5 w-5" />}
                         >
                             <div className="space-y-5">
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    {payoutMethodOptions.map((option) => {
+                                        const Icon = option.icon;
+                                        const active = formData.payoutMethod === option.id;
+
+                                        return (
+                                            <button
+                                                key={option.id}
+                                                type="button"
+                                                onClick={() => setField("payoutMethod", option.id)}
+                                                className={cn(
+                                                    "rounded-[22px] border p-4 text-left transition-all duration-300 active:scale-[0.985]",
+                                                    active
+                                                        ? "border-zinc-950 bg-zinc-950 text-white shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)] dark:border-white dark:bg-white dark:text-zinc-950"
+                                                        : "border-black/10 bg-white/60 text-zinc-950 hover:bg-black/[0.03] dark:border-white/10 dark:bg-white/[0.03] dark:text-white dark:hover:bg-white/[0.06]"
+                                                )}
+                                            >
+                                                <Icon className="mb-4 h-5 w-5" />
+                                                <p className="text-sm font-black">{option.title}</p>
+                                                <p
+                                                    className={cn(
+                                                        "mt-1 text-xs leading-snug",
+                                                        active ? "text-white/70 dark:text-zinc-700" : "text-zinc-500 dark:text-zinc-400"
+                                                    )}
+                                                >
+                                                    {option.description}
+                                                </p>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {(formData.payoutMethod === "pix" || formData.payoutMethod === "both") && (
+                                    <div className="rounded-[24px] border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.025]">
+                                        <div className="mb-4 flex items-center gap-2">
+                                            <KeyRound className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                                            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
+                                                Chave Pix para repasse
+                                            </span>
+                                        </div>
+                                        <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
+                                            <div className="space-y-2">
+                                                <SectionLabel>Tipo da chave</SectionLabel>
+                                                <Select
+                                                    value={formData.pixKeyType}
+                                                    onValueChange={(value: PixKeyInputType) => setPixKeyType(value)}
+                                                >
+                                                    <SelectTrigger className="h-12 rounded-2xl border-black/10 bg-white/70 dark:border-white/10 dark:bg-white/[0.04]">
+                                                        <SelectValue placeholder="Tipo" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {PIX_KEY_TYPES.map((type) => (
+                                                            <SelectItem key={type.value} value={type.value}>
+                                                                {type.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <SectionLabel>Chave Pix</SectionLabel>
+                                                <Input
+                                                    value={formData.pixKey}
+                                                    onChange={(event) => setField("pixKey", event.target.value)}
+                                                    placeholder={PIX_KEY_TYPES.find((type) => type.value === formData.pixKeyType)?.hint || "Digite a chave Pix"}
+                                                    className="h-12 rounded-2xl border-black/10 bg-white/70 dark:border-white/10 dark:bg-white/[0.04]"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(formData.payoutMethod === "bank" || formData.payoutMethod === "both") && (
+                                    <div className="space-y-5 rounded-[24px] border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.025]">
                                 <div className="space-y-2">
                                     <SectionLabel>Código do banco</SectionLabel>
                                     <Input
@@ -911,6 +1180,10 @@ export const CustomOnboardingFlow = ({
                                         </p>
                                     </div>
                                 </div>
+                                    </div>
+                                )}
+
+                                <PaymentFeesPreview items={paymentFeeCards} />
                             </div>
                         </GlassCard>
                     )}
@@ -921,6 +1194,12 @@ export const CustomOnboardingFlow = ({
                             subtitle="Envie os arquivos para validação KYC."
                             icon={<ShieldCheck className="h-5 w-5" />}
                         >
+                            <div className="mb-4 flex items-start gap-3 rounded-[22px] border border-black/10 bg-black/[0.02] p-4 dark:border-white/10 dark:bg-white/[0.025]">
+                                <Camera className="mt-0.5 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                                <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                                    No celular, você pode tirar a foto da frente e do verso. No desktop, envie imagem ou PDF.
+                                </p>
+                            </div>
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div
                                     onClick={() => fileInputFrontRef.current?.click()}
@@ -947,7 +1226,7 @@ export const CustomOnboardingFlow = ({
                                     {files.front || uploadedDocIds.front ? (
                                         <CheckCircle2 className="mx-auto mb-3 h-8 w-8 text-emerald-500" />
                                     ) : (
-                                        <Upload className="mx-auto mb-3 h-8 w-8 text-zinc-400" />
+                                        <FileUp className="mx-auto mb-3 h-8 w-8 text-zinc-400" />
                                     )}
 
                                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-900 dark:text-white">
@@ -1078,21 +1357,25 @@ export const CustomOnboardingFlow = ({
                                         <Pencil className="h-3.5 w-3.5" />
                                     </button>
                                     <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
-                                        Conta bancária
+                                        Recebimento
                                     </p>
-                                    <div className="grid gap-y-3 sm:grid-cols-2">
-                                        <div>
-                                            <p className="text-[10px] uppercase text-zinc-500">Banco</p>
-                                            <p className="text-sm font-bold text-zinc-950 dark:text-white">
-                                                {formData.bankCode}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] uppercase text-zinc-500">Agência / conta</p>
-                                            <p className="text-sm font-bold text-zinc-950 dark:text-white">
-                                                {formData.agency} / {formData.accountNumber}
-                                            </p>
-                                        </div>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        {(formData.payoutMethod === "pix" || formData.payoutMethod === "both") && (
+                                            <div className="rounded-2xl border border-black/10 bg-white/60 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+                                                <p className="text-[10px] uppercase text-zinc-500">Pix</p>
+                                                <p className="mt-1 truncate text-sm font-bold text-zinc-950 dark:text-white">
+                                                    {PIX_KEY_TYPES.find((type) => type.value === formData.pixKeyType)?.label}: {formData.pixKey}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {(formData.payoutMethod === "bank" || formData.payoutMethod === "both") && (
+                                            <div className="rounded-2xl border border-black/10 bg-white/60 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+                                                <p className="text-[10px] uppercase text-zinc-500">Banco</p>
+                                                <p className="mt-1 text-sm font-bold text-zinc-950 dark:text-white">
+                                                    {formData.bankCode} · {formData.agency} / {formData.accountNumber}
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -1218,7 +1501,7 @@ export const CustomOnboardingFlow = ({
                 
                 {/* Stamp at top-left inner */}
                 <div className="absolute top-8 left-8 z-20">
-                    <AsaasStamp className="opacity-70 scale-90 origin-left hover:opacity-100 transition-opacity" />
+                    <BrandComplianceStrip />
                 </div>
                 
                 {/* Text bottom */}
@@ -1227,7 +1510,7 @@ export const CustomOnboardingFlow = ({
                         NeuroFinance
                     </h3>
                     <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                        Ativação rápida e segura. Infraestrutura tecnológica viabilizada em parceria com a Instituição de Pagamento Asaas.
+                        Ative cobranças, acompanhe recebíveis e prepare repasses com validação segura.
                     </p>
                 </div>
                 

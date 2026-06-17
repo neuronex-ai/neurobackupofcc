@@ -59,6 +59,7 @@ Deno.serve(async (req: Request) => {
         const profile = body.profile || {};
         const businessProfile = body.business_profile || {};
         const bankAccount = body.bank_account || {};
+        const pixDestination = body.pix_destination || body.pix || null;
         const normalizedAccount = normalizeAccountNumber(
             bankAccount.account_number ?? body.account,
             bankAccount.account_digit ?? body.account_digit
@@ -92,6 +93,25 @@ Deno.serve(async (req: Request) => {
 
         const fullName = body.name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
         const now = new Date().toISOString();
+        const existingMetadata = (financialAccount.metadata || {}) as Record<string, any>;
+        const metadataPatch = pixDestination?.key || body.payout_destination
+            ? {
+                ...existingMetadata,
+                payout_destination: body.payout_destination || existingMetadata.payout_destination || null,
+                destinations: {
+                    ...(existingMetadata.destinations || {}),
+                    ...(pixDestination?.key ? {
+                        pix: {
+                            type: pixDestination.type || 'manual',
+                            key: pixDestination.key,
+                            normalized_key: pixDestination.normalized_key || pixDestination.normalizedKey || pixDestination.key,
+                            updated_at: now,
+                        },
+                    } : {}),
+                    updated_at: now,
+                },
+            }
+            : null;
 
         // Persist the NeuroNex snapshot before contacting Asaas. The local profile
         // remains usable even while the provider is reviewing or rejecting fields.
@@ -130,6 +150,7 @@ Deno.serve(async (req: Request) => {
                 document_back_id: body.documents?.back_file_id || null,
                 tos_accepted_at: body.tos?.accepted ? (financialAccount.tos_accepted_at || now) : financialAccount.tos_accepted_at,
                 onboarding_payload: body,
+                ...(metadataPatch ? { metadata: metadataPatch } : {}),
                 updated_at: now,
             })
             .eq('id', financialAccount.id);
