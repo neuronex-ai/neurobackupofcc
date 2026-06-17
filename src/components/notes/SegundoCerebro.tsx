@@ -216,7 +216,7 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-w-4xl h-[85vh] bg-[#0A0A0B]/90 border border-white/5 backdrop-blur-3xl p-0 overflow-hidden flex flex-col rounded-[40px] shadow-2xl">
                 {/* Premium Texture Overlay */}
-                <div className="absolute inset-0 premium-noise opacity-[0.03] pointer-events-none" />
+                <div className="absolute inset-0 notes-retina-texture opacity-[0.18] pointer-events-none" />
                 <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none" />
 
                 <div className="flex-1 flex flex-col overflow-hidden relative">
