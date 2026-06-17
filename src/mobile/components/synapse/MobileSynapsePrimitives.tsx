@@ -4,6 +4,7 @@ import { SynapseWidgetRenderer, parseSynapseWidgetFromContent } from "@/componen
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types";
+import { motion } from "framer-motion";
 import {
   ArrowRight,
   Calendar,
@@ -377,13 +378,35 @@ export function MobileSynapseMessage({
 
 export function MobileSynapseThinking() {
   return (
-    <div className="flex justify-start">
-      <div className="flex items-center gap-1.5 rounded-[20px] border border-border/35 bg-card/72 px-4 py-3 dark:border-white/10 dark:bg-white/[0.028]">
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/55" />
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/55 [animation-delay:0.15s]" />
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/55 [animation-delay:0.3s]" />
-      </div>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 6, scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 430, damping: 32 }}
+      className="flex items-end gap-2.5"
+    >
+      <SynapseOrbAvatar className="h-8 w-8" />
+      <motion.div
+        animate={{
+          boxShadow: [
+            "0 16px 42px -34px rgba(0,0,0,0.45)",
+            "0 22px 58px -36px rgba(0,0,0,0.56)",
+            "0 16px 42px -34px rgba(0,0,0,0.45)",
+          ],
+        }}
+        transition={{ repeat: Infinity, duration: 2.4, ease: "easeInOut" }}
+        className="flex items-center gap-1.5 rounded-[20px] rounded-bl-[8px] border border-zinc-200/80 bg-white/82 px-4 py-3 backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.045]"
+      >
+        {[0, 0.16, 0.32].map((delay) => (
+          <motion.span
+            key={delay}
+            animate={{ y: [0, -3, 0], opacity: [0.35, 1, 0.35], scale: [1, 1.18, 1] }}
+            transition={{ repeat: Infinity, duration: 0.9, delay, ease: "easeInOut" }}
+            className="h-1.5 w-1.5 rounded-full bg-zinc-950/60 dark:bg-white/70"
+          />
+        ))}
+      </motion.div>
+    </motion.div>
   );
 }
 

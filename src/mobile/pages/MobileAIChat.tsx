@@ -338,7 +338,7 @@ export const MobileAIChat = () => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
-            className="h-full min-h-0"
+            className="min-h-[100dvh]"
           >
             <MobileSynapseVoicePanel
               isConnected={isVoiceConnected}
@@ -398,19 +398,31 @@ export const MobileAIChat = () => {
               )}
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 z-[95] bg-gradient-to-t from-background via-background/96 to-transparent px-4 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-12">
+            <div className="fixed bottom-0 left-0 right-0 z-[95] bg-gradient-to-t from-[#f8f8f7] via-[#f8f8f7]/96 to-transparent px-4 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-12 dark:from-[#020204] dark:via-[#020204]/96">
               <div className="mx-auto max-w-lg">
                 {isUploading ? (
-                  <p className="mb-2 text-center text-[8px] font-black uppercase tracking-[0.16em] text-muted-foreground/55">
+                  <p className="mb-2 text-center text-[8px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:text-white/45">
                     Enviando anexos...
                   </p>
                 ) : null}
-                <div className="flex items-center gap-2.5 rounded-[24px] border border-border/45 bg-card/86 p-2 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.8)] backdrop-blur-xl dark:border-white/10 dark:bg-black/55">
+                <motion.div
+                  animate={{
+                    y: inputFocused ? -2 : 0,
+                    scale: inputFocused ? 1.01 : 1,
+                    boxShadow: inputFocused
+                      ? "0 28px 82px -48px rgba(0,0,0,0.72)"
+                      : "0 22px 70px -52px rgba(0,0,0,0.68)",
+                  }}
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  className="flex items-center gap-2.5 rounded-[26px] border border-zinc-200/80 bg-white/88 p-2 backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.06]"
+                >
                   <div className="relative min-w-0 flex-1">
                     <input
                       ref={inputRef}
                       value={inputValue}
                       onChange={(event) => setInputValue(event.target.value)}
+                      onFocus={() => setInputFocused(true)}
+                      onBlur={() => setInputFocused(false)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" && !event.shiftKey) {
                           event.preventDefault();
@@ -418,36 +430,42 @@ export const MobileAIChat = () => {
                         }
                       }}
                       placeholder="Mensagem..."
-                      className="h-12 w-full rounded-[18px] border-0 bg-transparent px-4 pr-12 text-base font-medium text-foreground outline-none placeholder:text-muted-foreground/42"
+                      className="h-12 w-full rounded-[18px] border-0 bg-transparent px-4 pr-12 text-base font-medium text-zinc-950 outline-none placeholder:text-zinc-400 dark:text-white dark:placeholder:text-white/35"
                     />
-                    <button
+                    <motion.button
                       type="button"
                       onClick={() => isListening ? stopListening() : startListening()}
+                      whileTap={{ scale: 0.94 }}
                       className={cn(
-                        "absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-[15px] transition active:scale-95",
-                        isListening ? "bg-foreground text-background" : "text-muted-foreground active:bg-foreground/[0.05]",
+                        "absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-[15px] transition",
+                        isListening
+                          ? "bg-zinc-950 text-white dark:bg-white dark:text-black"
+                          : "text-zinc-500 active:bg-zinc-950/[0.05] dark:text-white/48 dark:active:bg-white/[0.08]",
                       )}
                       aria-label={isListening ? "Parar gravação" : "Falar"}
                     >
                       {isListening ? <X className="h-4.5 w-4.5" /> : <Mic className="h-4.5 w-4.5" />}
-                    </button>
+                    </motion.button>
                   </div>
 
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => inputValue.trim() ? void handleSend() : toggleVoiceMode()}
                     disabled={isProcessing}
+                    whileTap={{ scale: 0.94 }}
+                    animate={{ rotate: inputValue.trim() ? 0 : -6 }}
+                    transition={{ type: "spring", stiffness: 520, damping: 30 }}
                     className={cn(
-                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] transition active:scale-95 disabled:opacity-50",
+                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] transition disabled:opacity-50",
                       inputValue.trim()
-                        ? "bg-foreground text-background"
-                        : "border border-border/40 bg-background text-muted-foreground dark:border-white/10 dark:bg-white/[0.03]",
+                        ? "bg-zinc-950 text-white dark:bg-white dark:text-black"
+                        : "border border-zinc-200/80 bg-zinc-50 text-zinc-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/58",
                     )}
                     aria-label={inputValue.trim() ? "Enviar mensagem" : "Abrir modo voz"}
                   >
                     {inputValue.trim() ? <Send className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
-                  </button>
-                </div>
+                  </motion.button>
+                </motion.div>
               </div>
             </div>
           </motion.div>
