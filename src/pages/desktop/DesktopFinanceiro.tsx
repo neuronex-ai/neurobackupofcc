@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import type { ElementType } from "react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
     QrCode,
     Key,
@@ -113,6 +113,15 @@ const FINANCE_NAV: NavItem[] = [
     { id: 'bank-settings-root', label: "Ajustes", icon: Settings, subItems: [{ id: 'saude-conta', label: 'Saúde da conta', icon: ShieldCheck }] },
 ];
 
+const SIDEBAR_COLLAPSED_WIDTH = 88;
+const SIDEBAR_EXPANDED_WIDTH = 318;
+const SIDEBAR_EASE = [0.22, 1, 0.36, 1] as const;
+const SIDEBAR_ENTER_DELAY = 45;
+const SIDEBAR_LEAVE_DELAY = 90;
+const SIDEBAR_DETAILS_REVEAL_DELAY = 70;
+const SIDEBAR_WIDTH_COLLAPSE_DELAY = 135;
+const SIDEBAR_WIDTH_TRANSITION = { type: "spring", stiffness: 360, damping: 40, mass: 0.7 } as const;
+
 const getInitialFinanceView = (pathname: string, search: string): FinanceView => {
     const searchParams = new URLSearchParams(search);
     const shouldOpenNeuroFinance = pathname.includes('/neurofinance') || BANKING_QUERY_KEYS.some((key) => searchParams.has(key));
@@ -121,6 +130,7 @@ const getInitialFinanceView = (pathname: string, search: string): FinanceView =>
 
 const DesktopFinanceiro = () => {
     const location = useLocation();
+    const shouldReduceSidebarMotion = useReducedMotion();
     const { isLoading: isLoadingConnect } = useFinancialAccount();
     const { data: transactions, isLoading: isLoadingTransactions } = useTransactions(subMonths(new Date(), 3));
     const { data: nbStatement, isLoading: isNbStatementLoading } = useNeuroFinanceStatement(subDays(new Date(), 30), new Date());
@@ -135,6 +145,7 @@ const DesktopFinanceiro = () => {
     const [showSidebarDetails, setShowSidebarDetails] = useState(false);
     const sidebarIntentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const sidebarDetailsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const sidebarWidthTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const allTransactions = useMemo(() => {
         const merged = [...(transactions || [])];
@@ -162,23 +173,46 @@ const DesktopFinanceiro = () => {
         if (group) setExpandedGroups((current) => current.includes(group.id) ? current : [group.id]);
     }, [activeView]);
 
-    useEffect(() => () => {
-        if (sidebarIntentTimer.current) clearTimeout(sidebarIntentTimer.current);
-        if (sidebarDetailsTimer.current) clearTimeout(sidebarDetailsTimer.current);
+    const clearSidebarTimers = useCallback(() => {
+        if (sidebarIntentTimer.current) {
+            clearTimeout(sidebarIntentTimer.current);
+            sidebarIntentTimer.current = null;
+        }
+        if (sidebarDetailsTimer.current) {
+            clearTimeout(sidebarDetailsTimer.current);
+            sidebarDetailsTimer.current = null;
+        }
+        if (sidebarWidthTimer.current) {
+            clearTimeout(sidebarWidthTimer.current);
+            sidebarWidthTimer.current = null;
+        }
     }, []);
 
-    useEffect(() => {
-        if (sidebarDetailsTimer.current) clearTimeout(sidebarDetailsTimer.current);
-        sidebarDetailsTimer.current = setTimeout(() => setShowSidebarDetails(isSidebarExpanded), isSidebarExpanded ? 35 : 170);
-    }, [isSidebarExpanded]);
+    useEffect(() => () => clearSidebarTimers(), [clearSidebarTimers]);
 
-    const setSidebarExpandedWithIntent = (expanded: boolean) => {
-        if (sidebarIntentTimer.current) clearTimeout(sidebarIntentTimer.current);
-        sidebarIntentTimer.current = setTimeout(() => setIsSidebarExpanded(expanded), expanded ? 55 : 130);
-    };
+    const setSidebarExpandedWithIntent = useCallback((expanded: boolean) => {
+        clearSidebarTimers();
+
+        if (shouldReduceSidebarMotion) {
+            setShowSidebarDetails(expanded);
+            setIsSidebarExpanded(expanded);
+            return;
+        }
+
+        sidebarIntentTimer.current = setTimeout(() => {
+            if (expanded) {
+                setIsSidebarExpanded(true);
+                sidebarDetailsTimer.current = setTimeout(() => setShowSidebarDetails(true), SIDEBAR_DETAILS_REVEAL_DELAY);
+                return;
+            }
+
+            setShowSidebarDetails(false);
+            sidebarWidthTimer.current = setTimeout(() => setIsSidebarExpanded(false), SIDEBAR_WIDTH_COLLAPSE_DELAY);
+        }, expanded ? SIDEBAR_ENTER_DELAY : SIDEBAR_LEAVE_DELAY);
+    }, [clearSidebarTimers, shouldReduceSidebarMotion]);
 
     const handleGroupClick = (group: NavItem) => {
-        if (!isSidebarExpanded) {
+        if (!showSidebarDetails) {
             setExpandedGroups([group.id]);
             if (group.subItems && group.subItems.length > 0) setActiveView(group.subItems[0].id);
             return;
@@ -191,6 +225,16 @@ const DesktopFinanceiro = () => {
         }
     };
 
+    const sidebarTransition = shouldReduceSidebarMotion ? { duration: 0 } : {
+        width: SIDEBAR_WIDTH_TRANSITION,
+        opacity: { duration: 0.18 },
+        x: { duration: 0.24, ease: SIDEBAR_EASE },
+    };
+
+    const sidebarDetailTransition = shouldReduceSidebarMotion ? { duration: 0 } : { duration: 0.14, ease: SIDEBAR_EASE };
+
+    const sidebarDisclosureTransition = shouldReduceSidebarMotion ? { duration: 0 } : { duration: 0.2, ease: SIDEBAR_EASE };
+
     const motionProps = { initial: { opacity: 0, x: 20, filter: "blur(10px)" }, animate: { opacity: 1, x: 0, filter: "blur(0px)" }, exit: { opacity: 0, x: -20, filter: "blur(10px)" }, transition: { duration: 0.4, ease: [0.23, 1, 0.32, 1] as const } };
 
     if (isLoadingConnect || isLoadingSettings) {
@@ -201,7 +245,7 @@ const DesktopFinanceiro = () => {
         <div className="min-h-screen w-full flex flex-col font-sans relative bg-background text-foreground selection:bg-primary/20 pt-10">
             <div className="pointer-events-none fixed inset-0 z-0 premium-noise opacity-[0.025] mix-blend-overlay dark:opacity-[0.05]" />
             <div className="flex-1 w-full max-w-[2200px] mx-auto px-6 md:px-8 lg:px-12 xl:px-16 relative z-10 flex gap-6 pb-12">
-                <motion.nav initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0, width: isSidebarExpanded ? 318 : 88 }} transition={{ width: { type: "spring", stiffness: 420, damping: 42, mass: 0.58 }, opacity: { duration: 0.18 }, x: { duration: 0.24, ease: [0.22, 1, 0.36, 1] } }} onMouseEnter={() => setSidebarExpandedWithIntent(true)} onMouseLeave={() => setSidebarExpandedWithIntent(false)} style={{ willChange: "width, transform" }} className="relative z-30 hidden shrink-0 lg:flex">
+                <motion.nav initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0, width: isSidebarExpanded ? SIDEBAR_EXPANDED_WIDTH : SIDEBAR_COLLAPSED_WIDTH }} transition={sidebarTransition} onMouseEnter={() => setSidebarExpandedWithIntent(true)} onMouseLeave={() => setSidebarExpandedWithIntent(false)} style={{ willChange: "width, transform" }} className="relative z-30 hidden shrink-0 lg:flex">
                     <div className="sticky top-10 flex max-h-[calc(100vh-5rem)] w-full flex-col overflow-hidden rounded-[30px] border border-zinc-200/75 bg-white/85 p-3 shadow-[0_24px_74px_-54px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-black/[0.025] backdrop-blur-xl dark:border-white/[0.075] dark:bg-[#070708]/85 dark:shadow-[0_28px_86px_-58px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.055)] dark:ring-white/[0.035]">
                         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.55),transparent_28%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.55),transparent_34%),radial-gradient(circle_at_100%_100%,rgba(0,0,0,.04),transparent_42%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,.055),transparent_30%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,.075),transparent_38%)]" />
                         <div className="premium-noise pointer-events-none absolute inset-0 opacity-[0.014] dark:opacity-[0.04]" />
@@ -216,11 +260,11 @@ const DesktopFinanceiro = () => {
                                                 {showSidebarDetails ? group.sectionLabel : null}
                                             </div>
                                         )}
-                                        <button onClick={() => handleGroupClick(group)} title={group.label} className={cn("group relative flex h-12 items-center rounded-2xl transition-colors duration-200 ease-out", showSidebarDetails ? "w-full gap-3 px-3" : "w-14 justify-center px-0", hasActiveSub ? "bg-zinc-950 text-white shadow-[0_16px_38px_-26px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950" : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-950/[0.045] dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.055]")}>
+                                        <button onClick={() => handleGroupClick(group)} title={group.label} aria-expanded={showSidebarDetails ? isGroupExpanded : undefined} className={cn("group relative flex h-12 items-center rounded-2xl transition-colors duration-200 ease-out", showSidebarDetails ? "w-full gap-3 px-3" : "w-14 justify-center px-0", hasActiveSub ? "bg-zinc-950 text-white shadow-[0_16px_38px_-26px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950" : "text-zinc-500 hover:text-zinc-950 hover:bg-zinc-950/[0.045] dark:text-zinc-500 dark:hover:text-white dark:hover:bg-white/[0.055]")}>
                                             <div className={cn("w-9 h-9 shrink-0 flex items-center justify-center rounded-xl transition-all", hasActiveSub ? "bg-white/14 dark:bg-black/10" : "bg-white/55 dark:bg-white/[0.035] border border-black/[0.035] dark:border-white/[0.055]")}><group.icon className="w-5 h-5" /></div>
-                                            <AnimatePresence initial={false}>{showSidebarDetails ? <motion.div initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -4 }} transition={{ duration: 0.12, ease: [0.22, 1, 0.36, 1] }} className="flex min-w-0 flex-1 items-center justify-between overflow-hidden"><span className="truncate text-[10px] font-black uppercase tracking-[0.15em]">{group.label}</span><ChevronRight className={cn("w-3.5 h-3.5 opacity-55 transition-transform duration-300", isGroupExpanded && "rotate-90")} /></motion.div> : null}</AnimatePresence>
+                                            <AnimatePresence initial={false}>{showSidebarDetails ? <motion.div initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -4 }} transition={sidebarDetailTransition} className="flex min-w-0 flex-1 items-center justify-between overflow-hidden"><span className="truncate text-[10px] font-black uppercase tracking-[0.15em]">{group.label}</span><ChevronRight className={cn("w-3.5 h-3.5 opacity-55 transition-transform duration-300", isGroupExpanded && "rotate-90")} /></motion.div> : null}</AnimatePresence>
                                         </button>
-                                        <AnimatePresence>{showSidebarDetails && isGroupExpanded && group.subItems && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: showSidebarDetails ? 0.22 : 0.08, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden flex flex-col gap-1 px-1 pb-1">{group.subItems.map((sub) => { const isSubActive = activeView === sub.id || sub.subItems?.some(ss => ss.id === activeView); return <div key={sub.id} className="space-y-1"><button onClick={() => setActiveView(sub.id)} className={cn("w-full min-h-10 flex items-center gap-3 px-3 py-2 rounded-[15px] transition-all duration-200 group/sub relative", isSubActive ? "bg-zinc-950/[0.075] text-zinc-950 dark:bg-white/[0.09] dark:text-white" : "text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-950/[0.045] dark:hover:bg-white/[0.055]")}>{isSubActive && <motion.div layoutId="finance-sidebar-active" className="absolute inset-y-2 left-0 w-1 rounded-full bg-zinc-950 dark:bg-white" />}<sub.icon className="w-3.5 h-3.5 shrink-0 transition-colors" /><span className="text-[9px] font-black uppercase tracking-[0.1em] truncate flex-1 text-left leading-tight">{sub.label}</span>{sub.subItems?.length ? <ChevronRight className={cn("h-3 w-3 opacity-45 transition-transform", isSubActive && "rotate-90")} /> : null}</button></div>; })}</motion.div>}</AnimatePresence>
+                                        <AnimatePresence>{showSidebarDetails && isGroupExpanded && group.subItems && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={sidebarDisclosureTransition} className="overflow-hidden flex flex-col gap-1 px-1 pb-1">{group.subItems.map((sub) => { const isSubActive = activeView === sub.id || sub.subItems?.some(ss => ss.id === activeView); return <div key={sub.id} className="space-y-1"><button onClick={() => setActiveView(sub.id)} className={cn("w-full min-h-10 flex items-center gap-3 px-3 py-2 rounded-[15px] transition-all duration-200 group/sub relative", isSubActive ? "bg-zinc-950/[0.075] text-zinc-950 dark:bg-white/[0.09] dark:text-white" : "text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-950/[0.045] dark:hover:bg-white/[0.055]")}>{isSubActive && <motion.div layoutId="finance-sidebar-active" className="absolute inset-y-2 left-0 w-1 rounded-full bg-zinc-950 dark:bg-white" />}<sub.icon className="w-3.5 h-3.5 shrink-0 transition-colors" /><span className="text-[9px] font-black uppercase tracking-[0.1em] truncate flex-1 text-left leading-tight">{sub.label}</span>{sub.subItems?.length ? <ChevronRight className={cn("h-3 w-3 opacity-45 transition-transform", isSubActive && "rotate-90")} /> : null}</button></div>; })}</motion.div>}</AnimatePresence>
                                     </div>
                                 );
                             })}
