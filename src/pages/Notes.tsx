@@ -268,12 +268,12 @@ export default function Notes() {
                 <div className="brand-neutral-gradient opacity-65" />
             </div>
 
-            <div className="relative isolate z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 items-stretch overflow-hidden [overflow:clip] px-5 pb-5 pt-28 [contain:layout_paint]">
+            <div className="relative isolate z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 items-stretch overflow-hidden px-5 pb-5 pt-28 [contain:layout_paint]">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                    className="group/main-window pointer-events-auto relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden [overflow:clip] rounded-[30px] border border-white/[0.07] bg-[#090a0c]/92 shadow-[0_24px_64px_-42px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.035)] backdrop-blur-2xl [clip-path:inset(0_round_30px)] [contain:layout_paint] [.light_&]:border-zinc-200/80 [.light_&]:bg-white/76 [.light_&]:shadow-[0_24px_64px_-42px_rgba(24,24,27,0.2),inset_0_1px_0_rgba(255,255,255,0.94)]"
+                    className="group/main-window pointer-events-auto relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[30px] border border-white/[0.07] bg-[#090a0c]/92 shadow-[0_24px_64px_-42px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.035)] backdrop-blur-2xl [clip-path:inset(0_round_30px)] [contain:layout_paint] [.light_&]:border-zinc-200/80 [.light_&]:bg-white/76 [.light_&]:shadow-[0_24px_64px_-42px_rgba(24,24,27,0.2),inset_0_1px_0_rgba(255,255,255,0.94)]"
                 >
                     <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.016] [.light_&]:opacity-[0.01]" />
                     {!isFocusMode && (
@@ -299,7 +299,7 @@ export default function Notes() {
                         </motion.div>
                     )}
 
-                    <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden [overflow:clip] bg-transparent [contain:layout_paint]">
+                    <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent [contain:layout_paint]">
                         <AnimatePresence mode="wait">
                             {renderMainContent()}
                         </AnimatePresence>
