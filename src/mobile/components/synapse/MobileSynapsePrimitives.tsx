@@ -86,7 +86,7 @@ export function MobileSynapseIconButton({
       type="button"
       aria-label={label}
       className={cn(
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-foreground/[0.07] bg-background/62 text-foreground shadow-[0_14px_34px_-24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl transition active:scale-95 dark:border-white/10 dark:bg-white/[0.055]",
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/78 text-zinc-950 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl transition active:scale-95 dark:border-white/10 dark:bg-white/[0.055] dark:text-white",
         className,
       )}
       {...props}
@@ -141,24 +141,22 @@ export function MobileSynapseHero({
   status: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-[26px] border border-foreground bg-foreground p-5 text-background">
+    <section className="overflow-hidden rounded-[26px] border border-zinc-200/80 bg-white p-5 text-zinc-950 shadow-[0_22px_70px_-54px_rgba(0,0,0,0.7)] dark:border-white/10 dark:bg-[#09090b] dark:text-white">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <MobileSynapseEyebrow className="text-background/55">{modeLabel}</MobileSynapseEyebrow>
-          <h1 className="mt-2 text-[2.28rem] font-black leading-[0.9] tracking-[-0.065em]">
+          <MobileSynapseEyebrow className="text-zinc-500 dark:text-white/48">{modeLabel}</MobileSynapseEyebrow>
+          <h1 className="mt-2 text-[2.28rem] font-black leading-[0.9] tracking-[-0.065em] text-zinc-950 dark:text-white">
             {title}
           </h1>
         </div>
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[17px] bg-background/10">
-          <Sparkles className="h-5 w-5" />
-        </div>
+        <SynapseOrbAvatar className="h-12 w-12 rounded-[17px]" />
       </div>
-      <p className="mt-4 text-xs font-medium leading-relaxed text-background/68">
+      <p className="mt-4 text-xs font-semibold leading-relaxed text-zinc-600 dark:text-white/68">
         {description}
       </p>
-      <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-background/10 px-3 py-2">
-        <span className="h-1.5 w-1.5 rounded-full bg-background" />
-        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-background/68">{status}</span>
+      <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-zinc-200/80 bg-zinc-50 px-3 py-2 dark:border-white/10 dark:bg-white/10">
+        <span className="h-1.5 w-1.5 rounded-full bg-zinc-950 dark:bg-white" />
+        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-zinc-500 dark:text-white/68">{status}</span>
       </div>
     </section>
   );
@@ -177,12 +175,12 @@ export function MobileSynapsePromptCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[112px] flex-col items-start justify-between rounded-[22px] border border-border/40 bg-card/74 p-4 text-left transition active:scale-[0.985] dark:border-white/10 dark:bg-white/[0.035]"
+      className="flex min-h-[112px] flex-col items-start justify-between rounded-[22px] border border-zinc-200/85 bg-white p-4 text-left shadow-[0_16px_45px_-38px_rgba(0,0,0,0.5)] transition active:scale-[0.985] dark:border-white/10 dark:bg-white/[0.035]"
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-foreground/[0.045] text-muted-foreground">
+      <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-zinc-100 text-zinc-500 dark:bg-white/[0.06] dark:text-white/48">
         <Icon className="h-[18px] w-[18px]" />
       </div>
-      <p className="text-[13px] font-black leading-tight tracking-[-0.015em] text-foreground">{label}</p>
+      <p className="text-[13px] font-black leading-tight tracking-[-0.015em] text-zinc-950 dark:text-white">{label}</p>
     </button>
   );
 }
@@ -427,13 +425,13 @@ export function MobileSynapseVoicePanel({
       : "Toque no microfone para iniciar a conversa por voz.");
 
   return (
-    <section className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#f8f8f7] px-4 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-[calc(5.8rem+env(safe-area-inset-top))] text-zinc-950 dark:bg-[#020204] dark:text-white">
+    <section className="relative flex h-full min-h-[100dvh] flex-col overflow-hidden bg-[#f8f8f7] px-4 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-[calc(6.35rem+env(safe-area-inset-top))] text-zinc-950 dark:bg-[#020204] dark:text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(99,102,241,0.13),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(248,248,247,0.92))] dark:bg-[radial-gradient(circle_at_50%_34%,rgba(99,102,241,0.16),transparent_42%),linear-gradient(180deg,rgba(10,10,12,0.98),rgba(0,0,0,1))]" />
 
-      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center">
+      <div className="relative flex min-h-0 flex-1 translate-y-[clamp(0.35rem,2dvh,1.1rem)] flex-col items-center justify-center">
         <div
           className={cn(
-            "pointer-events-none h-[min(76vw,42dvh,22rem)] w-[min(76vw,42dvh,22rem)] transition duration-300",
+            "pointer-events-none h-[min(78vw,41dvh,22rem)] w-[min(78vw,41dvh,22rem)] transition duration-300",
             error ? "opacity-45 grayscale" : "opacity-95",
           )}
           style={{
