@@ -77,6 +77,10 @@ const parseLiveMessage = (raw: unknown): GeminiLiveMessage => {
     return JSON.parse(text) as GeminiLiveMessage;
 };
 
+const toLiveModelPath = (value: string) => (
+    value.startsWith("models/") ? value : `models/${value}`
+);
+
 export interface GeminiClientOptions {
     token: string;
     model?: string;
@@ -183,7 +187,7 @@ export class GeminiLiveClient {
         // Send Initial Setup
         const msg: GeminiSetupMessage = {
             setup: {
-                model: `models/${this.options.model || 'gemini-3.1-flash-live-preview'}`,
+                model: toLiveModelPath(this.options.model || 'gemini-3.1-flash-live-preview'),
                 responseModalities: ['AUDIO'],
                 temperature: 0.5,
                 speechConfig: {
@@ -317,8 +321,14 @@ export class GeminiLiveClient {
         }
     }
 
-    private handleSocketClose() {
+    private handleSocketClose(event?: CloseEvent) {
         if (!this.setupCompleted) {
+            console.warn('[GeminiLiveClient] WebSocket closed before setupComplete.', {
+                code: event?.code,
+                reason: event?.reason,
+                wasClean: event?.wasClean,
+                model: toLiveModelPath(this.options.model || 'gemini-3.1-flash-live-preview'),
+            });
             this.options.onError?.(new Error("A conexao de voz fechou antes da confirmacao do Live API."));
         }
         this.options.onStatusChange?.('disconnected');

@@ -124,6 +124,10 @@ registerProcessor('audio-processor', AudioProcessor);
 const DEFAULT_MODEL = 'gemini-3.1-flash-live-preview';
 const DEFAULT_VOICE = 'Kore';
 
+const toLiveModelPath = (value: string) => (
+    value.startsWith('models/') ? value : `models/${value}`
+);
+
 const toFriendlyVoiceError = (message?: string) => {
     const raw = message || '';
     if (
@@ -465,7 +469,7 @@ export function useGeminiVoice({
             wsRef.current.onopen = () => {
                 wsRef.current?.send(JSON.stringify({
                     setup: {
-                        model: `models/${liveModel}`,
+                        model: toLiveModelPath(liveModel),
                         responseModalities: ['AUDIO'],
                         temperature: 0.5,
                         speechConfig: {
@@ -487,13 +491,22 @@ export function useGeminiVoice({
             wsRef.current.onmessage = handleMessage;
 
             wsRef.current.onerror = () => {
+                console.warn('[useGeminiVoice] WebSocket error before/within Live API session.');
                 setError('Falha ao conectar com o modo voz. Tente iniciar uma nova sessao.');
                 setIsProcessing(false);
             };
 
-            wsRef.current.onclose = () => {
+            wsRef.current.onclose = (event) => {
                 wsRef.current = null;
                 const wasSetupComplete = setupCompleteRef.current;
+                if (!manualCloseRef.current && !wasSetupComplete) {
+                    console.warn('[useGeminiVoice] WebSocket closed before setupComplete.', {
+                        code: event.code,
+                        reason: event.reason,
+                        wasClean: event.wasClean,
+                        model: toLiveModelPath(liveModel),
+                    });
+                }
                 cleanupResources();
                 if (!manualCloseRef.current && !wasSetupComplete) {
                     setError('A conexao de voz foi encerrada antes da confirmacao do Live API.');
