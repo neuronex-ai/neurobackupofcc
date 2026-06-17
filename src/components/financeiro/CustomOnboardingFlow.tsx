@@ -61,10 +61,12 @@ type Step =
 
 type PepValue = "none" | "existing";
 type PayoutMethod = "pix" | "bank" | "both";
+type TaxpayerType = "pf" | "pj";
 
 type FormData = {
     firstName: string;
     lastName: string;
+    taxpayerType: TaxpayerType;
     cpf: string;
     birthDate: string;
     phone: string;
@@ -101,6 +103,7 @@ type UploadedDocIds = {
 const INITIAL_FORM: FormData = {
     firstName: "",
     lastName: "",
+    taxpayerType: "pf",
     cpf: "",
     birthDate: "",
     phone: "",
@@ -201,6 +204,19 @@ function maskCpf(value: string) {
         .slice(0, 14);
 }
 
+function maskCnpj(value: string) {
+    return onlyDigits(value)
+        .replace(/(\d{2})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1/$2")
+        .replace(/(\d{4})(\d{1,2})$/, "$1-$2")
+        .slice(0, 18);
+}
+
+function maskCpfCnpj(value: string, taxpayerType: TaxpayerType) {
+    return taxpayerType === "pj" ? maskCnpj(value) : maskCpf(value);
+}
+
 function maskPhone(value: string) {
     return onlyDigits(value)
         .replace(/(\d{2})(\d)/, "($1) $2")
@@ -214,6 +230,27 @@ function maskCep(value: string) {
 
 function validateCpf(cpf: string) {
     return onlyDigits(cpf).length === 11;
+}
+
+function validateCnpj(cnpj: string) {
+    return onlyDigits(cnpj).length === 14;
+}
+
+function maskBankCode(value: string) {
+    return onlyDigits(value).slice(0, 3);
+}
+
+function maskAgency(value: string) {
+    const digits = onlyDigits(value).slice(0, 6);
+    if (digits.length <= 4) return digits;
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+}
+
+function maskAccountNumber(value: string) {
+    const digits = onlyDigits(value).slice(0, 14);
+    if (digits.length <= 1) return digits;
+    if (digits.length <= 8) return digits.replace(/(\d+)(\d)$/, "$1-$2");
+    return `${digits.slice(0, -1)}-${digits.slice(-1)}`;
 }
 
 function validateBirthDate(value: string) {
@@ -300,6 +337,7 @@ function buildOnboardingPayload(
         profile: {
             first_name: formData.firstName.trim(),
             last_name: formData.lastName.trim(),
+            taxpayer_type: formData.taxpayerType,
             political_exposure: formData.pep,
             city: formData.city.trim(),
             state: formData.state.trim().toUpperCase(),
@@ -349,14 +387,14 @@ function GlassCard({
     children: React.ReactNode;
 }) {
     return (
-        <div className="relative overflow-hidden rounded-[22px] border border-black/[0.07] bg-white/[0.82] p-4 shadow-[0_18px_60px_-38px_rgba(0,0,0,0.35)] backdrop-blur-3xl transition-[border-color,box-shadow,transform] duration-500 sm:p-5 dark:border-white/[0.08] dark:bg-[#111111]/[0.82] dark:shadow-[0_24px_70px_-42px_rgba(0,0,0,0.9)]">
+        <div className="relative overflow-hidden rounded-[32px] border border-black/[0.08] bg-white/[0.86] p-5 shadow-[0_24px_70px_-48px_rgba(0,0,0,0.32)] backdrop-blur-3xl transition-[border-color,box-shadow,transform] duration-500 sm:p-6 dark:border-white/[0.08] dark:bg-[#111111]/[0.86] dark:shadow-[0_24px_70px_-42px_rgba(0,0,0,0.9)]">
             <div
                 aria-hidden
                 className="pointer-events-none absolute inset-0 opacity-[0.025] mix-blend-multiply dark:mix-blend-screen"
                 style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E\")" }}
             />
             <div className="relative z-10 mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-black/5 bg-black/[0.02] text-zinc-900 backdrop-blur-xl dark:border-white/5 dark:bg-white/[0.02] dark:text-white">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-black/5 bg-black/[0.025] text-zinc-900 backdrop-blur-xl dark:border-white/5 dark:bg-white/[0.03] dark:text-white">
                     {icon}
                 </div>
                 <div>
@@ -426,17 +464,13 @@ function PaymentFeesPreview({
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 {items.map((item) => {
-                    const Icon = item.icon;
                     return (
                         <div
                             key={item.key}
-                            className="rounded-[18px] border border-black/10 bg-white/70 p-3 dark:border-white/10 dark:bg-white/[0.04]"
+                            className="rounded-[18px] border border-black/10 bg-white/70 p-3.5 dark:border-white/10 dark:bg-white/[0.04]"
                         >
-                            <div className="mb-3 flex items-center justify-between gap-2">
-                                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
-                                    <Icon className="h-4 w-4" />
-                                </span>
-                                <span className="text-right text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                            <div className="mb-3 flex items-start justify-between gap-3">
+                                <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
                                     {item.settlement}
                                 </span>
                             </div>
@@ -595,9 +629,16 @@ export const CustomOnboardingFlow = ({
 
         setFormData((prev) => ({
             ...prev,
+            ...(() => {
+                const documentValue = firstString(account?.cpf_cnpj, snapshot.cpfCnpj, prev.cpf);
+                const nextTaxpayerType: TaxpayerType = onlyDigits(documentValue).length > 11 ? "pj" : prev.taxpayerType;
+                return {
+                    taxpayerType: nextTaxpayerType,
+                    cpf: maskCpfCnpj(documentValue, nextTaxpayerType),
+                };
+            })(),
             firstName: firstString(account?.holder_name?.split(" ")[0], onboardingProfile.first_name, userProfile?.first_name, authMetadata.first_name, splitName.firstName, prev.firstName),
             lastName: firstString(account?.holder_name?.split(" ").slice(1).join(" "), onboardingProfile.last_name, userProfile?.last_name, authMetadata.last_name, splitName.lastName, prev.lastName),
-            cpf: maskCpf(firstString(account?.cpf_cnpj, snapshot.cpfCnpj, prev.cpf)),
             birthDate: firstString(account?.birth_date, snapshot.birthDate, prev.birthDate),
             phone: maskPhone(firstString(account?.mobile_phone, snapshot.mobilePhone, userProfile?.phone, authMetadata.phone, prev.phone)),
             pep: firstString(account?.pep_status, onboardingProfile.political_exposure, prev.pep) as PepValue,
@@ -612,9 +653,9 @@ export const CustomOnboardingFlow = ({
             incomeValue: account?.income_value ? String(account.income_value) : (snapshot.incomeValue ? String(snapshot.incomeValue) : prev.incomeValue),
             businessUrl: firstString(account?.business_url, snapshot.site, prev.businessUrl),
             businessDescription: firstString(account?.business_description, businessProfile.product_description, userProfile?.bio, prev.businessDescription),
-            bankCode: firstString(account?.bank_code, bankAccount.bank_code, prev.bankCode),
-            agency: firstString(account?.bank_agency, bankAccount.agency, prev.agency),
-            accountNumber: accountNumber || prev.accountNumber,
+            bankCode: maskBankCode(firstString(account?.bank_code, bankAccount.bank_code, prev.bankCode)),
+            agency: maskAgency(firstString(account?.bank_agency, bankAccount.agency, prev.agency)),
+            accountNumber: maskAccountNumber(accountNumber || prev.accountNumber),
             payoutMethod: hasBankSnapshot && hasPixSnapshot ? "both" : hasBankSnapshot ? "bank" : "pix",
             pixKeyType: coercePixKeyType(pixDestination.type || prev.pixKeyType),
             pixKey: pixDestination.key || pixDestination.normalized_key || prev.pixKey,
@@ -638,15 +679,25 @@ export const CustomOnboardingFlow = ({
     const setField = <K extends keyof FormData>(field: K, value: FormData[K]) => {
         let nextValue = value;
 
-        if (field === "cpf") nextValue = maskCpf(String(value)) as FormData[K];
+        if (field === "taxpayerType") {
+            setFormData((prev) => ({
+                ...prev,
+                taxpayerType: value as TaxpayerType,
+                cpf: maskCpfCnpj(prev.cpf, value as TaxpayerType),
+            }));
+            return;
+        }
+        if (field === "cpf") nextValue = maskCpfCnpj(String(value), formData.taxpayerType) as FormData[K];
         if (field === "phone") nextValue = maskPhone(String(value)) as FormData[K];
         if (field === "cep") nextValue = maskCep(String(value)) as FormData[K];
         if (field === "state")
             nextValue = String(value).toUpperCase().slice(0, 2) as FormData[K];
         if (field === "bankCode")
-            nextValue = onlyDigits(String(value)).slice(0, 3) as FormData[K];
+            nextValue = maskBankCode(String(value)) as FormData[K];
         if (field === "agency")
-            nextValue = onlyDigits(String(value)).slice(0, 10) as FormData[K];
+            nextValue = maskAgency(String(value)) as FormData[K];
+        if (field === "accountNumber")
+            nextValue = maskAccountNumber(String(value)) as FormData[K];
         if (field === "pixKey")
             nextValue = formatPixKeyInput(String(value), formData.pixKeyType) as FormData[K];
 
@@ -718,7 +769,8 @@ export const CustomOnboardingFlow = ({
     function validatePersonalStep() {
         if (!formData.firstName.trim()) return "Informe seu nome.";
         if (!formData.lastName.trim()) return "Informe seu sobrenome.";
-        if (!validateCpf(formData.cpf)) return "Informe um CPF válido.";
+        if (formData.taxpayerType === "pf" && !validateCpf(formData.cpf)) return "Informe um CPF válido.";
+        if (formData.taxpayerType === "pj" && !validateCnpj(formData.cpf)) return "Informe um CNPJ válido.";
         if (!validateBirthDate(formData.birthDate))
             return "Informe uma data de nascimento válida.";
         if (onlyDigits(formData.phone).length < 10)
@@ -876,7 +928,7 @@ export const CustomOnboardingFlow = ({
                     toast.warning("A conta foi criada, mas a validação completa pode levar alguns minutos.");
                 }
             } else {
-                // Account already exists — update it and upload docs
+                // Account already exists - update it and upload docs
                 const docs = await uploadDocumentsIfNeeded();
                 const payload = buildOnboardingPayload(formData, docs);
                 const updateResult = await updateAccount.mutateAsync(payload);
@@ -940,8 +992,8 @@ export const CustomOnboardingFlow = ({
                             <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-zinc-950 dark:text-white">
                                 NeuroFinance
                             </h1>
-                            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400 max-w-md leading-relaxed">
-                                Cobranças, repasses e status financeiro em uma experiência integrada.
+                            <p className="mt-2 whitespace-nowrap text-sm font-semibold text-zinc-500 dark:text-zinc-400">
+                                Cobranças, repasses e financeiro funcionando no automático.
                             </p>
                             <p className="hidden">
                                 A NeuroNex é a sua plataforma de gestão de alta performance. Toda a infraestrutura financeira (BaaS) é provida de forma segura e transparente pela Asaas.
@@ -971,7 +1023,7 @@ export const CustomOnboardingFlow = ({
                     </div>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto px-1 -mx-1 pb-6 scrollbar-hide overscroll-contain">
+                <div className="flex-1 min-h-0 overflow-y-auto px-1 -mx-1 pb-4 scrollbar-hide overscroll-contain">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={step}
@@ -1008,13 +1060,29 @@ export const CustomOnboardingFlow = ({
                                     </div>
                                 </div>
 
-                                <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-4 sm:grid-cols-3">
                                     <div className="space-y-2">
-                                        <SectionLabel>CPF</SectionLabel>
+                                        <SectionLabel>Atuo como</SectionLabel>
+                                        <Select
+                                            value={formData.taxpayerType}
+                                            onValueChange={(value) => setField("taxpayerType", value as TaxpayerType)}
+                                        >
+                                            <SelectTrigger className="h-12 rounded-2xl border-black/10 bg-white/60 dark:border-white/10 dark:bg-white/[0.03]">
+                                                <SelectValue placeholder="Selecione" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="pf">Atuo como PF (Pessoa física)</SelectItem>
+                                                <SelectItem value="pj">Atuo como PJ (Pessoa jurídica)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <SectionLabel>{formData.taxpayerType === "pj" ? "CNPJ" : "CPF"}</SectionLabel>
                                         <Input
                                             value={formData.cpf}
                                             onChange={(e) => setField("cpf", e.target.value)}
-                                            placeholder="000.000.000-00"
+                                            inputMode="numeric"
+                                            placeholder={formData.taxpayerType === "pj" ? "00.000.000/0000-00" : "000.000.000-00"}
                                             className="h-12 rounded-2xl border-black/10 bg-white/60 dark:border-white/10 dark:bg-white/[0.03]"
                                         />
                                     </div>
@@ -1309,7 +1377,8 @@ export const CustomOnboardingFlow = ({
                                     <Input
                                         value={formData.bankCode}
                                         onChange={(e) => setField("bankCode", e.target.value)}
-                                        placeholder="Ex.: 341, 033, 104, 077"
+                                        inputMode="numeric"
+                                        placeholder="001"
                                         className="h-12 rounded-2xl border-black/10 bg-white/60 dark:border-white/10 dark:bg-white/[0.03]"
                                     />
                                 </div>
@@ -1320,7 +1389,8 @@ export const CustomOnboardingFlow = ({
                                         <Input
                                             value={formData.agency}
                                             onChange={(e) => setField("agency", e.target.value)}
-                                            placeholder="0001"
+                                            inputMode="numeric"
+                                            placeholder="0001-0"
                                             className="h-12 rounded-2xl border-black/10 bg-white/60 dark:border-white/10 dark:bg-white/[0.03]"
                                         />
                                     </div>
@@ -1329,6 +1399,7 @@ export const CustomOnboardingFlow = ({
                                         <Input
                                             value={formData.accountNumber}
                                             onChange={(e) => setField("accountNumber", e.target.value)}
+                                            inputMode="numeric"
                                             placeholder="123456-7"
                                             className="h-12 rounded-2xl border-black/10 bg-white/60 dark:border-white/10 dark:bg-white/[0.03]"
                                         />
@@ -1339,7 +1410,7 @@ export const CustomOnboardingFlow = ({
                                     <div className="flex items-start gap-3">
                                         <AlertCircle className="mt-0.5 h-4 w-4 text-amber-700 dark:text-amber-400" />
                                         <p className="text-sm text-amber-800 dark:text-amber-300">
-                                            A conta bancária precisa ser da mesma titularidade do CPF enviado
+                                            A conta bancária precisa ser da mesma titularidade do documento enviado
                                             no onboarding.
                                         </p>
                                     </div>
@@ -1465,7 +1536,9 @@ export const CustomOnboardingFlow = ({
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] uppercase text-zinc-500">CPF</p>
+                                            <p className="text-[10px] uppercase text-zinc-500">
+                                                {formData.taxpayerType === "pj" ? "CNPJ" : "CPF"}
+                                            </p>
                                             <p className="text-sm font-bold text-zinc-950 dark:text-white">
                                                 {formData.cpf}
                                             </p>
@@ -1604,13 +1677,13 @@ export const CustomOnboardingFlow = ({
             </AnimatePresence>
             </div>
 
-            <div className="shrink-0 mt-3 flex flex-col gap-4 border-t border-black/10 bg-white/70 pt-4 backdrop-blur-2xl dark:border-white/10 dark:bg-[#080808]/70">
+            <div className="shrink-0 mt-3 flex flex-col gap-4 border-t border-black/10 bg-[#f8f8f6]/92 pt-4 backdrop-blur-2xl dark:border-white/10 dark:bg-[#020202]/92">
                 <div className="flex gap-3">
                     <Button
                         variant="outline"
                         onClick={handleBack}
                         disabled={isSubmitting}
-                        className="h-14 flex-1 rounded-2xl border-black/10 bg-white/50 font-bold uppercase tracking-[0.18em] text-[10px] backdrop-blur-xl transition-all duration-300 active:scale-[0.985] dark:border-white/10 dark:bg-white/[0.03] hover:bg-black/5 dark:hover:bg-white/5"
+                        className="h-12 flex-1 rounded-[16px] border-black/10 bg-white/50 text-[10px] font-black uppercase tracking-[0.16em] backdrop-blur-xl transition-all duration-300 hover:bg-black/5 active:scale-[0.985] dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/5"
                     >
                         {step === "personal" ? (
                             "Cancelar"
@@ -1625,7 +1698,7 @@ export const CustomOnboardingFlow = ({
                     <Button
                         onClick={handleNext}
                         disabled={isSubmitting}
-                        className="h-14 flex-[1.4] rounded-2xl bg-zinc-950 font-black uppercase tracking-[0.18em] text-[10px] text-white shadow-[0_18px_36px_-18px_rgba(0,0,0,0.65)] transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.985] dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200"
+                        className="h-12 flex-[1.4] rounded-[16px] bg-zinc-950 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[0_18px_36px_-18px_rgba(0,0,0,0.65)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-zinc-800 active:translate-y-0 active:scale-[0.985] dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                     >
                         {isSubmitting ? (
                             <>
@@ -1653,40 +1726,30 @@ export const CustomOnboardingFlow = ({
 
     return (
         <div className={cn(
-            "relative isolate w-full flex min-h-0 flex-col lg:flex-row overflow-hidden bg-white dark:bg-[#080808]",
+            "relative isolate w-full flex min-h-0 flex-col overflow-hidden bg-[#f8f8f6] dark:bg-[#020202] lg:flex-row",
             fullScreen 
-                ? "h-[100dvh] max-h-[100dvh]"
-                : "h-[100dvh] max-h-[100dvh] shadow-[0_30px_120px_rgba(0,0,0,0.15)] dark:shadow-[0_30px_120px_rgba(0,0,0,0.6)] sm:h-[90vh] sm:max-h-[950px] sm:rounded-[36px] border border-black/5 dark:border-white/5"
+                ? "h-full max-h-full"
+                : "h-[min(88dvh,900px)] max-h-[900px] border border-black/5 shadow-[0_30px_120px_rgba(0,0,0,0.15)] dark:border-white/5 dark:shadow-[0_30px_120px_rgba(0,0,0,0.6)] sm:rounded-[40px]"
         )}>
             
             {/* Left Column - 3D Visual & Compliance */}
-            <div className="hidden lg:flex lg:w-[34%] xl:w-[36%] shrink-0 relative bg-zinc-50 dark:bg-[#0c0c0c] border-r border-black/5 dark:border-white/5 overflow-hidden items-center justify-center p-8 xl:p-10">
-                <div className="absolute inset-0 bg-radial-gradient from-black/[0.03] dark:from-white/[0.03] to-transparent opacity-60 backdrop-blur-3xl" />
+            <div className="relative hidden shrink-0 overflow-hidden border-r border-black/5 bg-[radial-gradient(circle_at_50%_22%,rgba(255,255,255,0.12),transparent_28%),linear-gradient(145deg,#050505_0%,#151515_50%,#030303_100%)] p-8 dark:border-white/5 lg:flex lg:w-[40%] xl:w-[42%] xl:p-10">
+                <div className="absolute inset-0 opacity-60 backdrop-blur-3xl" />
                 
                 {/* Stamp at top-left inner */}
                 <div className="absolute top-8 left-8 z-20">
                     <BrandComplianceStrip />
                 </div>
                 
-                {/* Text bottom */}
-                <div className="absolute bottom-8 left-8 right-8 z-20">
-                    <h3 className="text-xl font-black tracking-tight text-zinc-950 dark:text-white mb-1.5">
-                        NeuroFinance
-                    </h3>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                        Ative cobranças, acompanhe recebíveis e prepare repasses com validação segura.
-                    </p>
-                </div>
-                
                 {/* 3D Model */}
-                <div className="relative z-10 w-full h-full flex items-center justify-center scale-90 xl:scale-100 transition-transform duration-700">
+                <div className="relative z-10 flex h-full w-full items-center justify-center transition-transform duration-700">
                     <NeuroFinanceCardVisual performanceMode />
                 </div>
             </div>
 
             {/* Right Column - Formulation / Form */}
-            <div className="flex-1 flex min-h-0 flex-col h-full min-w-0 bg-white dark:bg-[#080808] relative overflow-hidden">
-                <div className="flex-1 min-h-0 w-full p-4 sm:p-5 lg:p-6 xl:p-7 flex flex-col h-full overflow-hidden lg:[zoom:.88] xl:[zoom:.92] 2xl:[zoom:.96]">
+            <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-[#f8f8f6] dark:bg-[#020202]">
+                <div className="flex h-full min-h-0 w-full flex-col overflow-hidden p-4 sm:p-5 lg:p-7 xl:p-8">
                    {renderContent()}
                 </div>
             </div>
