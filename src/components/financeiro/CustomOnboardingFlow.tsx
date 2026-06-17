@@ -114,7 +114,7 @@ const INITIAL_FORM: FormData = {
     city: "",
     state: "",
 
-    companyType: "",
+    companyType: "INDIVIDUAL",
     incomeValue: "",
     businessUrl: "",
     businessDescription: "Serviços de psicologia e saúde mental",
@@ -674,10 +674,15 @@ export const CustomOnboardingFlow = ({
         let nextValue = value;
 
         if (field === "taxpayerType") {
+            const nextTaxpayerType = value as TaxpayerType;
             setFormData((prev) => ({
                 ...prev,
-                taxpayerType: value as TaxpayerType,
-                cpf: maskCpfCnpj(prev.cpf, value as TaxpayerType),
+                taxpayerType: nextTaxpayerType,
+                cpf: maskCpfCnpj(prev.cpf, nextTaxpayerType),
+                companyType:
+                    nextTaxpayerType === "pf" && !prev.companyType
+                        ? "INDIVIDUAL"
+                        : prev.companyType,
             }));
             return;
         }
@@ -778,6 +783,12 @@ export const CustomOnboardingFlow = ({
     }
 
     function validateBusinessStep() {
+        if (!formData.companyType) {
+            return "Selecione o tipo de empresa.";
+        }
+        if (parseIncomeValue(formData.incomeValue) <= 0) {
+            return "Informe o faturamento mensal.";
+        }
         if (!formData.businessDescription.trim()) {
             return "Informe a descrição dos serviços.";
         }

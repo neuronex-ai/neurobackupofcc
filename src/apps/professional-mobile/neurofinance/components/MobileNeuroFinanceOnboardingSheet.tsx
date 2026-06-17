@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Building2, Camera, CheckCircle2, CreditCard, FileUp, KeyRound, Loader2, MapPin, QrCode, ReceiptText, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, Camera, CheckCircle2, FileUp, KeyRound, Loader2, MapPin, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/components/auth/SessionContextProvider";
@@ -19,10 +19,12 @@ import { formatMoney, mobileFinanceSurface } from "../../shared/MobileFinancePri
 
 type Step = "personal" | "business" | "bank" | "documents" | "review";
 type PayoutMethod = "pix" | "bank" | "both";
+type TaxpayerType = "pf" | "pj";
 
 type FormState = {
   firstName: string;
   lastName: string;
+  taxpayerType: TaxpayerType;
   cpf: string;
   birthDate: string;
   phone: string;
@@ -58,6 +60,7 @@ const steps: Array<{ id: Step; label: string }> = [
 const initialForm: FormState = {
   firstName: "",
   lastName: "",
+  taxpayerType: "pf",
   cpf: "",
   birthDate: "",
   phone: "",
@@ -85,7 +88,7 @@ const initialForm: FormState = {
 const pixKeyTypes: Array<{ value: PixKeyInputType; label: string; hint: string }> = [
   { value: "cpf", label: "CPF", hint: "000.000.000-00" },
   { value: "cnpj", label: "CNPJ", hint: "00.000.000/0000-00" },
-  { value: "email", label: "E-mail", hint: "voce@email.com" },
+  { value: "email", label: "E-mail", hint: "seu@email.com" },
   { value: "telefone", label: "Telefone", hint: "+55 (00) 00000-0000" },
   { value: "evp", label: "Aleatória", hint: "Chave aleatória" },
 ];
@@ -96,11 +99,18 @@ const payoutOptions: Array<{ id: PayoutMethod; label: string; helper: string; ic
   { id: "both", label: "Pix + conta", helper: "Deixe os dois destinos prontos.", icon: ShieldCheck },
 ];
 
+const companyTypes = [
+  { value: "MEI", label: "MEI" },
+  { value: "LIMITED", label: "Limitada" },
+  { value: "INDIVIDUAL", label: "Individual" },
+  { value: "ASSOCIATION", label: "Associação" },
+];
+
 const fallbackFees = [
-  { key: "pix", title: "Pix", icon: QrCode, price: "Tabela vigente", settlement: "Instantâneo" },
-  { key: "boleto", title: "Boleto", icon: ReceiptText, price: "Tabela vigente", settlement: "1 a 2 dias úteis" },
-  { key: "credit", title: "Crédito", icon: CreditCard, price: "Tabela vigente", settlement: "Conforme parcela" },
-  { key: "debit", title: "Débito", icon: CreditCard, price: "Tabela vigente", settlement: "Até 1 dia útil" },
+  { key: "pix", title: "Pix", price: "Tabela vigente", settlement: "Instantâneo" },
+  { key: "boleto", title: "Boleto", price: "Tabela vigente", settlement: "1 a 2 dias úteis" },
+  { key: "credit", title: "Crédito", price: "Tabela vigente", settlement: "Conforme parcela" },
+  { key: "debit", title: "Débito", price: "Tabela vigente", settlement: "Até 1 dia útil" },
 ];
 
 function buildFeeCards(ruleSet: TariffRule[] = []) {
@@ -136,12 +146,32 @@ const maskCpf = (value: string) =>
     .replace(/(\d{3})(\d)/, "$1.$2")
     .replace(/(\d{3})(\d{1,2})$/, "$1-$2")
     .slice(0, 14);
+const maskCnpj = (value: string) =>
+  onlyDigits(value)
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2")
+    .slice(0, 18);
+const maskCpfCnpj = (value: string, taxpayerType: TaxpayerType) =>
+  taxpayerType === "pj" ? maskCnpj(value) : maskCpf(value);
 const maskPhone = (value: string) =>
   onlyDigits(value)
     .replace(/(\d{2})(\d)/, "($1) $2")
     .replace(/(\d{5})(\d)/, "$1-$2")
     .slice(0, 15);
 const maskCep = (value: string) => onlyDigits(value).replace(/(\d{5})(\d)/, "$1-$2").slice(0, 9);
+const maskAgency = (value: string) => {
+  const digits = onlyDigits(value).slice(0, 6);
+  if (digits.length <= 4) return digits;
+  return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+};
+const maskAccountNumber = (value: string) => {
+  const digits = onlyDigits(value).slice(0, 14);
+  if (digits.length <= 1) return digits;
+  if (digits.length <= 8) return digits.replace(/(\d+)(\d)$/, "$1-$2");
+  return `${digits.slice(0, -1)}-${digits.slice(-1)}`;
+};
 const parseIncome = (value: string) => Number(value.replace(/\./g, "").replace(",", ".")) || 0;
 const normalizeUrl = (value: string) => {
   const trimmed = value.trim();
@@ -201,6 +231,7 @@ function buildPayload(form: FormState, docs: { front?: string; back?: string }) 
     profile: {
       first_name: form.firstName.trim(),
       last_name: form.lastName.trim(),
+      taxpayer_type: form.taxpayerType,
       political_exposure: form.pep,
       city: form.city.trim(),
       state: form.state.trim().toUpperCase(),
@@ -212,7 +243,7 @@ function buildPayload(form: FormState, docs: { front?: string; back?: string }) 
     bank_account: {
       country: "BR",
       currency: "brl",
-      account_holder_type: "individual",
+      account_holder_type: form.taxpayerType === "pj" ? "company" : "individual",
       account_holder_name: fullName,
       cpfCnpj: onlyDigits(form.cpf),
       bank_code: onlyDigits(form.bankCode),
@@ -314,9 +345,16 @@ export function MobileNeuroFinanceOnboardingSheet({
 
     setForm((current) => ({
       ...current,
+      ...(() => {
+        const documentValue = firstString(record?.cpf_cnpj, snapshot.cpfCnpj, current.cpf);
+        const taxpayerType: TaxpayerType = onlyDigits(documentValue).length > 11 ? "pj" : current.taxpayerType;
+        return {
+          taxpayerType,
+          cpf: maskCpfCnpj(documentValue, taxpayerType),
+        };
+      })(),
       firstName: firstString(record?.holder_name?.split(" ")[0], onboardingProfile.first_name, profile?.first_name, authMetadata.first_name, splitName.firstName, current.firstName),
       lastName: firstString(record?.holder_name?.split(" ").slice(1).join(" "), onboardingProfile.last_name, profile?.last_name, authMetadata.last_name, splitName.lastName, current.lastName),
-      cpf: maskCpf(firstString(record?.cpf_cnpj, snapshot.cpfCnpj, current.cpf)),
       birthDate: firstString(record?.birth_date, snapshot.birthDate, current.birthDate),
       phone: maskPhone(firstString(record?.mobile_phone, snapshot.mobilePhone, profile?.phone, authMetadata.phone, current.phone)),
       pep: firstString(record?.pep_status, onboardingProfile.political_exposure, current.pep) as FormState["pep"],
@@ -331,9 +369,9 @@ export function MobileNeuroFinanceOnboardingSheet({
       incomeValue: record?.income_value ? String(record.income_value) : (snapshot.incomeValue ? String(snapshot.incomeValue) : current.incomeValue),
       businessUrl: firstString(record?.business_url, snapshot.site, current.businessUrl),
       businessDescription: firstString(record?.business_description, businessProfile.product_description, profile?.bio, current.businessDescription),
-      bankCode: firstString(record?.bank_code, bankAccount.bank_code, current.bankCode),
-      agency: firstString(record?.bank_agency, bankAccount.agency, current.agency),
-      accountNumber: accountNumber || current.accountNumber,
+      bankCode: onlyDigits(firstString(record?.bank_code, bankAccount.bank_code, current.bankCode)).slice(0, 3),
+      agency: maskAgency(firstString(record?.bank_agency, bankAccount.agency, current.agency)),
+      accountNumber: maskAccountNumber(accountNumber || current.accountNumber),
       payoutMethod: hasBankSnapshot && hasPixSnapshot ? "both" : hasBankSnapshot ? "bank" : "pix",
       pixKeyType: (["cpf", "cnpj", "email", "telefone", "evp"].includes(String(pixDestination.type || "").toLowerCase())
         ? String(pixDestination.type).toLowerCase()
@@ -347,12 +385,23 @@ export function MobileNeuroFinanceOnboardingSheet({
 
   const setField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     let nextValue = value;
-    if (field === "cpf") nextValue = maskCpf(String(value)) as FormState[K];
+    if (field === "taxpayerType") {
+      const taxpayerType = value as TaxpayerType;
+      setForm((current) => ({
+        ...current,
+        taxpayerType,
+        cpf: maskCpfCnpj(current.cpf, taxpayerType),
+        companyType: taxpayerType === "pf" && !current.companyType ? "INDIVIDUAL" : current.companyType,
+      }));
+      return;
+    }
+    if (field === "cpf") nextValue = maskCpfCnpj(String(value), form.taxpayerType) as FormState[K];
     if (field === "phone") nextValue = maskPhone(String(value)) as FormState[K];
     if (field === "cep") nextValue = maskCep(String(value)) as FormState[K];
     if (field === "state") nextValue = String(value).toUpperCase().slice(0, 2) as FormState[K];
     if (field === "bankCode") nextValue = onlyDigits(String(value)).slice(0, 3) as FormState[K];
-    if (field === "agency") nextValue = onlyDigits(String(value)).slice(0, 10) as FormState[K];
+    if (field === "agency") nextValue = maskAgency(String(value)) as FormState[K];
+    if (field === "accountNumber") nextValue = maskAccountNumber(String(value)) as FormState[K];
     if (field === "pixKey") nextValue = formatPixKeyInput(String(value), form.pixKeyType) as FormState[K];
     if (field === "cep" || field === "street") {
       setSelectedAddressQuery("");
@@ -396,12 +445,13 @@ export function MobileNeuroFinanceOnboardingSheet({
   const currentError = () => {
     if (step === "personal") {
       if (!form.firstName.trim() || !form.lastName.trim()) return "Informe nome e sobrenome.";
-      if (onlyDigits(form.cpf).length !== 11) return "Informe um CPF válido.";
+      if (form.taxpayerType === "pf" && onlyDigits(form.cpf).length !== 11) return "Informe um CPF válido.";
+      if (form.taxpayerType === "pj" && onlyDigits(form.cpf).length !== 14) return "Informe um CNPJ válido.";
       if (!form.birthDate || !form.phone.trim()) return "Complete nascimento e telefone.";
     }
     if (step === "business") {
       if (!form.cep || !form.street || !form.number || !form.neighborhood || !form.city || form.state.length !== 2) return "Complete o endereço.";
-      if (!form.companyType || parseIncome(form.incomeValue) <= 0) return "Informe tipo e faturamento.";
+      if (!form.companyType || parseIncome(form.incomeValue) <= 0) return "Informe tipo de empresa e faturamento.";
       if (form.businessDescription.trim().length < 20) return "Descreva sua atividade clínica.";
     }
     if (step === "bank") {
@@ -421,7 +471,7 @@ export function MobileNeuroFinanceOnboardingSheet({
     formData.append("file", file);
     formData.append("document_type", "IDENTIFICATION");
     const result = await account.uploadFile.mutateAsync(formData);
-    return String((result as any)?.id || "");
+    return String((result as any)?.document?.id || (result as any)?.id || "");
   };
 
   const submit = async () => {
@@ -433,12 +483,50 @@ export function MobileNeuroFinanceOnboardingSheet({
 
     setSaving(true);
     try {
-      const front = await uploadDocument(frontFile);
-      const back = await uploadDocument(backFile);
-      await account.startOnboarding.mutateAsync(buildPayload(form, {
-        front: front || account.account?.document_front_id || undefined,
-        back: back || account.account?.document_back_id || undefined,
-      }));
+      const currentAccountId = account.account?.asaas_account_id;
+      const currentDocs = {
+        front: account.account?.document_front_id || undefined,
+        back: account.account?.document_back_id || undefined,
+      };
+
+      if (currentAccountId) {
+        const front = await uploadDocument(frontFile);
+        const back = await uploadDocument(backFile);
+        const result = await account.updateAccount.mutateAsync(buildPayload(form, {
+          front: front || currentDocs.front,
+          back: back || currentDocs.back,
+        }));
+        if ((result as any)?.sync_status === "deferred") {
+          toast.warning("Dados salvos. A sincronização com a Asaas seguirá em segundo plano.");
+        }
+      } else {
+        const onboardingResult = await account.startOnboarding.mutateAsync(buildPayload(form, currentDocs));
+        if (!(onboardingResult as any)?.asaas_account_id) {
+          throw new Error("Não foi possível criar a conta conectada.");
+        }
+
+        try {
+          const front = await uploadDocument(frontFile);
+          const back = await uploadDocument(backFile);
+          const result = await account.updateAccount.mutateAsync(buildPayload(form, {
+            front: front || currentDocs.front,
+            back: back || currentDocs.back,
+          }));
+          if ((result as any)?.sync_status === "deferred") {
+            toast.warning("Conta criada. Alguns dados ainda aguardam validação da Asaas.");
+          }
+        } catch (documentError) {
+          console.warn("[MobileNeuroFinanceOnboarding] Document update deferred:", documentError);
+          toast.warning("Conta criada. Se algum documento ficar pendente, você poderá enviar em Saúde da Conta.");
+        }
+      }
+
+      try {
+        await account.syncAccount.mutateAsync();
+      } catch (syncError) {
+        console.warn("[MobileNeuroFinanceOnboarding] Final sync deferred:", syncError);
+      }
+
       toast.success("Conta NeuroFinance enviada para análise.");
       await account.refetch();
       onComplete();
@@ -467,7 +555,7 @@ export function MobileNeuroFinanceOnboardingSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="z-[130] h-[min(94dvh,52rem)] overflow-hidden rounded-t-[32px] border-x-0 border-b-0 border-t border-border/50 bg-background p-0 dark:border-white/10">
+      <SheetContent side="bottom" className="z-[130] h-[min(94dvh,52rem)] overflow-hidden rounded-t-[32px] border-x-0 border-b-0 border-t border-border/50 bg-[#f8f8f6] p-0 text-zinc-950 shadow-[0_-24px_80px_-48px_rgba(0,0,0,0.5)] dark:border-white/10 dark:bg-[#020202] dark:text-white">
         <div className="flex h-full flex-col">
           <header className="shrink-0 px-5 pb-4 pt-5">
             <div className="mx-auto mb-4 h-1 w-11 rounded-full bg-foreground/14" />
@@ -494,13 +582,47 @@ export function MobileNeuroFinanceOnboardingSheet({
             </div>
           </header>
 
-          <div className="mobile-scroll-owner min-h-0 flex-1 overflow-y-auto px-5 pb-4">
-            <div className={cn(mobileFinanceSurface, "space-y-4 p-4")}>
+          <div className="mobile-scroll-owner min-h-0 flex-1 overflow-y-auto px-5 pb-5">
+            <div className={cn(mobileFinanceSurface, "space-y-4 p-4 shadow-[0_18px_54px_-42px_rgba(0,0,0,0.55)]")}>
               {step === "personal" ? (
                 <>
                   <Field label="Nome"><Input value={form.firstName} onChange={(event) => setField("firstName", event.target.value)} className="h-12 rounded-[16px]" /></Field>
                   <Field label="Sobrenome"><Input value={form.lastName} onChange={(event) => setField("lastName", event.target.value)} className="h-12 rounded-[16px]" /></Field>
-                  <Field label="CPF"><Input value={form.cpf} inputMode="numeric" onChange={(event) => setField("cpf", event.target.value)} className="h-12 rounded-[16px]" /></Field>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setField("taxpayerType", "pf")}
+                      className={cn(
+                        "min-h-11 rounded-[15px] border px-3 text-[9px] font-black uppercase tracking-[0.08em] transition active:scale-[0.985]",
+                        form.taxpayerType === "pf"
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border/55 bg-background/70 text-foreground dark:border-white/10",
+                      )}
+                    >
+                      Atuo como PF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setField("taxpayerType", "pj")}
+                      className={cn(
+                        "min-h-11 rounded-[15px] border px-3 text-[9px] font-black uppercase tracking-[0.08em] transition active:scale-[0.985]",
+                        form.taxpayerType === "pj"
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border/55 bg-background/70 text-foreground dark:border-white/10",
+                      )}
+                    >
+                      Atuo como PJ
+                    </button>
+                  </div>
+                  <Field label={form.taxpayerType === "pj" ? "CNPJ" : "CPF"}>
+                    <Input
+                      value={form.cpf}
+                      inputMode="numeric"
+                      placeholder={form.taxpayerType === "pj" ? "00.000.000/0000-00" : "000.000.000-00"}
+                      onChange={(event) => setField("cpf", event.target.value)}
+                      className="h-12 rounded-[16px]"
+                    />
+                  </Field>
                   <Field label="Nascimento"><Input type="date" value={form.birthDate} onChange={(event) => setField("birthDate", event.target.value)} className="h-12 rounded-[16px]" /></Field>
                   <Field label="Telefone"><Input value={form.phone} inputMode="tel" onChange={(event) => setField("phone", event.target.value)} className="h-12 rounded-[16px]" /></Field>
                 </>
@@ -524,6 +646,25 @@ export function MobileNeuroFinanceOnboardingSheet({
                     <Field label="Bairro"><Input value={form.neighborhood} onChange={(event) => setField("neighborhood", event.target.value)} className="h-12 rounded-[16px]" /></Field>
                   </div>
                   <Field label="Cidade"><Input value={form.city} onChange={(event) => setField("city", event.target.value)} className="h-12 rounded-[16px]" /></Field>
+                  <Field label="Tipo de empresa">
+                    <div className="grid grid-cols-2 gap-2">
+                      {companyTypes.map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => setField("companyType", type.value)}
+                          className={cn(
+                            "min-h-11 rounded-[15px] border px-3 text-left text-[9px] font-black uppercase tracking-[0.08em] transition active:scale-[0.985]",
+                            form.companyType === type.value
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-border/55 bg-background/70 text-foreground dark:border-white/10",
+                          )}
+                        >
+                          {type.label}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
                   <Field label="Faturamento mensal"><Input value={form.incomeValue} inputMode="decimal" placeholder="5.000,00" onChange={(event) => setField("incomeValue", event.target.value)} className="h-12 rounded-[16px]" /></Field>
                   <Field label="Descrição clínica"><textarea value={form.businessDescription} onChange={(event) => setField("businessDescription", event.target.value)} className="min-h-28 w-full resize-none rounded-[18px] border border-input bg-background px-4 py-3 text-sm outline-none" /></Field>
                   <Field label="Site ou perfil profissional"><Input value={form.businessUrl} onChange={(event) => setField("businessUrl", event.target.value)} className="h-12 rounded-[16px]" /></Field>
@@ -594,9 +735,9 @@ export function MobileNeuroFinanceOnboardingSheet({
                   {(form.payoutMethod === "bank" || form.payoutMethod === "both") ? (
                     <div className="space-y-3 rounded-[22px] border border-border/45 bg-background/65 p-3 dark:border-white/10">
                       <Field label="Código do banco"><Input value={form.bankCode} inputMode="numeric" placeholder="001" onChange={(event) => setField("bankCode", event.target.value)} className="h-12 rounded-[16px]" /></Field>
-                      <Field label="Agência"><Input value={form.agency} inputMode="numeric" placeholder="0001" onChange={(event) => setField("agency", event.target.value)} className="h-12 rounded-[16px]" /></Field>
-                      <Field label="Conta com dígito"><Input value={form.accountNumber} placeholder="123456-7" onChange={(event) => setField("accountNumber", event.target.value)} className="h-12 rounded-[16px]" /></Field>
-                      <p className="rounded-[18px] border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] font-semibold leading-relaxed text-amber-700 dark:text-amber-300">A conta bancária precisa ter a mesma titularidade do CPF informado.</p>
+                      <Field label="Agência"><Input value={form.agency} inputMode="numeric" placeholder="0001-0" onChange={(event) => setField("agency", event.target.value)} className="h-12 rounded-[16px]" /></Field>
+                      <Field label="Conta com dígito"><Input value={form.accountNumber} inputMode="numeric" placeholder="123456-7" onChange={(event) => setField("accountNumber", event.target.value)} className="h-12 rounded-[16px]" /></Field>
+                      <p className="rounded-[18px] border border-amber-500/20 bg-amber-500/10 p-3 text-[11px] font-semibold leading-relaxed text-amber-700 dark:text-amber-300">A conta bancária precisa ter a mesma titularidade do documento informado.</p>
                     </div>
                   ) : null}
 
@@ -629,7 +770,7 @@ export function MobileNeuroFinanceOnboardingSheet({
               {step === "review" ? (
                 <div className="space-y-3">
                   <ReviewRow label="Titular" value={`${form.firstName} ${form.lastName}`} />
-                  <ReviewRow label="CPF" value={form.cpf} />
+                  <ReviewRow label={form.taxpayerType === "pj" ? "CNPJ" : "CPF"} value={form.cpf} />
                   <ReviewRow label="Cidade" value={`${form.city}/${form.state}`} />
                   <ReviewRow label="Faturamento" value={formatMoney(parseIncome(form.incomeValue))} />
                   {(form.payoutMethod === "pix" || form.payoutMethod === "both") ? (
@@ -647,7 +788,7 @@ export function MobileNeuroFinanceOnboardingSheet({
             </div>
           </div>
 
-          <footer className="grid shrink-0 grid-cols-[.8fr_1.2fr] gap-3 border-t border-border/45 bg-background/90 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl dark:border-white/10">
+          <footer className="grid shrink-0 grid-cols-[.8fr_1.2fr] gap-3 border-t border-border/45 bg-[#f8f8f6]/92 px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur-xl dark:border-white/10 dark:bg-[#020202]/92">
             <Button variant="outline" onClick={back} disabled={saving} className="h-[52px] rounded-[18px] text-[10px] font-black uppercase tracking-[0.12em]">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Voltar
@@ -741,7 +882,7 @@ function MobileBrandSeal({ className }: { className?: string }) {
 function MobileFeePreview({
   items,
 }: {
-  items: Array<{ key: string; title: string; price: string; settlement: string; icon: ElementType }>;
+  items: Array<{ key: string; title: string; price: string; settlement: string }>;
 }) {
   return (
     <div className="rounded-[22px] border border-border/45 bg-background/65 p-3 dark:border-white/10">
@@ -750,17 +891,13 @@ function MobileFeePreview({
         <ShieldCheck className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        {items.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div key={item.key} className="rounded-[16px] border border-border/35 bg-background p-3 dark:border-white/10">
-              <Icon className="mb-2 h-4 w-4 text-muted-foreground" />
-              <p className="text-xs font-black">{item.title}</p>
-              <p className="mt-1 text-[10px] font-semibold text-muted-foreground">{item.price}</p>
-              <p className="mt-1 text-[9px] font-black uppercase tracking-[0.08em] text-muted-foreground/75">{item.settlement}</p>
-            </div>
-          );
-        })}
+        {items.map((item) => (
+          <div key={item.key} className="rounded-[16px] border border-border/35 bg-background p-3 dark:border-white/10">
+            <p className="text-[9px] font-black uppercase tracking-[0.08em] text-muted-foreground/75">{item.settlement}</p>
+            <p className="mt-2 text-xs font-black">{item.title}</p>
+            <p className="mt-1 text-[10px] font-semibold text-muted-foreground">{item.price}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
