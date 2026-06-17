@@ -46,7 +46,9 @@ export function useVoiceConfig() {
             if (invokeError) throw new Error(invokeError.message);
             if (!data?.token) throw new Error('Token de voz indisponivel.');
 
-            setToken(data.token);
+            // Gemini Live ephemeral tokens are single-use for starting a session.
+            // Return the token to the caller, but do not keep it around for reuse.
+            setToken(null);
             setExpiresAt(data.expiresAt);
             setNewSessionExpiresAt(data.newSessionExpiresAt);
             setModel(data.model || DEFAULT_MODEL);

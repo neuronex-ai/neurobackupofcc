@@ -54,6 +54,13 @@ interface UseGeminiVoiceReturn {
 
 type LiveMessage = {
     setupComplete?: boolean;
+    toolCall?: {
+        functionCalls?: Array<{
+            id?: string;
+            name: string;
+            args?: unknown;
+        }>;
+    };
     serverContent?: {
         inputTranscription?: { text?: string; finished?: boolean };
         outputTranscription?: { text?: string };
@@ -115,7 +122,7 @@ registerProcessor('audio-processor', AudioProcessor);
 `;
 
 const DEFAULT_MODEL = 'gemini-3.1-flash-live-preview';
-const DEFAULT_VOICE = 'Puck';
+const DEFAULT_VOICE = 'Kore';
 
 const toFriendlyVoiceError = (message?: string) => {
     const raw = message || '';
@@ -399,10 +406,14 @@ export function useGeminiVoice({
 
             audioContextRef.current = new AudioContext({ sampleRate: 16000 });
 
-            const workletBlob = new Blob([AUDIO_WORKLET_CODE], { type: 'application/javascript' });
-            const workletUrl = URL.createObjectURL(workletBlob);
-            await audioContextRef.current.audioWorklet.addModule(workletUrl);
-            URL.revokeObjectURL(workletUrl);
+            try {
+                await audioContextRef.current.audioWorklet.addModule('/worklets/gemini-voice-processor.js');
+            } catch {
+                const workletBlob = new Blob([AUDIO_WORKLET_CODE], { type: 'application/javascript' });
+                const workletUrl = URL.createObjectURL(workletBlob);
+                await audioContextRef.current.audioWorklet.addModule(workletUrl);
+                URL.revokeObjectURL(workletUrl);
+            }
 
             streamRef.current = await navigator.mediaDevices.getUserMedia({
                 audio: {
@@ -433,10 +444,10 @@ export function useGeminiVoice({
                     const base64Audio = uint8ToBase64(new Uint8Array(event.data.data));
                     wsRef.current.send(JSON.stringify({
                         realtimeInput: {
-                            mediaChunks: [{
+                            audio: {
                                 mimeType: 'audio/pcm;rate=16000',
                                 data: base64Audio,
-                            }],
+                            },
                         },
                     }));
                 }
@@ -455,14 +466,12 @@ export function useGeminiVoice({
                 wsRef.current?.send(JSON.stringify({
                     setup: {
                         model: `models/${liveModel}`,
-                        generationConfig: {
-                            responseModalities: ['AUDIO'],
-                            temperature: 0.5,
-                            speechConfig: {
-                                voiceConfig: {
-                                    prebuiltVoiceConfig: {
-                                        voiceName: liveVoiceName,
-                                    },
+                        responseModalities: ['AUDIO'],
+                        temperature: 0.5,
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: {
+                                    voiceName: liveVoiceName,
                                 },
                             },
                         },

@@ -9,6 +9,10 @@ type GeminiFunctionCall = {
     args?: unknown;
 };
 
+type GeminiToolCall = {
+    functionCalls?: GeminiFunctionCall[];
+};
+
 type GeminiLivePart = {
     inlineData?: {
         mimeType?: string;
@@ -19,6 +23,7 @@ type GeminiLivePart = {
 
 type GeminiLiveMessage = {
     setupComplete?: boolean;
+    toolCall?: GeminiToolCall;
     serverContent?: {
         modelTurn?: {
             parts?: GeminiLivePart[];
@@ -34,14 +39,12 @@ type GeminiLiveMessage = {
 type GeminiSetupMessage = {
     setup: {
         model: string;
-        generationConfig: {
-            responseModalities: string[];
-            temperature: number;
-            speechConfig: {
-                voiceConfig: {
-                    prebuiltVoiceConfig: {
-                        voiceName: string;
-                    };
+        responseModalities: string[];
+        temperature: number;
+        speechConfig: {
+            voiceConfig: {
+                prebuiltVoiceConfig: {
+                    voiceName: string;
                 };
             };
         };
@@ -77,6 +80,7 @@ const parseLiveMessage = (raw: unknown): GeminiLiveMessage => {
 export interface GeminiClientOptions {
     token: string;
     model?: string;
+    voiceName?: string;
     systemInstruction?: string;
     tools?: unknown[];
     onStatusChange?: (status: GeminiLiveStatus) => void;
@@ -180,14 +184,12 @@ export class GeminiLiveClient {
         const msg: GeminiSetupMessage = {
             setup: {
                 model: `models/${this.options.model || 'gemini-3.1-flash-live-preview'}`,
-                generationConfig: {
-                    responseModalities: ['AUDIO'],
-                    temperature: 0.5,
-                    speechConfig: {
-                        voiceConfig: {
-                            prebuiltVoiceConfig: {
-                                voiceName: "Puck"
-                            }
+                responseModalities: ['AUDIO'],
+                temperature: 0.5,
+                speechConfig: {
+                    voiceConfig: {
+                        prebuiltVoiceConfig: {
+                            voiceName: this.options.voiceName || "Kore"
                         }
                     }
                 }
@@ -238,9 +240,11 @@ export class GeminiLiveClient {
         if (msg.setupComplete) {
             this.setupCompleted = true;
             this.options.onStatusChange?.('connected');
-            // Now we can start sending audio
-            this.sendAudioChunk(new Int16Array(0));
             return;
+        }
+
+        if (msg.toolCall) {
+            void this.executeToolCall(msg.toolCall);
         }
 
         if (msg.serverContent?.modelTurn) {
@@ -249,7 +253,7 @@ export class GeminiLiveClient {
                 if (part.inlineData?.mimeType?.startsWith('audio/pcm')) {
                     this.playReceivedAudio(part.inlineData.data);
                 } else if (part.functionCall) {
-                    this.executeTool(part.functionCall);
+                    void this.executeTool(part.functionCall);
                 }
             }
         }
@@ -306,13 +310,23 @@ export class GeminiLiveClient {
         }
     }
 
+    private async executeToolCall(toolCall: GeminiToolCall) {
+        const calls = toolCall.functionCalls || [];
+        for (const functionCall of calls) {
+            await this.executeTool(functionCall);
+        }
+    }
+
     private handleSocketClose() {
+        if (!this.setupCompleted) {
+            this.options.onError?.(new Error("A conexao de voz fechou antes da confirmacao do Live API."));
+        }
         this.options.onStatusChange?.('disconnected');
         this.disconnect();
     }
 
     private handleSocketError(_err: unknown) {
-        this.options.onError?.(new Error("Conexão falhou com a IA de áudio"));
+        this.options.onError?.(new Error("Conexao falhou com a IA de audio"));
         this.options.onStatusChange?.('error');
     }
 
@@ -333,11 +347,14 @@ export class GeminiLiveClient {
         this.analyser = this.audioContext.createAnalyser();
         this.analyser.fftSize = 256;
 
-        // Worklet for capturing
-        const blob = new Blob([AudioWorkletRawCode], { type: 'application/javascript' });
-        const objectUrl = URL.createObjectURL(blob);
-        await this.audioContext.audioWorklet.addModule(objectUrl);
-        URL.revokeObjectURL(objectUrl);
+        try {
+            await this.audioContext.audioWorklet.addModule('/worklets/gemini-live-recorder.js');
+        } catch {
+            const blob = new Blob([AudioWorkletRawCode], { type: 'application/javascript' });
+            const objectUrl = URL.createObjectURL(blob);
+            await this.audioContext.audioWorklet.addModule(objectUrl);
+            URL.revokeObjectURL(objectUrl);
+        }
 
         this.workletNode = new AudioWorkletNode(this.audioContext, 'recorder-worklet');
         const source = this.audioContext.createMediaStreamSource(this.microphoneStream);
@@ -373,10 +390,10 @@ export class GeminiLiveClient {
 
         this.ws?.send(JSON.stringify({
             realtimeInput: {
-                mediaChunks: [{
+                audio: {
                     mimeType: "audio/pcm;rate=16000",
                     data: b64
-                }]
+                }
             }
         }));
     }
