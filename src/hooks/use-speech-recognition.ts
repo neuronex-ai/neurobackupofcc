@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 interface SpeechRecognitionAlternativeLike {
@@ -55,6 +55,18 @@ interface UseSpeechRecognitionProps {
   continuous?: boolean;
 }
 
+const browserSpeechServiceErrors = new Set([
+  'network',
+  'service-not-allowed',
+  'language-not-supported',
+]);
+
+const detectBrowserSupport = () => {
+  if (typeof window === 'undefined') return false;
+  const speechWindow = window as SpeechWindow;
+  return Boolean(speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition);
+};
+
 export const useSpeechRecognition = ({
   onResult,
   onInterimResult,
@@ -62,6 +74,7 @@ export const useSpeechRecognition = ({
   lang = 'pt-BR',
   continuous = true,
 }: UseSpeechRecognitionProps = {}) => {
+  const [isSupported, setIsSupported] = useState(detectBrowserSupport);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
@@ -69,12 +82,6 @@ export const useSpeechRecognition = ({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const intentionalStopRef = useRef(false);
   const shouldRestartRef = useRef(false);
-
-  const isSupported = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    const speechWindow = window as SpeechWindow;
-    return Boolean(speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition);
-  }, []);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
@@ -94,10 +101,10 @@ export const useSpeechRecognition = ({
     const speechWindow = window as SpeechWindow;
     const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
 
-    if (!Recognition) {
+    if (!Recognition || !isSupported) {
+      setIsSupported(false);
       setLastError('unsupported');
       onError?.('unsupported');
-      toast.error('Seu navegador não oferece reconhecimento de fala local.');
       return;
     }
 
@@ -139,10 +146,21 @@ export const useSpeechRecognition = ({
       };
 
       recognition.onerror = (event) => {
+        if (browserSpeechServiceErrors.has(event.error)) {
+          shouldRestartRef.current = false;
+          recognitionRef.current = null;
+          setIsListening(false);
+          setInterimTranscript('');
+          setIsSupported(false);
+          setLastError('unsupported');
+          onError?.('unsupported');
+          return;
+        }
+
         setLastError(event.error);
         onError?.(event.error);
 
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        if (event.error === 'not-allowed') {
           shouldRestartRef.current = false;
           setIsListening(false);
           toast.error('Permissão de microfone negada.');
@@ -157,7 +175,7 @@ export const useSpeechRecognition = ({
 
       recognition.onend = () => {
         recognitionRef.current = null;
-        if (!intentionalStopRef.current && shouldRestartRef.current) {
+        if (!intentionalStopRef.current && shouldRestartRef.current && isSupported) {
           window.setTimeout(() => {
             try {
               startListening();
@@ -173,11 +191,20 @@ export const useSpeechRecognition = ({
       recognition.start();
     } catch (error) {
       console.error('[SpeechRecognition] Falha ao iniciar.', error);
-      setLastError('start_failed');
-      onError?.('start_failed');
+      recognitionRef.current = null;
       setIsListening(false);
+
+      if (error instanceof DOMException && error.name === 'InvalidStateError') {
+        setLastError('aborted');
+        onError?.('aborted');
+        return;
+      }
+
+      setIsSupported(false);
+      setLastError('unsupported');
+      onError?.('unsupported');
     }
-  }, [continuous, isListening, lang, onError, onInterimResult, onResult]);
+  }, [continuous, isListening, isSupported, lang, onError, onInterimResult, onResult]);
 
   const toggleListening = useCallback(() => {
     if (isListening) stopListening();

@@ -1,80 +1,59 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { GeminiLiveClient, GeminiLiveStatus } from '@/lib/gemini-live-client';
-import { useVoiceConfig } from './use-voice-config';
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useSynapseCascadeVoice } from "@/hooks/use-synapse-cascade-voice";
+import type { GeminiLiveStatus } from "@/lib/gemini-live-client";
 
 type ClientToolMap = Record<string, (params: unknown) => Promise<unknown> | unknown>;
 
 interface UseGeminiLiveOptions {
-    onConnect?: () => void;
-    onDisconnect?: () => void;
-    onError?: (error: string) => void;
+  onConnect?: () => void;
+  onDisconnect?: () => void;
+  onError?: (error: string) => void;
 }
 
 export function useGeminiLive(options?: UseGeminiLiveOptions) {
-    const [status, setStatus] = useState<GeminiLiveStatus>('disconnected');
-    const [isSpeaking, setIsSpeaking] = useState(false);
-    const clientRef = useRef<GeminiLiveClient | null>(null);
-    const volumeRef = useRef(0);
-    const { voiceName, refresh } = useVoiceConfig();
+  const connectedRef = useRef(false);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
-    const startSession = useCallback(async ({ clientTools }: { clientTools?: ClientToolMap }) => {
-        if (clientRef.current?.getStatus() === 'connected') return;
-        const voiceConfig = await refresh();
+  const cascade = useSynapseCascadeVoice();
 
-        let toolDeclarations: unknown[] = [];
-        try {
-            const mod = await import('@/lib/gemini-voice-tools.json');
-            const loaded = mod.default || mod;
-            toolDeclarations = Array.isArray(loaded) ? loaded : [];
-        } catch {
-            toolDeclarations = [];
-        }
+  const status = useMemo<GeminiLiveStatus>(() => {
+    if (cascade.error) return "error";
+    if (cascade.isConnected) return "connected";
+    if (cascade.isProcessing) return "connecting";
+    return "disconnected";
+  }, [cascade.error, cascade.isConnected, cascade.isProcessing]);
 
-        const client = new GeminiLiveClient({
-            token: voiceConfig.token,
-            model: voiceConfig.model,
-            voiceName: voiceConfig.voiceName || voiceName,
-            systemInstruction: 'Voce e o Synapse, a IA medica avancada do sistema NeuroNex Desktop. Fale num tom caloroso, eficiente e profissional. Auxilie o usuario em acoes clinicas, seja concisa.',
-            tools: toolDeclarations.length ? toolDeclarations : undefined,
-            onStatusChange: (newStatus) => {
-                setStatus(newStatus);
-                if (newStatus === 'connected') options?.onConnect?.();
-                if (newStatus === 'disconnected') options?.onDisconnect?.();
-            },
-            onSpeechStatusChange: setIsSpeaking,
-            onVolumeChange: (volume) => {
-                volumeRef.current = volume;
-            },
-            onToolCall: async (name, params) => {
-                const tool = clientTools?.[name];
-                if (!tool) return { error: `Tool ${name} handler not found in client` };
-                return tool(params);
-            },
-            onError: (error) => {
-                options?.onError?.(error.message);
-            },
-        });
+  useEffect(() => {
+    if (cascade.error) optionsRef.current?.onError?.(cascade.error);
+  }, [cascade.error]);
 
-        clientRef.current = client;
-        await client.connect();
-    }, [options, refresh, voiceName]);
+  useEffect(() => {
+    if (cascade.isConnected && !connectedRef.current) {
+      connectedRef.current = true;
+      optionsRef.current?.onConnect?.();
+      return;
+    }
 
-    const endSession = useCallback(async () => {
-        clientRef.current?.disconnect();
-        clientRef.current = null;
-    }, []);
+    if (!cascade.isConnected && connectedRef.current) {
+      connectedRef.current = false;
+      optionsRef.current?.onDisconnect?.();
+    }
+  }, [cascade.isConnected]);
 
-    const getInputVolume = useCallback(() => volumeRef.current, []);
+  const startSession = useCallback(async (_args?: { clientTools?: ClientToolMap }) => {
+    await cascade.startSession();
+  }, [cascade.startSession]);
 
-    useEffect(() => () => {
-        clientRef.current?.disconnect();
-    }, []);
+  const endSession = useCallback(async () => {
+    cascade.endSession();
+  }, [cascade.endSession]);
 
-    return {
-        status,
-        isSpeaking,
-        getInputVolume,
-        startSession,
-        endSession,
-    };
+  return {
+    status,
+    isSpeaking: cascade.isSpeaking,
+    getInputVolume: cascade.getAudioVolume,
+    startSession,
+    endSession,
+  };
 }

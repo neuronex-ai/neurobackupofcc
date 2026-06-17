@@ -1,3 +1,4 @@
+import { VoiceSpiral } from "@/components/ai-chat/VoiceSpiral";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types";
@@ -10,9 +11,11 @@ import {
   FileText,
   Loader2,
   Mic,
+  MicOff,
   RefreshCcw,
   Sparkles,
   User,
+  Volume2,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -399,75 +402,126 @@ export function MobileSynapseVoicePanel({
   onReset: () => void;
 }) {
   const statusLabel = error
-    ? "Ajuste necessário"
+    ? "Requer atenção"
     : isSpeaking
       ? "Respondendo"
       : isProcessing
-        ? "Conectando"
+        ? "Pensando"
         : isListening
           ? "Ouvindo"
           : isConnected
             ? "Pausado"
-            : "Modo voz";
-  const title = error
-    ? "Não consegui abrir a voz."
-    : isSpeaking
-      ? "Synapse está falando."
-      : isListening
-        ? "Pode falar."
-        : "Synapse por voz";
-  const description = error || lastResponse || (isConnected
-    ? "Toque no controle para pausar ou retomar a escuta em tempo real."
-    : "Toque para iniciar uma conversa de baixa latência com voz nativa do Gemini Live.");
+            : "Synapse voz";
+
+  const description = error
+    || lastResponse
+    || (isConnected
+      ? "Fale naturalmente. O Synapse pausa a escuta enquanto responde."
+      : "Toque no microfone para iniciar a conversa por voz.");
 
   return (
-    <section className="flex min-h-full flex-col justify-center px-5 pb-12 pt-[calc(6.4rem+env(safe-area-inset-top))]">
-      <div className="rounded-[30px] border border-border/40 bg-card/78 p-6 text-center dark:border-white/10 dark:bg-white/[0.035]">
-        <MobileSynapseEyebrow>{statusLabel}</MobileSynapseEyebrow>
-        <h2 className="mt-2 text-3xl font-black leading-[0.92] tracking-[-0.055em] text-foreground">
-          {title}
-        </h2>
-        <p className="mx-auto mt-3 max-w-[18rem] text-xs font-medium leading-relaxed text-muted-foreground/68">
-          {description}
-        </p>
+    <section className="relative flex min-h-full flex-col overflow-hidden bg-background px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(5.7rem+env(safe-area-inset-top))] dark:bg-[#030305]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_34%,rgba(99,102,241,0.11),transparent_38%)] dark:bg-[radial-gradient(circle_at_50%_34%,rgba(99,102,241,0.16),transparent_42%)]" />
+
+      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center">
+        <div
+          className={cn(
+            "pointer-events-none h-[min(72vw,44dvh,21rem)] w-[min(72vw,44dvh,21rem)] transition duration-300",
+            error ? "opacity-45 grayscale" : "opacity-95",
+          )}
+          style={{
+            filter: isSpeaking
+              ? "hue-rotate(-16deg) brightness(1.18)"
+              : isListening
+                ? "brightness(1.08)"
+                : "brightness(0.84)",
+          }}
+        >
+          <VoiceSpiral
+            totalDots={620}
+            dotRadius={2.35}
+            duration={isSpeaking ? 1.45 : isProcessing ? 2 : 3}
+            minOpacity={0.12}
+            maxOpacity={isListening || isSpeaking ? 1 : 0.64}
+            minScale={0.3}
+            maxScale={isListening ? 2.2 : isSpeaking ? 1.85 : 1.35}
+            isListening={isListening}
+            isProcessing={isProcessing || isSpeaking}
+            useMultipleColors
+            colors={isSpeaking ? ["#f8fafc", "#c4b5fd", "#8b5cf6"] : ["#e5e7eb", "#a5b4fc", "#6366f1"]}
+          />
+        </div>
+
+        <div className="relative z-10 -mt-2 flex max-w-[22rem] flex-col items-center text-center">
+          <div
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[9px] font-black uppercase tracking-[0.16em] backdrop-blur-2xl",
+              error
+                ? "border-rose-500/25 bg-rose-500/10 text-rose-500"
+                : isListening
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+                  : "border-border/45 bg-card/55 text-muted-foreground dark:border-white/10 dark:bg-white/[0.055]",
+            )}
+          >
+            {isListening ? (
+              <span className="flex gap-1">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:0.18s]" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current [animation-delay:0.32s]" />
+              </span>
+            ) : (
+              <Volume2 className="h-3.5 w-3.5" />
+            )}
+            {statusLabel}
+          </div>
+
+          <p className={cn(
+            "mt-3 line-clamp-4 text-xs font-semibold leading-relaxed",
+            error ? "text-rose-500" : "text-muted-foreground/78 dark:text-white/68",
+          )}>
+            {description}
+          </p>
+        </div>
+      </div>
+
+      <div className="relative z-20 mt-3 flex shrink-0 items-center justify-center gap-4">
+        <button
+          type="button"
+          onClick={onReset}
+          disabled={isProcessing}
+          className="flex h-12 w-12 items-center justify-center rounded-full border border-border/45 bg-card/72 text-muted-foreground shadow-sm backdrop-blur-xl transition active:scale-95 disabled:opacity-45 dark:border-white/10 dark:bg-white/[0.06]"
+          aria-label="Reiniciar conversa"
+        >
+          <RefreshCcw className="h-5 w-5" />
+        </button>
 
         <button
           type="button"
           onClick={onToggleRecording}
           disabled={isProcessing}
           className={cn(
-            "mx-auto mt-9 flex h-32 w-32 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-65",
+            "flex h-[4.6rem] w-[4.6rem] items-center justify-center rounded-full border text-white shadow-[0_22px_62px_-28px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.2)] transition active:scale-95 disabled:opacity-60",
             error
-              ? "border-rose-500/30 bg-rose-500/10 text-rose-500"
-              : isListening || isSpeaking
-              ? "border-foreground bg-foreground text-background shadow-[0_22px_70px_-42px_rgba(0,0,0,0.9)]"
-              : "border-border/45 bg-background text-foreground dark:border-white/10 dark:bg-black/35",
+              ? "border-rose-400/30 bg-rose-500"
+              : "border-white/15 bg-zinc-950 dark:bg-white dark:text-black",
           )}
+          aria-label={isListening ? "Pausar microfone" : "Ativar microfone"}
         >
           {isProcessing ? (
-            <Loader2 className="h-10 w-10 animate-spin" />
-          ) : isListening || isSpeaking ? (
-            <div className="flex h-12 items-center gap-1.5">
-              {[0, 1, 2, 3].map((item) => (
-                <span
-                  key={item}
-                  className="w-1.5 rounded-full bg-current animate-[audio-wave_0.85s_ease-in-out_infinite]"
-                  style={{ height: `${18 + item * 7}px`, animationDelay: `${item * 0.09}s` }}
-                />
-              ))}
-            </div>
+            <Loader2 className="h-7 w-7 animate-spin" />
+          ) : isListening ? (
+            <MicOff className="h-7 w-7" />
           ) : (
-            <Mic className="h-10 w-10" />
+            <Mic className="h-7 w-7" />
           )}
         </button>
 
-        <div className="mt-8 flex justify-center">
-          <MobileSynapseButton variant="secondary" onClick={onReset} disabled={isProcessing}>
-            <RefreshCcw className="h-4 w-4" />
-            Reiniciar
-          </MobileSynapseButton>
-        </div>
+        <div className="h-12 w-12" aria-hidden="true" />
       </div>
+
+      <p className="relative z-20 mt-3 text-center text-[8px] font-black uppercase tracking-[0.15em] text-muted-foreground/45">
+        Voz neural · baixa latência
+      </p>
     </section>
   );
 }

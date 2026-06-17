@@ -12,23 +12,13 @@ interface DesktopVoiceOverlayProps {
   onClose: () => void;
 }
 
-const SYSTEM_INSTRUCTION = `Voce e o Synapse AI, um assistente de voz inteligente, empatico e muito capaz para profissionais de saude mental.
-
-Voce pode ajudar com agenda, pacientes, prontuarios, documentos clinicos, financeiro da clinica e boas praticas em psicologia/psiquiatria.
-Responda de forma conversacional, natural e concisa em portugues brasileiro. Mantenha respostas curtas para preservar a fluidez da conversa.`;
+const SYSTEM_INSTRUCTION = `Você é o Synapse por voz. Fale em português brasileiro de forma curta, natural e humana. Nunca leia rotas, links, códigos, IDs ou estruturas técnicas em voz alta.`;
 
 const friendlyError = (error: string | null) => {
   if (!error) return null;
-  if (
-    error.includes("HTML") ||
-    error.includes("Unexpected token") ||
-    error.includes("JSON") ||
-    error.includes("credencial") ||
-    error.includes("Live API")
-  ) {
-    return "Nao consegui abrir o canal de voz. Vou gerar uma nova credencial temporaria quando voce tentar novamente.";
-  }
-  return error;
+  if (error.includes("microfone") || error.includes("Microfone")) return error;
+  if (error.includes("Sessão inválida")) return "Sua sessão expirou. Entre novamente para usar o modo voz.";
+  return "Não consegui continuar a conversa por voz. Tente reiniciar a sessão.";
 };
 
 export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProps) => {
@@ -43,7 +33,7 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
   } = useVoiceConfig();
 
   const handleResponseText = useCallback((text: string) => {
-    setDisplayText((previous) => previous + text);
+    setDisplayText(text);
   }, []);
 
   const {
@@ -71,7 +61,7 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
   const beginSession = useCallback(async () => {
     if (isConnected || isStarting) return;
     setIsStarting(true);
-    setDisplayText("Preparando canal de voz...");
+    setDisplayText("Preparando a conversa...");
     try {
       const config = await refreshVoiceConfig();
       await startSession({
@@ -80,7 +70,7 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
         voiceName: config.voiceName,
       });
     } catch (caught: unknown) {
-      const message = caught instanceof Error ? caught.message : "Nao foi possivel iniciar o modo voz.";
+      const message = caught instanceof Error ? caught.message : "Não foi possível iniciar o modo voz.";
       setDisplayText(friendlyError(message) || message);
     } finally {
       setIsStarting(false);
@@ -100,9 +90,7 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
   }, [beginSession, isOpen]);
 
   useEffect(() => {
-    if (!isOpen && isConnected) {
-      endSession();
-    }
+    if (!isOpen && isConnected) endSession();
   }, [endSession, isConnected, isOpen]);
 
   useEffect(() => {
@@ -121,18 +109,17 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
       setDisplayText(error);
       return;
     }
-
     if (isSpeaking && lastResponse) return;
     if (isListening && !isSpeaking && !isProcessing) {
-      setDisplayText("Ouvindo voce...");
+      setDisplayText("Ouvindo você...");
       return;
     }
     if (isProcessing || isStarting || voiceConfigLoading) {
-      setDisplayText("Sincronizando voz...");
+      setDisplayText("Pensando...");
       return;
     }
     if (isConnected) {
-      setDisplayText("Canal aberto. Fale naturalmente.");
+      setDisplayText("Pode falar naturalmente.");
       return;
     }
     setDisplayText("Toque para iniciar o Synapse por voz.");
@@ -160,13 +147,13 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
   }, [beginSession, endSession]);
 
   const status = error
-    ? { label: "Requer atencao", tone: "danger" }
+    ? { label: "Requer atenção", tone: "danger" }
     : isSpeaking
       ? { label: "Respondendo", tone: "active" }
       : isListening
         ? { label: "Ouvindo", tone: "success" }
         : isBusy
-          ? { label: "Conectando", tone: "neutral" }
+          ? { label: "Pensando", tone: "neutral" }
           : isConnected
             ? { label: "Conectado", tone: "neutral" }
             : { label: "Synapse voz", tone: "neutral" };
@@ -179,18 +166,18 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.28 }}
-          className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-zinc-50 text-zinc-950 dark:bg-[#030305] dark:text-white"
+          className="fixed inset-0 z-[100] overflow-hidden bg-zinc-50 text-zinc-950 dark:bg-[#030305] dark:text-white"
         >
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.24)_45%,rgba(255,255,255,0.04))] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.015)_42%,rgba(0,0,0,0))]" />
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/70 dark:bg-white/12" />
 
-          <div className="relative z-10 flex flex-1 items-center justify-center px-6 pb-8 pt-20">
+          <div className="absolute inset-x-0 top-14 bottom-[clamp(12.5rem,34vh,17rem)] z-10 flex min-h-0 items-center justify-center px-4">
             <motion.div
               initial={{ scale: 0.88, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.92, opacity: 0 }}
               transition={{ duration: 0.55, ease: "easeOut" }}
-              className="pointer-events-none h-[min(68vh,720px)] min-h-[320px] w-[min(68vh,720px)] min-w-[320px] opacity-75 mix-blend-multiply dark:opacity-90 dark:mix-blend-screen"
+              className="pointer-events-none h-[min(58vh,680px,calc(100vw-3rem))] w-[min(58vh,680px,calc(100vw-3rem))] max-h-full max-w-full opacity-75 mix-blend-multiply dark:opacity-90 dark:mix-blend-screen"
               style={{
                 filter: isSpeaking
                   ? "hue-rotate(-16deg) brightness(1.18)"
@@ -227,30 +214,30 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
             }}
           />
 
-          <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-end p-6">
+          <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-end p-4 sm:p-6">
             <Button
               variant="ghost"
               size="icon"
               onClick={handleClose}
-              className="pointer-events-auto h-12 w-12 rounded-full border border-black/10 bg-white/54 text-zinc-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-2xl transition hover:bg-white/80 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.075] dark:text-white/72 dark:hover:bg-white/12 dark:hover:text-white"
+              className="pointer-events-auto h-11 w-11 rounded-full border border-black/10 bg-white/54 text-zinc-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-2xl transition hover:bg-white/80 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.075] dark:text-white/72 dark:hover:bg-white/12 dark:hover:text-white sm:h-12 sm:w-12"
             >
               <X className="h-5 w-5" />
             </Button>
           </header>
 
-          <footer className="relative z-30 px-6 pb-8">
+          <footer className="absolute inset-x-0 bottom-0 z-30 max-h-[46vh] overflow-y-auto bg-gradient-to-t from-zinc-50 via-zinc-50/96 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 dark:from-[#030305] dark:via-[#030305]/96 sm:px-6 sm:pb-6 sm:pt-10">
             <motion.div
               initial={{ y: 28, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.08, type: "spring", stiffness: 220, damping: 24 }}
-              className="flex items-center justify-center gap-5"
+              className="flex items-center justify-center gap-[clamp(0.85rem,3vw,1.25rem)]"
             >
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleReset}
                 disabled={isBusy}
-                className="h-14 w-14 rounded-full border border-black/10 bg-white/50 text-zinc-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-2xl transition hover:bg-white/80 hover:text-zinc-950 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.07] dark:text-white/55 dark:hover:bg-white/12 dark:hover:text-white"
+                className="h-[clamp(3rem,7vh,3.5rem)] w-[clamp(3rem,7vh,3.5rem)] rounded-full border border-black/10 bg-white/50 text-zinc-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-2xl transition hover:bg-white/80 hover:text-zinc-950 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.07] dark:text-white/55 dark:hover:bg-white/12 dark:hover:text-white"
                 title="Reiniciar conversa"
               >
                 <RefreshCcw className="h-5 w-5" />
@@ -260,34 +247,32 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
                 onClick={handleMainAction}
                 disabled={isBusy}
                 className={cn(
-                  "h-20 w-20 rounded-full border text-white shadow-[0_24px_64px_-30px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.22)] transition active:scale-95 disabled:opacity-60",
+                  "h-[clamp(4rem,10vh,5rem)] w-[clamp(4rem,10vh,5rem)] rounded-full border text-white shadow-[0_24px_64px_-30px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.22)] transition active:scale-95 disabled:opacity-60",
                   error
                     ? "border-rose-400/30 bg-rose-500 hover:bg-rose-500/90"
-                    : isListening
-                      ? "border-white/20 bg-zinc-950 hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-white/90"
-                      : "border-white/15 bg-zinc-950 hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-white/90",
+                    : "border-white/15 bg-zinc-950 hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-white/90",
                 )}
               >
-                {isListening ? <MicOff className="h-8 w-8" /> : isConnected ? <Mic className="h-8 w-8" /> : <Phone className="h-7 w-7" />}
+                {isListening ? <MicOff className="h-7 w-7 sm:h-8 sm:w-8" /> : isConnected ? <Mic className="h-7 w-7 sm:h-8 sm:w-8" /> : <Phone className="h-6 w-6 sm:h-7 sm:w-7" />}
               </Button>
 
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleClose}
-                className="h-14 w-14 rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl transition hover:bg-rose-500/15"
+                className="h-[clamp(3rem,7vh,3.5rem)] w-[clamp(3rem,7vh,3.5rem)] rounded-full border border-rose-500/20 bg-rose-500/10 text-rose-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl transition hover:bg-rose-500/15"
                 title="Encerrar chamada"
               >
                 <PhoneOff className="h-5 w-5" />
               </Button>
             </motion.div>
 
-            <div className="mt-5 flex flex-col items-center gap-3 text-center">
+            <div className="mt-[clamp(0.75rem,2vh,1.25rem)] flex flex-col items-center gap-2 text-center sm:gap-3">
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-2xl",
+                  "flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-2xl sm:px-4 sm:py-2 sm:text-[10px]",
                   status.tone === "danger"
                     ? "border-rose-500/25 bg-rose-500/10 text-rose-500"
                     : status.tone === "success"
@@ -324,7 +309,7 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
                   className={cn(
-                    "max-w-[42rem] text-sm font-semibold leading-relaxed transition-colors",
+                    "max-w-[min(42rem,92vw)] text-xs font-semibold leading-relaxed transition-colors sm:text-sm",
                     error
                       ? "text-rose-500"
                       : isConnected
@@ -336,8 +321,8 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
                 </motion.p>
               </AnimatePresence>
 
-              <div className="rounded-full border border-black/5 bg-white/32 px-5 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500 backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04] dark:text-white/24">
-                ESC para fechar - fale naturalmente
+              <div className="rounded-full border border-black/5 bg-white/32 px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] text-zinc-500 backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04] dark:text-white/24 sm:px-5 sm:py-2 sm:text-[10px]">
+                ESC para fechar · fale naturalmente
               </div>
             </div>
           </footer>
