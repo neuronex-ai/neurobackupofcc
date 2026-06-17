@@ -43,6 +43,7 @@ export interface Profile {
   phone: string | null;
   recovery_email?: string | null;
   professional_context?: string | null;
+  gender_identity?: 'female' | 'male' | 'non_binary' | 'prefer_not_to_say' | string | null;
   bio: string | null;
   avatar_url: string | null;
   subscription_plan?: string | null;

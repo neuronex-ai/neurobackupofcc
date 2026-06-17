@@ -22,6 +22,20 @@ const compact = (value: unknown, max = 900) => {
   return clean.length > max ? `${clean.slice(0, max)}...` : clean;
 };
 
+const buildUserAddressingInstruction = (profile: any, userName: string) => {
+  switch (profile?.gender_identity) {
+    case "female":
+      return `Tratamento do usuário: use linguagem natural no feminino quando se referir a ${userName}.`;
+    case "male":
+      return `Tratamento do usuário: use linguagem natural no masculino quando se referir a ${userName}.`;
+    case "non_binary":
+    case "prefer_not_to_say":
+      return `Tratamento do usuário: prefira chamar por ${userName} e evite marcar gênero quando não for necessário.`;
+    default:
+      return `Tratamento do usuário: prefira chamar por ${userName} e mantenha linguagem neutra quando possível.`;
+  }
+};
+
 const tools = [
   {
     type: "function",
@@ -538,7 +552,7 @@ serve(async (req) => {
       sessionId = created.id;
     }
 
-    const { data: profile } = await db.from("profiles").select("first_name,ai_preferences").eq("id", user.id).maybeSingle();
+    const { data: profile } = await db.from("profiles").select("first_name,gender_identity,ai_preferences").eq("id", user.id).maybeSingle();
     const { data: history } = await db.from("messages")
       .select("content,role")
       .eq("session_id", sessionId)
@@ -555,7 +569,10 @@ serve(async (req) => {
 
     await db.from("messages").insert({ user_id: user.id, session_id: sessionId, role: "user", content: message });
 
-    const now = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    let now = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    const userName = profile?.first_name || "Profissional";
+    const addressingInstruction = buildUserAddressingInstruction(profile, userName);
+    now = `${now}. ${addressingInstruction}`;
     const memory = (recent || []).reverse().map((row: any) => `- (${row.role}) ${compact(row.content, 420)}`).join("\n");
     const system = `Você é o Synapse, assistente de voz da plataforma NeuroNex para profissionais de saúde mental.\n
 Responda sempre em português brasileiro, de forma natural, segura e concisa, preferindo uma a três frases.\n

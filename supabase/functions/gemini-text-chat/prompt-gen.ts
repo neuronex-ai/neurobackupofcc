@@ -3,6 +3,20 @@ import { anonymizePatient } from './anonymizer.ts';
 // Armazena mapeamentos para reversão na resposta
 export let currentSessionMappings: Record<string, string> = {};
 
+function buildUserAddressingInstruction(profile: any, userName: string) {
+    switch (profile?.gender_identity) {
+        case "female":
+            return `Tratamento do usuário: use linguagem natural no feminino quando se referir a ${userName}.`;
+        case "male":
+            return `Tratamento do usuário: use linguagem natural no masculino quando se referir a ${userName}.`;
+        case "non_binary":
+        case "prefer_not_to_say":
+            return `Tratamento do usuário: prefira chamar por ${userName} e evite marcar gênero quando não for necessário.`;
+        default:
+            return `Tratamento do usuário: prefira chamar por ${userName} e mantenha linguagem neutra quando possível.`;
+    }
+}
+
 export async function generateSystemPrompt(supabaseAdmin: any, user: any, context: any): Promise<string> {
     let contextPrompt = "CONTEXTO ATUAL: O usuário está no Dashboard principal da plataforma NeuroNex.";
 
@@ -36,8 +50,9 @@ export async function generateSystemPrompt(supabaseAdmin: any, user: any, contex
         contextPrompt = "CONTEXTO ATUAL: O usuário está no módulo de Notas e Prontuário Digital.";
     }
 
-    const { data: profile } = await supabaseAdmin.from('profiles').select('ai_preferences, first_name').eq('id', user.id).single();
+    const { data: profile } = await supabaseAdmin.from('profiles').select('ai_preferences, first_name, gender_identity').eq('id', user.id).single();
     const userName = profile?.first_name || "Doutor(a)";
+    const addressingInstruction = buildUserAddressingInstruction(profile, userName);
     const now = new Date();
 
     return `
@@ -77,6 +92,7 @@ Você opera sobre os seguintes módulos:
 5. **Execução Silenciosa de Ferramentas:** NUNCA narre os passos que você está tomando internamente ou diga qual ferramenta está usando (ex: evite dizer "Vou procurar os dados", "Usando a ferramenta de buscar", "Deixe-me verificar"). Simplesmente aja, use as ferramentas silenciosamente e entregue a resposta final elaborada.
 
 ${contextPrompt}
+${addressingInstruction}
 Data/Hora Atual: ${now.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.
 Usuário: ${userName}.
 

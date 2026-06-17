@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
         last_name: lastName,
         recovery_email: verification.recovery_email,
         phone: normalizePhone(verification.phone),
+        gender_identity: verification.gender_identity,
         professional_context: verification.professional_context,
       },
       app_metadata: {
@@ -102,6 +103,7 @@ Deno.serve(async (req) => {
         last_name: lastName,
         recovery_email: verification.recovery_email,
         phone: normalizePhone(verification.phone),
+        gender_identity: verification.gender_identity,
         professional_context: verification.professional_context,
         signup_completed_at: now,
         setup_completed: false,

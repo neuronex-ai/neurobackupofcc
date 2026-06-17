@@ -17,6 +17,13 @@ const PROFESSIONAL_CONTEXTS = new Set([
   "psychology_student",
 ]);
 
+const GENDER_IDENTITIES = new Set([
+  "female",
+  "male",
+  "non_binary",
+  "prefer_not_to_say",
+]);
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -32,6 +39,7 @@ Deno.serve(async (req) => {
     const email = normalizeEmail(body.email);
     const recoveryEmail = normalizeEmail(body.recoveryEmail);
     const phone = normalizePhone(body.phone);
+    const genderIdentity = String(body.genderIdentity || "").trim();
     const professionalContext = String(body.professionalContext || "").trim();
 
     if (fullName.split(" ").length < 2) {
@@ -44,6 +52,10 @@ Deno.serve(async (req) => {
 
     if (recoveryEmail && !isValidEmail(recoveryEmail)) {
       return jsonResponse({ error: "Informe um e-mail de recuperação válido ou deixe em branco." }, 400);
+    }
+
+    if (!GENDER_IDENTITIES.has(genderIdentity)) {
+      return jsonResponse({ error: "Selecione seu gênero ou escolha preferir não informar." }, 400);
     }
 
     if (!PROFESSIONAL_CONTEXTS.has(professionalContext)) {
@@ -100,6 +112,7 @@ Deno.serve(async (req) => {
       recovery_email: recoveryEmail || null,
       full_name: fullName,
       phone,
+      gender_identity: genderIdentity,
       professional_context: professionalContext,
       code_hash: codeHash,
       expires_at: expiresAt,

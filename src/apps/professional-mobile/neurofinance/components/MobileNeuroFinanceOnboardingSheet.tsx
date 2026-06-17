@@ -1,13 +1,16 @@
-import { useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Building2, Camera, CheckCircle2, CreditCard, FileUp, KeyRound, Loader2, QrCode, ReceiptText, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
+import { ArrowLeft, ArrowRight, Building2, Camera, CheckCircle2, CreditCard, FileUp, KeyRound, Loader2, MapPin, QrCode, ReceiptText, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAuth } from "@/components/auth/SessionContextProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { AsaasStamp } from "@/components/financeiro/AsaasStamp";
+import { useAddressAutocomplete, type AddressSuggestion, type ValidatedAddress } from "@/hooks/use-address-autocomplete";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { useNeuroFinanceTariffs } from "@/hooks/use-neurofinance-tariffs";
+import { useProfile } from "@/hooks/use-profile";
 import { formatPixKeyInput, normalizePixKeyInput, type PixKeyInputType } from "@/lib/financial-input";
 import type { TariffRule } from "@/lib/neurofinance-types";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
@@ -146,6 +149,38 @@ const normalizeUrl = (value: string) => {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 };
 
+function asRecord(value: unknown): Record<string, any> {
+  return value && typeof value === "object" ? (value as Record<string, any>) : {};
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return "";
+}
+
+function splitFullName(value: unknown) {
+  const parts = firstString(value).split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || "",
+    lastName: parts.slice(1).join(" "),
+  };
+}
+
+function applyValidatedAddressToForm(current: FormState, address: ValidatedAddress): FormState {
+  return {
+    ...current,
+    cep: maskCep(address.postalCode || current.cep),
+    street: address.street || current.street,
+    number: address.number || current.number,
+    neighborhood: address.neighborhood || current.neighborhood,
+    city: address.city || current.city,
+    state: (address.state || current.state).toUpperCase().slice(0, 2),
+  };
+}
+
 function buildPayload(form: FormState, docs: { front?: string; back?: string }) {
   const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
 
@@ -213,20 +248,102 @@ export function MobileNeuroFinanceOnboardingSheet({
   onComplete: () => void;
 }) {
   const account = useFinancialAccount();
+  const { user } = useAuth();
+  const { profile, isLoading: profileLoading } = useProfile();
   const { data: tariffRules = [] } = useNeuroFinanceTariffs();
   const [step, setStep] = useState<Step>("personal");
   const [form, setForm] = useState<FormState>(initialForm);
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [selectedAddressQuery, setSelectedAddressQuery] = useState("");
+  const [autoAppliedCep, setAutoAppliedCep] = useState("");
   const frontRef = useRef<HTMLInputElement>(null);
   const backRef = useRef<HTMLInputElement>(null);
   const frontCameraRef = useRef<HTMLInputElement>(null);
   const backCameraRef = useRef<HTMLInputElement>(null);
+  const hasPrefilledRef = useRef(false);
 
   const stepIndex = steps.findIndex((item) => item.id === step);
   const progress = useMemo(() => ((stepIndex + 1) / steps.length) * 100, [stepIndex]);
   const feeCards = useMemo(() => buildFeeCards(tariffRules), [tariffRules]);
+  const addressLookupQuery = useMemo(() => {
+    const cepDigits = onlyDigits(form.cep);
+    if (cepDigits.length >= 8) return cepDigits;
+    return form.street.trim();
+  }, [form.cep, form.street]);
+  const {
+    suggestions: addressSuggestions,
+    isLoading: addressLoading,
+    isValidating: addressValidating,
+    error: addressError,
+    validateSuggestion,
+    clearSuggestions,
+  } = useAddressAutocomplete(addressLookupQuery, selectedAddressQuery);
+
+  useEffect(() => {
+    if (!open || hasPrefilledRef.current || account.isLoading || profileLoading) return;
+    if (!account.account && !profile && !user) return;
+
+    const record = account.account;
+    const metadata = asRecord(record?.metadata);
+    const snapshot = asRecord(record?.onboarding_payload);
+    const onboardingProfile = asRecord(snapshot.profile);
+    const businessProfile = asRecord(snapshot.business_profile);
+    const bankAccount = asRecord(snapshot.bank_account);
+    const destinations = asRecord(metadata.destinations);
+    const pixDestination = asRecord(snapshot.pix_destination || destinations.pix);
+    const authMetadata = asRecord(user?.user_metadata);
+    const profileAddress = asRecord(profile?.professional_address);
+    const splitName = splitFullName(
+      firstString(
+        record?.holder_name,
+        snapshot.name,
+        profile?.full_name,
+        profile?.name,
+        authMetadata.full_name,
+        authMetadata.name,
+      ),
+    );
+    const hasBankSnapshot = Boolean(record?.bank_code || record?.bank_account || bankAccount.bank_code || bankAccount.account_number);
+    const hasPixSnapshot = Boolean(pixDestination.key || pixDestination.normalized_key);
+    const accountNumber = [
+      record?.bank_account || bankAccount.account_number || "",
+      record?.bank_account_digit || bankAccount.account_digit || "",
+    ].join("");
+
+    setForm((current) => ({
+      ...current,
+      firstName: firstString(record?.holder_name?.split(" ")[0], onboardingProfile.first_name, profile?.first_name, authMetadata.first_name, splitName.firstName, current.firstName),
+      lastName: firstString(record?.holder_name?.split(" ").slice(1).join(" "), onboardingProfile.last_name, profile?.last_name, authMetadata.last_name, splitName.lastName, current.lastName),
+      cpf: maskCpf(firstString(record?.cpf_cnpj, snapshot.cpfCnpj, current.cpf)),
+      birthDate: firstString(record?.birth_date, snapshot.birthDate, current.birthDate),
+      phone: maskPhone(firstString(record?.mobile_phone, snapshot.mobilePhone, profile?.phone, authMetadata.phone, current.phone)),
+      pep: firstString(record?.pep_status, onboardingProfile.political_exposure, current.pep) as FormState["pep"],
+      cep: maskCep(firstString(record?.address_postal_code, snapshot.postalCode, profileAddress.postalCode, profileAddress.postal_code, current.cep)),
+      street: firstString(record?.address_street, snapshot.address, profileAddress.street, profile?.address, current.street),
+      number: firstString(record?.address_number, snapshot.addressNumber, profileAddress.number, current.number),
+      complement: firstString(record?.address_complement, snapshot.complement, profileAddress.complement, current.complement),
+      neighborhood: firstString(record?.address_neighborhood, snapshot.province, profileAddress.neighborhood, current.neighborhood),
+      city: firstString(record?.address_city, onboardingProfile.city, profileAddress.city, current.city),
+      state: firstString(record?.address_state, onboardingProfile.state, profileAddress.state, current.state).toUpperCase().slice(0, 2),
+      companyType: firstString(record?.company_type, snapshot.companyType, current.companyType),
+      incomeValue: record?.income_value ? String(record.income_value) : (snapshot.incomeValue ? String(snapshot.incomeValue) : current.incomeValue),
+      businessUrl: firstString(record?.business_url, snapshot.site, current.businessUrl),
+      businessDescription: firstString(record?.business_description, businessProfile.product_description, profile?.bio, current.businessDescription),
+      bankCode: firstString(record?.bank_code, bankAccount.bank_code, current.bankCode),
+      agency: firstString(record?.bank_agency, bankAccount.agency, current.agency),
+      accountNumber: accountNumber || current.accountNumber,
+      payoutMethod: hasBankSnapshot && hasPixSnapshot ? "both" : hasBankSnapshot ? "bank" : "pix",
+      pixKeyType: (["cpf", "cnpj", "email", "telefone", "evp"].includes(String(pixDestination.type || "").toLowerCase())
+        ? String(pixDestination.type).toLowerCase()
+        : current.pixKeyType) as PixKeyInputType,
+      pixKey: firstString(pixDestination.key, pixDestination.normalized_key, current.pixKey),
+      tosAccepted: Boolean(record?.tos_accepted_at || snapshot.tos?.accepted || current.tosAccepted),
+    }));
+
+    hasPrefilledRef.current = true;
+  }, [account.account, account.isLoading, open, profile, profileLoading, user]);
 
   const setField = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     let nextValue = value;
@@ -237,8 +354,36 @@ export function MobileNeuroFinanceOnboardingSheet({
     if (field === "bankCode") nextValue = onlyDigits(String(value)).slice(0, 3) as FormState[K];
     if (field === "agency") nextValue = onlyDigits(String(value)).slice(0, 10) as FormState[K];
     if (field === "pixKey") nextValue = formatPixKeyInput(String(value), form.pixKeyType) as FormState[K];
+    if (field === "cep" || field === "street") {
+      setSelectedAddressQuery("");
+      if (field === "cep") setAutoAppliedCep("");
+    }
     setForm((current) => ({ ...current, [field]: nextValue }));
   };
+
+  const selectAddress = async (suggestion: AddressSuggestion) => {
+    try {
+      const validatedAddress = await validateSuggestion(suggestion);
+      setForm((current) => applyValidatedAddressToForm(current, validatedAddress));
+      setSelectedAddressQuery(onlyDigits(validatedAddress.postalCode || "") || validatedAddress.label);
+      setAutoAppliedCep(onlyDigits(validatedAddress.postalCode || ""));
+      clearSuggestions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não conseguimos validar este endereço.");
+    }
+  };
+
+  useEffect(() => {
+    const cepDigits = onlyDigits(form.cep);
+    if (cepDigits.length !== 8 || autoAppliedCep === cepDigits || addressValidating) return;
+    const viaCepSuggestion =
+      addressSuggestions.find((suggestion) => suggestion.source === "viacep") ||
+      (addressSuggestions.length === 1 ? addressSuggestions[0] : null);
+    if (!viaCepSuggestion) return;
+
+    setAutoAppliedCep(cepDigits);
+    void selectAddress(viaCepSuggestion);
+  }, [addressSuggestions, addressValidating, autoAppliedCep, form.cep]);
 
   const setPixKeyType = (value: PixKeyInputType) => {
     setForm((current) => ({
@@ -368,6 +513,12 @@ export function MobileNeuroFinanceOnboardingSheet({
                     <Field label="UF"><Input value={form.state} onChange={(event) => setField("state", event.target.value)} className="h-12 rounded-[16px] uppercase" /></Field>
                   </div>
                   <Field label="Rua"><Input value={form.street} onChange={(event) => setField("street", event.target.value)} className="h-12 rounded-[16px]" /></Field>
+                  <MobileAddressSuggestions
+                    suggestions={addressSuggestions}
+                    loading={addressLoading || addressValidating}
+                    error={addressError}
+                    onSelect={(suggestion) => void selectAddress(suggestion)}
+                  />
                   <div className="grid grid-cols-[.45fr_1fr] gap-3">
                     <Field label="Número"><Input value={form.number} onChange={(event) => setField("number", event.target.value)} className="h-12 rounded-[16px]" /></Field>
                     <Field label="Bairro"><Input value={form.neighborhood} onChange={(event) => setField("neighborhood", event.target.value)} className="h-12 rounded-[16px]" /></Field>
@@ -518,6 +669,60 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className="text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
       {children}
     </label>
+  );
+}
+
+function MobileAddressSuggestions({
+  suggestions,
+  loading,
+  error,
+  onSelect,
+}: {
+  suggestions: AddressSuggestion[];
+  loading: boolean;
+  error?: string | null;
+  onSelect: (suggestion: AddressSuggestion) => void;
+}) {
+  if (!loading && !error && suggestions.length === 0) return null;
+
+  return (
+    <div className="rounded-[20px] border border-border/45 bg-background/70 p-3 dark:border-white/10">
+      {loading ? (
+        <div className="flex items-center gap-2 text-[11px] font-bold text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Buscando endereço...
+        </div>
+      ) : null}
+
+      {!loading && suggestions.length > 0 ? (
+        <div className="grid gap-2">
+          {suggestions.map((suggestion) => (
+            <button
+              key={suggestion.id}
+              type="button"
+              onClick={() => onSelect(suggestion)}
+              className="flex min-h-14 items-start gap-3 rounded-[16px] border border-border/35 bg-background px-3 py-2 text-left active:scale-[0.99] dark:border-white/10"
+            >
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0">
+                <span className="block text-xs font-black leading-snug">{suggestion.label}</span>
+                <span className="mt-1 block text-[8px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+                  {suggestion.source === "google"
+                    ? "Sugestão validada"
+                    : suggestion.source === "viacep"
+                      ? "CEP encontrado"
+                      : "Usar endereço digitado"}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {!loading && error ? (
+        <p className="text-[11px] font-semibold leading-snug text-muted-foreground">{error}</p>
+      ) : null}
+    </div>
   );
 }
 

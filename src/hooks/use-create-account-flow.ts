@@ -15,6 +15,12 @@ export type ProfessionalContext =
   | "clinic_admin"
   | "psychology_student";
 
+export type GenderIdentity =
+  | "female"
+  | "male"
+  | "non_binary"
+  | "prefer_not_to_say";
+
 export type CreateAccountStep = "identity" | "password" | "success";
 
 export type EmailAvailabilityStatus =
@@ -36,6 +42,7 @@ export type CreateAccountDraft = {
   email: string;
   recoveryEmail: string;
   phone: string;
+  genderIdentity: GenderIdentity | "";
   professionalContext: ProfessionalContext | "";
   acceptedTerms: boolean;
 };
@@ -73,6 +80,7 @@ export const emptyCreateAccountDraft: CreateAccountDraft = {
   email: "",
   recoveryEmail: "",
   phone: "",
+  genderIdentity: "",
   professionalContext: "",
   acceptedTerms: false,
 };
@@ -240,6 +248,9 @@ export function useCreateAccountFlow() {
     if (digits.length < 10) {
       throw new Error("Informe um celular ou WhatsApp válido.");
     }
+    if (!draft.genderIdentity) {
+      throw new Error("Selecione seu gênero ou escolha preferir não informar.");
+    }
     if (!draft.professionalContext) {
       throw new Error("Selecione a opção que melhor descreve você.");
     }
@@ -266,6 +277,7 @@ export function useCreateAccountFlow() {
         email: normalizedDraft.email,
         recoveryEmail: normalizedDraft.recoveryEmail || null,
         phone: toE164Phone(normalizedDraft.phone),
+        genderIdentity: normalizedDraft.genderIdentity,
         professionalContext: normalizedDraft.professionalContext,
       });
 

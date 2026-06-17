@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   CreateAccountDraft,
   type EmailAvailability,
+  type GenderIdentity,
   type PasswordStrength,
   ProfessionalContext,
   maskBrazilPhone,
@@ -83,6 +84,29 @@ const contextOptions: Array<{ value: ProfessionalContext; label: string; descrip
     value: "psychology_student",
     label: "Sou estudante de psicologia",
     description: "Quero organizar estudos, prática e evolução.",
+  },
+];
+
+const genderOptions: Array<{ value: GenderIdentity; label: string; description: string }> = [
+  {
+    value: "female",
+    label: "Feminino",
+    description: "O Synapse pode usar tratamento feminino quando fizer sentido.",
+  },
+  {
+    value: "male",
+    label: "Masculino",
+    description: "O Synapse pode usar tratamento masculino quando fizer sentido.",
+  },
+  {
+    value: "non_binary",
+    label: "Não binário",
+    description: "O Synapse evita marcação de gênero e prioriza seu primeiro nome.",
+  },
+  {
+    value: "prefer_not_to_say",
+    label: "Prefiro não informar",
+    description: "O Synapse usa linguagem neutra e seu primeiro nome.",
   },
 ];
 
@@ -470,6 +494,29 @@ function IdentityStep({
             placeholder="Nome e sobrenome"
             className={inputClass}
           />
+        </AuthField>
+
+        <AuthField label="Gênero">
+          <Select
+            value={draft.genderIdentity}
+            onValueChange={(value) => onChange("genderIdentity", value as GenderIdentity)}
+          >
+            <SelectTrigger className={cn("h-[3.25rem] rounded-[10px] border px-3 text-sm font-bold", mutedPanelClass)}>
+              <SelectValue placeholder="Escolha uma opção" />
+            </SelectTrigger>
+            <SelectContent className={cn("rounded-[18px] shadow-2xl", selectContentClass)}>
+              {genderOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value} className="rounded-[12px] focus:bg-current/10 focus:text-current">
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {draft.genderIdentity ? (
+            <p className="mt-2 text-[11px] font-semibold leading-relaxed text-current/45">
+              {genderOptions.find((item) => item.value === draft.genderIdentity)?.description}
+            </p>
+          ) : null}
         </AuthField>
 
         <AuthField label="E-mail">
