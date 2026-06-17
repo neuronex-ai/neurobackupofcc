@@ -1,10 +1,11 @@
 import { VoiceSpiral } from "@/components/ai-chat/VoiceSpiral";
+import { SynapseOrbAvatar } from "@/components/synapse/SynapseOrbAvatar";
+import { SynapseWidgetRenderer, parseSynapseWidgetFromContent } from "@/components/synapse/SynapseWidgetRenderer";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types";
 import {
   ArrowRight,
-  Bot,
   Calendar,
   Check,
   Copy,
@@ -304,6 +305,11 @@ export function MobileSynapseMessage({
   const isAssistant = message.role === "assistant";
   const action = useMemo(() => normalizeRichAction(richData), [richData]);
   const displayContent = typeof message.content === "string" ? message.content : String(message.content || "");
+  const parsedContent = useMemo(() => parseSynapseWidgetFromContent(displayContent), [displayContent]);
+  const widgetData = action
+    ? { __actionType: action.type, data: action.payload || action.data }
+    : parsedContent.widgetData;
+  const cleanContent = parsedContent.cleanContent || (widgetData ? "" : displayContent);
 
   const copyMessage = async () => {
     await navigator.clipboard.writeText(displayContent);
@@ -322,14 +328,13 @@ export function MobileSynapseMessage({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <div
-            className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px]",
-              isAssistant ? "bg-foreground/[0.045] text-muted-foreground" : "bg-background/10 text-background",
-            )}
-          >
-            {isAssistant ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
-          </div>
+          {isAssistant ? (
+            <SynapseOrbAvatar className="h-9 w-9" />
+          ) : (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-background/10 text-background">
+              <User className="h-4 w-4" />
+            </div>
+          )}
           <div className="min-w-0">
             <p className={cn("truncate text-[9px] font-black uppercase tracking-[0.16em]", isAssistant ? "text-muted-foreground/55" : "text-background/55")}>
               {isAssistant ? "Synapse" : "Você"}
@@ -352,20 +357,22 @@ export function MobileSynapseMessage({
         </button>
       </div>
 
-      <div
-        className={cn(
-          "mt-3 max-w-none text-[14px] font-medium leading-relaxed",
-          isAssistant ? "text-foreground" : "text-background",
-          "[&_a]:font-bold [&_a]:underline [&_a]:underline-offset-4",
-          "[&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[12px]",
-          isAssistant ? "[&_code]:bg-foreground/[0.06]" : "[&_code]:bg-background/10",
-          "[&_li]:my-1 [&_ol]:pl-5 [&_p]:my-2 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-[16px] [&_pre]:p-3 [&_table]:my-3 [&_table]:w-full [&_table]:text-left [&_td]:border-t [&_td]:border-border/30 [&_td]:py-2 [&_td]:pr-3 [&_th]:py-2 [&_th]:pr-3 [&_ul]:pl-5",
-        )}
-      >
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
-      </div>
+      {cleanContent ? (
+        <div
+          className={cn(
+            "mt-3 max-w-none text-[14px] font-medium leading-relaxed",
+            isAssistant ? "text-foreground" : "text-background",
+            "[&_a]:font-bold [&_a]:underline [&_a]:underline-offset-4",
+            "[&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[12px]",
+            isAssistant ? "[&_code]:bg-foreground/[0.06]" : "[&_code]:bg-background/10",
+            "[&_li]:my-1 [&_ol]:pl-5 [&_p]:my-2 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-[16px] [&_pre]:p-3 [&_table]:my-3 [&_table]:w-full [&_table]:text-left [&_td]:border-t [&_td]:border-border/30 [&_td]:py-2 [&_td]:pr-3 [&_th]:py-2 [&_th]:pr-3 [&_ul]:pl-5",
+          )}
+        >
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
+        </div>
+      ) : null}
 
-      {action ? <MobileSynapseActionCard action={action} /> : null}
+      {widgetData ? <SynapseWidgetRenderer widgetData={widgetData} compact /> : null}
     </article>
   );
 }
@@ -420,13 +427,13 @@ export function MobileSynapseVoicePanel({
       : "Toque no microfone para iniciar a conversa por voz.");
 
   return (
-    <section className="relative flex min-h-full flex-col overflow-hidden bg-background px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(5.7rem+env(safe-area-inset-top))] dark:bg-[#030305]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_34%,rgba(99,102,241,0.11),transparent_38%)] dark:bg-[radial-gradient(circle_at_50%_34%,rgba(99,102,241,0.16),transparent_42%)]" />
+    <section className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#f8f8f7] px-4 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-[calc(5.8rem+env(safe-area-inset-top))] text-zinc-950 dark:bg-[#020204] dark:text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(99,102,241,0.13),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(248,248,247,0.92))] dark:bg-[radial-gradient(circle_at_50%_34%,rgba(99,102,241,0.16),transparent_42%),linear-gradient(180deg,rgba(10,10,12,0.98),rgba(0,0,0,1))]" />
 
       <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center">
         <div
           className={cn(
-            "pointer-events-none h-[min(72vw,44dvh,21rem)] w-[min(72vw,44dvh,21rem)] transition duration-300",
+            "pointer-events-none h-[min(76vw,42dvh,22rem)] w-[min(76vw,42dvh,22rem)] transition duration-300",
             error ? "opacity-45 grayscale" : "opacity-95",
           )}
           style={{
@@ -484,12 +491,12 @@ export function MobileSynapseVoicePanel({
         </div>
       </div>
 
-      <div className="relative z-20 mt-3 flex shrink-0 items-center justify-center gap-4">
+      <div className="relative z-20 mt-auto flex shrink-0 items-center justify-center gap-4 pb-1 pt-5">
         <button
           type="button"
           onClick={onReset}
           disabled={isProcessing}
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-border/45 bg-card/72 text-muted-foreground shadow-sm backdrop-blur-xl transition active:scale-95 disabled:opacity-45 dark:border-white/10 dark:bg-white/[0.06]"
+          className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200/75 bg-white/82 text-zinc-500 shadow-sm backdrop-blur-xl transition active:scale-95 disabled:opacity-45 dark:border-white/10 dark:bg-white/[0.06] dark:text-white/55"
           aria-label="Reiniciar conversa"
         >
           <RefreshCcw className="h-5 w-5" />

@@ -30,9 +30,10 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { SynapseWidgetRenderer } from './SynapseWidgetRenderer';
+import { SynapseWidgetRenderer, parseSynapseWidgetFromContent } from './SynapseWidgetRenderer';
 import { SynapseAllActionsModal } from './SynapseAllActionsModal';
 import { supabase } from '@/integrations/supabase/client';
+import { SynapseOrbAvatar } from './SynapseOrbAvatar';
 
 const CONTEXT_LABELS: Record<string, { icon: React.ReactNode; label: string }> = {
     dashboard: { icon: <TrendingUp className="h-3.5 w-3.5" />, label: 'Dashboard' },
@@ -491,9 +492,7 @@ export const SynapseCompactPanel = () => {
                                             className={cn('flex gap-3', msg.role === 'user' ? 'justify-end' : 'justify-start')}
                                         >
                                             {msg.role === 'assistant' && (
-                                                <div className="shrink-0 w-8 h-8 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center mt-0.5 shadow-lg">
-                                                    <Sparkles className="h-4 w-4 text-white dark:text-zinc-950" />
-                                                </div>
+                                                <SynapseOrbAvatar className="mt-0.5 h-8 w-8" />
                                             )}
 
                                             <div className={cn(
@@ -517,35 +516,49 @@ export const SynapseCompactPanel = () => {
                                                         ? 'prose-invert'
                                                         : 'dark:prose-invert'
                                                 )}>
-                                                    <ReactMarkdown
-                                                        remarkPlugins={[remarkGfm as any]}
-                                                        components={{
-                                                            pre({ children, ...props }: any) {
-                                                                const childArray = React.Children.toArray(children);
-                                                                const isWidget = childArray.some((child: any) => {
-                                                                    return child?.props?.className?.includes('language-json') && String(child?.props?.children).includes('__actionType');
-                                                                });
-                                                                if (isWidget) {
-                                                                    return <div className="not-prose">{children}</div>;
-                                                                }
-                                                                return <pre {...props}>{children}</pre>;
-                                                            },
-                                                            code({ node, inline, className, children, ...props }: any) {
-                                                                const match = /language-(\w+)/.exec(className || '');
-                                                                if (!inline && match && match[1] === 'json' && String(children).includes('__actionType')) {
-                                                                    try {
-                                                                        const parsedData = JSON.parse(String(children));
-                                                                        return <SynapseWidgetRenderer widgetData={parsedData} />;
-                                                                    } catch (e) {
-                                                                        console.error("Widget render error:", e);
-                                                                    }
-                                                                }
-                                                                return <code className={className} {...props}>{children}</code>;
-                                                            }
-                                                        }}
-                                                    >
-                                                        {msg.content}
-                                                    </ReactMarkdown>
+                                                    {(() => {
+                                                        const parsedMessage = msg.role === "assistant"
+                                                            ? parseSynapseWidgetFromContent(msg.content)
+                                                            : { cleanContent: msg.content, widgetData: null };
+                                                        const cleanContent = parsedMessage.cleanContent || (parsedMessage.widgetData ? "" : msg.content);
+
+                                                        return (
+                                                            <>
+                                                                {cleanContent ? (
+                                                                    <ReactMarkdown
+                                                                        remarkPlugins={[remarkGfm as any]}
+                                                                        components={{
+                                                                            pre({ children, ...props }: any) {
+                                                                                const childArray = React.Children.toArray(children);
+                                                                                const isWidget = childArray.some((child: any) => {
+                                                                                    return child?.props?.className?.includes('language-json') && String(child?.props?.children).includes('__actionType');
+                                                                                });
+                                                                                if (isWidget) {
+                                                                                    return <div className="not-prose">{children}</div>;
+                                                                                }
+                                                                                return <pre {...props}>{children}</pre>;
+                                                                            },
+                                                                            code({ node, inline, className, children, ...props }: any) {
+                                                                                const match = /language-(\w+)/.exec(className || '');
+                                                                                if (!inline && match && match[1] === 'json' && String(children).includes('__actionType')) {
+                                                                                    try {
+                                                                                        const parsedData = JSON.parse(String(children));
+                                                                                        return <SynapseWidgetRenderer widgetData={parsedData} compact />;
+                                                                                    } catch (e) {
+                                                                                        console.error("Widget render error:", e);
+                                                                                    }
+                                                                                }
+                                                                                return <code className={className} {...props}>{children}</code>;
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {cleanContent}
+                                                                    </ReactMarkdown>
+                                                                ) : null}
+                                                                {parsedMessage.widgetData ? <SynapseWidgetRenderer widgetData={parsedMessage.widgetData} compact /> : null}
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         </motion.div>
@@ -553,9 +566,7 @@ export const SynapseCompactPanel = () => {
 
                                     {isSending && (
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center mt-0.5 shadow-lg">
-                                                <Sparkles className="h-4 w-4 text-white dark:text-zinc-950" />
-                                            </div>
+                                            <SynapseOrbAvatar className="mt-0.5 h-8 w-8" />
                                             <div className="flex items-center gap-1.5 px-5 py-3.5 rounded-[24px] rounded-bl-[8px] bg-zinc-950 dark:bg-white shadow-sm">
                                                 {[0, 0.15, 0.3].map((delay) => (
                                                     <motion.div
