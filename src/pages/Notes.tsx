@@ -258,7 +258,7 @@ export default function Notes() {
     };
 
     return (
-        <div className="neuronex-bg relative flex h-screen w-screen flex-col overflow-hidden bg-[#f4f4f5] font-sans text-foreground selection:bg-white/10 dark:bg-[#050506] [.light_&]:selection:bg-zinc-900/10">
+        <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-transparent font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
             {/* Texture Overlays moved to Stage */}
 
             {/* Ambient Background Glows moved to Stage */}
