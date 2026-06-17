@@ -504,7 +504,7 @@ export const NeuroView = () => {
     return (
         <div
             ref={containerRef}
-            className="group/canvas relative isolate h-full min-h-0 w-full min-w-0 overflow-hidden bg-[#020204] [clip-path:inset(0)] [contain:layout_paint_size] [.light_&]:bg-[#F5F5F7]"
+            className="group/canvas relative isolate h-full min-h-0 w-full min-w-0 overflow-hidden bg-[#020204] [contain:layout_paint_size] [.light_&]:bg-[#F5F5F7]"
         >
 
             {/* Cinematic Background */}
