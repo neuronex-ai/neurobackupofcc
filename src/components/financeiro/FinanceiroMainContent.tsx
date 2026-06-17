@@ -177,7 +177,7 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
         <div className="space-y-6 animate-fade-in">
           {(needsInitialOnboarding || isAccountMissing) ? (
             showNeuroFinanceOnboarding ? (
-              <div className="h-[calc(100vh-96px)] min-h-[720px] overflow-hidden rounded-[40px]">
+              <div className="h-[calc(100dvh-112px)] min-h-[620px] overflow-hidden rounded-[40px] pb-1">
                 <CustomOnboardingFlow
                   fullScreen
                   onCancel={() => setShowNeuroFinanceOnboarding(false)}

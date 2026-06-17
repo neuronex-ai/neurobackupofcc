@@ -8,14 +8,11 @@ import {
     Building2,
     Camera,
     CheckCircle2,
-    CreditCard,
     FileUp,
     KeyRound,
     Loader2,
     MapPin,
     Pencil,
-    QrCode,
-    ReceiptText,
     ShieldCheck,
     Upload,
     User,
@@ -147,10 +144,10 @@ const payoutMethodOptions: Array<{ id: PayoutMethod; title: string; description:
 ];
 
 const fallbackPaymentFees = [
-    { key: "pix", title: "Pix", icon: QrCode, price: "Tabela vigente", settlement: "Instantâneo" },
-    { key: "boleto", title: "Boleto", icon: ReceiptText, price: "Tabela vigente", settlement: "1 a 2 dias úteis" },
-    { key: "credit", title: "Cartão crédito", icon: CreditCard, price: "Tabela vigente", settlement: "Conforme parcela" },
-    { key: "debit", title: "Cartão débito", icon: CreditCard, price: "Tabela vigente", settlement: "Até 1 dia útil" },
+    { key: "pix", title: "Pix", price: "Tabela vigente", settlement: "Instantâneo" },
+    { key: "boleto", title: "Boleto", price: "Tabela vigente", settlement: "1 a 2 dias úteis" },
+    { key: "credit", title: "Cartão crédito", price: "Tabela vigente", settlement: "Conforme parcela" },
+    { key: "debit", title: "Cartão débito", price: "Tabela vigente", settlement: "Até 1 dia útil" },
 ];
 
 function resolveTariff(ruleSet: TariffRule[], matcher: (rule: TariffRule) => boolean) {
@@ -446,11 +443,10 @@ function PaymentFeesPreview({
         title: string;
         price: string;
         settlement: string;
-        icon: React.ElementType;
     }>;
 }) {
     return (
-        <div className="rounded-[24px] border border-black/10 bg-black/[0.025] p-4 dark:border-white/10 dark:bg-white/[0.025]">
+        <div className="rounded-[28px] border border-black/10 bg-white/55 p-4 shadow-[0_18px_54px_-48px_rgba(0,0,0,0.45)] dark:border-white/10 dark:bg-white/[0.035]">
             <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
@@ -467,13 +463,11 @@ function PaymentFeesPreview({
                     return (
                         <div
                             key={item.key}
-                            className="rounded-[18px] border border-black/10 bg-white/70 p-3.5 dark:border-white/10 dark:bg-white/[0.04]"
+                            className="rounded-[20px] border border-black/10 bg-[#f8f8f6] p-3.5 dark:border-white/10 dark:bg-black/30"
                         >
-                            <div className="mb-3 flex items-start justify-between gap-3">
-                                <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
-                                    {item.settlement}
-                                </span>
-                            </div>
+                            <span className="block min-h-8 text-[10px] font-black uppercase leading-tight tracking-[0.16em] text-zinc-400">
+                                {item.settlement}
+                            </span>
                             <p className="text-sm font-black text-zinc-950 dark:text-white">{item.title}</p>
                             <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">{item.price}</p>
                         </div>
@@ -995,9 +989,6 @@ export const CustomOnboardingFlow = ({
                             <p className="mt-2 whitespace-nowrap text-sm font-semibold text-zinc-500 dark:text-zinc-400">
                                 Cobranças, repasses e financeiro funcionando no automático.
                             </p>
-                            <p className="hidden">
-                                A NeuroNex é a sua plataforma de gestão de alta performance. Toda a infraestrutura financeira (BaaS) é provida de forma segura e transparente pela Asaas.
-                            </p>
                         </div>
 
                         {(isSubmitting || accountLoading || isPolling) && (
@@ -1023,7 +1014,7 @@ export const CustomOnboardingFlow = ({
                     </div>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto px-1 -mx-1 pb-4 scrollbar-hide overscroll-contain">
+                <div className="flex-1 min-h-0 overflow-y-auto px-1 -mx-1 pb-8 scrollbar-hide overscroll-contain">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={step}
