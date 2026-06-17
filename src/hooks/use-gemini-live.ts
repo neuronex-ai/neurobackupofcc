@@ -15,7 +15,7 @@ export function useGeminiLive(options?: UseGeminiLiveOptions) {
     const [isSpeaking, setIsSpeaking] = useState(false);
     const clientRef = useRef<GeminiLiveClient | null>(null);
     const volumeRef = useRef(0);
-    const { model, voiceName, refresh } = useVoiceConfig();
+    const { voiceName, refresh } = useVoiceConfig();
 
     const startSession = useCallback(async ({ clientTools }: { clientTools?: ClientToolMap }) => {
         if (clientRef.current?.getStatus() === 'connected') return;
@@ -57,7 +57,7 @@ export function useGeminiLive(options?: UseGeminiLiveOptions) {
 
         clientRef.current = client;
         await client.connect();
-    }, [model, options, refresh, voiceName]);
+    }, [options, refresh, voiceName]);
 
     const endSession = useCallback(async () => {
         clientRef.current?.disconnect();

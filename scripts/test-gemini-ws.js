@@ -2,8 +2,11 @@ import WebSocket from 'ws';
 import fs from 'fs';
 
 const tools = JSON.parse(fs.readFileSync('src/lib/gemini-voice-tools.json', 'utf8'));
-const apiKey = 'AIzaSyBN6fU7DeO0OfvTSu9Lp-p55vxXHSAQeYY';
-const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) {
+    throw new Error('Set GEMINI_API_KEY before running this script.');
+}
+const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
 const ws = new WebSocket(url);
 
@@ -12,13 +15,11 @@ ws.on('open', () => {
     const msg = {
         setup: {
             model: 'models/gemini-3.1-flash-live-preview',
-            generationConfig: {
-                responseModalities: ['AUDIO'],
-                speechConfig: {
-                    voiceConfig: {
-                        prebuiltVoiceConfig: {
-                            voiceName: "Puck"
-                        }
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+                voiceConfig: {
+                    prebuiltVoiceConfig: {
+                        voiceName: "Kore"
                     }
                 }
             },
@@ -31,7 +32,7 @@ ws.on('open', () => {
 
     // empty audio chunk
     ws.send(JSON.stringify({
-        realtimeInput: { mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: "" }] }
+        realtimeInput: { audio: { mimeType: "audio/pcm;rate=16000", data: "" } }
     }));
 });
 
