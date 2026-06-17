@@ -307,7 +307,12 @@ export const MobileAIChat = () => {
   const hasMessages = messageList.length > 0;
 
   return (
-    <MobileLayout showNav={false} showBottomNav={false} className="h-full overflow-hidden bg-[#f8f8f7] px-0 pb-0 pt-0 text-zinc-950 dark:bg-[#020204] dark:text-white">
+    <MobileLayout
+      showNav={false}
+      showBottomNav={false}
+      shellClassName="bg-[#f8f8f7] dark:bg-[#020204]"
+      className="min-h-0 overflow-hidden bg-[#f8f8f7] px-0 pb-0 pt-0 text-zinc-950 dark:bg-[#020204] dark:text-white"
+    >
       <header className="pointer-events-none fixed left-0 right-0 top-0 z-[105] px-4 pt-[calc(0.55rem+env(safe-area-inset-top))]">
         <div className="flex items-center justify-between gap-3">
           <div className="pointer-events-auto flex items-center gap-2">

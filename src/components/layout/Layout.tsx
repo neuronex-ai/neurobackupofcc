@@ -22,11 +22,10 @@ export const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div className={cn(
-      "min-h-screen flex flex-col relative",
-      "bg-zinc-10 dark:bg-zinc-950"
+      "min-h-screen flex flex-col relative bg-background text-foreground"
     )}>
-      {/* Camada de gradiente base */}
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-zinc-100/20 to-transparent dark:via-zinc-900/10 pointer-events-none" />
+      {/* Camada global de canvas: todas as telas desktop devem revelar a mesma base. */}
+      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-zinc-100/20 to-transparent pointer-events-none dark:via-zinc-900/10" />
 
       {!isMobile && <Navbar />}
       <main className={cn(

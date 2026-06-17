@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import { useReminders } from "@/hooks/use-reminders";
-import { CommandMenu } from "@/components/layout/CommandMenu";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
@@ -21,8 +20,6 @@ import { NeuroFlowVault } from "@/components/notes/NeuroFlowVault";
 import { NeuroPulse } from "@/components/notes/NeuroPulse";
 import { FilesManager } from "@/components/notes/FilesManager";
 import { NotionPagesPanel } from "@/components/notes/NotionPagesPanel";
-
-import { NeuroViewSearch } from "@/components/notes/NeuroViewSearch";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileNotes } from "@/mobile/pages/MobileNotes";
@@ -84,7 +81,6 @@ export default function Notes() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(initialLayout.sidebarCollapsed);
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
-    const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     const {
         notes,
@@ -128,18 +124,6 @@ export default function Notes() {
             listCollapsed: isListCollapsed,
         }));
     }, [isListCollapsed, isSidebarCollapsed]);
-
-    // Ctrl+Shift+K for NeuroView Search
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
-                e.preventDefault();
-                setIsSearchOpen(prev => !prev);
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
 
     const filteredNotes = useMemo(() => {
         if (!notes) return [];
@@ -212,7 +196,7 @@ export default function Notes() {
                                 initial={false}
                                 animate={{ width: isListCollapsed ? 52 : 330 }}
                                 transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
-                            className="relative flex shrink-0 flex-col overflow-hidden border-r border-white/[0.055] bg-[#0d0e10]/72 [.light_&]:border-zinc-200/65 [.light_&]:bg-white/48"
+                                className="relative flex shrink-0 flex-col overflow-hidden border-r border-white/[0.055] bg-[#0d0e10]/72 [.light_&]:border-zinc-200/65 [.light_&]:bg-white/48"
                             >
                                 <div className={cn("h-full relative z-10", isListCollapsed ? "w-[52px]" : "w-[330px]")}>
                                     <NotesListPanel
@@ -276,16 +260,12 @@ export default function Notes() {
     return (
         <div className="neuronex-bg relative flex h-screen w-screen flex-col overflow-hidden bg-[#f4f4f5] font-sans text-foreground selection:bg-white/10 dark:bg-[#050506] [.light_&]:selection:bg-zinc-900/10">
             {/* Master Texture Overlay */}
-            <div className="fixed inset-0 z-[100] premium-noise opacity-[0.035] pointer-events-none mix-blend-overlay [.light_&]:opacity-[0.02]" />
+            <div className="pointer-events-none absolute inset-0 z-0 premium-noise opacity-[0.035] mix-blend-overlay [.light_&]:opacity-[0.02]" />
 
             {/* Ambient Background Glows */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 <div className="liquid-mesh-bg !opacity-35 dark:!opacity-55" />
                 <div className="brand-neutral-gradient opacity-65" />
-            </div>
-
-            <div className="relative z-40 w-full shrink-0">
-                <CommandMenu />
             </div>
 
             <div className="relative z-10 mx-auto flex h-full w-full max-w-[2200px] flex-1 items-stretch overflow-hidden px-5 pb-5 pt-28">
@@ -327,15 +307,6 @@ export default function Notes() {
                 </motion.div>
             </div>
 
-            {/* NeuroView Search (Ctrl+K) */}
-            <NeuroViewSearch
-                isOpen={isSearchOpen}
-                onClose={() => setIsSearchOpen(false)}
-                onSelectNote={(noteId) => {
-                    setSelectedNoteId(noteId);
-                    setViewMode('notes');
-                }}
-            />
             <style>{`
                 .notes-scroll-surface {
                     scroll-behavior: auto !important;

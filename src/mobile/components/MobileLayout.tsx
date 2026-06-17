@@ -16,17 +16,18 @@ import { MobileRoutePill } from "./MobileRoutePill";
 interface MobileLayoutProps {
   children: ReactNode;
   className?: string;
+  shellClassName?: string;
   showNav?: boolean;
   showBottomNav?: boolean;
 }
 
-export const MobileLayout = ({ children, className, showNav = true, showBottomNav = true }: MobileLayoutProps) => {
+export const MobileLayout = ({ children, className, shellClassName, showNav = true, showBottomNav = true }: MobileLayoutProps) => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { theme } = useTheme();
   const { unreadCount } = useUnreadNotificationCount();
 
   return (
-    <div className={cn("nn-mobile-shell relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground", !showNav && !showBottomNav && "neurofinance-mobile-onboarding-shell")}>
+    <div className={cn("nn-mobile-shell relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground", shellClassName)}>
       <div className="mobile-surface-texture pointer-events-none fixed inset-0 z-0">
         <div className="premium-noise absolute inset-0 text-foreground" />
       </div>

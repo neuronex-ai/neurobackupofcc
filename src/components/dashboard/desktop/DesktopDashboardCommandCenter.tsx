@@ -64,7 +64,7 @@ const DashboardPanel = ({ children, className, innerClassName, delay = 0 }: { ch
     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
     transition={{ duration: 0.55, delay: delay / 1000, ease: [0.22, 1, 0.36, 1] }}
     className={cn(
-      "relative overflow-hidden rounded-[34px] border border-zinc-200/70 bg-white/78 shadow-[0_28px_92px_-72px_rgba(24,24,27,0.78)] backdrop-blur-xl dark:border-white/[0.065] dark:bg-[#08090b]/88 dark:shadow-[0_30px_100px_-70px_rgba(0,0,0,0.95)]",
+      "relative overflow-hidden rounded-[34px] border border-border/70 bg-card/88 shadow-[0_28px_92px_-72px_rgba(24,24,27,0.58)] dark:border-white/[0.065] dark:bg-card/92 dark:shadow-[0_30px_100px_-70px_rgba(0,0,0,0.95)]",
       className
     )}
   >
@@ -629,11 +629,7 @@ export const DesktopDashboardCommandCenter = () => {
   }, [activeUpcomingAppointments.length, financialConnected, navigate, nextAppointment, pendingPatients, todayAppointments.length]);
 
   return (
-    <div className="relative min-h-screen w-full bg-[#f4f4f5] pb-32 pt-28 font-sans selection:bg-black/10 selection:text-black dark:bg-[#050506] dark:selection:bg-white/10 dark:selection:text-white">
-      <div className="liquid-mesh-bg !opacity-20 dark:!opacity-28" />
-      <div className="brand-neutral-gradient opacity-40" />
-      <div className="premium-noise fixed inset-0 z-0 opacity-[0.012] dark:opacity-[0.018]" />
-
+    <div className="relative min-h-screen w-full bg-background pb-32 pt-28 font-sans selection:bg-primary/10 selection:text-primary">
       <main className="relative z-10 mx-auto flex w-full max-w-[2220px] flex-col gap-6 px-5 md:px-8 lg:px-10 xl:px-14">
         <CommandCenterHero
           todayAppointments={todayAppointments}

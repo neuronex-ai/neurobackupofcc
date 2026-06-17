@@ -319,10 +319,10 @@ export function MobileSynapseMessage({
   return (
     <article
       className={cn(
-        "rounded-[24px] border p-4",
+        "rounded-[24px] border p-4 shadow-[0_18px_48px_-42px_rgba(24,24,27,0.58)] backdrop-blur-xl",
         isAssistant
-          ? "border-border/35 bg-card/72 dark:border-white/10 dark:bg-white/[0.028]"
-          : "border-foreground bg-foreground text-background",
+          ? "border-zinc-200/80 bg-white text-zinc-950 dark:border-white/10 dark:bg-white/[0.045] dark:text-white"
+          : "border-zinc-950 bg-zinc-950 text-white dark:border-white/[0.09] dark:bg-[#101114] dark:text-white",
       )}
     >
       <div className="flex items-center justify-between gap-3">
@@ -330,15 +330,15 @@ export function MobileSynapseMessage({
           {isAssistant ? (
             <SynapseOrbAvatar className="h-9 w-9" />
           ) : (
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-background/10 text-background">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-white/12 text-white">
               <User className="h-4 w-4" />
             </div>
           )}
           <div className="min-w-0">
-            <p className={cn("truncate text-[9px] font-black uppercase tracking-[0.16em]", isAssistant ? "text-muted-foreground/55" : "text-background/55")}>
+            <p className={cn("truncate text-[9px] font-black uppercase tracking-[0.16em]", isAssistant ? "text-zinc-500 dark:text-white/52" : "text-white/62")}>
               {isAssistant ? "Synapse" : "Você"}
             </p>
-            <p className={cn("mt-0.5 text-[8px] font-medium", isAssistant ? "text-muted-foreground/45" : "text-background/45")}>
+            <p className={cn("mt-0.5 text-[8px] font-medium", isAssistant ? "text-zinc-400 dark:text-white/38" : "text-white/45")}>
               {new Date(message.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
             </p>
           </div>
@@ -348,7 +348,7 @@ export function MobileSynapseMessage({
           onClick={copyMessage}
           className={cn(
             "flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] transition active:scale-95",
-            isAssistant ? "bg-foreground/[0.04] text-muted-foreground" : "bg-background/10 text-background/72",
+            isAssistant ? "bg-zinc-100 text-zinc-500 dark:bg-white/[0.06] dark:text-white/52" : "bg-white/10 text-white/72",
           )}
           aria-label="Copiar mensagem"
         >
@@ -359,12 +359,13 @@ export function MobileSynapseMessage({
       {cleanContent ? (
         <div
           className={cn(
-            "mt-3 max-w-none text-[14px] font-medium leading-relaxed",
-            isAssistant ? "text-foreground" : "text-background",
+            "mt-3 max-w-none text-[14px] font-semibold leading-relaxed",
+            isAssistant ? "text-zinc-800 dark:text-white/86" : "text-white",
             "[&_a]:font-bold [&_a]:underline [&_a]:underline-offset-4",
             "[&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[12px]",
-            isAssistant ? "[&_code]:bg-foreground/[0.06]" : "[&_code]:bg-background/10",
-            "[&_li]:my-1 [&_ol]:pl-5 [&_p]:my-2 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-[16px] [&_pre]:p-3 [&_table]:my-3 [&_table]:w-full [&_table]:text-left [&_td]:border-t [&_td]:border-border/30 [&_td]:py-2 [&_td]:pr-3 [&_th]:py-2 [&_th]:pr-3 [&_ul]:pl-5",
+            isAssistant ? "[&_code]:bg-zinc-950/[0.06] dark:[&_code]:bg-white/[0.08]" : "[&_code]:bg-white/10",
+            "[&_li]:my-1 [&_ol]:pl-5 [&_p]:my-2 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-[16px] [&_pre]:border [&_pre]:p-3 [&_pre]:text-[12px] [&_table]:my-3 [&_table]:w-full [&_table]:text-left [&_td]:border-t [&_td]:border-zinc-200/70 dark:[&_td]:border-white/10 [&_td]:py-2 [&_td]:pr-3 [&_th]:py-2 [&_th]:pr-3 [&_ul]:pl-5",
+            isAssistant ? "[&_pre]:border-zinc-200/80 [&_pre]:bg-zinc-50 dark:[&_pre]:border-white/10 dark:[&_pre]:bg-white/[0.045]" : "[&_pre]:border-white/10 [&_pre]:bg-white/10",
           )}
         >
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
