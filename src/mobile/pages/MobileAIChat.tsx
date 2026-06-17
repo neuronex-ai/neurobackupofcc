@@ -92,6 +92,7 @@ export const MobileAIChat = () => {
   const [mode, setMode] = useState<SynapseMode>("chat");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
+  const [inputFocused, setInputFocused] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isEmailSheetOpen, setIsEmailSheetOpen] = useState(false);
@@ -314,11 +315,11 @@ export const MobileAIChat = () => {
             <MobileSynapseIconButton icon={History} label="Histórico" onClick={() => setIsHistoryOpen(true)} />
           </div>
 
-          <div className="pointer-events-auto min-w-0 flex-1 rounded-full border border-foreground/[0.07] bg-background/62 px-3 py-2 text-center shadow-[0_14px_34px_-24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055]">
-            <p className="truncate text-[9px] font-black uppercase tracking-[0.17em] text-muted-foreground/58">
+          <div className="pointer-events-auto min-w-0 flex-1 rounded-full border border-zinc-200/80 bg-white/78 px-3 py-2 text-center shadow-[0_14px_34px_-24px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055]">
+            <p className="truncate text-[9px] font-black uppercase tracking-[0.17em] text-zinc-500 dark:text-white/48">
               Synapse AI
             </p>
-            <p className="mt-0.5 truncate text-[11px] font-black tracking-[-0.01em] text-foreground">
+            <p className="mt-0.5 truncate text-[11px] font-black tracking-[-0.01em] text-zinc-950 dark:text-white">
               {activeSession?.title || (mode === "voice" ? "Modo voz" : "Nova conversa")}
             </p>
           </div>
@@ -358,7 +359,7 @@ export const MobileAIChat = () => {
             exit={{ opacity: 0, y: -12 }}
             className="flex h-full min-h-0 flex-col overflow-hidden"
           >
-            <div ref={scrollRef} className="mobile-scroll-owner flex-1 overflow-y-auto px-4 pb-40 pt-[calc(5.8rem+env(safe-area-inset-top))]">
+            <div ref={scrollRef} className="mobile-scroll-owner flex-1 overflow-y-auto px-4 pb-40 pt-[calc(6.15rem+env(safe-area-inset-top))]">
               {!hasMessages ? (
                 <div className="flex min-h-full flex-col justify-end gap-4 pb-5">
                   <MobileSynapseHero
