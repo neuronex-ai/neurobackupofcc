@@ -247,7 +247,7 @@ export default function Notes() {
                                         <Button onClick={handleCreateNote} className="h-16 rounded-[24px] bg-zinc-100 px-12 text-[11px] font-black uppercase tracking-[0.3em] text-black shadow-[0_30px_60px_-15px_rgba(255,255,255,0.05)] transition-all hover:opacity-90 active:scale-95 group/btn [.light_&]:bg-zinc-900 [.light_&]:text-white [.light_&]:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)]">
                                             <Plus className="h-4 w-4 mr-3 stroke-[3]" />
                                             Nova Nota
-                                        </Button>
+                        </Button>
                                     </div>
                                 )}
                             </AnimatePresence>
@@ -277,36 +277,37 @@ export default function Notes() {
                         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
                         className="group/main-window pointer-events-auto relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden border border-white/[0.07] bg-[#090a0c]/92 shadow-[0_24px_64px_-42px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.035)] backdrop-blur-2xl [contain:layout_paint] [mask-image:linear-gradient(#fff,#fff)] [.light_&]:border-zinc-200/80 [.light_&]:bg-white/76 [.light_&]:shadow-[0_24px_64px_-42px_rgba(24,24,27,0.2),inset_0_1px_0_rgba(255,255,255,0.94)]"
                     >
-                    <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.016] [.light_&]:opacity-[0.01]" />
-                    {!isFocusMode && (
-                        <motion.div
-                            initial={false}
-                            animate={{ width: isSidebarCollapsed ? 66 : 226 }}
-                            transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
-                            className="relative hidden shrink-0 overflow-hidden border-r border-white/[0.055] bg-[#0d0e10]/74 lg:flex [.light_&]:border-zinc-200/65 [.light_&]:bg-white/52"
-                        >
-                            <div className={cn("h-full relative z-10", isSidebarCollapsed ? "w-[66px]" : "w-[226px]")}>
-                                <NotesSidebar
-                                    viewMode={viewMode}
-                                    setViewMode={setViewMode}
-                                    selectedModuleId={selectedModuleId}
-                                    onSelectModule={setSelectedModuleId}
-                                    onMoveNoteToModule={(id, modId) => updateNote({ id, updates: { module_id: modId } })}
-                                    onCreateNote={handleCreateNote}
-                                    isCollapsed={isSidebarCollapsed}
-                                    onToggleCollapsed={() => setIsSidebarCollapsed((current) => !current)}
-                                    isCreatingNote={isCreatingNote}
-                                />
-                            </div>
-                        </motion.div>
-                    )}
+                        <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.016] [.light_&]:opacity-[0.01]" />
+                        {!isFocusMode && (
+                            <motion.div
+                                initial={false}
+                                animate={{ width: isSidebarCollapsed ? 66 : 226 }}
+                                transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
+                                className="relative hidden shrink-0 overflow-hidden border-r border-white/[0.055] bg-[#0d0e10]/74 lg:flex [.light_&]:border-zinc-200/65 [.light_&]:bg-white/52"
+                            >
+                                <div className={cn("h-full relative z-10", isSidebarCollapsed ? "w-[66px]" : "w-[226px]")}>
+                                    <NotesSidebar
+                                        viewMode={viewMode}
+                                        setViewMode={setViewMode}
+                                        selectedModuleId={selectedModuleId}
+                                        onSelectModule={setSelectedModuleId}
+                                        onMoveNoteToModule={(id, modId) => updateNote({ id, updates: { module_id: modId } })}
+                                        onCreateNote={handleCreateNote}
+                                        isCollapsed={isSidebarCollapsed}
+                                        onToggleCollapsed={() => setIsSidebarCollapsed((current) => !current)}
+                                        isCreatingNote={isCreatingNote}
+                                    />
+                                </div>
+                            </motion.div>
+                        )}
 
-                    <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
-                        <AnimatePresence mode="wait">
-                            {renderMainContent()}
-                        </AnimatePresence>
-                    </div>
-                </motion.div>
+                        <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
+                            <AnimatePresence mode="wait">
+                                {renderMainContent()}
+                            </AnimatePresence>
+                        </div>
+                    </motion.div>
+                </div>
             </div>
 
             <style>{`
