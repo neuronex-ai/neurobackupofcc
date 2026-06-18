@@ -1,8 +1,6 @@
 import { NewAppointmentModal } from "@/components/agenda/NewAppointmentModal";
-import { AppointmentDetailModal } from "@/components/agenda/AppointmentDetailModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAppointments } from "@/hooks/use-appointments";
 import { useAppointmentsByDateRange } from "@/hooks/use-appointments-by-date-range";
 import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from "@/lib/appointment-status";
 import { cn } from "@/lib/utils";
@@ -20,8 +18,8 @@ import {
   ChevronLeft,
   ChevronRight, Grid3X3, List, MapPin, MoreHorizontal, Plus, Search, Video, X
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { MobileLayout } from "../components/MobileLayout";
 
 type ViewMode = "week" | "month";
@@ -42,15 +40,12 @@ const SHEET_FULL = 0.92; // 92% of viewport (near full-screen)
 
 export const MobileAgenda = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekOffset, setWeekOffset] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [openedAppointmentId, setOpenedAppointmentId] = useState<string | null>(null);
 
   // Bottom sheet state
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -75,7 +70,6 @@ export const MobileAgenda = () => {
     startOfDay(monthStart),
     endOfDay(monthEnd)
   );
-  const { data: allAppointments = [] } = useAppointments({ includeCancelled: true });
 
   // Current view data
   const appointments = dayAppointments;
@@ -96,37 +90,6 @@ export const MobileAgenda = () => {
     }
     return result;
   }, [appointments, searchTerm]);
-
-  useEffect(() => {
-    const stateAppointmentId = location.state?.openAppointmentId;
-    const queryAppointmentId = searchParams.get("appointmentId");
-    const targetId = stateAppointmentId || queryAppointmentId;
-    if (targetId) setOpenedAppointmentId(targetId);
-  }, [location.state, searchParams]);
-
-  const openedAppointment = useMemo(
-    () => allAppointments.find((appointment) => appointment.id === openedAppointmentId),
-    [allAppointments, openedAppointmentId]
-  );
-
-  useEffect(() => {
-    if (openedAppointment) {
-      setSelectedDate(new Date(openedAppointment.start_time));
-      setCalendarMonth(new Date(openedAppointment.start_time));
-    }
-  }, [openedAppointment]);
-
-  const closeOpenedAppointment = () => {
-    setOpenedAppointmentId(null);
-    if (searchParams.has("appointmentId")) {
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.delete("appointmentId");
-      setSearchParams(nextParams, { replace: true });
-    }
-    if (location.state?.openAppointmentId) {
-      window.history.replaceState({}, document.title, window.location.href);
-    }
-  };
 
   // Appointments for the selected day in the bottom sheet (month view)
   const sheetAppointments = useMemo(() => {
@@ -827,15 +790,6 @@ export const MobileAgenda = () => {
           )}
         </AnimatePresence>
       </div>
-      {openedAppointment && (
-        <AppointmentDetailModal
-          appointment={openedAppointment}
-          open={!!openedAppointment}
-          onOpenChange={(open) => {
-            if (!open) closeOpenedAppointment();
-          }}
-        />
-      )}
     </MobileLayout>
   );
 };

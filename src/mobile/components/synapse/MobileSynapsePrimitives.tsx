@@ -1,12 +1,10 @@
 import { VoiceSpiral } from "@/components/ai-chat/VoiceSpiral";
-import { SynapseOrbAvatar } from "@/components/synapse/SynapseOrbAvatar";
-import { SynapseWidgetRenderer, parseSynapseWidgetFromContent } from "@/components/synapse/SynapseWidgetRenderer";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types";
-import { motion } from "framer-motion";
 import {
   ArrowRight,
+  Bot,
   Calendar,
   Check,
   Copy,
@@ -87,7 +85,7 @@ export function MobileSynapseIconButton({
       type="button"
       aria-label={label}
       className={cn(
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-white/78 text-zinc-950 shadow-[0_16px_40px_-28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl transition active:scale-95 dark:border-white/10 dark:bg-white/[0.055] dark:text-white",
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-foreground/[0.07] bg-background/62 text-foreground shadow-[0_14px_34px_-24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl transition active:scale-95 dark:border-white/10 dark:bg-white/[0.055]",
         className,
       )}
       {...props}
@@ -142,22 +140,24 @@ export function MobileSynapseHero({
   status: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-[26px] border border-zinc-200/80 bg-white p-5 text-zinc-950 shadow-[0_22px_70px_-54px_rgba(0,0,0,0.7)] dark:border-white/10 dark:bg-[#09090b] dark:text-white">
+    <section className="overflow-hidden rounded-[26px] border border-foreground bg-foreground p-5 text-background">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <MobileSynapseEyebrow className="text-zinc-500 dark:text-white/48">{modeLabel}</MobileSynapseEyebrow>
-          <h1 className="mt-2 text-[2.28rem] font-black leading-[0.9] tracking-[-0.065em] text-zinc-950 dark:text-white">
+          <MobileSynapseEyebrow className="text-background/55">{modeLabel}</MobileSynapseEyebrow>
+          <h1 className="mt-2 text-[2.28rem] font-black leading-[0.9] tracking-[-0.065em]">
             {title}
           </h1>
         </div>
-        <SynapseOrbAvatar className="h-12 w-12 rounded-[17px]" />
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[17px] bg-background/10">
+          <Sparkles className="h-5 w-5" />
+        </div>
       </div>
-      <p className="mt-4 text-xs font-semibold leading-relaxed text-zinc-600 dark:text-white/68">
+      <p className="mt-4 text-xs font-medium leading-relaxed text-background/68">
         {description}
       </p>
-      <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-zinc-200/80 bg-zinc-50 px-3 py-2 dark:border-white/10 dark:bg-white/10">
-        <span className="h-1.5 w-1.5 rounded-full bg-zinc-950 dark:bg-white" />
-        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-zinc-500 dark:text-white/68">{status}</span>
+      <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-background/10 px-3 py-2">
+        <span className="h-1.5 w-1.5 rounded-full bg-background" />
+        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-background/68">{status}</span>
       </div>
     </section>
   );
@@ -176,12 +176,12 @@ export function MobileSynapsePromptCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[112px] flex-col items-start justify-between rounded-[22px] border border-zinc-200/85 bg-white p-4 text-left shadow-[0_16px_45px_-38px_rgba(0,0,0,0.5)] transition active:scale-[0.985] dark:border-white/10 dark:bg-white/[0.035]"
+      className="flex min-h-[112px] flex-col items-start justify-between rounded-[22px] border border-border/40 bg-card/74 p-4 text-left transition active:scale-[0.985] dark:border-white/10 dark:bg-white/[0.035]"
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-zinc-100 text-zinc-500 dark:bg-white/[0.06] dark:text-white/48">
+      <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-foreground/[0.045] text-muted-foreground">
         <Icon className="h-[18px] w-[18px]" />
       </div>
-      <p className="text-[13px] font-black leading-tight tracking-[-0.015em] text-zinc-950 dark:text-white">{label}</p>
+      <p className="text-[13px] font-black leading-tight tracking-[-0.015em] text-foreground">{label}</p>
     </button>
   );
 }
@@ -304,11 +304,6 @@ export function MobileSynapseMessage({
   const isAssistant = message.role === "assistant";
   const action = useMemo(() => normalizeRichAction(richData), [richData]);
   const displayContent = typeof message.content === "string" ? message.content : String(message.content || "");
-  const parsedContent = useMemo(() => parseSynapseWidgetFromContent(displayContent), [displayContent]);
-  const widgetData = action
-    ? { __actionType: action.type, data: action.payload || action.data }
-    : parsedContent.widgetData;
-  const cleanContent = parsedContent.cleanContent || (widgetData ? "" : displayContent);
 
   const copyMessage = async () => {
     await navigator.clipboard.writeText(displayContent);
@@ -319,26 +314,27 @@ export function MobileSynapseMessage({
   return (
     <article
       className={cn(
-        "rounded-[24px] border p-4 shadow-[0_18px_48px_-42px_rgba(24,24,27,0.58)] backdrop-blur-xl",
+        "rounded-[24px] border p-4",
         isAssistant
-          ? "border-zinc-200/80 bg-white text-zinc-950 dark:border-white/10 dark:bg-white/[0.045] dark:text-white"
-          : "border-zinc-950 bg-zinc-950 text-white dark:border-white/[0.09] dark:bg-[#101114] dark:text-white",
+          ? "border-border/35 bg-card/72 dark:border-white/10 dark:bg-white/[0.028]"
+          : "border-foreground bg-foreground text-background",
       )}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          {isAssistant ? (
-            <SynapseOrbAvatar className="h-9 w-9" />
-          ) : (
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-white/12 text-white">
-              <User className="h-4 w-4" />
-            </div>
-          )}
+          <div
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px]",
+              isAssistant ? "bg-foreground/[0.045] text-muted-foreground" : "bg-background/10 text-background",
+            )}
+          >
+            {isAssistant ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
+          </div>
           <div className="min-w-0">
-            <p className={cn("truncate text-[9px] font-black uppercase tracking-[0.16em]", isAssistant ? "text-zinc-500 dark:text-white/52" : "text-white/62")}>
+            <p className={cn("truncate text-[9px] font-black uppercase tracking-[0.16em]", isAssistant ? "text-muted-foreground/55" : "text-background/55")}>
               {isAssistant ? "Synapse" : "Você"}
             </p>
-            <p className={cn("mt-0.5 text-[8px] font-medium", isAssistant ? "text-zinc-400 dark:text-white/38" : "text-white/45")}>
+            <p className={cn("mt-0.5 text-[8px] font-medium", isAssistant ? "text-muted-foreground/45" : "text-background/45")}>
               {new Date(message.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
             </p>
           </div>
@@ -348,7 +344,7 @@ export function MobileSynapseMessage({
           onClick={copyMessage}
           className={cn(
             "flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] transition active:scale-95",
-            isAssistant ? "bg-zinc-100 text-zinc-500 dark:bg-white/[0.06] dark:text-white/52" : "bg-white/10 text-white/72",
+            isAssistant ? "bg-foreground/[0.04] text-muted-foreground" : "bg-background/10 text-background/72",
           )}
           aria-label="Copiar mensagem"
         >
@@ -356,58 +352,33 @@ export function MobileSynapseMessage({
         </button>
       </div>
 
-      {cleanContent ? (
-        <div
-          className={cn(
-            "mt-3 max-w-none text-[14px] font-semibold leading-relaxed",
-            isAssistant ? "text-zinc-800 dark:text-white/86" : "text-white",
-            "[&_a]:font-bold [&_a]:underline [&_a]:underline-offset-4",
-            "[&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[12px]",
-            isAssistant ? "[&_code]:bg-zinc-950/[0.06] dark:[&_code]:bg-white/[0.08]" : "[&_code]:bg-white/10",
-            "[&_li]:my-1 [&_ol]:pl-5 [&_p]:my-2 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-[16px] [&_pre]:border [&_pre]:p-3 [&_pre]:text-[12px] [&_table]:my-3 [&_table]:w-full [&_table]:text-left [&_td]:border-t [&_td]:border-zinc-200/70 dark:[&_td]:border-white/10 [&_td]:py-2 [&_td]:pr-3 [&_th]:py-2 [&_th]:pr-3 [&_ul]:pl-5",
-            isAssistant ? "[&_pre]:border-zinc-200/80 [&_pre]:bg-zinc-50 dark:[&_pre]:border-white/10 dark:[&_pre]:bg-white/[0.045]" : "[&_pre]:border-white/10 [&_pre]:bg-white/10",
-          )}
-        >
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanContent}</ReactMarkdown>
-        </div>
-      ) : null}
+      <div
+        className={cn(
+          "mt-3 max-w-none text-[14px] font-medium leading-relaxed",
+          isAssistant ? "text-foreground" : "text-background",
+          "[&_a]:font-bold [&_a]:underline [&_a]:underline-offset-4",
+          "[&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[12px]",
+          isAssistant ? "[&_code]:bg-foreground/[0.06]" : "[&_code]:bg-background/10",
+          "[&_li]:my-1 [&_ol]:pl-5 [&_p]:my-2 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-[16px] [&_pre]:p-3 [&_table]:my-3 [&_table]:w-full [&_table]:text-left [&_td]:border-t [&_td]:border-border/30 [&_td]:py-2 [&_td]:pr-3 [&_th]:py-2 [&_th]:pr-3 [&_ul]:pl-5",
+        )}
+      >
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
+      </div>
 
-      {widgetData ? <SynapseWidgetRenderer widgetData={widgetData} compact /> : null}
+      {action ? <MobileSynapseActionCard action={action} /> : null}
     </article>
   );
 }
 
 export function MobileSynapseThinking() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 6, scale: 0.98 }}
-      transition={{ type: "spring", stiffness: 430, damping: 32 }}
-      className="flex items-end gap-2.5"
-    >
-      <SynapseOrbAvatar className="h-8 w-8" />
-      <motion.div
-        animate={{
-          boxShadow: [
-            "0 16px 42px -34px rgba(0,0,0,0.45)",
-            "0 22px 58px -36px rgba(0,0,0,0.56)",
-            "0 16px 42px -34px rgba(0,0,0,0.45)",
-          ],
-        }}
-        transition={{ repeat: Infinity, duration: 2.4, ease: "easeInOut" }}
-        className="flex items-center gap-1.5 rounded-[20px] rounded-bl-[8px] border border-zinc-200/80 bg-white/82 px-4 py-3 backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.045]"
-      >
-        {[0, 0.16, 0.32].map((delay) => (
-          <motion.span
-            key={delay}
-            animate={{ y: [0, -3, 0], opacity: [0.35, 1, 0.35], scale: [1, 1.18, 1] }}
-            transition={{ repeat: Infinity, duration: 0.9, delay, ease: "easeInOut" }}
-            className="h-1.5 w-1.5 rounded-full bg-zinc-950/60 dark:bg-white/70"
-          />
-        ))}
-      </motion.div>
-    </motion.div>
+    <div className="flex justify-start">
+      <div className="flex items-center gap-1.5 rounded-[20px] border border-border/35 bg-card/72 px-4 py-3 dark:border-white/10 dark:bg-white/[0.028]">
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/55" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/55 [animation-delay:0.15s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-foreground/55 [animation-delay:0.3s]" />
+      </div>
+    </div>
   );
 }
 
@@ -449,13 +420,13 @@ export function MobileSynapseVoicePanel({
       : "Toque no microfone para iniciar a conversa por voz.");
 
   return (
-    <section className="relative flex h-full min-h-[100dvh] flex-col overflow-hidden bg-[#f8f8f7] px-4 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-[calc(6.35rem+env(safe-area-inset-top))] text-zinc-950 dark:bg-[#020204] dark:text-white">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(99,102,241,0.13),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.78),rgba(248,248,247,0.92))] dark:bg-[radial-gradient(circle_at_50%_34%,rgba(99,102,241,0.16),transparent_42%),linear-gradient(180deg,rgba(10,10,12,0.98),rgba(0,0,0,1))]" />
+    <section className="relative flex min-h-full flex-col overflow-hidden bg-background px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-[calc(5.7rem+env(safe-area-inset-top))] dark:bg-[#030305]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_34%,rgba(99,102,241,0.11),transparent_38%)] dark:bg-[radial-gradient(circle_at_50%_34%,rgba(99,102,241,0.16),transparent_42%)]" />
 
-      <div className="relative flex min-h-0 flex-1 translate-y-[clamp(0.35rem,2dvh,1.1rem)] flex-col items-center justify-center">
+      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center">
         <div
           className={cn(
-            "pointer-events-none h-[min(78vw,41dvh,22rem)] w-[min(78vw,41dvh,22rem)] transition duration-300",
+            "pointer-events-none h-[min(72vw,44dvh,21rem)] w-[min(72vw,44dvh,21rem)] transition duration-300",
             error ? "opacity-45 grayscale" : "opacity-95",
           )}
           style={{
@@ -513,12 +484,12 @@ export function MobileSynapseVoicePanel({
         </div>
       </div>
 
-      <div className="relative z-20 mt-auto flex shrink-0 items-center justify-center gap-4 pb-1 pt-5">
+      <div className="relative z-20 mt-3 flex shrink-0 items-center justify-center gap-4">
         <button
           type="button"
           onClick={onReset}
           disabled={isProcessing}
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200/75 bg-white/82 text-zinc-500 shadow-sm backdrop-blur-xl transition active:scale-95 disabled:opacity-45 dark:border-white/10 dark:bg-white/[0.06] dark:text-white/55"
+          className="flex h-12 w-12 items-center justify-center rounded-full border border-border/45 bg-card/72 text-muted-foreground shadow-sm backdrop-blur-xl transition active:scale-95 disabled:opacity-45 dark:border-white/10 dark:bg-white/[0.06]"
           aria-label="Reiniciar conversa"
         >
           <RefreshCcw className="h-5 w-5" />

@@ -79,7 +79,7 @@ export const GraphDetailsPanel = ({
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="absolute top-20 right-5 bottom-5 z-[70] w-[400px] flex flex-col pointer-events-none"
+            className="fixed top-20 right-6 bottom-6 z-[200] w-[400px] flex flex-col pointer-events-none"
           >
             <div className="flex-1 flex flex-col bg-card/90 dark:bg-[#0A0A0B]/90 backdrop-blur-2xl border border-border/10 dark:border-white/10 rounded-[24px] shadow-2xl overflow-hidden pointer-events-auto ring-1 ring-border/5 dark:ring-white/5">
 
@@ -171,7 +171,7 @@ export const GraphDetailsPanel = ({
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="absolute top-20 right-5 bottom-5 z-[70] w-[380px] flex flex-col pointer-events-none"
+            className="fixed top-20 right-6 bottom-6 z-[200] w-[380px] flex flex-col pointer-events-none"
           >
             <div className="flex-1 flex flex-col bg-card/90 dark:bg-[#0A0A0B]/90 backdrop-blur-2xl border border-border/10 dark:border-white/10 rounded-[24px] shadow-2xl overflow-hidden pointer-events-auto ring-1 ring-border/5 dark:ring-white/5">
               <div className="p-6 border-b border-border/10 dark:border-white/5 flex items-center gap-4 bg-secondary/10 dark:bg-white/[0.02]">

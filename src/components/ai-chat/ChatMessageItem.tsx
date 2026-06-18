@@ -11,8 +11,6 @@ import { PatientListWidget, PatientCardData } from "./PatientMiniCard";
 import { PDFPreviewCard } from "./PDFPreviewCard";
 import { generateDocumentPDF } from "@/lib/pdf-generator";
 import { useSendEmail } from "@/hooks/use-send-email";
-import { SynapseOrbAvatar } from "@/components/synapse/SynapseOrbAvatar";
-import { SynapseWidgetRenderer, parseSynapseWidgetFromContent } from "@/components/synapse/SynapseWidgetRenderer";
 
 interface Message {
     id: string;
@@ -313,15 +311,13 @@ export const ChatMessageItem = ({ message, richData }: ChatMessageItemProps) => 
     };
 
     const parsedContent = useMemo(() => {
-        if (!isAssistant) return { patients: null, table: null, cleanContent: message.content, widgetData: null };
-        const widgetContent = parseSynapseWidgetFromContent(message.content);
-        const sourceContent = widgetContent.cleanContent || (widgetContent.widgetData ? "" : message.content);
-        const patientData = parsePatientList(sourceContent);
-        const tableData = parseMarkdownTable(sourceContent);
-        let cleanContent = sourceContent;
+        if (!isAssistant) return { patients: null, table: null, cleanContent: message.content };
+        const patientData = parsePatientList(message.content);
+        const tableData = parseMarkdownTable(message.content);
+        let cleanContent = message.content;
         if (tableData) cleanContent = cleanContent.replace(tableData.raw, '');
         if (patientData) cleanContent = cleanContent.replace(patientData.raw, '');
-        return { patients: patientData?.patients || null, table: tableData, cleanContent: cleanContent.trim(), widgetData: widgetContent.widgetData };
+        return { patients: patientData?.patients || null, table: tableData, cleanContent: cleanContent.trim() };
     }, [message.content, isAssistant]);
 
     const customComponents = {
@@ -359,7 +355,7 @@ export const ChatMessageItem = ({ message, richData }: ChatMessageItemProps) => 
                     if (type) {
                         return (
                             <div className="my-6 bg-transparent">
-                                <SynapseWidgetRenderer widgetData={json} />
+                                <WidgetRenderer type={type} data={json.data || json.payload || json} />
                             </div>
                         );
                     }
@@ -387,19 +383,7 @@ export const ChatMessageItem = ({ message, richData }: ChatMessageItemProps) => 
                 isAssistant ? "bg-transparent" : "bg-white/[0.04] border-white/[0.06] shadow-2xl backdrop-blur-3xl"
             )}
         >
-            {isAssistant ? (
-                <div className="mb-2 flex items-center gap-3 shrink-0">
-                    <SynapseOrbAvatar className="h-9 w-9 md:h-10 md:w-10" />
-                    <div className="min-w-0">
-                        <span className="block truncate text-[10px] font-black uppercase tracking-[0.28em] text-zinc-500 dark:text-zinc-400">
-                            Synapse
-                        </span>
-                        <span className="block text-[8px] font-bold uppercase tracking-widest text-zinc-500/55 dark:text-zinc-500">
-                            {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                    </div>
-                </div>
-            ) : (
+            {!isAssistant && (
                 <div className="flex items-center justify-between mb-2 shrink-0">
                     <div className="flex items-center gap-3 min-w-0">
                         <div className={cn(
@@ -429,13 +413,11 @@ export const ChatMessageItem = ({ message, richData }: ChatMessageItemProps) => 
                 "flex-1 px-0.5 md:px-0 w-full overflow-hidden break-words",
                 isAssistant ? "mt-0" : ""
             )}>
-                {parsedContent.cleanContent ? (
-                    <ReactMarkdown components={customComponents}>{parsedContent.cleanContent}</ReactMarkdown>
-                ) : null}
+                <ReactMarkdown components={customComponents}>{parsedContent.cleanContent}</ReactMarkdown>
             </div>
 
             <AnimatePresence>
-                {(parsedContent.table || parsedContent.patients || parsedContent.widgetData || richData) && (
+                {(parsedContent.table || parsedContent.patients || richData) && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-4 md:space-y-6 w-full overflow-hidden bg-transparent">
                         {parsedContent.table && <SimpleTable headers={parsedContent.table.headers} rows={parsedContent.table.rows} />}
                         {parsedContent.patients && parsedContent.patients.length > 0 && (
@@ -455,14 +437,9 @@ export const ChatMessageItem = ({ message, richData }: ChatMessageItemProps) => 
                                 />
                             </div>
                         )}
-                        {parsedContent.widgetData && (
-                            <div className="bg-transparent">
-                                <SynapseWidgetRenderer widgetData={parsedContent.widgetData} />
-                            </div>
-                        )}
                         {richData && richData.type !== 'generate_document' && richData.type !== 'review_draft' && richData.type !== 'review_invoice_draft' && (
                             <div className="bg-transparent">
-                                <SynapseWidgetRenderer widgetData={{ __actionType: richData.type, data: richData.payload || richData.data }} />
+                                <WidgetRenderer type={richData.type} data={richData.payload || richData.data} />
                             </div>
                         )}
                     </motion.div>

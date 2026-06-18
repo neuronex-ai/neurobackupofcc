@@ -79,7 +79,7 @@ export const NotesListPanel = ({
 
   if (isCollapsed) {
     return (
-      <div className="relative flex h-full w-full flex-col items-center bg-transparent py-4">
+      <div className="relative flex h-full w-full flex-col items-center border-r border-white/[0.05] bg-white/[0.012] py-4 [.light_&]:border-zinc-200/60 [.light_&]:bg-white/35">
         <button
           onClick={onToggleCollapsed}
           className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.04] text-zinc-400 transition-all hover:bg-white/[0.09] hover:text-white active:scale-95 [.light_&]:border-zinc-200/70 [.light_&]:bg-white [.light_&]:text-zinc-500 [.light_&]:hover:bg-zinc-100 [.light_&]:hover:text-zinc-950"
@@ -106,6 +106,8 @@ export const NotesListPanel = ({
   return (
     <>
       <div className="relative flex h-full w-full flex-col bg-transparent font-sans">
+        <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.018]" />
+
         <div className="relative z-10 shrink-0 space-y-5 border-b border-white/[0.045] px-5 pb-5 pt-6 [.light_&]:border-zinc-200/60">
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">

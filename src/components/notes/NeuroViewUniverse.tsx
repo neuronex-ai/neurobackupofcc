@@ -445,10 +445,10 @@ export const NeuroViewUniverse = ({
   };
 
   return (
-    <div className="relative isolate h-full min-h-0 w-full min-w-0 overflow-hidden bg-transparent [contain:layout_paint_size]">
+    <div className="relative h-full w-full overflow-hidden bg-[#020204]">
       <canvas
         ref={canvasRef}
-        className={cn("block h-full w-full", hoverNodeId ? "cursor-pointer" : "cursor-grab active:cursor-grabbing")}
+        className={cn("h-full w-full", hoverNodeId ? "cursor-pointer" : "cursor-grab active:cursor-grabbing")}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
