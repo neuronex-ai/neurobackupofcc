@@ -21,6 +21,7 @@ interface ResponsiveModalProps {
   onOpenChange?: (open: boolean) => void;
   className?: string;
   drawerClassName?: string;
+  contentStyle?: React.CSSProperties;
 }
 
 export const ResponsiveModal = ({
@@ -30,6 +31,7 @@ export const ResponsiveModal = ({
   onOpenChange,
   className,
   drawerClassName,
+  contentStyle,
 }: ResponsiveModalProps) => {
   const isMobile = useIsMobile();
 
@@ -37,7 +39,9 @@ export const ResponsiveModal = ({
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
         {trigger && <DrawerTrigger asChild>{trigger}</DrawerTrigger>}
-        <DrawerContent className={cn(
+        <DrawerContent
+          style={contentStyle}
+          className={cn(
           "max-h-[96vh] flex flex-col bg-white dark:bg-[#080809] border-t border-zinc-200 dark:border-white/10 rounded-t-[42px] outline-none shadow-[0_-30px_60px_-15px_rgba(0,0,0,0.5)] dark:shadow-[0_-30px_80px_-15px_rgba(0,0,0,0.8)]",
           drawerClassName
         )}>
@@ -54,7 +58,7 @@ export const ResponsiveModal = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className={className}>
+      <DialogContent style={contentStyle} className={className}>
         {children}
       </DialogContent>
     </Dialog>

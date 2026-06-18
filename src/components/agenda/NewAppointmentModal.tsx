@@ -524,17 +524,17 @@ export function NewAppointmentModal({
 
   // ─── Style tokens ────────────────────────────────────────────────
   const inputBase =
-    "h-16 bg-zinc-100/60 dark:bg-secondary/20 border-zinc-200 dark:border-border/10 hover:bg-zinc-200/60 dark:hover:bg-secondary/30 focus:bg-zinc-200/60 dark:focus:bg-secondary/30 rounded-[24px] text-foreground transition-all focus:border-border/20 focus:ring-0";
-  const labelBase = "text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground ml-1";
+    "h-12 bg-zinc-100/60 dark:bg-secondary/20 border-zinc-200 dark:border-border/10 hover:bg-zinc-200/60 dark:hover:bg-secondary/30 focus:bg-zinc-200/60 dark:focus:bg-secondary/30 rounded-2xl text-sm text-foreground transition-all focus:border-border/20 focus:ring-0";
+  const labelBase = "text-[9px] uppercase tracking-[0.14em] font-bold text-muted-foreground ml-1";
   const cardBase =
-    "rounded-[24px] border border-zinc-200 dark:border-border/10 bg-zinc-100/60 dark:bg-secondary/20 p-5 hover:bg-zinc-200/60 dark:hover:bg-secondary/30 transition-all";
-  const selectPopover = "bg-white dark:bg-popover/95 backdrop-blur-3xl border-zinc-200 dark:border-border/10 rounded-2xl overflow-hidden shadow-2xl z-[9999]";
+    "rounded-2xl border border-zinc-200 dark:border-border/10 bg-zinc-100/60 dark:bg-secondary/20 p-4 hover:bg-zinc-200/60 dark:hover:bg-secondary/30 transition-all";
+  const selectPopover = "bg-white dark:bg-popover/95 backdrop-blur-3xl border-zinc-200 dark:border-border/10 rounded-xl overflow-hidden shadow-2xl z-[9999]";
 
   // ─── STEP 1 ───────────────────────────────────────────────────────
 
   const renderStep1 = () => {
     return (
-      <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+      <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
         {/* Pill Toggle */}
         <FormField
           control={form.control}
@@ -548,11 +548,11 @@ export function NewAppointmentModal({
 
         {/* ── Sessão Clínica ─────────────────────────── */}
         {eventType === "session" && (
-          <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-            <div className="space-y-2">
-              <h3 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-3">
+          <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
                 <div className="p-2 rounded-full bg-secondary/20">
-                  <User className="h-5 w-5 text-foreground" />
+                  <User className="h-4 w-4 text-foreground" />
                 </div>
                 Quem será atendido?
               </h3>
@@ -563,17 +563,17 @@ export function NewAppointmentModal({
               control={form.control}
               name="patientId"
               render={({ field }) => (
-                <FormItem className="space-y-4">
+                  <FormItem className="space-y-2.5">
                   <FormLabel className={labelBase}>Paciente</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger className={cn(inputBase, "font-medium text-lg px-6 shadow-inner data-[state=open]:border-primary/50")}>
+                      <SelectTrigger className={cn(inputBase, "font-medium px-4 shadow-inner data-[state=open]:border-primary/50")}>
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className={selectPopover}>
                       {patients?.map((p) => (
-                        <SelectItem key={p.id} value={p.id} className="text-foreground/70 focus:bg-accent focus:text-foreground py-4 px-4 cursor-pointer text-base">
+                        <SelectItem key={p.id} value={p.id} className="text-foreground/70 focus:bg-accent focus:text-foreground py-3 px-4 cursor-pointer text-sm">
                           {p.name}
                         </SelectItem>
                       ))}
@@ -591,11 +591,11 @@ export function NewAppointmentModal({
 
         {/* ── Evento Geral ───────────────────────────── */}
         {eventType === "event" && (
-          <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-            <div className="space-y-2">
-              <h3 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-3">
+          <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
                 <div className="p-2 rounded-full bg-violet-500/10">
-                  <CalendarPlus className="h-5 w-5 text-violet-500" />
+                  <CalendarPlus className="h-4 w-4 text-violet-500" />
                 </div>
                 Novo Compromisso
               </h3>
@@ -606,13 +606,13 @@ export function NewAppointmentModal({
               control={form.control}
               name="eventTitle"
               render={({ field }) => (
-                <FormItem className="space-y-3">
+                <FormItem className="space-y-2.5">
                   <FormLabel className={labelBase}>Título do Evento</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
                       placeholder="Ex: Supervisão Clínica, Reunião de Equipe..."
-                      className={cn(inputBase, "px-6 text-lg font-medium")}
+                        className={cn(inputBase, "px-4 font-medium")}
                     />
                   </FormControl>
                   <FormMessage className="text-rose-400 pl-1" />
@@ -624,17 +624,17 @@ export function NewAppointmentModal({
               control={form.control}
               name="eventCategory"
               render={({ field }) => (
-                <FormItem className="space-y-3">
+                <FormItem className="space-y-2.5">
                   <FormLabel className={labelBase}>Categoria</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger className={cn(inputBase, "font-medium text-lg px-6 shadow-inner")}>
+                      <SelectTrigger className={cn(inputBase, "font-medium px-4 shadow-inner")}>
                         <SelectValue placeholder="Selecione a categoria..." />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className={selectPopover}>
                       {EVENT_CATEGORIES.map((c) => (
-                        <SelectItem key={c.value} value={c.value} className="text-foreground/70 focus:bg-accent focus:text-foreground py-4 px-4 cursor-pointer text-base">
+                        <SelectItem key={c.value} value={c.value} className="text-foreground/70 focus:bg-accent focus:text-foreground py-3 px-4 cursor-pointer text-sm">
                           {c.label}
                         </SelectItem>
                       ))}
@@ -691,24 +691,24 @@ export function NewAppointmentModal({
   // ─── Date & Time Row (shared) ─────────────────────────────────────
 
   const renderDateTimeRow = (showEndTime = false) => (
-    <div className="grid grid-cols-1 gap-6">
-      <div className={cn("flex gap-4", showEndTime && "flex-wrap")}>
+    <div className="grid grid-cols-1 gap-4">
+      <div className={cn("flex gap-3", showEndTime && "flex-wrap")}>
         <FormField
           control={form.control}
           name="date"
           render={({ field }) => (
-            <FormItem className="flex-1 flex flex-col space-y-3 min-w-[140px]">
+            <FormItem className="flex-1 flex flex-col space-y-2 min-w-[140px]">
               <FormLabel className={labelBase}>Data</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
                       variant="outline"
-                      className={cn(inputBase, "w-full pl-6 text-left font-medium text-lg shadow-sm relative overflow-hidden group", !field.value && "text-muted-foreground")}
+                      className={cn(inputBase, "w-full pl-4 text-left font-medium shadow-sm relative overflow-hidden group", !field.value && "text-muted-foreground")}
                     >
                       <div className="absolute inset-0 bg-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                       {field.value ? format(field.value, "dd MMM", { locale: ptBR }) : <span>--/--</span>}
-                      <CalendarIcon className="ml-auto h-5 w-5 opacity-40 group-hover:opacity-100 transition-opacity mr-2" />
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity mr-2" />
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
@@ -741,7 +741,7 @@ export function NewAppointmentModal({
           control={form.control}
           name="startTime"
           render={({ field }) => (
-            <FormItem className="w-[140px] space-y-3">
+            <FormItem className="w-[124px] space-y-2">
               <FormLabel className={labelBase}>{showEndTime ? "Início" : "Horário"}</FormLabel>
               <FormControl>
                 <div className="relative group">
@@ -752,7 +752,7 @@ export function NewAppointmentModal({
                       field.onChange(event);
                       form.setValue("endTime", addMinutesToTime(event.target.value, form.getValues("duration") || 50));
                     }}
-                    className={cn(inputBase, "px-4 text-center text-lg font-bold")}
+                    className={cn(inputBase, "px-3 text-center font-bold")}
                   />
                   <Clock className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/20 pointer-events-none" />
                 </div>
@@ -767,7 +767,7 @@ export function NewAppointmentModal({
             control={form.control}
             name="endTime"
             render={({ field }) => (
-              <FormItem className="w-[140px] space-y-3 animate-in fade-in-0 duration-200">
+              <FormItem className="w-[124px] space-y-2 animate-in fade-in-0 duration-200">
                 <FormLabel className={labelBase}>Fim</FormLabel>
                 <FormControl>
                   <div className="relative group">
@@ -788,7 +788,7 @@ export function NewAppointmentModal({
                         if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
                         form.setValue("duration", Math.max(15, differenceInMinutes(endDate, startDate)));
                       }}
-                      className={cn(inputBase, "px-4 text-center text-lg font-bold")}
+                      className={cn(inputBase, "px-3 text-center font-bold")}
                     />
                     <Clock className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/20 pointer-events-none" />
                   </div>
@@ -805,7 +805,7 @@ export function NewAppointmentModal({
   // ─── Recurrence Toggle (shared) ───────────────────────────────────
 
   const renderRecurrenceToggle = () => (
-    <div className="pt-2">
+    <div className="pt-1">
       <FormField
         control={form.control}
         name="recurrence"
@@ -826,22 +826,22 @@ export function NewAppointmentModal({
       />
 
       {form.watch("recurrence") && (
-        <div className="mt-4 grid grid-cols-1 gap-4 animate-in slide-in-from-top-2 sm:grid-cols-[1fr_160px]">
+        <div className="mt-3 grid grid-cols-1 gap-3 animate-in slide-in-from-top-2 sm:grid-cols-[1fr_140px]">
           <FormField
             control={form.control}
             name="recurrenceFrequency"
             render={({ field }) => (
-              <FormItem className="space-y-3">
+              <FormItem className="space-y-2">
                 <FormLabel className={labelBase}>Frequência</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger className={cn(inputBase, "font-medium text-base px-6 shadow-inner")}>
+                    <SelectTrigger className={cn(inputBase, "font-medium px-4 shadow-inner")}>
                       <SelectValue />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className={selectPopover}>
                     {RECURRENCE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value} className="text-foreground/70 focus:bg-accent focus:text-foreground py-4 px-4 cursor-pointer text-base">
+                      <SelectItem key={option.value} value={option.value} className="text-foreground/70 focus:bg-accent focus:text-foreground py-3 px-4 cursor-pointer text-sm">
                         {option.label}
                       </SelectItem>
                     ))}
@@ -854,10 +854,10 @@ export function NewAppointmentModal({
             control={form.control}
             name="recurrenceCount"
             render={({ field }) => (
-              <FormItem className="space-y-3">
+              <FormItem className="space-y-2">
                 <FormLabel className={labelBase}>{eventType === "event" ? "Ocorrências" : "Sessões"}</FormLabel>
                 <FormControl>
-                  <Input type="number" min={1} max={20} {...field} className={cn(inputBase, "px-6 text-lg font-medium")} />
+                  <Input type="number" min={1} max={20} {...field} className={cn(inputBase, "px-4 font-medium")} />
                 </FormControl>
               </FormItem>
             )}
@@ -870,13 +870,13 @@ export function NewAppointmentModal({
   // ─── STEP 2: Details ──────────────────────────────────────────────
 
   const renderStep2 = () => (
-    <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+    <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
       {eventType === "session" && (
         <>
-          <div className="space-y-2 mb-6">
-            <h3 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-3">
+          <div className="space-y-1.5 mb-4">
+            <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
               <div className="p-2 rounded-full bg-secondary/20">
-                <FileText className="h-5 w-5 text-foreground" />
+                <FileText className="h-4 w-4 text-foreground" />
               </div>
               Detalhes da Sessão
             </h3>
@@ -887,22 +887,22 @@ export function NewAppointmentModal({
             control={form.control}
             name="type"
             render={({ field }) => (
-              <FormItem className="space-y-4">
+              <FormItem className="space-y-2.5">
                 <FormLabel className={labelBase}>Tipo de Sessão</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger className={cn(inputBase, "font-medium text-lg px-6 shadow-inner")}>
+                    <SelectTrigger className={cn(inputBase, "font-medium px-4 shadow-inner")}>
                       <SelectValue />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className={selectPopover}>
-                    <SelectItem value="first_visit" className="text-foreground/70 focus:bg-accent focus:text-foreground py-4 px-4 cursor-pointer text-base">
+                    <SelectItem value="first_visit" className="text-foreground/70 focus:bg-accent focus:text-foreground py-3 px-4 cursor-pointer text-sm">
                       Primeira Consulta (Avaliação)
                     </SelectItem>
-                    <SelectItem value="follow_up" className="text-foreground/70 focus:bg-accent focus:text-foreground py-4 px-4 cursor-pointer text-base">
+                    <SelectItem value="follow_up" className="text-foreground/70 focus:bg-accent focus:text-foreground py-3 px-4 cursor-pointer text-sm">
                       Sessão de Acompanhamento
                     </SelectItem>
-                    <SelectItem value="emergency" className="text-rose-400 focus:bg-rose-500/10 focus:text-rose-300 py-4 px-4 cursor-pointer text-base">
+                    <SelectItem value="emergency" className="text-rose-400 focus:bg-rose-500/10 focus:text-rose-300 py-3 px-4 cursor-pointer text-sm">
                       Emergência / Encaixe
                     </SelectItem>
                   </SelectContent>
@@ -917,7 +917,7 @@ export function NewAppointmentModal({
             control={form.control}
             name="modality"
             render={({ field }) => (
-              <FormItem className="space-y-4">
+              <FormItem className="space-y-2.5">
                 <FormLabel className={labelBase}>Modalidade</FormLabel>
                 <FormControl>
                   <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-2 gap-3">
@@ -949,7 +949,7 @@ export function NewAppointmentModal({
             control={form.control}
             name="duration"
             render={({ field }) => (
-              <FormItem className="space-y-3">
+              <FormItem className="space-y-2.5">
                 <FormLabel className={labelBase}>Duração (min)</FormLabel>
                 <FormControl>
                   <Input
@@ -960,7 +960,7 @@ export function NewAppointmentModal({
                       field.onChange(nextDuration);
                       form.setValue("endTime", addMinutesToTime(form.getValues("startTime"), nextDuration || 50));
                     }}
-                    className={cn(inputBase, "px-6 text-lg font-medium")}
+                    className={cn(inputBase, "px-4 font-medium")}
                   />
                 </FormControl>
                 <FormMessage />
@@ -972,12 +972,12 @@ export function NewAppointmentModal({
             control={form.control}
             name="notes"
             render={({ field }) => (
-              <FormItem className="space-y-3">
+              <FormItem className="space-y-2.5">
                 <FormLabel className={labelBase}>Observações</FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Ex: Paciente relatou ansiedade..."
-                    className={cn(inputBase, "min-h-[120px] resize-none px-6 py-4 text-base placeholder:text-muted-foreground/50 h-auto")}
+                    className={cn(inputBase, "min-h-[88px] resize-none px-4 py-3 placeholder:text-muted-foreground/50 h-auto")}
                     {...field}
                   />
                 </FormControl>
@@ -990,10 +990,10 @@ export function NewAppointmentModal({
 
       {eventType === "event" && (
         <>
-          <div className="space-y-2 mb-6">
-            <h3 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-3">
+          <div className="space-y-1.5 mb-4">
+            <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
               <div className="p-2 rounded-full bg-violet-500/10">
-                <StickyNote className="h-5 w-5 text-violet-500" />
+                <StickyNote className="h-4 w-4 text-violet-500" />
               </div>
               Detalhes do Evento
             </h3>
@@ -1004,7 +1004,7 @@ export function NewAppointmentModal({
             control={form.control}
             name="eventLocation"
             render={({ field }) => (
-              <FormItem className="space-y-3">
+              <FormItem className="space-y-2.5">
                 <FormLabel className={labelBase}>Local ou Link</FormLabel>
                 <FormControl>
                   <div className="relative group">
@@ -1012,7 +1012,7 @@ export function NewAppointmentModal({
                     <Input
                       {...field}
                       placeholder="Ex: Sala 202 ou https://meet.google.com/..."
-                      className={cn(inputBase, "pl-12 text-base font-medium")}
+                        className={cn(inputBase, "pl-10 font-medium")}
                     />
                   </div>
                 </FormControl>
@@ -1024,12 +1024,12 @@ export function NewAppointmentModal({
             control={form.control}
             name="notes"
             render={({ field }) => (
-              <FormItem className="space-y-3">
+              <FormItem className="space-y-2.5">
                 <FormLabel className={labelBase}>Notas Internas</FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Anotações privadas sobre o compromisso..."
-                    className={cn(inputBase, "min-h-[120px] resize-none px-6 py-4 text-base placeholder:text-muted-foreground/50 h-auto")}
+                    className={cn(inputBase, "min-h-[88px] resize-none px-4 py-3 placeholder:text-muted-foreground/50 h-auto")}
                     {...field}
                   />
                 </FormControl>
