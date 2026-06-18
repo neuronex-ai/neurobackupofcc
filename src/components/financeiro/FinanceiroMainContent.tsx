@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Landmark, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Landmark, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +10,7 @@ import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { FinancialDashboard, FinancialDashboardProps, FinanceView } from "./FinancialDashboard";
 import { NeuroFinanceVerificationModal } from "./NeuroFinanceVerificationModal";
 import { OnboardingPendingNotice } from "./OnboardingPendingNotice";
-import { CustomOnboardingFlow } from "./CustomOnboardingFlow";
+import { OnboardingRecoveryBoundary as CustomOnboardingFlow } from "./OnboardingRecoveryBoundary";
 import { LEGACY_MANAGEMENT_VIEW_REDIRECTS, isNeuroFinanceView } from "./finance-view-classification";
 
 export type { FinanceView };
@@ -197,22 +197,17 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
               <FinancialDashboard {...props} />
             </>
           )}
-
-          <NeuroFinanceVerificationModal
-            open={showVerificationModal}
-            onOpenChange={setShowVerificationModal}
-            selectedRequirement={selectedRequirement}
-            setSelectedRequirement={setSelectedRequirement}
-            onSuccess={handleVerificationSuccess}
-          />
         </div>
+
+        <NeuroFinanceVerificationModal
+          open={showVerificationModal}
+          onOpenChange={setShowVerificationModal}
+          initialRequirement={selectedRequirement}
+          onSuccess={handleVerificationSuccess}
+        />
       </FeatureGate>
     );
   }
 
-  return (
-    <div className="space-y-6 animate-fade-in">
-      <FinancialDashboard {...props} />
-    </div>
-  );
+  return <FinancialDashboard {...props} />;
 };
