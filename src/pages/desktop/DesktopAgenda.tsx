@@ -9,6 +9,10 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { useAgendaRealtime } from "@/hooks/use-agenda-realtime";
 import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
 import { AppointmentDetailModal } from "@/components/agenda/AppointmentDetailModal";
+import {
+    SYNAPSE_PAGE_ACTION_EVENT,
+    type SynapseInterfaceAction,
+} from "@/lib/synapse-interface-actions";
 
 export default function DesktopAgenda() {
     useAgendaRealtime();
@@ -23,15 +27,14 @@ export default function DesktopAgenda() {
 
     const { data: appointments = [], isLoading } = useAppointments();
 
-    // Handle incoming state from dashboard to open specific appointment
     useEffect(() => {
         const stateAppointmentId = location.state?.openAppointmentId;
         const queryAppointmentId = searchParams.get("appointmentId");
         const targetId = stateAppointmentId || queryAppointmentId;
 
-        if (targetId) {
-            setOpenedAppointmentId(targetId);
-        }
+        if (targetId) setOpenedAppointmentId(targetId);
+        if (location.state?.synapseView === "daily") setView("daily");
+        if (location.state?.synapseDate) setSelectedDate(new Date(location.state.synapseDate));
     }, [location.state, searchParams]);
 
     const openedAppointment = useMemo(
@@ -42,8 +45,39 @@ export default function DesktopAgenda() {
     useEffect(() => {
         if (openedAppointment) {
             setSelectedDate(new Date(openedAppointment.start_time));
+            setView("daily");
         }
     }, [openedAppointment]);
+
+    useEffect(() => {
+        const handleSynapseAction = (event: Event) => {
+            const action = (event as CustomEvent<SynapseInterfaceAction>).detail;
+            if (!action) return;
+
+            if (action.action === "open_daily_schedule") {
+                setView("daily");
+                if (action.date) setSelectedDate(new Date(action.date));
+            }
+
+            if (action.action === "scroll_to_appointment" && action.appointmentId) {
+                const appointment = appointments.find((item) => item.id === action.appointmentId);
+                if (appointment) {
+                    setSelectedDate(new Date(appointment.start_time));
+                    setView("daily");
+                    setOpenedAppointmentId(appointment.id);
+                }
+            }
+
+            if (action.action === "highlight_element" && action.element === "daily_schedule") {
+                const target = document.querySelector("[data-synapse-target='daily-schedule']");
+                target?.classList.add("synapse-interface-highlight");
+                window.setTimeout(() => target?.classList.remove("synapse-interface-highlight"), 4200);
+            }
+        };
+
+        window.addEventListener(SYNAPSE_PAGE_ACTION_EVENT, handleSynapseAction);
+        return () => window.removeEventListener(SYNAPSE_PAGE_ACTION_EVENT, handleSynapseAction);
+    }, [appointments]);
 
     const closeOpenedAppointment = () => {
         setOpenedAppointmentId(null);
@@ -74,7 +108,6 @@ export default function DesktopAgenda() {
             <div className="premium-noise opacity-[0.01] dark:opacity-[0.03] mix-blend-overlay fixed inset-0 bg-gradient-to-br from-transparent via-zinc-100/20 to-transparent dark:via-zinc-900/10 pointer-events-none" />
 
             <div className="max-w-[1800px] mx-auto relative flex h-[calc(100vh-140px)] gap-6">
-
                 <AnimatePresence mode="wait">
                     {sidebarOpen && (
                         <motion.aside
@@ -100,7 +133,7 @@ export default function DesktopAgenda() {
                     )}
                 </AnimatePresence>
 
-                <main className="flex-1 relative flex flex-col min-w-0 h-full">
+                <main className="flex-1 relative flex flex-col min-w-0 h-full" data-synapse-target="daily-schedule">
                     <div className="flex-1 bg-white dark:bg-[#0A0A0C] border border-zinc-200 dark:border-white/[0.06] rounded-[32px] overflow-hidden relative shadow-lg dark:shadow-2xl">
                         <CalendarView
                             date={selectedDate}
