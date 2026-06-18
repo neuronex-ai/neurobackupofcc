@@ -116,10 +116,15 @@ export async function sendSignupCodeEmail(params: {
   code: string;
   fullName: string;
 }) {
-  const apiKey = Deno.env.get("RESEND_API_KEY");
+  const apiKey = Deno.env.get("RESEND_API_KEY")?.trim();
   if (!apiKey) {
     throw new Error("RESEND_API_KEY is not configured.");
   }
+
+  const from =
+    Deno.env.get("SIGNUP_EMAIL_FROM")?.trim() ||
+    Deno.env.get("SECURITY_EMAIL_FROM")?.trim() ||
+    "NeuroNex Segurança <seguranca@email.neuronex.site>";
 
   const displayName = params.fullName.trim().split(/\s+/)[0] || "psicólogo";
   const html = `<!doctype html>
@@ -172,6 +177,7 @@ export async function sendSignupCodeEmail(params: {
     },
     body: JSON.stringify({
       from: "NeuroNex Segurança <seguranca@email.neuronex.site>",
+      ...(from ? { from } : {}),
       to: [params.email],
       subject: `${params.code} é seu código da NeuroNex AI`,
       html,
