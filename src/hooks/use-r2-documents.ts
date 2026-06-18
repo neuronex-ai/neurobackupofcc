@@ -77,7 +77,7 @@ export function useR2Documents(patientId?: string | null) {
       if (!ALLOWED_TYPES.has(file.type)) throw new Error("Este tipo de arquivo ainda não é permitido.");
       if (file.size <= 0 || file.size > MAX_FILE_BYTES) throw new Error("O arquivo deve ter no máximo 20 MB.");
 
-      const { data: signed, error: signError } = await supabase.functions.invoke("r2-sign-upload", {
+      const { data: signed, error: signError } = await supabase.functions.invoke("r2-create-upload-url", {
         body: { fileName: file.name, mimeType: file.type, sizeBytes: file.size },
       });
       if (signError || !signed?.uploadUrl) throw signError ?? new Error("Não foi possível preparar o upload.");
