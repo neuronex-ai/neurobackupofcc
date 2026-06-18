@@ -1,15 +1,9 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import dyadComponentTagger from '@dyad-sh/react-vite-component-tagger';
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode, command }) => {
-  // Use relative base when building (for Electron file:// compatibility).
-  // In dev mode, use "/" for the dev server. 
-  // The electron:build and electron:preview scripts pass --base=./
-  // but we also default to "./" in production builds to be safe.
   const isProduction = command === 'build';
 
   return {
@@ -23,9 +17,16 @@ export default defineConfig(({ mode, command }) => {
       react()
     ].filter(Boolean),
     resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "./src"),
-      },
+      alias: [
+        {
+          find: "@/components/financeiro/CustomOnboardingFlow",
+          replacement: path.resolve(__dirname, "./src/components/financeiro/OnboardingRecoveryBoundary.tsx"),
+        },
+        {
+          find: "@",
+          replacement: path.resolve(__dirname, "./src"),
+        },
+      ],
     },
     build: {
       rollupOptions: {
