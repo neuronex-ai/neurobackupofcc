@@ -7,6 +7,7 @@ import { tools } from "./tools-def.ts";
 import { generateSystemPrompt } from "./prompt-gen.ts";
 import { executeTool } from "./tools-exec.ts";
 import { generateEmbedding } from "./embeddings.ts";
+import { generateGroqFallback } from "./provider-fallback.ts";
 
 const buildWhatsAppContext = (context: any, channel?: string, source?: any, remoteJid?: string) => {
     if (channel !== 'whatsapp') return context || {};
@@ -47,7 +48,7 @@ serve(async (req) => {
         let payload;
         try {
             payload = await req.json();
-        } catch (e) {
+        } catch (_e) {
             payload = {};
         }
 
@@ -68,14 +69,11 @@ serve(async (req) => {
             if (!professional_id) {
                 return new Response(JSON.stringify({ error: "professional_id is required for internal calls" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
             }
-            // Internal call from Gateway (bypasses JWT)
             const { data: adminUser, error } = await supabaseAdmin.auth.admin.getUserById(professional_id);
             if (error || !adminUser.user) throw new Error('Profissional não encontrado');
             user = adminUser.user;
-            // Use admin client but tools will scope by explicit user.id
             supabaseUser = supabaseAdmin;
         } else {
-            // Standard JWT auth
             if (!authHeader) {
                 return new Response(JSON.stringify({ error: "Token ausente e header interno nao fornecido" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
             }
@@ -118,7 +116,6 @@ serve(async (req) => {
                     })
                     .eq('id', synapseConversationId);
             } else {
-                // Auto-create chat_session and binding for whatsapp
                 const synapseConversationId = crypto.randomUUID();
                 const displayName = (source && source.push_name) ? source.push_name : actualRemoteJid;
                 const title = `WhatsApp: ${displayName}`;
@@ -157,22 +154,18 @@ serve(async (req) => {
             }
         }
 
-        // 1. Gerar Embedding da mensagem do usuário (Memória de Longo Prazo)
         const userEmbedding = await generateEmbedding(message, geminiKey);
 
-        // 2. Buscar Memórias Relevantes (RAG Global)
         let relevantMemoriesText = "";
         if (userEmbedding && userEmbedding.length > 0) {
             const { data: memories, error: memoryError } = await supabaseAdmin.rpc('match_messages_gemini_for_user', {
                 target_user_id: user.id,
                 query_embedding: userEmbedding,
-                match_threshold: 0.60, // Limite de similaridade
+                match_threshold: 0.60,
                 match_count: 5
             });
 
-            if (memoryError) {
-                console.error("Erro ao buscar memorias Synapse:", memoryError);
-            }
+            if (memoryError) console.error("Erro ao buscar memorias Synapse:", memoryError);
 
             if (memories && memories.length > 0) {
                 const memoryList = memories.map((m: any) => {
@@ -183,8 +176,6 @@ serve(async (req) => {
             }
         }
 
-        // 3. Salvar msg usuário com Embedding e UserID
-        // Nota: O embedding pode ser null se falhar, o DB aceita (se não definimos not null, a migration default é nullable)
         let recentMemoriesText = "";
         let recentQuery = supabaseAdmin
             .from('messages')
@@ -193,14 +184,10 @@ serve(async (req) => {
             .order('created_at', { ascending: false })
             .limit(12);
 
-        if (sessionId) {
-            recentQuery = recentQuery.neq('session_id', sessionId);
-        }
+        if (sessionId) recentQuery = recentQuery.neq('session_id', sessionId);
 
         const { data: recentMemories, error: recentMemoryError } = await recentQuery;
-        if (recentMemoryError) {
-            console.error("Erro ao buscar memorias recentes Synapse:", recentMemoryError);
-        }
+        if (recentMemoryError) console.error("Erro ao buscar memorias recentes Synapse:", recentMemoryError);
 
         if (recentMemories && recentMemories.length > 0) {
             const recentList = recentMemories
@@ -210,7 +197,7 @@ serve(async (req) => {
                     return `- [${date}] (${m.role}): ${compactMemoryContent(m.content)}`;
                 })
                 .join('\n');
-            recentMemoriesText = `\n\n=== MEMORIA RECENTE ENTRE CANAIS ===\nUse estas mensagens recentes do mesmo profissional como memoria operacional, especialmente quando a pergunta for generica, como \"lembra?\", \"reenvie\", \"o que falamos?\" ou \"continue\". Nao afirme que nao lembra antes de verificar esta secao.\n${recentList}\n==============================\n`;
+            recentMemoriesText = `\n\n=== MEMORIA RECENTE ENTRE CANAIS ===\nUse estas mensagens recentes do mesmo profissional como memoria operacional, especialmente quando a pergunta for generica, como "lembra?", "reenvie", "o que falamos?" ou "continue". Nao afirme que nao lembra antes de verificar esta secao.\n${recentList}\n==============================\n`;
         }
 
         const { error: userMsgError } = await supabaseAdmin.from('messages').insert([{
@@ -222,22 +209,13 @@ serve(async (req) => {
             attachments: attachments && attachments.length > 0 ? attachments : null
         }]);
 
-        if (userMsgError) {
-            console.error("Erro Crítico ao salvar mensagem do usuário:", userMsgError);
-        }
+        if (userMsgError) console.error("Erro Crítico ao salvar mensagem do usuário:", userMsgError);
 
-        // 4. Gerar System Prompt Base
         let systemPromptText = await generateSystemPrompt(supabaseAdmin, user, context);
+        if (relevantMemoriesText) systemPromptText += relevantMemoriesText;
+        if (recentMemoriesText) systemPromptText += recentMemoriesText;
+        systemPromptText += `\n\n=== AÇÕES DE INTERFACE ===\nO aplicativo controla a navegação. Nunca escreva rotas, URLs, seletores, UUIDs ou caminhos internos na resposta ao usuário. Quando uma ferramenta preparar navegação, descreva apenas o resultado de forma humana.\n==============================\n`;
 
-        // Injetar Memórias no System Prompt
-        if (relevantMemoriesText) {
-            systemPromptText += relevantMemoriesText;
-        }
-        if (recentMemoriesText) {
-            systemPromptText += recentMemoriesText;
-        }
-
-        // 5. Recuperar Histórico Recente da Sessão Atual (Short-term memory)
         const { data: history } = await supabaseAdmin
             .from('messages')
             .select('content, role')
@@ -250,15 +228,11 @@ serve(async (req) => {
             parts: [{ text: m.content || "" }]
         }));
 
-        // 6. Loop Gemini (ReAct)
         let contents = [...chatHistory, { role: 'user', parts: [{ text: message }] }];
-
-        // Sanitize
         const sanitizedContents: any[] = [];
         for (const msg of contents) {
             if (sanitizedContents.length > 0 && sanitizedContents[sanitizedContents.length - 1].role === msg.role) {
-                const lastMsg = sanitizedContents[sanitizedContents.length - 1];
-                lastMsg.parts[0].text += "\n\n" + msg.parts[0].text;
+                sanitizedContents[sanitizedContents.length - 1].parts[0].text += "\n\n" + msg.parts[0].text;
             } else {
                 sanitizedContents.push(msg);
             }
@@ -267,65 +241,86 @@ serve(async (req) => {
 
         let finalResponseText = "";
         let finalClientAction = null;
+        let responseProvider = "gemini";
+        let responseModel = "gemini-2.5-flash-lite";
 
         for (let i = 0; i < 5; i++) {
-            const response = await fetch(`${GEMINI_API_URL}?key=${geminiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    system_instruction: { parts: [{ text: systemPromptText }] },
-                    contents: contents,
-                    tools: tools,
-                    generationConfig: { temperature: 0.4 }
-                }),
-            });
+            let response: Response | null = null;
+            let data: any = null;
 
-            const data = await response.json();
-            
-            if (data.error) {
-                console.error("Gemini API Error in ReAct loop:", data.error);
-                throw new Error(`Erro na API da IA: ${data.error.message || JSON.stringify(data.error)}`);
+            try {
+                response = await fetch(`${GEMINI_API_URL}?key=${geminiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        system_instruction: { parts: [{ text: systemPromptText }] },
+                        contents,
+                        tools,
+                        generationConfig: { temperature: 0.4 }
+                    }),
+                });
+                data = await response.json();
+            } catch (providerError) {
+                console.warn("Gemini transport failure, using fallback:", providerError);
+            }
+
+            if (!response?.ok || data?.error) {
+                console.warn("Gemini unavailable, activating Groq fallback", data?.error || response?.status);
+                const fallback = await generateGroqFallback({
+                    systemPrompt: systemPromptText,
+                    history: chatHistory,
+                    message,
+                });
+                finalResponseText = fallback.text;
+                responseProvider = fallback.provider;
+                responseModel = fallback.model;
+                break;
             }
 
             const candidate = data?.candidates?.[0];
             const content = candidate?.content;
-
             if (!content) break;
 
             const parts = content.parts || [];
-            const functionCall = parts.find((p: any) => p.functionCall);
+            const functionCalls = parts.filter((part: any) => part.functionCall);
 
-            if (functionCall) {
-                const { name, args } = functionCall.functionCall;
-                console.log(`[AI] Calling tool: ${name}`, args);
-
-                const { result, structuredData } = await executeTool(name, args, {
-                    supabaseUser,
-                    supabaseAdmin,
-                    user,
-                    sessionId,
-                    channel,
-                    source,
-                    context,
-                });
-
-                if (structuredData) finalClientAction = structuredData;
-
+            if (functionCalls.length > 0) {
                 contents.push(content);
-                contents.push({
-                    role: 'function',
-                    parts: [{ functionResponse: { name: name, response: { name: name, content: result } } }]
-                });
+                const responseParts: any[] = [];
+
+                for (const functionPart of functionCalls) {
+                    const { name, args, id } = functionPart.functionCall;
+                    console.log(`[AI] Calling tool: ${name}`, args);
+
+                    const { result, structuredData } = await executeTool(name, args, {
+                        supabaseUser,
+                        supabaseAdmin,
+                        user,
+                        sessionId,
+                        channel,
+                        source,
+                        context,
+                    });
+
+                    if (structuredData) finalClientAction = structuredData;
+
+                    const functionResponse: any = {
+                        name,
+                        response: { name, content: result },
+                    };
+                    const callId = id || functionPart.id;
+                    if (callId) functionResponse.id = callId;
+                    responseParts.push({ functionResponse });
+                }
+
+                contents.push({ role: 'function', parts: responseParts });
             } else {
-                finalResponseText = parts.map((p: any) => p.text).join('');
+                finalResponseText = parts.map((part: any) => part.text).join('');
                 break;
             }
         }
 
-        if (!finalResponseText && finalClientAction) {
-            finalResponseText = "Ação preparada. Confira o widget abaixo.";
-        }
-        
+        if (!finalResponseText && finalClientAction) finalResponseText = "Ação preparada. Confira o resultado na tela.";
         if (!finalResponseText && !finalClientAction) {
             finalResponseText = "Desculpe, tive um problema ao processar sua solicitação. Por favor, tente novamente de outra forma.";
         }
@@ -338,7 +333,6 @@ serve(async (req) => {
             finalResponseText += `\n\n\`\`\`json synapse_widget\n${JSON.stringify(widgetPayload, null, 2)}\n\`\`\``;
         }
 
-        // 7. Salvar resposta (com embedding para memória futura)
         if (finalResponseText) {
             const responseEmbedding = await generateEmbedding(finalResponseText, geminiKey);
             const { error: assistantMsgError } = await supabaseAdmin.from('messages').insert([{
@@ -349,19 +343,22 @@ serve(async (req) => {
                 embedding: responseEmbedding && responseEmbedding.length > 0 ? responseEmbedding : null
             }]);
 
-            if (assistantMsgError) {
-                console.error("Erro Crítico ao salvar mensagem do Synapse:", assistantMsgError);
-            }
+            if (assistantMsgError) console.error("Erro Crítico ao salvar mensagem do Synapse:", assistantMsgError);
         }
 
-        // 8. Retorno
-        return new Response(JSON.stringify({ response: finalResponseText, clientAction: finalClientAction, session_id: sessionId }), {
+        return new Response(JSON.stringify({
+            response: finalResponseText,
+            clientAction: finalClientAction,
+            session_id: sessionId,
+            provider: responseProvider,
+            model: responseModel,
+        }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
         });
 
     } catch (error: any) {
-        console.error("Gemini Error:", error);
+        console.error("Synapse text error:", error);
         return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 });
