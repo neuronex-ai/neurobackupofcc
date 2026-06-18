@@ -561,7 +561,7 @@ export const FilesManager = () => {
 
             {/* Content Area */}
             <div className="custom-scrollbar relative z-10 flex-1 overflow-y-auto px-7 pb-10 lg:px-8">
-                <div className="absolute inset-0 notes-retina-texture opacity-[0.1] pointer-events-none" />
+                <div className="absolute inset-0 premium-noise opacity-[0.01] pointer-events-none" />
                 <AnimatePresence mode="wait">
                     {activeTab === "personal" ? (
                         <motion.div
@@ -835,7 +835,7 @@ export const FilesManager = () => {
                                         key={df.id}
                                         className="flex items-center justify-between gap-5 px-6 py-6 rounded-[32px] bg-white/[0.015] dark:bg-black/20 border border-white/[0.03] hover:border-white/10 hover:bg-white/[0.04] transition-all duration-500 group shadow-sm overflow-hidden relative"
                                     >
-                                        <div className="absolute inset-0 notes-retina-texture opacity-[0.1] pointer-events-none" />
+                                        <div className="absolute inset-0 premium-noise opacity-[0.01] pointer-events-none" />
 
                                         <div className="flex items-center gap-6 min-w-0 flex-1 relative z-10 transition-transform group-hover:translate-x-1 duration-700">
                                             <div className="w-14 h-14 rounded-2xl bg-white/[0.02] flex items-center justify-center shrink-0 border border-white/[0.05] group-hover:scale-105 transition-all duration-700 overflow-visible">
@@ -962,7 +962,7 @@ const FileRow = ({
             )}
             onClick={() => !isRenaming && onPreview({ path: file.path, name: displayName, mimetype: file.mimetype })}
         >
-            <div className="absolute inset-0 notes-retina-texture opacity-[0.1] pointer-events-none" />
+            <div className="absolute inset-0 premium-noise opacity-[0.01] pointer-events-none" />
 
             <div className={cn(
                 "p-3 rounded-2xl bg-zinc-100 dark:bg-white/[0.05] group-hover:bg-white dark:group-hover:bg-white/[0.1] transition-all duration-500 group-hover:scale-105",
@@ -1071,7 +1071,7 @@ const FileGridCard = ({
             )}
             onClick={() => !isRenaming && onPreview({ path: file.path, name: displayName, mimetype: file.mimetype })}
         >
-            <div className="absolute inset-0 notes-retina-texture opacity-[0.12] pointer-events-none" />
+            <div className="absolute inset-0 premium-noise opacity-[0.015] pointer-events-none" />
 
             {/* Quick Actions Overlay (Top Right) */}
             {!isRenaming && (

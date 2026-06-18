@@ -348,8 +348,8 @@ export const MobileNeuroView = ({ onBack }: MobileNeuroViewProps) => {
 
       {/* Cinematic Background */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 notes-neuroview-backdrop" />
-        <div className="absolute inset-0 notes-retina-texture opacity-[0.18] dark:opacity-[0.26]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0)_0%,rgba(0,0,0,0.05)_100%)] dark:bg-[radial-gradient(ellipse_at_center,#1a1a1a_0%,#0d0d0d_40%,#000000_100%)]" />
+        <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
       </div>
 
       {/* ── Top Bar ── */}

@@ -312,8 +312,16 @@ export const NoteEditor = ({
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-0 pointer-events-none overflow-hidden"
           >
-            <div className="absolute inset-0 notes-focus-backdrop" />
-            <div className="absolute inset-0 notes-retina-texture opacity-[0.18] dark:opacity-[0.26]" />
+            <div className="absolute inset-0 bg-zinc-50 dark:bg-black" />
+            <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-primary/5 blur-[150px] animate-float-slow" />
+            <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-indigo-500/5 blur-[150px] animate-float-slower" />
+
+            {/* Ultra refined SVG noise texture */}
+            <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>

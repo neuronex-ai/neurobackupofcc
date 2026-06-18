@@ -29,7 +29,7 @@ export const MobileLayout = ({ children, className, shellClassName, showNav = tr
   return (
     <div className={cn("nn-mobile-shell relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground", shellClassName)}>
       <div className="mobile-surface-texture pointer-events-none fixed inset-0 z-0">
-        <div className="mobile-retina-texture absolute inset-0 text-foreground" />
+        <div className="premium-noise absolute inset-0 text-foreground" />
       </div>
 
       {showNav ? (

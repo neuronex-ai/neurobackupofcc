@@ -59,12 +59,13 @@
     font-size: 16px;
   }
 
-  .nn-mobile-shell .mobile-retina-texture {
-    background:
-      linear-gradient(145deg, hsl(var(--foreground) / 0.018), transparent 44%),
-      radial-gradient(circle at 50% -12%, hsl(var(--foreground) / 0.028), transparent 38%);
-    opacity: 0.7;
-    mix-blend-mode: soft-light;
+  .nn-mobile-shell .premium-noise {
+    background-image:
+      radial-gradient(circle at 20% 20%, currentColor 0.35px, transparent 0.65px),
+      radial-gradient(circle at 80% 60%, currentColor 0.35px, transparent 0.65px);
+    background-position: 0 0, 6px 6px;
+    background-size: 12px 12px;
+    opacity: 0.012 !important;
   }
 
   .nn-mobile-shell .mobile-surface-texture {

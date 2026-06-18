@@ -196,7 +196,7 @@ export default function Notes() {
                                 initial={false}
                                 animate={{ width: isListCollapsed ? 52 : 330 }}
                                 transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
-                                className="notes-retina-rail relative flex shrink-0 flex-col overflow-hidden border-r"
+                                className="relative flex shrink-0 flex-col overflow-hidden border-r border-white/[0.055] bg-[#0d0e10]/72 [.light_&]:border-zinc-200/65 [.light_&]:bg-white/48"
                             >
                                 <div className={cn("h-full relative z-10", isListCollapsed ? "w-[52px]" : "w-[330px]")}>
                                     <NotesListPanel
@@ -235,7 +235,7 @@ export default function Notes() {
                                         <div className="relative group/gate">
                                             <div className="absolute inset-0 scale-150 rounded-full bg-white/5 blur-[120px] opacity-0 transition-opacity duration-1000 group-hover/gate:opacity-100 [.light_&]:bg-zinc-900/5" />
                                             <div className="relative z-10 flex h-40 w-40 items-center justify-center overflow-hidden rounded-[64px] border border-white/[0.05] bg-black/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.22)] backdrop-blur-3xl group/icon [.light_&]:border-zinc-200/50 [.light_&]:bg-white/40 [.light_&]:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
-                                                <div className="absolute inset-0 notes-retina-texture opacity-[0.4] pointer-events-none [.light_&]:opacity-[0.26]" />
+                                                <div className="absolute inset-0 premium-noise opacity-[0.06] pointer-events-none [.light_&]:opacity-[0.03]" />
                                                 <img src="/favicon-dark.png" alt="NeuroNex" className="h-16 w-16 dark:hidden transition-all duration-1000 group-hover/gate:scale-110" />
                                                 <img src="/favicon-light.png" alt="NeuroNex" className="h-16 w-16 hidden dark:block transition-all duration-1000 group-hover/gate:scale-110" />
                                             </div>
@@ -258,14 +258,14 @@ export default function Notes() {
     };
 
     return (
-        <div className="notes-retina-canvas relative flex h-screen w-screen flex-col overflow-hidden font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
-            {/* Master Surface Overlay */}
-            <div className="pointer-events-none absolute inset-0 z-0 notes-retina-texture opacity-[0.28] [.light_&]:opacity-[0.2]" />
+        <div className="neuronex-bg relative flex h-screen w-screen flex-col overflow-hidden bg-[#f4f4f5] font-sans text-foreground selection:bg-white/10 dark:bg-[#050506] [.light_&]:selection:bg-zinc-900/10">
+            {/* Master Texture Overlay */}
+            <div className="pointer-events-none absolute inset-0 z-0 premium-noise opacity-[0.035] mix-blend-overlay [.light_&]:opacity-[0.02]" />
 
             {/* Ambient Background Glows */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="notes-retina-ambient" />
-                <div className="notes-retina-vignette" />
+                <div className="liquid-mesh-bg !opacity-35 dark:!opacity-55" />
+                <div className="brand-neutral-gradient opacity-65" />
             </div>
 
             <div className="relative isolate z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 items-stretch px-5 pb-5 pt-28 [contain:layout_paint]">
@@ -275,15 +275,15 @@ export default function Notes() {
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                        className="notes-retina-window group/main-window pointer-events-auto relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden [contain:layout_paint] [mask-image:linear-gradient(#fff,#fff)]"
+                        className="group/main-window pointer-events-auto relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden border border-white/[0.07] bg-[#090a0c]/92 shadow-[0_24px_64px_-42px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.035)] backdrop-blur-2xl [contain:layout_paint] [mask-image:linear-gradient(#fff,#fff)] [.light_&]:border-zinc-200/80 [.light_&]:bg-white/76 [.light_&]:shadow-[0_24px_64px_-42px_rgba(24,24,27,0.2),inset_0_1px_0_rgba(255,255,255,0.94)]"
                     >
-                        <div className="pointer-events-none absolute inset-0 notes-retina-texture opacity-[0.18] [.light_&]:opacity-[0.12]" />
+                        <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.016] [.light_&]:opacity-[0.01]" />
                         {!isFocusMode && (
                             <motion.div
                                 initial={false}
                                 animate={{ width: isSidebarCollapsed ? 66 : 226 }}
                                 transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
-                                className="notes-retina-rail relative hidden shrink-0 overflow-hidden border-r lg:flex"
+                                className="relative hidden shrink-0 overflow-hidden border-r border-white/[0.055] bg-[#0d0e10]/74 lg:flex [.light_&]:border-zinc-200/65 [.light_&]:bg-white/52"
                             >
                                 <div className={cn("h-full relative z-10", isSidebarCollapsed ? "w-[66px]" : "w-[226px]")}>
                                     <NotesSidebar

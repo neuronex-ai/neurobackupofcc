@@ -73,7 +73,7 @@ export const TaskSidebar = ({
 
   return (
     <div className="relative flex h-full w-[248px] shrink-0 flex-col overflow-hidden border-r border-white/[0.05] bg-white/[0.01] [.light_&]:border-zinc-200/60 [.light_&]:bg-white/30">
-      <div className="pointer-events-none absolute inset-0 notes-retina-texture opacity-[0.12]" />
+      <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.02]" />
       <div className="relative z-10 flex h-20 items-center justify-between border-b border-white/[0.05] px-5 [.light_&]:border-zinc-200/60">
         <div>
           <p className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-300 [.light_&]:text-zinc-700">Tarefas</p>
