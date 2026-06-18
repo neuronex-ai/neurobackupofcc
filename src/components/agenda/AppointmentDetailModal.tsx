@@ -1,7 +1,20 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useSendEmail } from "@/hooks/use-send-email";
 import { useUpdateAppointment } from "@/hooks/use-update-appointment";
@@ -33,6 +46,7 @@ import {
   Briefcase,
   CalendarDays,
   CheckCircle,
+  ChevronDown,
   ChevronRight,
   Clock,
   CreditCard,
@@ -41,6 +55,7 @@ import {
   Mail,
   MessageCircle,
   QrCode,
+  Repeat,
   ShieldCheck,
   User,
   Video,
@@ -61,6 +76,23 @@ const EVENT_CATEGORIES = [
   { value: "google", label: "Google Agenda" },
   { value: "outro", label: "Outro" },
 ];
+
+const SESSION_TYPES = [
+  { value: "first_visit", label: "Primeira Consulta" },
+  { value: "follow_up", label: "Acompanhamento" },
+  { value: "emergency", label: "Emergência / Encaixe" },
+];
+
+const MODALITY_OPTIONS = [
+  { value: "presencial", label: "Presencial" },
+  { value: "online", label: "Online" },
+] as const;
+
+const RECURRENCE_LABELS: Record<string, string> = {
+  weekly: "Semanal",
+  biweekly: "Quinzenal",
+  monthly: "Mensal",
+};
 
 export const AppointmentDetailModal = ({
   children,
@@ -85,6 +117,8 @@ export const AppointmentDetailModal = ({
   const [eventTitle, setEventTitle] = useState("");
   const [eventCategory, setEventCategory] = useState("outro");
   const [eventLocation, setEventLocation] = useState("");
+  const [sessionType, setSessionType] = useState("follow_up");
+  const [modality, setModality] = useState<"presencial" | "online">("presencial");
 
   const navigate = useNavigate();
   const sendEmail = useSendEmail();
@@ -98,6 +132,7 @@ export const AppointmentDetailModal = ({
   const isEvent = kind === "event";
   const displayTitle = getAppointmentDisplayTitle(appointment);
   const statusMeta = getAppointmentStatusMeta(status, appointment.notes);
+  const recurrence = metadata.recurrence;
 
   useEffect(() => {
     if (!open) return;
@@ -115,6 +150,8 @@ export const AppointmentDetailModal = ({
     setEventTitle(currentMetadata.eventTitle || displayTitle || "");
     setEventCategory(currentMetadata.eventCategory || "outro");
     setEventLocation(currentMetadata.eventLocation || appointment.location || "");
+    setSessionType(currentMetadata.sessionType || "follow_up");
+    setModality(currentMetadata.modality === "online" || appointment.type === "online" ? "online" : "presencial");
 
     if (appointment.patient_id) {
       const { data: patient } = await supabase
@@ -180,12 +217,13 @@ export const AppointmentDetailModal = ({
       nextNotes = buildEventNotes(nextMetadata);
       nextLocation = eventLocation.trim() || null;
     } else {
-      nextMetadata.sessionType = metadata.sessionType || "follow_up";
-      nextMetadata.modality = metadata.modality || appointment.type;
+      nextMetadata.sessionType = sessionType;
+      nextMetadata.modality = modality;
       nextMetadata.durationMinutes = Math.max(
         1,
         Math.round((new Date(timeUpdates.end_time).getTime() - new Date(timeUpdates.start_time).getTime()) / 60000)
       );
+      nextLocation = modality === "online" ? appointment.location || "Online (Google Meet)" : appointment.location || "Consultório";
     }
 
     await updateAppointment.mutateAsync({
@@ -193,6 +231,7 @@ export const AppointmentDetailModal = ({
       updates: {
         ...timeUpdates,
         status: nextStatus,
+        type: isSession ? modality : appointment.type,
         notes: nextNotes,
         location: nextLocation,
         metadata: nextMetadata,
@@ -200,7 +239,7 @@ export const AppointmentDetailModal = ({
     });
 
     toast.success("Agendamento atualizado.");
-    setStep(2);
+    setOpen(false);
   };
 
   const handleWhatsApp = () => {
@@ -361,31 +400,23 @@ export const AppointmentDetailModal = ({
                   </FieldShell>
                 </div>
 
-                <div className="space-y-3">
-                  <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground ml-2">Status do agendamento</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                    {APPOINTMENT_STATUS_VALUES.map((value) => {
-                      const meta = APPOINTMENT_STATUS_META[value];
-                      const active = status === value;
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setStatus(value)}
-                          className={cn(
-                            "min-h-[74px] rounded-[18px] border p-3 text-left transition-all active:scale-[0.98]",
-                            active ? `${meta.bgClass} ${meta.borderClass} shadow-sm` : "bg-zinc-100/60 dark:bg-secondary/20 border-zinc-200 dark:border-border/10 hover:bg-zinc-200/60 dark:hover:bg-secondary/30"
-                          )}
-                        >
-                          <div className={cn("w-2 h-2 rounded-full mb-3", meta.dotClass)} />
-                          <span className={cn("block text-[9px] font-black uppercase tracking-[0.08em] leading-tight", active ? meta.textClass : "text-muted-foreground")}>
-                            {meta.shortLabel}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <FieldShell label="Status do agendamento" icon={<ShieldCheck className="w-3.5 h-3.5" />}>
+                  <Select value={status} onValueChange={(value) => setStatus(value as AppointmentStatus)}>
+                    <SelectTrigger className={inputClassName}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {APPOINTMENT_STATUS_VALUES.map((value) => {
+                        const meta = APPOINTMENT_STATUS_META[value];
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {meta.label}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </FieldShell>
 
                 {isSession && transactionData && (
                   <div className="p-5 rounded-[24px] bg-zinc-100/60 dark:bg-secondary/20 border border-zinc-200 dark:border-border/10 shadow-sm">
