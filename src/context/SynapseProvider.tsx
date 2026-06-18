@@ -18,7 +18,7 @@ export type SynapseExecState =
     | 'success'
     | 'error';
 
-export type SynapseActiveTab = 'chat' | 'timeline' | 'voice' | 'history';
+export type SynapseActiveTab = 'chat' | 'timeline' | 'voice' | 'history' | 'agent';
 
 export interface SynapseTimelineEntry {
     id: string;

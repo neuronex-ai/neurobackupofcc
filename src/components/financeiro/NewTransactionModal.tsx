@@ -10,13 +10,18 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 interface NewTransactionModalProps {
   children?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
 }
 
-export const NewTransactionModal = ({ children }: NewTransactionModalProps) => {
-  const [open, setOpen] = useState(false);
+export const NewTransactionModal = ({ children, open, onOpenChange, showTrigger = true }: NewTransactionModalProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const isMobile = useIsMobile();
+  const modalOpen = open ?? internalOpen;
+  const handleOpenChange = onOpenChange ?? setInternalOpen;
 
-  const triggerButton = children || (
+  const triggerButton = showTrigger ? children || (
     <Button
       size="sm"
       variant="outline"
@@ -25,7 +30,7 @@ export const NewTransactionModal = ({ children }: NewTransactionModalProps) => {
       <CreditCard className="h-4 w-4" />
       <span className="hidden sm:inline font-bold text-xs uppercase tracking-wider">Nova Transação</span>
     </Button>
-  );
+  ) : undefined;
 
   const HeaderContent = () => (
     <div className="text-center space-y-4 mb-8">
@@ -43,13 +48,13 @@ export const NewTransactionModal = ({ children }: NewTransactionModalProps) => {
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={setOpen}>
-        <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+      <Drawer open={modalOpen} onOpenChange={handleOpenChange}>
+        {triggerButton && <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>}
         <DrawerContent className="bg-white dark:bg-[#080809] border-t border-zinc-200 dark:border-white/10 max-h-[90vh] rounded-t-[40px]">
           <div className="p-10 overflow-y-auto">
             <div className="mx-auto w-16 h-1.5 flex-shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 mb-10" />
             <HeaderContent />
-            <NewTransactionForm onSuccess={() => setOpen(false)} />
+            <NewTransactionForm onSuccess={() => handleOpenChange(false)} />
           </div>
         </DrawerContent>
       </Drawer>
@@ -57,8 +62,8 @@ export const NewTransactionModal = ({ children }: NewTransactionModalProps) => {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+    <Dialog open={modalOpen} onOpenChange={handleOpenChange}>
+      {triggerButton && <DialogTrigger asChild>{triggerButton}</DialogTrigger>}
       <DialogContent className="sm:max-w-[500px] border-zinc-200 dark:border-white/10 bg-white dark:bg-[#080809] backdrop-blur-3xl shadow-[0_48px_96px_-24px_rgba(0,0,0,0.5)] p-0 overflow-hidden rounded-[48px] outline-none ring-1 ring-black/5 dark:ring-white/5">
         <DialogClose className="absolute right-8 top-8 rounded-2xl p-3 bg-zinc-50 dark:bg-white/5 text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-white/10 transition-all z-50 shadow-sm focus:outline-none focus:ring-0">
           <X className="h-4 w-4" />
@@ -66,7 +71,7 @@ export const NewTransactionModal = ({ children }: NewTransactionModalProps) => {
         
         <div className="p-12">
             <HeaderContent />
-            <NewTransactionForm onSuccess={() => setOpen(false)} />
+            <NewTransactionForm onSuccess={() => handleOpenChange(false)} />
         </div>
       </DialogContent>
     </Dialog>

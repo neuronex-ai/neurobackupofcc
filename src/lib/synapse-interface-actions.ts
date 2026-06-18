@@ -49,6 +49,13 @@ const ROUTES: Record<SynapseNavigationTarget, string> = {
   synapse: "/synapse-ai",
 };
 
+const MODAL_ROUTES: Record<NonNullable<SynapseInterfaceAction["modal"]>, string> = {
+  new_appointment: "/agenda",
+  new_patient: "/pacientes",
+  new_transaction: "/financeiro",
+  patient_details: "/pacientes",
+};
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAFE_ID_PATTERN = /^[a-zA-Z0-9_-]{6,80}$/;
 
@@ -280,6 +287,10 @@ export async function executeSynapseInterfaceAction(
       }
 
       case "open_modal": {
+        const route = action.modal ? MODAL_ROUTES[action.modal] : null;
+        if (!route) throw new Error("Modal nao permitido.");
+        navigate(route);
+        await sleep(520, controller.signal);
         if (!action.modal) throw new Error("Modal não permitido.");
         emitPageAction(action);
         break;

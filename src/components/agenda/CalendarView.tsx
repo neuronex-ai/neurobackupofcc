@@ -36,6 +36,10 @@ import { useGoogleAuth } from "@/hooks/use-google-auth";
 import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from "@/lib/appointment-status";
 import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 import { useUpdateAppointment } from "@/hooks/use-update-appointment";
+import {
+    SYNAPSE_PAGE_ACTION_EVENT,
+    type SynapseInterfaceAction,
+} from "@/lib/synapse-interface-actions";
 
 // Generate time labels from 00:00 to 23:00
 const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
@@ -192,6 +196,22 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
         setNewAppointmentDate(day);
         setSelectedTimeSlot(`${String(hour).padStart(2, '0')}:00`);
     };
+
+    useEffect(() => {
+        const handleSynapseAction = (event: Event) => {
+            const action = (event as CustomEvent<SynapseInterfaceAction>).detail;
+            if (action?.action !== "open_modal" || action.modal !== "new_appointment") return;
+
+            const targetDate = action.date ? new Date(action.date) : new Date();
+            onDateChange(targetDate);
+            onViewChange?.("daily");
+            setNewAppointmentDate(targetDate);
+            setSelectedTimeSlot(action.date ? format(targetDate, "HH:mm") : undefined);
+        };
+
+        window.addEventListener(SYNAPSE_PAGE_ACTION_EVENT, handleSynapseAction);
+        return () => window.removeEventListener(SYNAPSE_PAGE_ACTION_EVENT, handleSynapseAction);
+    }, [onDateChange, onViewChange]);
 
     if (isLoading) {
         return (

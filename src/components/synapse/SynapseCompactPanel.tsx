@@ -27,13 +27,21 @@ import {
     PhoneOff,
     MessageSquare,
     Smartphone,
+    MousePointer2,
+    RefreshCw,
+    Target,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SynapseWidgetRenderer, parseSynapseWidgetFromContent } from './SynapseWidgetRenderer';
 import { SynapseAllActionsModal } from './SynapseAllActionsModal';
 import { supabase } from '@/integrations/supabase/client';
 import { SynapseOrbAvatar } from './SynapseOrbAvatar';
+import {
+    executeSynapseInterfaceAction,
+    type SynapseInterfaceAction,
+} from '@/lib/synapse-interface-actions';
 
 const CONTEXT_LABELS: Record<string, { icon: React.ReactNode; label: string }> = {
     dashboard: { icon: <TrendingUp className="h-3.5 w-3.5" />, label: 'Dashboard' },
@@ -46,6 +54,75 @@ const CONTEXT_LABELS: Record<string, { icon: React.ReactNode; label: string }> =
     synapse: { icon: <Sparkles className="h-3.5 w-3.5" />, label: 'Synapse AI' },
 };
 
+type AgentActionItem = {
+    id: string;
+    label: string;
+    description: string;
+    icon: React.ElementType<{ className?: string }>;
+    action: SynapseInterfaceAction;
+};
+
+const AGENT_ACTIONS: AgentActionItem[] = [
+    {
+        id: 'open-daily-schedule',
+        label: 'Agenda do dia',
+        description: 'Abre a agenda diaria e destaca a grade.',
+        icon: Calendar,
+        action: { action: 'open_daily_schedule', reason: 'Abrindo agenda diaria' },
+    },
+    {
+        id: 'new-appointment',
+        label: 'Novo agendamento',
+        description: 'Abre o modal completo de agendamento.',
+        icon: Plus,
+        action: { action: 'open_modal', modal: 'new_appointment', reason: 'Abrindo novo agendamento' },
+    },
+    {
+        id: 'new-patient',
+        label: 'Novo paciente',
+        description: 'Abre o cadastro de prontuario.',
+        icon: Users,
+        action: { action: 'open_modal', modal: 'new_patient', reason: 'Abrindo cadastro de paciente' },
+    },
+    {
+        id: 'new-transaction',
+        label: 'Novo lancamento',
+        description: 'Abre o registro financeiro manual.',
+        icon: TrendingUp,
+        action: { action: 'open_modal', modal: 'new_transaction', reason: 'Abrindo lancamento financeiro' },
+    },
+    {
+        id: 'go-patients',
+        label: 'Ir a pacientes',
+        description: 'Navega para a lista de pacientes.',
+        icon: Users,
+        action: { action: 'navigate', target: 'patients', reason: 'Abrindo pacientes' },
+    },
+    {
+        id: 'go-finance',
+        label: 'Ir ao financeiro',
+        description: 'Navega para a gestao financeira.',
+        icon: TrendingUp,
+        action: { action: 'navigate', target: 'finance', reason: 'Abrindo financeiro' },
+    },
+    {
+        id: 'highlight-schedule',
+        label: 'Destacar agenda',
+        description: 'Realca a area principal da agenda.',
+        icon: Target,
+        action: { action: 'highlight_element', element: 'daily_schedule', reason: 'Destacando agenda' },
+    },
+];
+
+const EXEC_STATE_LABELS = {
+    idle: 'Pronto',
+    listening: 'Ouvindo',
+    thinking: 'Analisando',
+    executing: 'Executando',
+    success: 'Concluido',
+    error: 'Atencao',
+} as const;
+
 export const SynapseCompactPanel = () => {
     const {
         shellState,
@@ -55,16 +132,24 @@ export const SynapseCompactPanel = () => {
         inputDraft,
         setInputDraft,
         timeline,
+        addTimelineEntry,
         activeTab,
         setActiveTab,
+        execState,
+        setExecState,
         voiceStatus,
         isVoiceSpeaking,
         getVoiceInputVolume,
         toggleVoiceMode,
         setActiveSessionId,
+        dailyActions,
+        isIntelligenceLoading,
+        scanProgress,
+        syncDailyIntelligence,
     } = useSynapse();
     const { currentContext } = useAI();
     const { send, messages, isSending, sessionReady, clearSession } = useSynapseChat();
+    const navigate = useNavigate();
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -165,6 +250,39 @@ export const SynapseCompactPanel = () => {
         const formattedName = toolName.replace(/_/g, ' ');
         send(formattedName);
         setShowAllActions(false);
+    };
+
+    const dailyActionCount = Object.values(dailyActions).reduce((total, actions) => total + actions.length, 0);
+    const recentAgentTimeline = timeline.slice(-4).reverse();
+    const agentBusy = execState === 'thinking' || execState === 'executing' || isIntelligenceLoading;
+
+    const runAgentAction = async (item: AgentActionItem) => {
+        setActiveTab('agent');
+        setExecState('executing');
+        addTimelineEntry({
+            label: `Agente: ${item.label}`,
+            state: 'executing',
+            detail: item.description,
+        });
+
+        const result = await executeSynapseInterfaceAction(item.action, { navigate, channel: 'text' });
+        addTimelineEntry({
+            label: result.success ? `${item.label} concluido` : `${item.label} falhou`,
+            state: result.success ? 'success' : 'error',
+            detail: result.message,
+        });
+        setExecState(result.success ? 'success' : 'error');
+        window.setTimeout(() => setExecState('idle'), 1400);
+    };
+
+    const handleDailySync = async () => {
+        setActiveTab('agent');
+        addTimelineEntry({
+            label: 'Agente: varredura diaria',
+            state: 'thinking',
+            detail: 'Atualizando contexto por modulo',
+        });
+        await syncDailyIntelligence();
     };
 
     const ctxInfo = CONTEXT_LABELS[currentContext] || { icon: <Sparkles className="h-3.5 w-3.5" />, label: 'Synapse' };
@@ -277,6 +395,13 @@ export const SynapseCompactPanel = () => {
                                 title="Atividade"
                             >
                                 <Activity className="h-4 w-4" />
+                            </button>
+                            <button
+                                onClick={() => setActiveTab(activeTab === 'agent' ? 'chat' : 'agent')}
+                                className={cn("p-1.5 rounded-full transition-all duration-300 active:scale-95", activeTab === 'agent' ? "bg-black/10 dark:bg-white/[0.12] text-zinc-900 dark:text-zinc-100 shadow-sm" : "hover:bg-black/5 dark:hover:bg-white/[0.06] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300")}
+                                title="Agente"
+                            >
+                                <MousePointer2 className="h-4 w-4" />
                             </button>
                             <div className="w-[1px] h-4 bg-black/10 dark:bg-white/[0.08] mx-0.5" />
                             <button
@@ -413,6 +538,120 @@ export const SynapseCompactPanel = () => {
                                             </div>
                                         ))
                                     )}
+                                </motion.div>
+                            ) : activeTab === 'agent' ? (
+                                <motion.div
+                                    key="agent"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    className="flex flex-col py-5 gap-4"
+                                >
+                                    <div className="rounded-[28px] bg-white/65 dark:bg-white/[0.035] border border-black/[0.04] dark:border-white/[0.06] p-5 shadow-sm">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="space-y-1">
+                                                <span className="text-[9px] font-black uppercase tracking-[0.28em] text-zinc-400">Modo agente</span>
+                                                <h3 className="text-[17px] font-black tracking-tight text-zinc-950 dark:text-white">Controle de tela</h3>
+                                            </div>
+                                            <span className={cn(
+                                                "rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em]",
+                                                execState === 'error'
+                                                    ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                                                    : execState === 'success'
+                                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                                        : agentBusy
+                                                            ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+                                                            : "bg-zinc-950/[0.06] text-zinc-500 dark:bg-white/[0.08] dark:text-zinc-400"
+                                            )}>
+                                                {EXEC_STATE_LABELS[execState]}
+                                            </span>
+                                        </div>
+
+                                        <div className="mt-5 grid grid-cols-2 gap-2.5">
+                                            {AGENT_ACTIONS.map((item) => {
+                                                const Icon = item.icon;
+                                                return (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => void runAgentAction(item)}
+                                                        disabled={agentBusy}
+                                                        className="group flex min-h-[88px] flex-col items-start justify-between rounded-[22px] border border-black/[0.04] bg-zinc-50/80 p-4 text-left transition-all hover:-translate-y-0.5 hover:bg-zinc-950 hover:text-white disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.06] dark:bg-white/[0.035] dark:hover:bg-white dark:hover:text-zinc-950"
+                                                    >
+                                                        <div className="flex w-full items-center justify-between gap-2">
+                                                            <Icon className="h-4 w-4 text-zinc-500 transition-colors group-hover:text-current" />
+                                                            <ChevronRight className="h-3.5 w-3.5 opacity-30 transition-all group-hover:translate-x-0.5 group-hover:opacity-80" />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <span className="block text-[11px] font-black uppercase tracking-[0.12em] leading-tight">{item.label}</span>
+                                                            <span className="line-clamp-2 text-[10px] leading-relaxed text-zinc-500 group-hover:text-current/70 dark:text-zinc-500">{item.description}</span>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-[26px] bg-white/45 dark:bg-white/[0.025] border border-black/[0.035] dark:border-white/[0.055] p-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Inteligencia diaria</span>
+                                                <p className="mt-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">{dailyActionCount} sugestoes ativas</p>
+                                            </div>
+                                            <button
+                                                onClick={() => void handleDailySync()}
+                                                disabled={isIntelligenceLoading}
+                                                className="h-10 w-10 rounded-2xl bg-zinc-950 text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-50 dark:bg-white dark:text-zinc-950"
+                                                title="Atualizar"
+                                            >
+                                                {isIntelligenceLoading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : <RefreshCw className="mx-auto h-4 w-4" />}
+                                            </button>
+                                        </div>
+
+                                        <div className="mt-4 grid gap-2">
+                                            {scanProgress.map((item) => (
+                                                <div key={item.module} className="flex items-center justify-between rounded-2xl bg-zinc-950/[0.035] px-3 py-2 dark:bg-white/[0.035]">
+                                                    <span className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400">{item.label}</span>
+                                                    <span className={cn(
+                                                        "h-2 w-2 rounded-full",
+                                                        item.status === 'completed'
+                                                            ? "bg-emerald-500"
+                                                            : item.status === 'scanning'
+                                                                ? "bg-indigo-500 animate-pulse"
+                                                                : "bg-zinc-300 dark:bg-zinc-700"
+                                                    )} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-[26px] bg-white/35 dark:bg-white/[0.02] border border-black/[0.03] dark:border-white/[0.05] p-4">
+                                        <div className="mb-3 flex items-center justify-between">
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Atividade recente</span>
+                                            <Activity className="h-3.5 w-3.5 text-zinc-400" />
+                                        </div>
+                                        {recentAgentTimeline.length === 0 ? (
+                                            <p className="py-4 text-center text-[11px] font-semibold text-zinc-400">Nenhuma atividade registrada.</p>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {recentAgentTimeline.map((entry) => (
+                                                    <div key={entry.id} className="flex items-start gap-3">
+                                                        <span className={cn(
+                                                            "mt-1.5 h-2 w-2 rounded-full",
+                                                            entry.state === 'success'
+                                                                ? "bg-emerald-500"
+                                                                : entry.state === 'error'
+                                                                    ? "bg-red-500"
+                                                                    : "bg-indigo-500"
+                                                        )} />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="truncate text-[11px] font-bold text-zinc-700 dark:text-zinc-300">{entry.label}</p>
+                                                            {entry.detail && <p className="truncate text-[10px] text-zinc-400">{entry.detail}</p>}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </motion.div>
                             ) : activeTab === 'voice' ? (
                                 <motion.div

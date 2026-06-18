@@ -8,13 +8,18 @@ import { cn } from "@/lib/utils";
 
 interface NewPatientModalProps {
   children?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
 }
 
-export const NewPatientModal = ({ children }: NewPatientModalProps) => {
-  const [open, setOpen] = useState(false);
+export const NewPatientModal = ({ children, open, onOpenChange, showTrigger = true }: NewPatientModalProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const isMobile = useIsMobile();
+  const modalOpen = open ?? internalOpen;
+  const handleOpenChange = onOpenChange ?? setInternalOpen;
 
-  const triggerButton = children || (
+  const triggerButton = showTrigger ? children || (
     <Button
       size="sm"
       className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 rounded-full transition-all hover:scale-105 font-medium active:scale-95 shadow-lg shadow-primary/10"
@@ -22,7 +27,7 @@ export const NewPatientModal = ({ children }: NewPatientModalProps) => {
       <UserPlus className="h-4 w-4" />
       <span className="hidden sm:inline">Novo Paciente</span>
     </Button>
-  );
+  ) : undefined;
 
   const HeaderContent = () => (
     <div className={cn("space-y-4 text-center", isMobile ? "mb-6" : "mb-10")}>
@@ -40,8 +45,8 @@ export const NewPatientModal = ({ children }: NewPatientModalProps) => {
 
   return (
     <ResponsiveModal
-      open={open}
-      onOpenChange={setOpen}
+      open={modalOpen}
+      onOpenChange={handleOpenChange}
       trigger={triggerButton}
       className="sm:max-w-[600px] p-0 border border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-[#080809]/95 backdrop-blur-3xl shadow-[0_64px_128px_-32px_rgba(0,0,0,0.5)] gap-0 overflow-hidden rounded-[48px] ring-1 ring-black/5 dark:ring-white/5"
       drawerClassName="bg-white dark:bg-[#080809]"
@@ -55,7 +60,7 @@ export const NewPatientModal = ({ children }: NewPatientModalProps) => {
         <div className="relative z-10 w-full flex flex-col h-full">
           <HeaderContent />
           <div className="w-full flex-1">
-            <NewPatientForm onSuccess={() => setOpen(false)} />
+            <NewPatientForm onSuccess={() => handleOpenChange(false)} />
           </div>
         </div>
       </div>

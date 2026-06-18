@@ -41,6 +41,11 @@ import { useNeuroFinanceBalanceDetails } from "@/hooks/use-neurofinance-balance-
 import { subMonths, subDays, isAfter } from "date-fns";
 
 import { FinanceiroMainContent, FinanceView } from "@/components/financeiro/FinanceiroMainContent";
+import { NewTransactionModal } from "@/components/financeiro/NewTransactionModal";
+import {
+    SYNAPSE_PAGE_ACTION_EVENT,
+    type SynapseInterfaceAction,
+} from "@/lib/synapse-interface-actions";
 import { Transaction } from "@/types";
 
 interface NavSubItem {
@@ -143,6 +148,7 @@ const DesktopFinanceiro = () => {
     const [expandedGroups, setExpandedGroups] = useState<string[]>([getInitialFinanceView(location.pathname, location.search) === 'conta-digital' ? 'account-balance-root' : 'management-root']);
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
     const [showSidebarDetails, setShowSidebarDetails] = useState(false);
+    const [agentTransactionModalOpen, setAgentTransactionModalOpen] = useState(false);
     const sidebarIntentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const sidebarDetailsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const sidebarWidthTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -172,6 +178,20 @@ const DesktopFinanceiro = () => {
         const group = FINANCE_NAV.find(g => g.subItems?.some(s => s.id === activeView || s.subItems?.some(ss => ss.id === activeView)));
         if (group) setExpandedGroups((current) => current.includes(group.id) ? current : [group.id]);
     }, [activeView]);
+
+    useEffect(() => {
+        const handleSynapseAction = (event: Event) => {
+            const action = (event as CustomEvent<SynapseInterfaceAction>).detail;
+            if (action?.action !== "open_modal" || action.modal !== "new_transaction") return;
+
+            setActiveView("gestao-visao-geral");
+            setSelectedTransaction(null);
+            setAgentTransactionModalOpen(true);
+        };
+
+        window.addEventListener(SYNAPSE_PAGE_ACTION_EVENT, handleSynapseAction);
+        return () => window.removeEventListener(SYNAPSE_PAGE_ACTION_EVENT, handleSynapseAction);
+    }, []);
 
     const clearSidebarTimers = useCallback(() => {
         if (sidebarIntentTimer.current) {
@@ -243,6 +263,11 @@ const DesktopFinanceiro = () => {
 
     return (
         <div className="min-h-screen w-full flex flex-col font-sans relative bg-background text-foreground selection:bg-primary/20 pt-10">
+            <NewTransactionModal
+                open={agentTransactionModalOpen}
+                onOpenChange={setAgentTransactionModalOpen}
+                showTrigger={false}
+            />
             <div className="pointer-events-none fixed inset-0 z-0 premium-noise opacity-[0.025] mix-blend-overlay dark:opacity-[0.05]" />
             <div className="flex-1 w-full max-w-[2200px] mx-auto px-6 md:px-8 lg:px-12 xl:px-16 relative z-10 flex gap-6 pb-12">
                 <motion.nav initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0, width: isSidebarExpanded ? SIDEBAR_EXPANDED_WIDTH : SIDEBAR_COLLAPSED_WIDTH }} transition={sidebarTransition} onMouseEnter={() => setSidebarExpandedWithIntent(true)} onMouseLeave={() => setSidebarExpandedWithIntent(false)} style={{ willChange: "width, transform" }} className="relative z-30 hidden shrink-0 lg:flex">

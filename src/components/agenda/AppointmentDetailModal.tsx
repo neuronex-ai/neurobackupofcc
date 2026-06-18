@@ -296,7 +296,7 @@ export const AppointmentDetailModal = ({
       open={open}
       onOpenChange={setOpen}
       trigger={children}
-      className="bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-[40px] border border-zinc-200 dark:border-white/[0.08] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] rounded-[28px] p-0 overflow-hidden sm:max-w-[640px] max-h-[90vh] flex flex-col"
+      className="w-[calc(100vw-2rem)] bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-[40px] border border-zinc-200 dark:border-white/[0.08] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] rounded-[28px] p-0 overflow-hidden sm:max-w-[760px] max-h-[calc(100dvh-2rem)] flex flex-col"
     >
       <div className="flex flex-col flex-1 min-h-0 bg-gradient-to-b from-zinc-50/50 dark:from-card/50 to-transparent">
         <div className="px-8 pt-8 pb-4 flex items-center justify-between shrink-0">
@@ -400,6 +400,59 @@ export const AppointmentDetailModal = ({
                   </FieldShell>
                 </div>
 
+                {isSession && (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FieldShell label="Tipo de sessão" icon={<FileText className="w-3.5 h-3.5" />}>
+                      <Select value={sessionType} onValueChange={setSessionType}>
+                        <SelectTrigger className={inputClassName}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SESSION_TYPES.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FieldShell>
+
+                    <FieldShell label="Modalidade" icon={<Video className="w-3.5 h-3.5" />}>
+                      <Select value={modality} onValueChange={(value) => setModality(value as "presencial" | "online")}>
+                        <SelectTrigger className={inputClassName}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MODALITY_OPTIONS.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FieldShell>
+                  </div>
+                )}
+
+                <FieldShell label="Recorrência" icon={<Repeat className="w-3.5 h-3.5" />}>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <div className="rounded-2xl bg-background/70 border border-zinc-200 dark:border-border/10 px-4 py-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">Frequência</p>
+                      <p className="mt-1 text-sm font-bold text-foreground">
+                        {recurrence?.enabled ? RECURRENCE_LABELS[recurrence.frequency || "weekly"] || recurrence.frequency : "Sem recorrência"}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl bg-background/70 border border-zinc-200 dark:border-border/10 px-4 py-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">Ocorrências</p>
+                      <p className="mt-1 text-sm font-bold text-foreground">{recurrence?.enabled ? recurrence.count || 1 : 1}</p>
+                    </div>
+                    <div className="rounded-2xl bg-background/70 border border-zinc-200 dark:border-border/10 px-4 py-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">Duração</p>
+                      <p className="mt-1 text-sm font-bold text-foreground">{getDurationString(appointment.start_time, appointment.end_time)}</p>
+                    </div>
+                  </div>
+                </FieldShell>
+
                 <FieldShell label="Status do agendamento" icon={<ShieldCheck className="w-3.5 h-3.5" />}>
                   <Select value={status} onValueChange={(value) => setStatus(value as AppointmentStatus)}>
                     <SelectTrigger className={inputClassName}>
@@ -477,32 +530,42 @@ export const AppointmentDetailModal = ({
         </div>
 
         {step === 1 && (
-          <div className="p-6 bg-zinc-50/60 dark:bg-card/60 border-t border-zinc-200 dark:border-border/10 flex flex-col gap-3 backdrop-blur-xl shrink-0">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="ghost"
-                onClick={() => saveDetails("cancelled_by_patient")}
-                disabled={updateAppointment.isPending}
-                className="w-full sm:w-auto text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-full px-6 h-12 font-bold transition-all"
-              >
-                Cancelado pelo paciente
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => saveDetails("cancelled_by_professional")}
-                disabled={updateAppointment.isPending}
-                className="w-full sm:w-auto text-red-800 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 hover:bg-red-800/10 rounded-full px-6 h-12 font-bold transition-all"
-              >
-                Cancelado pelo profissional
-              </Button>
-              <Button
-                onClick={() => saveDetails()}
-                disabled={updateAppointment.isPending}
-                className="w-full sm:flex-1 rounded-full px-8 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg transition-all active:scale-95 tracking-wide"
-              >
-                {updateAppointment.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Salvar & Fechar"}
-              </Button>
-            </div>
+          <div className="p-6 bg-zinc-50/60 dark:bg-card/60 border-t border-zinc-200 dark:border-border/10 flex flex-col gap-3 backdrop-blur-xl shrink-0 sm:flex-row sm:justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={updateAppointment.isPending}
+                  className="w-full sm:w-auto rounded-full px-6 h-12 font-bold text-red-600 border-red-500/20 hover:bg-red-500/10 hover:text-red-700"
+                >
+                  Cancelar
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
+                <DropdownMenuItem
+                  onClick={() => void saveDetails("cancelled_by_patient")}
+                  className="rounded-xl px-3 py-2.5 text-sm font-bold text-red-600 focus:bg-red-500/10 focus:text-red-700"
+                >
+                  Paciente cancelou
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => void saveDetails("cancelled_by_professional")}
+                  className="rounded-xl px-3 py-2.5 text-sm font-bold text-red-600 focus:bg-red-500/10 focus:text-red-700"
+                >
+                  Eu cancelei
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              onClick={() => saveDetails()}
+              disabled={updateAppointment.isPending}
+              className="w-full sm:w-auto rounded-full px-8 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg transition-all active:scale-95 tracking-wide"
+            >
+              {updateAppointment.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Salvar e Fechar"}
+            </Button>
           </div>
         )}
       </div>

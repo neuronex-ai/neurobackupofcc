@@ -21,11 +21,15 @@ import { usePatients } from "@/hooks/use-patients";
 import { useProfile } from "@/hooks/use-profile";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
+import {
+    SYNAPSE_PAGE_ACTION_EVENT,
+    type SynapseInterfaceAction,
+} from "@/lib/synapse-interface-actions";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { Activity, AlertTriangle, Bell, Calendar, Crown, DollarSign, Download, LayoutDashboard, LogOut, Menu, NotebookPen, Plus, Search, Settings, Sparkles, Trash2, Users, Video, Zap, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -49,6 +53,7 @@ export default function Pacientes() {
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [notificationsOpen, setNotificationsOpen] = useState(false);
+    const [agentPatientModalOpen, setAgentPatientModalOpen] = useState(false);
 
     const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Usuário';
     const initials = fullName.substring(0, 2).toUpperCase();
@@ -78,6 +83,19 @@ export default function Pacientes() {
     const isAtLimit = !canAdd && plan === 'Essential';
     const maxPatients = features.maxPatients;
 
+    useEffect(() => {
+        const handleSynapseAction = (event: Event) => {
+            const action = (event as CustomEvent<SynapseInterfaceAction>).detail;
+            if (action?.action !== "open_modal" || action.modal !== "new_patient") return;
+
+            if (canAdd) setAgentPatientModalOpen(true);
+            else setShowUpsellModal(true);
+        };
+
+        window.addEventListener(SYNAPSE_PAGE_ACTION_EVENT, handleSynapseAction);
+        return () => window.removeEventListener(SYNAPSE_PAGE_ACTION_EVENT, handleSynapseAction);
+    }, [canAdd]);
+
     const filteredPatients = patients?.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -100,6 +118,11 @@ export default function Pacientes() {
 
     return (
         <div className="w-full min-h-screen pt-10 pb-24 relative font-sans bg-transparent selection:bg-zinc-900/10 dark:selection:bg-white/10 selection:text-zinc-900 dark:selection:text-white">
+            <NewPatientModal
+                open={agentPatientModalOpen}
+                onOpenChange={setAgentPatientModalOpen}
+                showTrigger={false}
+            />
 
             {/* --- MOBILE TOP BAR --- */}
             {isMobile && (
