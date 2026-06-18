@@ -296,13 +296,15 @@ export const AppointmentDetailModal = ({
       open={open}
       onOpenChange={setOpen}
       trigger={children}
-      className="w-[calc(100vw-2rem)] bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-[40px] border border-zinc-200 dark:border-white/[0.08] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] rounded-[28px] p-0 overflow-hidden sm:max-w-[760px] max-h-[calc(100dvh-2rem)] flex flex-col"
+      className="w-[calc(100vw-1rem)] bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-[40px] border border-zinc-200 dark:border-white/[0.08] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] rounded-[24px] p-0 overflow-hidden sm:max-w-[680px] flex flex-col"
+      drawerClassName="max-h-[92dvh]"
+      contentStyle={{ maxHeight: "min(700px, calc(100dvh - 1rem))" }}
     >
       <div className="flex flex-col flex-1 min-h-0 bg-gradient-to-b from-zinc-50/50 dark:from-card/50 to-transparent">
-        <div className="px-8 pt-8 pb-4 flex items-center justify-between shrink-0">
+        <div className="px-5 pt-5 pb-3 sm:px-6 flex items-center justify-between shrink-0">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3 mb-2">
-              <h2 className="text-2xl font-bold text-foreground tracking-tight">
+              <h2 className="text-xl font-bold text-foreground tracking-tight">
                 {isSession ? "Ficha da Sessão" : "Ficha do Compromisso"}
               </h2>
               <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full border", statusMeta.bgClass, statusMeta.borderClass)}>
@@ -317,19 +319,19 @@ export const AppointmentDetailModal = ({
             </p>
           </div>
 
-          <Button variant="ghost" size="icon" onClick={() => setOpen(false)} className="rounded-full w-10 h-10 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => setOpen(false)} className="rounded-full w-9 h-9 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90 shrink-0">
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="px-8 py-4 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+        <div className="px-5 py-3 sm:px-6 overflow-y-auto custom-scrollbar flex-1 min-h-0">
           <AnimatePresence mode="wait">
             {step === 1 ? (
-              <motion.div key="details" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 p-5 rounded-[24px] bg-zinc-100/60 dark:bg-secondary/20 border border-zinc-200 dark:border-border/10 flex items-center justify-between shadow-sm">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <motion.div key="details" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1 p-4 rounded-2xl bg-zinc-100/60 dark:bg-secondary/20 border border-zinc-200 dark:border-border/10 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
                         {isSession ? <User className="h-5 w-5" /> : <CalendarDays className="h-5 w-5" />}
                       </div>
                       <div className="min-w-0">
@@ -361,7 +363,7 @@ export const AppointmentDetailModal = ({
                 </div>
 
                 {isEvent && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <FieldShell label="Título" className="sm:col-span-2">
                       <input value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} className={inputClassName} />
                     </FieldShell>
@@ -378,7 +380,7 @@ export const AppointmentDetailModal = ({
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FieldShell label="Horário" icon={<Clock className="w-3.5 h-3.5" />}>
                     <div className="grid grid-cols-2 gap-2">
                       <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className={inputClassName} />
@@ -401,7 +403,7 @@ export const AppointmentDetailModal = ({
                 </div>
 
                 {isSession && (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <FieldShell label="Tipo de sessão" icon={<FileText className="w-3.5 h-3.5" />}>
                       <Select value={sessionType} onValueChange={setSessionType}>
                         <SelectTrigger className={inputClassName}>
@@ -472,13 +474,13 @@ export const AppointmentDetailModal = ({
                 </FieldShell>
 
                 {isSession && transactionData && (
-                  <div className="p-5 rounded-[24px] bg-zinc-100/60 dark:bg-secondary/20 border border-zinc-200 dark:border-border/10 shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="p-4 rounded-2xl bg-zinc-100/60 dark:bg-secondary/20 border border-zinc-200 dark:border-border/10 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground flex items-center gap-2 mb-2">
                           <Banknote className="w-3.5 h-3.5" /> Cobrança
                         </span>
-                        <p className="text-3xl font-light text-foreground tracking-tighter tabular-nums">
+                        <p className="text-2xl font-light text-foreground tracking-tighter tabular-nums">
                           R$ <span className="font-bold">{Number(transactionData.amount || 0).toFixed(2).replace(".", ",")}</span>
                         </p>
                       </div>
@@ -509,13 +511,13 @@ export const AppointmentDetailModal = ({
                   <Textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="min-h-[120px] bg-zinc-100/60 dark:bg-secondary/20 border-zinc-200 dark:border-border/10 hover:bg-zinc-200/60 dark:hover:bg-secondary/30 focus:bg-zinc-200/60 dark:focus:bg-secondary/30 rounded-[24px] resize-none text-foreground px-6 py-4 text-base transition-all focus:border-border/20 focus:ring-0 placeholder:text-muted-foreground/50"
+                    className="min-h-[88px] bg-zinc-100/60 dark:bg-secondary/20 border-zinc-200 dark:border-border/10 hover:bg-zinc-200/60 dark:hover:bg-secondary/30 focus:bg-zinc-200/60 dark:focus:bg-secondary/30 rounded-2xl resize-none text-foreground px-4 py-3 text-sm transition-all focus:border-border/20 focus:ring-0 placeholder:text-muted-foreground/50"
                     placeholder={isSession ? "Adicione observações da sessão..." : "Adicione notas internas do compromisso..."}
                   />
                 </div>
               </motion.div>
             ) : (
-              <motion.div key="success" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center text-center space-y-6 py-12">
+              <motion.div key="success" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center text-center space-y-4 py-8">
                 <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center">
                   <CheckCircle className="h-10 w-10 text-emerald-500" />
                 </div>
@@ -523,21 +525,21 @@ export const AppointmentDetailModal = ({
                   <h2 className="text-2xl font-bold text-foreground">Atualizado</h2>
                   <p className="text-muted-foreground text-sm">As informações foram salvas e sincronizadas quando aplicável.</p>
                 </div>
-                <Button onClick={() => setOpen(false)} className="rounded-full px-8 h-12 bg-primary text-primary-foreground font-bold shadow-lg mt-4">Fechar Ficha</Button>
+                <Button onClick={() => setOpen(false)} className="rounded-full px-6 h-10 bg-primary text-primary-foreground font-bold shadow-lg mt-3">Fechar Ficha</Button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         {step === 1 && (
-          <div className="p-6 bg-zinc-50/60 dark:bg-card/60 border-t border-zinc-200 dark:border-border/10 flex flex-col gap-3 backdrop-blur-xl shrink-0 sm:flex-row sm:justify-end">
+          <div className="p-4 bg-zinc-50/60 dark:bg-card/60 border-t border-zinc-200 dark:border-border/10 flex flex-col gap-3 backdrop-blur-xl shrink-0 sm:flex-row sm:justify-end">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
                   variant="outline"
                   disabled={updateAppointment.isPending}
-                  className="w-full sm:w-auto rounded-full px-6 h-12 font-bold text-red-600 border-red-500/20 hover:bg-red-500/10 hover:text-red-700"
+                  className="w-full sm:w-auto rounded-full px-5 h-10 font-bold text-red-600 border-red-500/20 hover:bg-red-500/10 hover:text-red-700"
                 >
                   Cancelar
                   <ChevronDown className="ml-2 h-4 w-4" />
@@ -562,7 +564,7 @@ export const AppointmentDetailModal = ({
             <Button
               onClick={() => saveDetails()}
               disabled={updateAppointment.isPending}
-              className="w-full sm:w-auto rounded-full px-8 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg transition-all active:scale-95 tracking-wide"
+              className="w-full sm:w-auto rounded-full px-6 h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg transition-all active:scale-95 tracking-wide"
             >
               {updateAppointment.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Salvar e Fechar"}
             </Button>
@@ -574,7 +576,7 @@ export const AppointmentDetailModal = ({
 };
 
 const inputClassName =
-  "w-full h-12 rounded-2xl bg-background/70 border border-zinc-200 dark:border-border/10 px-4 text-sm font-bold text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all";
+  "w-full h-10 rounded-xl bg-background/70 border border-zinc-200 dark:border-border/10 px-3 text-sm font-bold text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all";
 
 const FieldShell = ({
   label,
@@ -587,7 +589,7 @@ const FieldShell = ({
   children: React.ReactNode;
   className?: string;
 }) => (
-  <div className={cn("p-5 rounded-[24px] bg-zinc-100/60 dark:bg-secondary/20 border border-zinc-200 dark:border-border/10 space-y-4 shadow-sm", className)}>
+  <div className={cn("p-4 rounded-2xl bg-zinc-100/60 dark:bg-secondary/20 border border-zinc-200 dark:border-border/10 space-y-3 shadow-sm", className)}>
     <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground flex items-center gap-2">
       {icon}
       {label}

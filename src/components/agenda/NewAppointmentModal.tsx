@@ -1044,11 +1044,11 @@ export function NewAppointmentModal({
   // ─── STEP 3: Financial Alignment (Session only) ───────────────────
 
   const renderStep3 = () => (
-    <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-      <div className="space-y-2 mb-6">
-        <h3 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-3">
+    <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+      <div className="space-y-1.5 mb-4">
+        <h3 className="text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
           <div className="p-2 rounded-full bg-secondary/20">
-            <DollarSign className="h-5 w-5 text-foreground" />
+            <DollarSign className="h-4 w-4 text-foreground" />
           </div>
           Fluxo Financeiro
         </h3>
@@ -1057,7 +1057,7 @@ export function NewAppointmentModal({
 
       {/* Loading */}
       {isCheckingFinancialRules && (
-        <div className="flex items-center gap-3 p-5 rounded-[24px] bg-zinc-100/60 dark:bg-secondary/20 border border-zinc-200 dark:border-border/10">
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-zinc-100/60 dark:bg-secondary/20 border border-zinc-200 dark:border-border/10">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           <span className="text-sm text-muted-foreground font-medium">Verificando planos do paciente...</span>
         </div>
@@ -1067,7 +1067,7 @@ export function NewAppointmentModal({
       {!isCheckingFinancialRules && hasActivePackage && (
         <div className="space-y-4 animate-in fade-in-0 duration-300">
           {/* Info Card – saldo do pacote */}
-          <div className="rounded-[24px] bg-emerald-500/5 dark:bg-emerald-500/[0.07] border border-emerald-500/20 p-5">
+          <div className="rounded-2xl bg-emerald-500/5 dark:bg-emerald-500/[0.07] border border-emerald-500/20 p-4">
             <div className="flex items-start gap-4">
               <div className="p-2.5 rounded-2xl bg-emerald-500/10 shrink-0">
                 <Package className="h-5 w-5 text-emerald-500" />
@@ -1163,7 +1163,7 @@ export function NewAppointmentModal({
       {!isCheckingFinancialRules && !hasActivePackage && (
         <div className="space-y-4 animate-in fade-in-0 duration-300">
           {/* Alerta sutil */}
-          <div className="rounded-[24px] bg-amber-500/5 dark:bg-amber-500/[0.07] border border-amber-500/20 p-5">
+          <div className="rounded-2xl bg-amber-500/5 dark:bg-amber-500/[0.07] border border-amber-500/20 p-4">
             <div className="flex items-start gap-4">
               <div className="p-2.5 rounded-2xl bg-amber-500/10 shrink-0">
                 <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -1210,18 +1210,18 @@ export function NewAppointmentModal({
           />
 
           {shouldCreateTransaction && (
-            <div className="space-y-6 pt-2 animate-in slide-in-from-top-2">
-              <div className="flex gap-4">
+            <div className="space-y-4 pt-1 animate-in slide-in-from-top-2">
+              <div className="flex gap-3">
                 <FormField
                   control={form.control}
                   name="transactionAmount"
                   render={({ field }) => (
-                    <FormItem className="flex-1 space-y-3">
+                    <FormItem className="flex-1 space-y-2">
                       <FormLabel className={labelBase}>Valor (R$)</FormLabel>
                       <FormControl>
                         <div className="relative group">
                           <span className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground/30 text-sm font-bold">R$</span>
-                          <Input type="number" {...field} className={cn(inputBase, "pl-11 text-lg font-bold")} />
+                          <Input type="number" {...field} className={cn(inputBase, "pl-10 font-bold")} />
                         </div>
                       </FormControl>
                       <FormMessage className="text-rose-400 pl-1" />
@@ -1232,10 +1232,10 @@ export function NewAppointmentModal({
                   control={form.control}
                   name="installments"
                   render={({ field }) => (
-                    <FormItem className="w-[120px] space-y-3">
+                    <FormItem className="w-[104px] space-y-2">
                       <FormLabel className={labelBase}>Parcelas</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} min={1} className={cn(inputBase, "text-center text-lg font-bold")} />
+                        <Input type="number" {...field} min={1} className={cn(inputBase, "text-center font-bold")} />
                       </FormControl>
                       <FormMessage className="text-rose-400 pl-1" />
                     </FormItem>
@@ -1247,10 +1247,10 @@ export function NewAppointmentModal({
                 control={form.control}
                 name="transactionMethod"
                 render={({ field }) => (
-                  <FormItem className="space-y-3">
+                  <FormItem className="space-y-2">
                     <FormLabel className={labelBase}>Forma de Pagamento</FormLabel>
                     <FormControl>
-                      <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-3 gap-3">
+                      <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-3 gap-2">
                         {[
                           { id: "pix", icon: QrCode, label: "Pix" },
                           { id: "money", icon: Banknote, label: "Dinheiro" },
@@ -1262,7 +1262,7 @@ export function NewAppointmentModal({
                             </FormControl>
                             <label
                               htmlFor={`pay-${m.id}`}
-                              className="flex flex-col items-center justify-center p-4 rounded-[20px] border border-zinc-200 dark:border-border/10 bg-zinc-100/60 dark:bg-secondary/20 hover:bg-zinc-200/60 dark:hover:bg-secondary/30 peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:border-primary peer-data-[state=checked]:text-primary cursor-pointer transition-all text-muted-foreground active:scale-95"
+                              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-zinc-200 dark:border-border/10 bg-zinc-100/60 dark:bg-secondary/20 hover:bg-zinc-200/60 dark:hover:bg-secondary/30 peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:border-primary peer-data-[state=checked]:text-primary cursor-pointer transition-all text-muted-foreground active:scale-95"
                             >
                               <m.icon className="h-6 w-6 mb-2" />
                               <span className="text-[9px] font-black uppercase tracking-widest">{m.label}</span>
@@ -1335,29 +1335,31 @@ export function NewAppointmentModal({
       open={isOpen}
       onOpenChange={onOpenChange}
       trigger={children}
-      className="w-[calc(100vw-2rem)] bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-[40px] border border-zinc-200 dark:border-white/[0.08] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] rounded-[28px] p-0 overflow-hidden sm:max-w-[720px] max-h-[calc(100dvh-2rem)] flex flex-col"
+      className="w-[calc(100vw-1rem)] bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-[40px] border border-zinc-200 dark:border-white/[0.08] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] rounded-[24px] p-0 overflow-hidden sm:max-w-[640px] flex flex-col"
+      drawerClassName="max-h-[92dvh]"
+      contentStyle={{ maxHeight: "min(680px, calc(100dvh - 1rem))" }}
     >
       <div className="flex flex-col flex-1 min-h-0 bg-gradient-to-b from-zinc-50/50 dark:from-card/50 to-transparent">
         {/* Header */}
-        <div className="px-8 pt-8 pb-4 flex items-center justify-between shrink-0">
+        <div className="px-5 pt-5 pb-3 sm:px-6 flex items-center justify-between shrink-0">
           <div>
-            <h2 className="text-2xl font-bold text-foreground tracking-tight">{modalTitle}</h2>
+            <h2 className="text-xl font-bold text-foreground tracking-tight">{modalTitle}</h2>
             {renderProgressDots()}
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onOpenChange(false)}
-            className="rounded-full w-10 h-10 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90"
+            className="rounded-full w-9 h-9 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all active:scale-90"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
         {/* Body */}
-        <div className="px-8 py-4 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+        <div className="px-5 py-3 sm:px-6 overflow-y-auto custom-scrollbar flex-1 min-h-0">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               {step === 1 && renderStep1()}
               {step === 2 && renderStep2()}
               {step === 3 && renderStep3()}
@@ -1366,13 +1368,13 @@ export function NewAppointmentModal({
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-zinc-50/60 dark:bg-card/60 border-t border-zinc-200 dark:border-border/10 flex justify-between items-center backdrop-blur-xl shrink-0">
+        <div className="p-4 bg-zinc-50/60 dark:bg-card/60 border-t border-zinc-200 dark:border-border/10 flex justify-between items-center backdrop-blur-xl shrink-0">
           {step > 1 ? (
             <Button
               type="button"
               variant="ghost"
               onClick={prevStep}
-              className="text-muted-foreground hover:text-foreground rounded-full px-6 h-12 transition-all hover:bg-secondary/50 active:scale-95"
+              className="text-muted-foreground hover:text-foreground rounded-full px-5 h-10 transition-all hover:bg-secondary/50 active:scale-95"
             >
               Voltar
             </Button>
@@ -1384,7 +1386,7 @@ export function NewAppointmentModal({
             <Button
               type="button"
               onClick={handleContinue}
-              className="rounded-full px-8 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-none transition-all active:scale-95 tracking-wide"
+              className="rounded-full px-6 h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-none transition-all active:scale-95 tracking-wide"
             >
               Continuar
             </Button>
@@ -1393,7 +1395,7 @@ export function NewAppointmentModal({
               onClick={form.handleSubmit(onSubmit)}
               disabled={isSubmitting}
               className={cn(
-                "rounded-full px-8 h-12 font-bold tracking-wide shadow-lg hover:shadow-xl transition-all active:scale-95",
+                "rounded-full px-6 h-10 font-bold tracking-wide shadow-lg hover:shadow-xl transition-all active:scale-95",
                 eventType === "event"
                   ? "bg-violet-500 text-white hover:bg-violet-600"
                   : "bg-primary text-primary-foreground"
