@@ -42,6 +42,9 @@ type ThemeChoice = "light" | "dark" | "system";
 type GoogleChoice = "connect" | "skip" | "";
 type NeuroFinanceChoice = "create_now" | "later" | "";
 
+const toNeuroFinanceChoice = (value: unknown): NeuroFinanceChoice =>
+  value === "create_now" || value === "later" ? value : "";
+
 type InitialSettingsSavePayload = {
   theme: ThemeChoice;
   clinicName: string;
@@ -181,7 +184,10 @@ async function invokeFunction<T>(name: string, body: Record<string, unknown>): P
   throw new Error(message);
 }
 
-async function saveInitialSettingsWithFallback(userId: string, payload: InitialSettingsSavePayload) {
+async function saveInitialSettingsWithFallback(
+  userId: string,
+  payload: InitialSettingsSavePayload,
+): Promise<{ success: boolean; error?: string }> {
   try {
     return await invokeFunction<{ success: boolean; error?: string }>("initial-settings-save", payload);
   } catch (error) {
@@ -342,7 +348,9 @@ export default function InitialSettings() {
         : profile.calendar_sync_enabled && profile.gmail_send_enabled
           ? "connect"
           : "",
-      neurofinanceIntroChoice: hasStored ? stored.neurofinanceIntroChoice : profile.neurofinance_intro_choice || "",
+      neurofinanceIntroChoice: hasStored
+        ? stored.neurofinanceIntroChoice
+        : toNeuroFinanceChoice(profile.neurofinance_intro_choice),
     });
     setHydratedFromProfile(true);
   }, [hydratedFromProfile, profile, user?.id]);

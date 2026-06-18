@@ -513,7 +513,9 @@ const Ajustes = () => {
                                                             </div>
                                                         </div>
                                                         <Button
-                                                            onClick={isGoogleConnected ? disconnectGoogle : connectGoogle}
+                                                            onClick={() => {
+                                                                void (isGoogleConnected ? disconnectGoogle() : connectGoogle());
+                                                            }}
                                                             disabled={isLoadingGoogleAuth}
                                                             variant={isGoogleConnected ? "outline" : "default"}
                                                             className={cn(

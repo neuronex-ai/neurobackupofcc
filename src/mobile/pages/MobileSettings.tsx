@@ -631,7 +631,7 @@ export const MobileSettings = () => {
                                             {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Desconectar Google"}
                                         </Button>
                                     ) : (
-                                        <Button type="button" onClick={connectGoogle} disabled={googleLoading} className="h-12 w-full rounded-[15px] text-[8px] font-black uppercase tracking-[0.12em]">
+                                        <Button type="button" onClick={() => void connectGoogle()} disabled={googleLoading} className="h-12 w-full rounded-[15px] text-[8px] font-black uppercase tracking-[0.12em]">
                                             {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Conectar Google"}
                                         </Button>
                                     )}

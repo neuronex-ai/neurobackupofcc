@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
-import { CustomOnboardingFlow } from "./CustomOnboardingFlow";
+import { CustomOnboardingFlow as BaseCustomOnboardingFlow } from "./CustomOnboardingFlow";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 
-type Props = React.ComponentProps<typeof CustomOnboardingFlow>;
+type Props = React.ComponentProps<typeof BaseCustomOnboardingFlow>;
 
 export function OnboardingRecoveryBoundary(props: Props) {
   const { isConnected, isLoading, refetch } = useFinancialAccount();
@@ -43,5 +43,7 @@ export function OnboardingRecoveryBoundary(props: Props) {
     );
   }
 
-  return <CustomOnboardingFlow {...props} />;
+  return <BaseCustomOnboardingFlow {...props} />;
 }
+
+export { OnboardingRecoveryBoundary as CustomOnboardingFlow };

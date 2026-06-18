@@ -74,7 +74,7 @@ export const useNotifications = () => {
     if (result.error) throw result.error;
   };
   const markRead = useMutation({ mutationFn: (id: string) => update({ read: true, read_at: new Date().toISOString() })(id), onSettled: invalidate });
-  const markAll = useMutation({ mutationFn: update({ read: true, read_at: new Date().toISOString() }), onSettled: invalidate });
+  const markAll = useMutation({ mutationFn: () => update({ read: true, read_at: new Date().toISOString() })(), onSettled: invalidate });
   const dismiss = useMutation({ mutationFn: (id: string) => update({ dismissed_at: new Date().toISOString() })(id), onSettled: invalidate });
   const restore = useMutation({ mutationFn: (id: string) => update({ dismissed_at: null })(id), onSettled: invalidate });
   const notifications = query.data || [];

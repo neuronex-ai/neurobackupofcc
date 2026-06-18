@@ -320,7 +320,7 @@ export const FilesManager = () => {
     const handleOpenDrive = async () => {
         if (!isGoogleConnected) {
             toast.info("Conecte sua conta Google nas configurações primeiro.", {
-                action: { label: "Conectar", onClick: connectGoogle },
+                action: { label: "Conectar", onClick: () => void connectGoogle() },
             });
             return;
         }
