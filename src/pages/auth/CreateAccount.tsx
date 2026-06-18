@@ -1,4 +1,4 @@
-�"use client";
+"use client";
 
 import { TotpMfaDialog } from "@/components/settings/TotpMfaDialog";
 import { Button } from "@/components/ui/button";

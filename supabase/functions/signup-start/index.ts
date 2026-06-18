@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       return jsonResponse(
         {
           code: "email_provider_unavailable",
-          error: "O envio de e-mail de cadastro nao esta configurado. Tente novamente em instantes.",
+          error: "O envio de e-mail de cadastro não está configurado. Tente novamente em instantes.",
         },
         503,
       );
@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
       return jsonResponse(
         {
           code: "email_delivery_failed",
-          error: "Nao conseguimos enviar o codigo agora. Tente novamente em instantes.",
+          error: "Não conseguimos enviar o código agora. Tente novamente em instantes.",
         },
         503,
       );
