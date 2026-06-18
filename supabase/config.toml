@@ -20,7 +20,7 @@ entrypoint = "./functions/sync-cfp-norms/index.ts"
 
 [functions.asaas-webhook]
 enabled = true
-verify_jwt = false # Webhooks are authenticated via Asaas access token header
+verify_jwt = false
 entrypoint = "./functions/asaas-webhook/index.ts"
 
 [functions.asaas-connect-onboarding]
@@ -213,3 +213,10 @@ entrypoint = "./functions/address-validate/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/initial-settings-save/index.ts"
+
+# ─── DOCUMENT STORAGE / CLOUDFLARE R2 ─────────────────────────
+
+[functions.r2-create-upload-url]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/r2-create-upload-url/index.ts"

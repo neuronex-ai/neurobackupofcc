@@ -1,0 +1,1 @@
+[{"AllowedOrigins":["https://app.neuronex.ai","https://*.vercel.app","http://localhost:8080"],"AllowedMethods":["PUT","GET","HEAD"],"AllowedHeaders":["Content-Type"],"ExposeHeaders":["ETag","Content-Length"],"MaxAgeSeconds":3600}]
