@@ -4,6 +4,7 @@ import {
   createSignupCode,
   findAuthUserByEmail,
   hashSignupValue,
+  isSignupEmailConfigured,
   isValidEmail,
   jsonResponse,
   normalizeEmail,
@@ -60,6 +61,17 @@ Deno.serve(async (req) => {
 
     if (!PROFESSIONAL_CONTEXTS.has(professionalContext)) {
       return jsonResponse({ error: "Selecione como você pretende usar a NeuroNex." }, 400);
+    }
+
+    if (!isSignupEmailConfigured()) {
+      console.error("signup-start:email-provider-not-configured");
+      return jsonResponse(
+        {
+          code: "email_provider_unavailable",
+          error: "O envio de e-mail de cadastro nao esta configurado. Tente novamente em instantes.",
+        },
+        503,
+      );
     }
 
     const admin = createAdminClient();
@@ -125,11 +137,35 @@ Deno.serve(async (req) => {
       throw insertError;
     }
 
-    await sendSignupCodeEmail({
-      email,
-      code,
-      fullName,
-    });
+    try {
+      await sendSignupCodeEmail({
+        email,
+        code,
+        fullName,
+      });
+    } catch (deliveryError) {
+      const message = deliveryError instanceof Error ? deliveryError.message : "Unknown email delivery error";
+      console.error("signup-start:delivery-error", message);
+      await admin
+        .from("signup_email_verifications")
+        .update({
+          consumed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          metadata: {
+            deliveryFailed: true,
+            deliveryError: message,
+          },
+        })
+        .eq("id", verificationId);
+
+      return jsonResponse(
+        {
+          code: "email_delivery_failed",
+          error: "Nao conseguimos enviar o codigo agora. Tente novamente em instantes.",
+        },
+        503,
+      );
+    }
 
     return jsonResponse({
       verificationId,

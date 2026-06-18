@@ -186,9 +186,19 @@ export async function sendSignupCodeEmail(params: {
   });
 
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Resend failed: ${response.status} ${detail}`);
+    const payload = await response.clone().json().catch(() => null);
+    const detail =
+      typeof payload?.message === "string"
+        ? payload.message
+        : typeof payload?.error === "string"
+          ? payload.error
+          : await response.text().catch(() => "");
+    throw new Error(`Resend failed: ${response.status}${detail ? ` ${detail}` : ""}`);
   }
+}
+
+export function isSignupEmailConfigured(): boolean {
+  return Boolean(Deno.env.get("RESEND_API_KEY")?.trim());
 }
 
 export function escapeHtml(value: string): string {

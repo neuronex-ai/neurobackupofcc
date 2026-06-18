@@ -87,16 +87,14 @@ const contextOptions: Array<{ value: ProfessionalContext; label: string; descrip
   },
 ];
 
-const genderOptions: Array<{ value: GenderIdentity; label: string; description: string }> = [
+const genderOptions: Array<{ value: GenderIdentity; label: string }> = [
   {
     value: "female",
     label: "Feminino",
-    description: "O Synapse pode usar tratamento feminino quando fizer sentido.",
   },
   {
     value: "male",
     label: "Masculino",
-    description: "O Synapse pode usar tratamento masculino quando fizer sentido.",
   },
   {
     value: "non_binary",
