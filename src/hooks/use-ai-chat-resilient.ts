@@ -18,6 +18,9 @@ interface SendInput {
   context?: Record<string, unknown>;
 }
 
+const INTERNAL_DATA = /\b(paciente|pacientes|consulta|consultas|agenda|agendamento|horário|horario|prontuário|prontuario|sessão|sessao|financeiro|saldo|receita|despesa|lançamento|lancamento|transação|transacao|nota|notas|documento|arquivo|medicação|medicacao|risco|cobrança|cobranca|fatura|neurofinance|neuroscan|teleconsulta|neuronotes|configuração|configuracao|integração|integracao|dashboard|synapse)\b/i;
+const SAFE_FAILURE = "Não consegui consultar os dados confirmados do sistema agora. Para proteger a precisão das informações, não vou estimar nem inventar uma resposta.";
+
 async function invokeProvider(name: string, input: SendInput) {
   const { data, error } = await supabase.functions.invoke(name, {
     body: {
@@ -42,10 +45,24 @@ async function invokeProvider(name: string, input: SendInput) {
 
 async function sendWithFallback(input: SendInput) {
   try {
-    return await invokeProvider("gemini-text-chat", input);
-  } catch (primaryError) {
-    console.warn("[Synapse] Gemini indisponível; ativando Groq.", primaryError);
-    return invokeProvider("synapse-text-fallback", input);
+    return await invokeProvider("synapse-text-fallback", input);
+  } catch (agentError) {
+    console.warn("[Synapse] Agente principal indisponível.", agentError);
+
+    if (INTERNAL_DATA.test(input.message)) {
+      return {
+        response: SAFE_FAILURE,
+        clientAction: null,
+        session_id: input.sessionId,
+        provider: "system",
+        model: "grounding_guard",
+        grounded: false,
+        toolsUsed: [],
+        recordsFound: 0,
+      };
+    }
+
+    return invokeProvider("gemini-text-chat", input);
   }
 }
 
