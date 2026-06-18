@@ -4,31 +4,19 @@ import { useSynapse } from '@/context/SynapseProvider';
 import { SynapsePill } from './SynapsePill';
 import { SynapseCompactPanel } from './SynapseCompactPanel';
 import { SynapseScreenAgentOverlay } from './SynapseScreenAgentOverlay';
-
-// ─── Z-Index Strategy ─────────────────────────────────────────────────
-// Screen agent:  z-index 9988
-// Pill:          z-index 9990 (above page content, below modals)
-// Compact Panel: z-index 9991
-// This ensures the shell is always accessible but doesn't block
-// system modals (toasts, dialogs) when in Pill/Compact state.
+import '@/styles/synapse-agent.css';
 
 export const SynapseGlobalShell = () => {
     const { isVisible, shellState, setShellState } = useSynapse();
 
-    // ─── Keyboard Shortcut: Ctrl+J ─────────────────────────────────────
     const handleKeyDown = useCallback(
-        (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
-                e.preventDefault();
-                if (shellState === 'pill') {
-                    setShellState('compact');
-                } else if (shellState === 'compact') {
-                    setShellState('pill');
-                }
+        (event: KeyboardEvent) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'j') {
+                event.preventDefault();
+                setShellState(shellState === 'compact' ? 'pill' : 'compact');
             }
 
-            // Escape closes the panel. The screen agent has its own cancel action.
-            if (e.key === 'Escape' && shellState === 'compact') {
+            if (event.key === 'Escape' && shellState === 'compact') {
                 setShellState('pill');
             }
         },
@@ -40,14 +28,11 @@ export const SynapseGlobalShell = () => {
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [handleKeyDown]);
 
-    // Don't render on mobile or unauthenticated sessions.
-    if (!isVisible) return null;
+    if (!isVisible) return <SynapseScreenAgentOverlay />;
 
     return (
         <>
             <SynapseScreenAgentOverlay />
-
-            {/* Fixed container for Pill + Compact (bottom-right) */}
             <div
                 className="fixed bottom-6 right-6 flex flex-col items-end gap-3"
                 style={{ zIndex: 9990 }}
