@@ -1,0 +1,3 @@
+import{PutObjectCommand,S3Client}from"npm:@aws-sdk/client-s3";
+import{getSignedUrl}from"npm:@aws-sdk/s3-request-presigner";
+Deno.serve(async r=>{const b=await r.json(),B=Deno.env.get("R2_BUCKET")!,k=`uploads/${crypto.randomUUID()}-${String(b.fileName||"arquivo").replace(/[^a-zA-Z0-9._-]/g,"-")}`,s=new S3Client({region:"auto",endpoint:Deno.env.get("R2_ENDPOINT"),credentials:{accessKeyId:Deno.env.get("R2_ACCESS_KEY_ID")!,secretAccessKey:Deno.env.get("R2_SECRET_ACCESS_KEY")!}}),u=await getSignedUrl(s,new PutObjectCommand({Bucket:B,Key:k,ContentType:b.mimeType}),{expiresIn:900});return Response.json({uploadUrl:u,objectKey:k,bucket:B,expiresIn:900})});
