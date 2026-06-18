@@ -1,4 +1,4 @@
-﻿"use client";
+�"use client";
 
 import { TotpMfaDialog } from "@/components/settings/TotpMfaDialog";
 import { Button } from "@/components/ui/button";
@@ -73,17 +73,17 @@ const contextOptions: Array<{ value: ProfessionalContext; label: string; descrip
   {
     value: "individual_professional",
     label: "Sou profissional individual",
-    description: "Atendo com agenda e pacientes prÃ³prios.",
+    description: "Atendo com agenda e pacientes próprios.",
   },
   {
     value: "clinic_admin",
-    label: "Sou administrador(a) de clÃ­nica",
-    description: "Cuido da operaÃ§Ã£o de uma equipe clÃ­nica.",
+    label: "Sou administrador(a) de clínica",
+    description: "Cuido da operação de uma equipe clínica.",
   },
   {
     value: "psychology_student",
     label: "Sou estudante de psicologia",
-    description: "Quero organizar estudos, prÃ¡tica e evoluÃ§Ã£o.",
+    description: "Quero organizar estudos, prática e evolução.",
   },
 ];
 
@@ -98,18 +98,18 @@ const genderOptions: Array<{ value: GenderIdentity; label: string }> = [
   },
   {
     value: "non_binary",
-    label: "NÃ£o binÃ¡rio",
+    label: "Não binário",
   },
   {
     value: "prefer_not_to_say",
-    label: "Prefiro nÃ£o informar",
+    label: "Prefiro não informar",
   },
 ];
 
 const passwordRules = [
-  { key: "minLength", label: "MÃ­nimo de 8 caracteres" },
-  { key: "lower", label: "1 letra minÃºscula" },
-  { key: "upper", label: "1 letra maiÃºscula" },
+  { key: "minLength", label: "Mínimo de 8 caracteres" },
+  { key: "lower", label: "1 letra minúscula" },
+  { key: "upper", label: "1 letra maiúscula" },
   { key: "special", label: "1 caractere especial: @ # < ! $ % & * ; / ?" },
 ] as const;
 
@@ -171,9 +171,9 @@ export default function CreateAccount() {
   const submitIdentity = async () => {
     try {
       await flow.sendVerificationEmail();
-      toast.success("Enviamos o cÃ³digo para o seu e-mail.");
+      toast.success("Enviamos o código para o seu e-mail.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel enviar o e-mail de confirmaÃ§Ã£o.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o e-mail de confirmação.");
     }
   };
 
@@ -182,7 +182,7 @@ export default function CreateAccount() {
       await flow.verifyEmailCode();
       toast.success("E-mail confirmado. Agora crie sua senha.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "CÃ³digo invÃ¡lido ou expirado.");
+      toast.error(error instanceof Error ? error.message : "Código inválido ou expirado.");
     }
   };
 
@@ -191,7 +191,7 @@ export default function CreateAccount() {
       await flow.resendVerification();
       toast.success("E-mail reenviado.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel reenviar agora.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível reenviar agora.");
     }
   };
 
@@ -200,7 +200,7 @@ export default function CreateAccount() {
       await flow.createPassword();
       setTwoFactorOpen(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "NÃ£o foi possÃ­vel criar sua senha.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível criar sua senha.");
     }
   };
 
@@ -341,7 +341,7 @@ export default function CreateAccount() {
 
           {flow.step === "identity" ? (
             <p className={cn("mt-5 text-center text-[11px] font-bold", isDarkTheme ? "text-white/45" : "text-black/45")}>
-              JÃ¡ possui uma conta?{" "}
+              Já possui uma conta?{" "}
               <Link to="/auth?role=pro" className="text-current underline-offset-4 hover:underline">
                 Fazer login
               </Link>
@@ -411,10 +411,10 @@ function CreateAccountSideRail({
       <div className="max-w-[24rem]">
         <p className="text-[10px] font-black uppercase tracking-[0.24em] text-current/35">Cadastro profissional</p>
         <h1 className="mt-6 text-6xl font-black leading-[0.9] tracking-[-0.065em]">
-          Comece grÃ¡tis. Sem cartÃ£o.
+          Comece grátis. Sem cartão.
         </h1>
         <p className="mt-7 max-w-sm text-base font-semibold leading-relaxed text-current/50">
-          Validamos seu e-mail primeiro, protegemos sua sessÃ£o e sÃ³ entÃ£o abrimos as configuraÃ§Ãµes iniciais do seu espaÃ§o clÃ­nico.
+          Validamos seu e-mail primeiro, protegemos sua sessão e só então abrimos as configurações iniciais do seu espaço clínico.
         </p>
       </div>
 
@@ -474,10 +474,10 @@ function IdentityStep({
       <div>
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-current/42">Criar conta</p>
         <h2 className="mt-2 text-[2rem] font-black leading-[0.95] tracking-[-0.06em]">
-          Teste o NeuroNex AI grÃ¡tis.
+          Teste o NeuroNex AI grátis.
         </h2>
         <p className="mt-3 text-sm font-semibold leading-relaxed text-current/56">
-          NÃ£o pedimos seu cartÃ£o de crÃ©dito. Primeiro, sÃ³ precisamos confirmar quem estÃ¡ chegando.
+          Não pedimos seu cartão de crédito. Primeiro, só precisamos confirmar quem está chegando.
         </p>
       </div>
 
@@ -492,13 +492,13 @@ function IdentityStep({
           />
         </AuthField>
 
-        <AuthField label="GÃªnero">
+        <AuthField label="Gênero">
           <Select
             value={draft.genderIdentity}
             onValueChange={(value) => onChange("genderIdentity", value as GenderIdentity)}
           >
             <SelectTrigger className={cn("h-[3.25rem] rounded-[10px] border px-3 text-sm font-bold", mutedPanelClass)}>
-              <SelectValue placeholder="Escolha uma opÃ§Ã£o" />
+              <SelectValue placeholder="Escolha uma opção" />
             </SelectTrigger>
             <SelectContent className={cn("rounded-[18px] shadow-2xl", selectContentClass)}>
               {genderOptions.map((option) => (
@@ -523,7 +523,7 @@ function IdentityStep({
           <EmailAvailabilityHint availability={emailAvailability} kind="primary" />
         </AuthField>
 
-        <AuthField label="E-mail de recuperaÃ§Ã£o (opcional)">
+        <AuthField label="E-mail de recuperação (opcional)">
           <Input
             value={draft.recoveryEmail}
             onChange={(event) => onChange("recoveryEmail", event.target.value)}
@@ -554,13 +554,13 @@ function IdentityStep({
           </div>
         </AuthField>
 
-        <AuthField label="Conte um pouco sobre vocÃª">
+        <AuthField label="Conte um pouco sobre você">
           <Select
             value={draft.professionalContext}
             onValueChange={(value) => onChange("professionalContext", value as ProfessionalContext)}
           >
             <SelectTrigger className={cn("h-[3.25rem] rounded-[10px] border px-3 text-sm font-bold", mutedPanelClass)}>
-              <SelectValue placeholder="Escolha uma opÃ§Ã£o" />
+              <SelectValue placeholder="Escolha uma opção" />
             </SelectTrigger>
             <SelectContent className={cn("rounded-[18px] shadow-2xl", selectContentClass)}>
               {contextOptions.map((option) => (
@@ -592,7 +592,7 @@ function IdentityStep({
             className="font-black underline underline-offset-4 hover:opacity-75"
             onClick={(event) => event.stopPropagation()}
           >
-            PolÃ­tica de Privacidade
+            Política de Privacidade
           </Link>{" "}
           e os{" "}
           <Link
@@ -613,7 +613,7 @@ function IdentityStep({
         className={cn("h-14 w-full rounded-[12px] text-[11px] font-black uppercase tracking-[0.2em]", actionButtonClass)}
       >
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-        PrÃ³ximo
+        Próximo
       </Button>
     </motion.div>
   );
@@ -666,7 +666,7 @@ function PasswordStep({
           Perfeito, {firstName}. Agora vamos criar sua senha.
         </h2>
         <p className="mt-3 text-sm font-semibold leading-relaxed text-current/56">
-          Agora crie uma senha para acessar a NeuroNex com seguranÃ§a.
+          Agora crie uma senha para acessar a NeuroNex com segurança.
         </p>
       </div>
 
@@ -700,8 +700,8 @@ function PasswordStep({
                   <p className="text-sm font-black">Entrar usando biometria</p>
                   <p className="mt-1 text-[11px] font-semibold leading-relaxed text-current/48">
                     {biometricAvailable
-                      ? "Vamos validar agora e usar tambÃ©m em transaÃ§Ãµes."
-                      : biometricReason || "Se nÃ£o funcionar, vocÃª pode configurar depois em Ajustes > Login e SeguranÃ§a."}
+                      ? "Vamos validar agora e usar também em transações."
+                      : biometricReason || "Se não funcionar, você pode configurar depois em Ajustes > Login e Segurança."}
                   </p>
                 </div>
               </div>
@@ -713,7 +713,7 @@ function PasswordStep({
               />
             </div>
             <p className="mt-3 text-[10px] font-semibold leading-relaxed text-current/42">
-              Qualquer problema, seguimos com senha normal e vocÃª ajusta isso depois.
+              Qualquer problema, seguimos com senha normal e você ajusta isso depois.
             </p>
           </div>
         ) : null}
@@ -760,7 +760,7 @@ function SuccessStep({
         Conta criada com sucesso, {firstName}.
       </h2>
       <p className="mt-4 max-w-[18rem] text-sm font-semibold leading-relaxed text-current/55">
-        Estamos preparando suas configuraÃ§Ãµes iniciais e o tour de boas-vindas.
+        Estamos preparando suas configurações iniciais e o tour de boas-vindas.
       </p>
       <div className="mt-9 w-full max-w-[18rem]">
         <div className="mb-3 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.16em] text-current/45">
@@ -777,7 +777,7 @@ function SuccessStep({
       </div>
       <Button disabled className={cn("mt-8 h-12 w-full max-w-[18rem] rounded-[12px] text-[11px] font-black", primaryButtonClass)}>
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Abrindo configuraÃ§Ãµes
+        Abrindo configurações
       </Button>
     </motion.div>
   );
@@ -813,10 +813,10 @@ function EmailCodeConfirmSheet({
               <MailCheck className="h-6 w-6" />
             </div>
             <DialogTitle className="text-2xl font-black tracking-[-0.04em]">
-              Enviamos um cÃ³digo para o seu e-mail.
+              Enviamos um código para o seu e-mail.
             </DialogTitle>
             <DialogDescription className="mx-auto max-w-[20rem] pt-2 text-center text-sm font-semibold leading-relaxed text-black/55 dark:text-white/55">
-              Digite o cÃ³digo de 6 dÃ­gitos que enviamos para{" "}
+              Digite o código de 6 dígitos que enviamos para{" "}
               <span className="font-black text-black dark:text-white">{email}</span>.
             </DialogDescription>
           </DialogHeader>
@@ -836,7 +836,7 @@ function EmailCodeConfirmSheet({
           </div>
 
           <div className="mt-6 rounded-[22px] border border-black/8 bg-black/[0.025] p-4 text-xs font-semibold leading-relaxed text-black/55 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/55">
-            O e-mail de cadastro contÃ©m somente o cÃ³digo. Se nÃ£o encontrar a mensagem, verifique PromoÃ§Ãµes ou Spam.
+            O e-mail de cadastro contém somente o código. Se não encontrar a mensagem, verifique Promoções ou Spam.
           </div>
 
           <div className="mt-6 grid grid-cols-[0.8fr_1.2fr] gap-3">
@@ -857,7 +857,7 @@ function EmailCodeConfirmSheet({
             className="mt-5 inline-flex w-full items-center justify-center gap-2 text-center text-xs font-black text-black/55 underline-offset-4 hover:text-black hover:underline disabled:opacity-45 dark:text-white/55 dark:hover:text-white"
           >
             <Mail className="h-3.5 w-3.5" />
-            {cooldown > 0 ? `Reenviar em ${cooldown}s` : "Reenviar cÃ³digo por e-mail"}
+            {cooldown > 0 ? `Reenviar em ${cooldown}s` : "Reenviar código por e-mail"}
           </button>
         </div>
       </DialogContent>
@@ -886,15 +886,15 @@ function TwoFactorIntroSheet({
             <ShieldCheck className="h-6 w-6" />
           </div>
           <DialogTitle className="text-2xl font-black tracking-[-0.04em]">
-            VerificaÃ§Ã£o em duas etapas
+            Verificação em duas etapas
           </DialogTitle>
           <DialogDescription className="pt-2 text-sm font-semibold leading-relaxed text-black/55 dark:text-white/55">
-            SeguranÃ§a Ã© pilar indispensÃ¡vel por aqui. Recomendamos vincular um autenticador agora. Leva cerca de 2 minutos.
+            Segurança é pilar indispensável por aqui. Recomendamos vincular um autenticador agora. Leva cerca de 2 minutos.
           </DialogDescription>
         </DialogHeader>
 
         <div className="mt-6 rounded-[24px] border border-black/8 bg-black/[0.025] p-4 text-xs font-semibold leading-relaxed text-black/55 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/55">
-          VocÃª pode usar Google Authenticator, Microsoft Authenticator, 1Password ou outro app compatÃ­vel com cÃ³digo TOTP.
+          Você pode usar Google Authenticator, Microsoft Authenticator, 1Password ou outro app compatível com código TOTP.
         </div>
 
         <div className="mt-6 grid gap-3">
@@ -902,7 +902,7 @@ function TwoFactorIntroSheet({
             Habilitar agora
           </Button>
           <Button variant="ghost" onClick={onLater} disabled={loading} className="h-12 rounded-[16px]">
-            Agora nÃ£o
+            Agora não
           </Button>
         </div>
       </DialogContent>
@@ -938,13 +938,13 @@ function EmailAvailabilityHint({
   }
 
   if (availability.status === "invalid") {
-    return <p className="mt-2 text-[11px] font-bold text-red-500">{availability.message || "Digite um e-mail vÃ¡lido."}</p>;
+    return <p className="mt-2 text-[11px] font-bold text-red-500">{availability.message || "Digite um e-mail válido."}</p>;
   }
 
   if (availability.status === "error") {
     return (
       <p className="mt-2 text-[11px] font-bold text-amber-500">
-        {availability.message || "NÃ£o conseguimos verificar agora. Vamos validar ao avanÃ§ar."}
+        {availability.message || "Não conseguimos verificar agora. Vamos validar ao avançar."}
       </p>
     );
   }
@@ -952,7 +952,7 @@ function EmailAvailabilityHint({
   if (kind === "primary" && availability.status === "exists") {
     return (
       <p className="mt-2 text-[11px] font-bold text-red-500">
-        JÃ¡ existe uma conta com este e-mail.{" "}
+        Já existe uma conta com este e-mail.{" "}
         <Link to="/auth?role=pro" className="underline underline-offset-4">
           Fazer login
         </Link>
@@ -963,7 +963,7 @@ function EmailAvailabilityHint({
   if (kind === "recovery" && availability.status === "exists") {
     return (
       <p className="mt-2 text-[11px] font-bold text-current/45">
-        {availability.message || "Pode usar como e-mail de recuperaÃ§Ã£o."}
+        {availability.message || "Pode usar como e-mail de recuperação."}
       </p>
     );
   }
@@ -972,7 +972,7 @@ function EmailAvailabilityHint({
     return (
       <p className="mt-2 flex items-center gap-2 text-[11px] font-bold text-emerald-500">
         <Check className="h-3.5 w-3.5" />
-        {kind === "primary" ? "E-mail disponÃ­vel." : "E-mail de recuperaÃ§Ã£o vÃ¡lido."}
+        {kind === "primary" ? "E-mail disponível." : "E-mail de recuperação válido."}
       </p>
     );
   }

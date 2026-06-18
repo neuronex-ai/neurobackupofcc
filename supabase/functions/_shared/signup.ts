@@ -1,4 +1,4 @@
-﻿import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+�import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -97,8 +97,8 @@ export function createSignupCode(): string {
 
 export function assertPasswordStrength(password: string): string | null {
   if (password.length < 8) return "A senha precisa ter pelo menos 8 caracteres.";
-  if (!/[a-z]/.test(password)) return "Inclua ao menos uma letra minÃºscula.";
-  if (!/[A-Z]/.test(password)) return "Inclua ao menos uma letra maiÃºscula.";
+  if (!/[a-z]/.test(password)) return "Inclua ao menos uma letra minúscula.";
+  if (!/[A-Z]/.test(password)) return "Inclua ao menos uma letra maiúscula.";
   if (!/[@#<!$%&*;/?]/.test(password)) return "Inclua ao menos um caractere especial.";
   return null;
 }
@@ -124,15 +124,15 @@ export async function sendSignupCodeEmail(params: {
   const from =
     Deno.env.get("SIGNUP_EMAIL_FROM")?.trim() ||
     Deno.env.get("SECURITY_EMAIL_FROM")?.trim() ||
-    "NeuroNex SeguranÃ§a <seguranca@email.neuronex.site>";
+    "NeuroNex Segurança <seguranca@email.neuronex.site>";
 
-  const displayName = params.fullName.trim().split(/\s+/)[0] || "psicÃ³logo";
+  const displayName = params.fullName.trim().split(/\s+/)[0] || "psicólogo";
   const html = `<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CÃ³digo NeuroNex AI</title>
+    <title>Código NeuroNex AI</title>
   </head>
   <body style="margin:0;background:#050505;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#f8f8f8;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050505;padding:32px 16px;">
@@ -143,11 +143,11 @@ export async function sendSignupCodeEmail(params: {
               <td style="font-size:12px;letter-spacing:0.28em;text-transform:uppercase;color:#a7a7a7;font-weight:800;">NeuroNex AI</td>
             </tr>
             <tr>
-              <td style="padding-top:28px;font-size:30px;line-height:1.08;font-weight:900;color:#ffffff;">Seu cÃ³digo de confirmaÃ§Ã£o</td>
+              <td style="padding-top:28px;font-size:30px;line-height:1.08;font-weight:900;color:#ffffff;">Seu código de confirmação</td>
             </tr>
             <tr>
               <td style="padding-top:14px;font-size:16px;line-height:1.55;color:#cfcfcf;">
-                OlÃ¡, ${escapeHtml(displayName)}. Use o cÃ³digo abaixo para confirmar seu e-mail e continuar o cadastro.
+                Olá, ${escapeHtml(displayName)}. Use o código abaixo para confirmar seu e-mail e continuar o cadastro.
               </td>
             </tr>
             <tr>
@@ -159,7 +159,7 @@ export async function sendSignupCodeEmail(params: {
             </tr>
             <tr>
               <td style="font-size:14px;line-height:1.55;color:#a7a7a7;">
-                O cÃ³digo expira em 15 minutos. Se vocÃª nÃ£o pediu esse cadastro, ignore este e-mail.
+                O código expira em 15 minutos. Se você não pediu esse cadastro, ignore este e-mail.
               </td>
             </tr>
           </table>
@@ -178,9 +178,9 @@ export async function sendSignupCodeEmail(params: {
     body: JSON.stringify({
       from,
       to: [params.email],
-      subject: `${params.code} Ã© seu cÃ³digo da NeuroNex AI`,
+      subject: `${params.code} é seu código da NeuroNex AI`,
       html,
-      text: `Seu cÃ³digo de confirmaÃ§Ã£o da NeuroNex AI Ã© ${params.code}. Ele expira em 15 minutos.`,
+      text: `Seu código de confirmação da NeuroNex AI é ${params.code}. Ele expira em 15 minutos.`,
     }),
   });
 
