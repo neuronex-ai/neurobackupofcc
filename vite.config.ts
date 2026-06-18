@@ -19,6 +19,10 @@ export default defineConfig(({ mode, command }) => {
     resolve: {
       alias: [
         {
+          find: "@/hooks/use-ai-chat",
+          replacement: path.resolve(__dirname, "./src/hooks/use-ai-chat-resilient.ts"),
+        },
+        {
           find: "@/components/financeiro/CustomOnboardingFlow",
           replacement: path.resolve(__dirname, "./src/components/financeiro/OnboardingRecoveryBoundary.tsx"),
         },
