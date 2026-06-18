@@ -3,6 +3,7 @@ import { RouteSelection } from "./RouteSelection";
 import { ImportAnamnesis } from "./ImportAnamnesis";
 import { TemplateAnamnesis } from "./TemplateAnamnesis";
 import { ViewAnamnesis } from "./ViewAnamnesis";
+import { DocumentUploadPanel } from "@/components/documents/DocumentUploadPanel";
 import { AnimatePresence, motion } from "framer-motion";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,7 +30,6 @@ export function AnamnesisTab() {
 
     const checkExistingAnamnesis = async () => {
         try {
-            // Fetch all records for this patient (there may be multiple due to UNIQUE(patient_id, type))
             const { data: records, error } = await supabase
                 .from('patient_anamneses')
                 .select('id, content')
@@ -37,11 +37,9 @@ export function AnamnesisTab() {
 
             if (error) throw error;
 
-            // Find the first record with valid content
             const validRecord = records?.find((record) => hasValidAnamnesisContent(record.content));
 
             if (validRecord) {
-                // Clean up any empty-content records
                 const emptyRecords = records?.filter(
                     r => r.id !== validRecord.id && !hasValidAnamnesisContent(r.content)
                 );
@@ -52,7 +50,6 @@ export function AnamnesisTab() {
                 }
                 setCurrentStep('view');
             } else {
-                // No valid records found — clean up any empty ones
                 if (records && records.length > 0) {
                     for (const r of records) {
                         await supabase.from('patient_anamneses').delete().eq('id', r.id);
@@ -71,7 +68,6 @@ export function AnamnesisTab() {
     };
 
     const handleSuccess = () => {
-        // Increment viewKey to force ViewAnamnesis to remount and re-fetch fresh data
         setViewKey(k => k + 1);
         setCurrentStep('view');
     };
@@ -131,11 +127,17 @@ export function AnamnesisTab() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="h-full"
+                        className="h-full space-y-6"
                     >
                         <ViewAnamnesis
                             onChangeTemplate={() => setCurrentStep('template')}
                             onResetToSelection={() => setCurrentStep('selection')}
+                        />
+                        <DocumentUploadPanel
+                            patientId={patientId}
+                            category="patient_attachment"
+                            title="Documentos do prontuário"
+                            description="Armazene documentos privados deste paciente no cofre de arquivos da NeuroNex."
                         />
                     </motion.div>
                 )}
