@@ -91,7 +91,7 @@ export function MobileNeuroFinanceStatement() {
         ))}
       </div>
 
-      <MobileSegmentedControl value={tab} onValueChange={setTab} ariaLabel="Período do extrato" options={[
+      <MobileSegmentedControl<StatementTab> value={tab} onValueChange={setTab} ariaLabel="Período do extrato" options={[
         { value: "realizado", label: "Realizado", icon: Wallet },
         { value: "futuro", label: "Futuro", icon: CalendarClock },
         { value: "assinaturas", label: "Recorrente", icon: FileText },

@@ -548,7 +548,7 @@ export function MobileNeuroFinancePage() {
                 />
               }
             />
-            <MobileFinanceTabs
+            <MobileFinanceTabs<ActivityView>
               value={activityView}
               onValueChange={setActivityView}
               options={[
