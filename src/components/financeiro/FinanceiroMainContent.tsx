@@ -202,7 +202,8 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
         <NeuroFinanceVerificationModal
           open={showVerificationModal}
           onOpenChange={setShowVerificationModal}
-          initialRequirement={selectedRequirement}
+          selectedRequirement={selectedRequirement}
+          setSelectedRequirement={setSelectedRequirement}
           onSuccess={handleVerificationSuccess}
         />
       </FeatureGate>

@@ -21,6 +21,16 @@ type ScannerMode = "pix" | "boleto";
 
 type ScannerState = "idle" | "starting" | "scanning" | "error" | "native";
 
+type ScreenOrientationLock =
+  | "any"
+  | "natural"
+  | "landscape"
+  | "portrait"
+  | "portrait-primary"
+  | "portrait-secondary"
+  | "landscape-primary"
+  | "landscape-secondary";
+
 type DetectedBarcode = {
   rawValue?: string;
   displayValue?: string;
@@ -111,11 +121,7 @@ export function MobileCodeScannerSheet({
           }
           const detectedValue = normalizeDetectedValue(mode, value);
           if (!detectedValue) {
-            throw new Error(
-              mode === "boleto"
-                ? "Codigo lido nao parece um boleto. Enquadre as barras horizontais."
-                : "Codigo nao encontrado.",
-            );
+            throw new Error("Codigo nao encontrado.");
           }
           detectedRef.current = true;
           onOpenChange(false);
@@ -174,7 +180,7 @@ export function MobileCodeScannerSheet({
         }
       }
 
-      const hints = new Map();
+      const hints = new Map<DecodeHintType, unknown>();
       hints.set(DecodeHintType.POSSIBLE_FORMATS, formatHints[mode]);
       hints.set(DecodeHintType.TRY_HARDER, true);
       if (mode === "boleto") {
@@ -469,7 +475,7 @@ async function startNativeBoletoScanner({
 
 async function lockLandscapeBestEffort() {
   const orientation = screen.orientation as ScreenOrientation & {
-    lock?: (orientation: OrientationLockType) => Promise<void>;
+    lock?: (orientation: ScreenOrientationLock) => Promise<void>;
   };
   await orientation?.lock?.("landscape").catch(() => undefined);
 }

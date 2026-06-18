@@ -101,6 +101,7 @@
     "@types/react-webcam": "^3.0.0",
     "@types/three": "^0.181.0",
     "@zxing/browser": "^0.2.0",
+    "@zxing/library": "^0.22.0",
     "axios": "^1.13.2",
     "base64-js": "^1.5.1",
     "bcrypt": "^6.0.0",

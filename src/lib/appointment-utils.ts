@@ -48,7 +48,9 @@ export const parseAppointmentEventDetails = (notes?: string | null): Appointment
 };
 
 export const getAppointmentDisplayTitle = (
-  appointment: Pick<Appointment, "metadata" | "notes" | "patient_name" | "type" | "patient_id" | "start_time" | "end_time" | "location">
+  appointment: Pick<Appointment, "metadata" | "notes" | "patient_name" | "patient_id" | "start_time" | "end_time" | "location"> & {
+    type: Appointment["type"] | "teleconsulta";
+  },
 ) => {
   if (appointment.patient_name) return appointment.patient_name;
 
