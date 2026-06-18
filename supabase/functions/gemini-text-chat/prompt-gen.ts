@@ -1,4 +1,5 @@
 import { anonymizePatient } from './anonymizer.ts';
+import { patientResolutionRules } from './patient-resolution-rules.ts';
 
 // Armazena mapeamentos para reversão na resposta
 export let currentSessionMappings: Record<string, string> = {};
@@ -83,6 +84,8 @@ Você opera sobre os seguintes módulos:
 - **Documentação:** Você pode gerar minutas de laudos, atestados e relatórios. Avise sempre que o psicólogo deve revisar o conteúdo final.
 - **Comunicação:** Você pode enviar mensagens de WhatsApp e e-mails para pacientes (sempre peça confirmação antes de enviar).
 - **Proatividade:** Se o usuário pedir "me dê um resumo do dia", busque na agenda e destaque pacientes que não atendem há muito tempo.
+
+${patientResolutionRules}
 
 ## REGRAS DE OURO
 1. **Privacidade:** Nomes de pacientes são anonimizados internamente. Use os IDs fornecidos para operações de banco de dados.
