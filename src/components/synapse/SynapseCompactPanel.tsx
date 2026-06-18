@@ -30,9 +30,10 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { SynapseWidgetRenderer } from './SynapseWidgetRenderer';
+import { SynapseWidgetRenderer, parseSynapseWidgetFromContent } from './SynapseWidgetRenderer';
 import { SynapseAllActionsModal } from './SynapseAllActionsModal';
 import { supabase } from '@/integrations/supabase/client';
+import { SynapseOrbAvatar } from './SynapseOrbAvatar';
 
 const CONTEXT_LABELS: Record<string, { icon: React.ReactNode; label: string }> = {
     dashboard: { icon: <TrendingUp className="h-3.5 w-3.5" />, label: 'Dashboard' },
@@ -71,6 +72,7 @@ export const SynapseCompactPanel = () => {
 
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [isListening, setIsListening] = useState(false);
+    const [isInputFocused, setIsInputFocused] = useState(false);
     const [showAllActions, setShowAllActions] = useState(false);
     const [sessions, setSessions] = useState<any[]>([]);
     const [isLoadingSessions, setIsLoadingSessions] = useState(false);
@@ -256,11 +258,8 @@ export const SynapseCompactPanel = () => {
                 <div className="relative z-10 flex flex-col h-full max-h-[620px]">
                     <div className="flex items-center justify-between px-7 pt-7 pb-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-2xl bg-zinc-950 dark:bg-white shadow-xl flex items-center justify-center">
-                                <Sparkles className="h-4 w-4 text-white dark:text-zinc-950" />
-                            </div>
-                            <span className="text-[14px] font-black uppercase tracking-[0.3em] italic text-zinc-950 dark:text-white">
-                                Synapse
+                            <span className="text-[14px] font-black uppercase tracking-[0.24em] text-zinc-950 dark:text-white">
+                                Synapse AI
                             </span>
                         </div>
 
@@ -491,9 +490,7 @@ export const SynapseCompactPanel = () => {
                                             className={cn('flex gap-3', msg.role === 'user' ? 'justify-end' : 'justify-start')}
                                         >
                                             {msg.role === 'assistant' && (
-                                                <div className="shrink-0 w-8 h-8 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center mt-0.5 shadow-lg">
-                                                    <Sparkles className="h-4 w-4 text-white dark:text-zinc-950" />
-                                                </div>
+                                                <SynapseOrbAvatar className="mt-0.5 h-8 w-8" />
                                             )}
 
                                             <div className={cn(
@@ -517,56 +514,84 @@ export const SynapseCompactPanel = () => {
                                                         ? 'prose-invert'
                                                         : 'dark:prose-invert'
                                                 )}>
-                                                    <ReactMarkdown
-                                                        remarkPlugins={[remarkGfm as any]}
-                                                        components={{
-                                                            pre({ children, ...props }: any) {
-                                                                const childArray = React.Children.toArray(children);
-                                                                const isWidget = childArray.some((child: any) => {
-                                                                    return child?.props?.className?.includes('language-json') && String(child?.props?.children).includes('__actionType');
-                                                                });
-                                                                if (isWidget) {
-                                                                    return <div className="not-prose">{children}</div>;
-                                                                }
-                                                                return <pre {...props}>{children}</pre>;
-                                                            },
-                                                            code({ node, inline, className, children, ...props }: any) {
-                                                                const match = /language-(\w+)/.exec(className || '');
-                                                                if (!inline && match && match[1] === 'json' && String(children).includes('__actionType')) {
-                                                                    try {
-                                                                        const parsedData = JSON.parse(String(children));
-                                                                        return <SynapseWidgetRenderer widgetData={parsedData} />;
-                                                                    } catch (e) {
-                                                                        console.error("Widget render error:", e);
-                                                                    }
-                                                                }
-                                                                return <code className={className} {...props}>{children}</code>;
-                                                            }
-                                                        }}
-                                                    >
-                                                        {msg.content}
-                                                    </ReactMarkdown>
+                                                    {(() => {
+                                                        const parsedMessage = msg.role === "assistant"
+                                                            ? parseSynapseWidgetFromContent(msg.content)
+                                                            : { cleanContent: msg.content, widgetData: null };
+                                                        const cleanContent = parsedMessage.cleanContent || (parsedMessage.widgetData ? "" : msg.content);
+
+                                                        return (
+                                                            <>
+                                                                {cleanContent ? (
+                                                                    <ReactMarkdown
+                                                                        remarkPlugins={[remarkGfm as any]}
+                                                                        components={{
+                                                                            pre({ children, ...props }: any) {
+                                                                                const childArray = React.Children.toArray(children);
+                                                                                const isWidget = childArray.some((child: any) => {
+                                                                                    return child?.props?.className?.includes('language-json') && String(child?.props?.children).includes('__actionType');
+                                                                                });
+                                                                                if (isWidget) {
+                                                                                    return <div className="not-prose">{children}</div>;
+                                                                                }
+                                                                                return <pre {...props}>{children}</pre>;
+                                                                            },
+                                                                            code({ node, inline, className, children, ...props }: any) {
+                                                                                const match = /language-(\w+)/.exec(className || '');
+                                                                                if (!inline && match && match[1] === 'json' && String(children).includes('__actionType')) {
+                                                                                    try {
+                                                                                        const parsedData = JSON.parse(String(children));
+                                                                                        return <SynapseWidgetRenderer widgetData={parsedData} compact />;
+                                                                                    } catch (e) {
+                                                                                        console.error("Widget render error:", e);
+                                                                                    }
+                                                                                }
+                                                                                return <code className={className} {...props}>{children}</code>;
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {cleanContent}
+                                                                    </ReactMarkdown>
+                                                                ) : null}
+                                                                {parsedMessage.widgetData ? <SynapseWidgetRenderer widgetData={parsedMessage.widgetData} compact /> : null}
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         </motion.div>
                                     ))}
 
                                     {isSending && (
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-2xl bg-zinc-950 dark:bg-white flex items-center justify-center mt-0.5 shadow-lg">
-                                                <Sparkles className="h-4 w-4 text-white dark:text-zinc-950" />
-                                            </div>
-                                            <div className="flex items-center gap-1.5 px-5 py-3.5 rounded-[24px] rounded-bl-[8px] bg-zinc-950 dark:bg-white shadow-sm">
-                                                {[0, 0.15, 0.3].map((delay) => (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                                            transition={{ type: 'spring', stiffness: 430, damping: 32 }}
+                                            className="flex items-end gap-3"
+                                        >
+                                            <SynapseOrbAvatar className="mb-0.5 h-8 w-8" />
+                                            <motion.div
+                                                animate={{
+                                                    boxShadow: [
+                                                        '0 16px 42px -34px rgba(0,0,0,0.45)',
+                                                        '0 22px 58px -36px rgba(0,0,0,0.56)',
+                                                        '0 16px 42px -34px rgba(0,0,0,0.45)',
+                                                    ],
+                                                }}
+                                                transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
+                                                className="flex items-center gap-1.5 px-5 py-3.5 rounded-[24px] rounded-bl-[8px] border border-zinc-200/70 bg-white/82 shadow-sm backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.055]"
+                                            >
+                                                {[0, 0.16, 0.32].map((delay) => (
                                                     <motion.div
                                                         key={delay}
-                                                        animate={{ scale: [1, 1.4, 1], opacity: [0.4, 1, 0.4] }}
-                                                        transition={{ repeat: Infinity, duration: 0.8, delay }}
-                                                        className="w-1.5 h-1.5 rounded-full bg-white dark:bg-zinc-950"
+                                                        animate={{ y: [0, -3, 0], scale: [1, 1.18, 1], opacity: [0.35, 1, 0.35] }}
+                                                        transition={{ repeat: Infinity, duration: 0.9, delay, ease: 'easeInOut' }}
+                                                        className="w-1.5 h-1.5 rounded-full bg-zinc-950/60 dark:bg-white/70"
                                                     />
                                                 ))}
-                                            </div>
-                                        </div>
+                                            </motion.div>
+                                        </motion.div>
                                     )}
                                 </motion.div>
                             )}
@@ -574,43 +599,63 @@ export const SynapseCompactPanel = () => {
                     </div>
 
                     <div className="px-6 pb-6 pt-2">
-                        <div className={cn(
-                            'flex items-end gap-3 rounded-[24px]',
-                            'bg-white dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.07] shadow-sm',
-                            'px-5 py-3.5 transition-all duration-300'
-                        )}>
+                        <motion.div
+                            animate={{
+                                y: isInputFocused ? -2 : 0,
+                                scale: isInputFocused ? 1.008 : 1,
+                                boxShadow: isInputFocused
+                                    ? '0 24px 70px -42px rgba(0,0,0,0.45)'
+                                    : '0 16px 48px -44px rgba(0,0,0,0.35)',
+                            }}
+                            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                            className={cn(
+                                'flex items-end gap-3 rounded-[26px]',
+                                'bg-white/90 dark:bg-white/[0.06] border border-zinc-200/70 dark:border-white/[0.08]',
+                                'px-4 py-3 transition-colors duration-300 backdrop-blur-2xl'
+                            )}
+                        >
                             <textarea
                                 ref={inputRef}
                                 value={inputDraft}
                                 onChange={(e) => setInputDraft(e.target.value)}
+                                onFocus={() => setIsInputFocused(true)}
+                                onBlur={() => setIsInputFocused(false)}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Pergunte ao Synapse..."
                                 rows={1}
                                 disabled={!sessionReady || isSending}
-                                className="flex-1 bg-transparent text-[13px] text-zinc-900 dark:text-zinc-200 outline-none py-1 resize-none max-h-28"
+                                className="min-h-9 flex-1 resize-none bg-transparent py-2 text-[13px] font-medium text-zinc-900 outline-none placeholder:text-zinc-400 disabled:opacity-50 dark:text-zinc-100 dark:placeholder:text-white/35"
                             />
                             <div className="flex items-center gap-1.5 shrink-0 pb-0.5">
-                                <button
+                                <motion.button
                                     onClick={toggleListening}
+                                    whileTap={{ scale: 0.92 }}
                                     className={cn(
-                                        'w-9 h-9 rounded-2xl flex items-center justify-center transition-all duration-300',
-                                        isListening ? 'bg-amber-100 text-amber-600' : 'bg-black/[0.03] text-zinc-500'
+                                        'w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300',
+                                        isListening
+                                            ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950'
+                                            : 'bg-zinc-100 text-zinc-500 hover:text-zinc-900 dark:bg-white/[0.06] dark:text-white/48 dark:hover:text-white'
                                     )}
                                 >
                                     <Mic className="h-4 w-4" />
-                                </button>
-                                <button
+                                </motion.button>
+                                <motion.button
                                     onClick={handleSend}
                                     disabled={!inputDraft.trim() || isSending}
+                                    whileTap={{ scale: 0.92 }}
+                                    animate={{ rotate: inputDraft.trim() ? 0 : -4 }}
+                                    transition={{ type: 'spring', stiffness: 520, damping: 30 }}
                                     className={cn(
-                                        'w-9 h-9 rounded-2xl flex items-center justify-center transition-all duration-300',
-                                        inputDraft.trim() ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-md' : 'bg-black/5 text-zinc-400'
+                                        'w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 disabled:cursor-not-allowed',
+                                        inputDraft.trim()
+                                            ? 'bg-zinc-900 text-white shadow-md dark:bg-white dark:text-zinc-900'
+                                            : 'bg-zinc-100 text-zinc-400 dark:bg-white/[0.04] dark:text-white/32'
                                     )}
                                 >
                                     {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
-                                </button>
+                                </motion.button>
                             </div>
-                        </div>
+                        </motion.div>
                     </div>
                 </div>
             </motion.div>

@@ -144,8 +144,6 @@ export const NotesSidebar = ({
   return (
     <>
       <div className="relative flex h-full w-full flex-col overflow-hidden bg-transparent font-sans">
-        <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.025]" />
-
         <div className={cn(
           "relative z-10 flex shrink-0 items-center border-b border-white/[0.05]",
           isCollapsed ? "h-16 justify-center px-2" : "h-20 justify-between px-5",

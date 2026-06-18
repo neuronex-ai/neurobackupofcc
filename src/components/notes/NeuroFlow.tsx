@@ -269,7 +269,10 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
   }
 
   return (
-    <div className="h-full w-full bg-transparent relative overflow-hidden transition-colors duration-500" ref={reactFlowWrapper as any}>
+    <div
+      className="relative isolate h-full min-h-0 w-full min-w-0 overflow-hidden bg-transparent [contain:layout_paint_size] transition-colors duration-500"
+      ref={reactFlowWrapper as any}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

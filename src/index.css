@@ -307,6 +307,122 @@
     will-change: opacity;
   }
 
+  /* Notes retina surface: smooth local gradients, no remote grain assets. */
+  .notes-retina-canvas {
+    isolation: isolate;
+    color: hsl(var(--foreground));
+    background:
+      radial-gradient(110rem 58rem at 50% -18%, rgba(255, 255, 255, 0.92), transparent 62%),
+      radial-gradient(76rem 46rem at 8% 12%, rgba(228, 228, 231, 0.68), transparent 58%),
+      radial-gradient(70rem 42rem at 96% 4%, rgba(212, 212, 216, 0.54), transparent 58%),
+      linear-gradient(145deg, #f7f7f8 0%, #f2f2f4 48%, #ececef 100%);
+  }
+
+  .dark .notes-retina-canvas {
+    background:
+      radial-gradient(112rem 60rem at 50% -18%, rgba(255, 255, 255, 0.072), transparent 62%),
+      radial-gradient(76rem 46rem at 6% 10%, rgba(161, 161, 170, 0.052), transparent 58%),
+      radial-gradient(70rem 42rem at 96% 2%, rgba(255, 255, 255, 0.035), transparent 58%),
+      linear-gradient(145deg, #070708 0%, #050506 52%, #09090a 100%);
+  }
+
+  .notes-retina-ambient {
+    @apply absolute inset-0 pointer-events-none z-0;
+    background:
+      radial-gradient(92rem 44rem at 50% -14%, hsl(var(--foreground) / 0.075), transparent 64%),
+      radial-gradient(66rem 36rem at 0% 26%, hsl(var(--foreground) / 0.035), transparent 62%),
+      radial-gradient(60rem 34rem at 100% 6%, hsl(var(--foreground) / 0.03), transparent 60%);
+    transform: translateZ(0);
+  }
+
+  .dark .notes-retina-ambient {
+    background:
+      radial-gradient(92rem 44rem at 50% -14%, rgba(255, 255, 255, 0.09), transparent 64%),
+      radial-gradient(66rem 36rem at 0% 26%, rgba(255, 255, 255, 0.038), transparent 62%),
+      radial-gradient(60rem 34rem at 100% 6%, rgba(255, 255, 255, 0.03), transparent 60%);
+  }
+
+  .notes-retina-vignette {
+    @apply absolute inset-0 pointer-events-none z-0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 24%, rgba(0, 0, 0, 0.035)),
+      radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.055) 100%);
+  }
+
+  .dark .notes-retina-vignette {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 30%, rgba(0, 0, 0, 0.16)),
+      radial-gradient(ellipse at center, transparent 38%, rgba(0, 0, 0, 0.26) 100%);
+  }
+
+  .notes-retina-window {
+    border: 1px solid rgba(24, 24, 27, 0.078);
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow:
+      0 28px 74px -48px rgba(24, 24, 27, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(28px) saturate(1.14);
+    -webkit-backdrop-filter: blur(28px) saturate(1.14);
+  }
+
+  .dark .notes-retina-window {
+    border-color: rgba(255, 255, 255, 0.074);
+    background: rgba(9, 10, 12, 0.92);
+    box-shadow:
+      0 28px 82px -52px rgba(0, 0, 0, 0.92),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .notes-retina-rail {
+    border-color: rgba(24, 24, 27, 0.07);
+    background: rgba(255, 255, 255, 0.52);
+  }
+
+  .dark .notes-retina-rail {
+    border-color: rgba(255, 255, 255, 0.055);
+    background: rgba(13, 14, 16, 0.74);
+  }
+
+  .notes-retina-texture {
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.035), transparent 42%, rgba(24, 24, 27, 0.018)),
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.055), transparent 70%);
+    background-size: 100% 100%;
+    mix-blend-mode: soft-light;
+  }
+
+  .dark .notes-retina-texture {
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.028), transparent 44%, rgba(0, 0, 0, 0.12)),
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.05), transparent 72%);
+  }
+
+  .notes-focus-backdrop {
+    background:
+      radial-gradient(94rem 52rem at 50% -16%, rgba(255, 255, 255, 0.92), transparent 62%),
+      radial-gradient(76rem 46rem at 50% 108%, rgba(228, 228, 231, 0.44), transparent 66%),
+      linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
+  }
+
+  .dark .notes-focus-backdrop {
+    background:
+      radial-gradient(94rem 52rem at 50% -16%, rgba(255, 255, 255, 0.07), transparent 62%),
+      radial-gradient(76rem 46rem at 50% 108%, rgba(255, 255, 255, 0.035), transparent 66%),
+      linear-gradient(180deg, #050506 0%, #000 100%);
+  }
+
+  .notes-neuroview-backdrop {
+    background:
+      radial-gradient(ellipse at center, rgba(255, 255, 255, 0) 0%, rgba(24, 24, 27, 0.046) 100%),
+      linear-gradient(145deg, rgba(250, 250, 250, 0.72), rgba(244, 244, 245, 0.42));
+  }
+
+  .dark .notes-neuroview-backdrop {
+    background:
+      radial-gradient(ellipse at center, #1a1a1a 0%, #0d0d0d 42%, #000 100%);
+  }
+
   .anamnesis-scroll-surface {
     scroll-behavior: auto !important;
     overscroll-behavior: contain;
@@ -465,6 +581,15 @@
     .desktop-content-scroll {
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
+    }
+
+    .notes-retina-ambient,
+    .notes-retina-vignette,
+    .notes-retina-texture,
+    .notes-focus-backdrop,
+    .notes-neuroview-backdrop {
+      animation: none !important;
+      transition: none !important;
     }
   }
 }

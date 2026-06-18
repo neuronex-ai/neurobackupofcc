@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import { useReminders } from "@/hooks/use-reminders";
-import { CommandMenu } from "@/components/layout/CommandMenu";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
@@ -21,8 +20,6 @@ import { NeuroFlowVault } from "@/components/notes/NeuroFlowVault";
 import { NeuroPulse } from "@/components/notes/NeuroPulse";
 import { FilesManager } from "@/components/notes/FilesManager";
 import { NotionPagesPanel } from "@/components/notes/NotionPagesPanel";
-
-import { NeuroViewSearch } from "@/components/notes/NeuroViewSearch";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileNotes } from "@/mobile/pages/MobileNotes";
@@ -84,7 +81,6 @@ export default function Notes() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(initialLayout.sidebarCollapsed);
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
-    const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     const {
         notes,
@@ -128,18 +124,6 @@ export default function Notes() {
             listCollapsed: isListCollapsed,
         }));
     }, [isListCollapsed, isSidebarCollapsed]);
-
-    // Ctrl+Shift+K for NeuroView Search
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
-                e.preventDefault();
-                setIsSearchOpen(prev => !prev);
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
 
     const filteredNotes = useMemo(() => {
         if (!notes) return [];
@@ -201,8 +185,8 @@ export default function Notes() {
                     />
                 </motion.div>
             );
-            case 'neuroview': return <motion.div {...motionProps} className="flex-1 h-full min-w-0 overflow-hidden"><NeuroView /></motion.div>;
-            case 'neuroflow': return <motion.div {...motionProps} className="flex-1 h-full">{selectedFlowId ? <NeuroFlow flowId={selectedFlowId} onBack={() => setSelectedFlowId(null)} /> : <NeuroFlowVault onOpenFlow={setSelectedFlowId} />}</motion.div>;
+            case 'neuroview': return <motion.div {...motionProps} className="relative isolate flex-1 h-full min-h-0 min-w-0 overflow-hidden [contain:layout_paint]"><NeuroView /></motion.div>;
+            case 'neuroflow': return <motion.div {...motionProps} className="relative isolate flex-1 h-full min-h-0 min-w-0 overflow-hidden [contain:layout_paint]">{selectedFlowId ? <NeuroFlow flowId={selectedFlowId} onBack={() => setSelectedFlowId(null)} /> : <NeuroFlowVault onOpenFlow={setSelectedFlowId} />}</motion.div>;
             case 'neuropulse': return <motion.div {...motionProps} className="flex-1 h-full"><NeuroPulse /></motion.div>;
             default:
                 return (
@@ -212,7 +196,7 @@ export default function Notes() {
                                 initial={false}
                                 animate={{ width: isListCollapsed ? 52 : 330 }}
                                 transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
-                            className="relative flex shrink-0 flex-col overflow-hidden border-r border-white/[0.055] bg-[#0d0e10]/72 [.light_&]:border-zinc-200/65 [.light_&]:bg-white/48"
+                                className="notes-retina-rail relative flex shrink-0 flex-col overflow-hidden border-r"
                             >
                                 <div className={cn("h-full relative z-10", isListCollapsed ? "w-[52px]" : "w-[330px]")}>
                                     <NotesListPanel
@@ -251,7 +235,7 @@ export default function Notes() {
                                         <div className="relative group/gate">
                                             <div className="absolute inset-0 scale-150 rounded-full bg-white/5 blur-[120px] opacity-0 transition-opacity duration-1000 group-hover/gate:opacity-100 [.light_&]:bg-zinc-900/5" />
                                             <div className="relative z-10 flex h-40 w-40 items-center justify-center overflow-hidden rounded-[64px] border border-white/[0.05] bg-black/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.22)] backdrop-blur-3xl group/icon [.light_&]:border-zinc-200/50 [.light_&]:bg-white/40 [.light_&]:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
-                                                <div className="absolute inset-0 premium-noise opacity-[0.06] pointer-events-none [.light_&]:opacity-[0.03]" />
+                                                <div className="absolute inset-0 notes-retina-texture opacity-[0.4] pointer-events-none [.light_&]:opacity-[0.26]" />
                                                 <img src="/favicon-dark.png" alt="NeuroNex" className="h-16 w-16 dark:hidden transition-all duration-1000 group-hover/gate:scale-110" />
                                                 <img src="/favicon-light.png" alt="NeuroNex" className="h-16 w-16 hidden dark:block transition-all duration-1000 group-hover/gate:scale-110" />
                                             </div>
@@ -263,7 +247,7 @@ export default function Notes() {
                                         <Button onClick={handleCreateNote} className="h-16 rounded-[24px] bg-zinc-100 px-12 text-[11px] font-black uppercase tracking-[0.3em] text-black shadow-[0_30px_60px_-15px_rgba(255,255,255,0.05)] transition-all hover:opacity-90 active:scale-95 group/btn [.light_&]:bg-zinc-900 [.light_&]:text-white [.light_&]:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)]">
                                             <Plus className="h-4 w-4 mr-3 stroke-[3]" />
                                             Nova Nota
-                                        </Button>
+                        </Button>
                                     </div>
                                 )}
                             </AnimatePresence>
@@ -274,68 +258,58 @@ export default function Notes() {
     };
 
     return (
-        <div className="neuronex-bg relative flex h-screen w-screen flex-col overflow-hidden bg-[#f4f4f5] font-sans text-foreground selection:bg-white/10 dark:bg-[#050506] [.light_&]:selection:bg-zinc-900/10">
-            {/* Master Texture Overlay */}
-            <div className="fixed inset-0 z-[100] premium-noise opacity-[0.035] pointer-events-none mix-blend-overlay [.light_&]:opacity-[0.02]" />
+        <div className="notes-retina-canvas relative flex h-screen w-screen flex-col overflow-hidden font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
+            {/* Master Surface Overlay */}
+            <div className="pointer-events-none absolute inset-0 z-0 notes-retina-texture opacity-[0.28] [.light_&]:opacity-[0.2]" />
 
             {/* Ambient Background Glows */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="liquid-mesh-bg !opacity-35 dark:!opacity-55" />
-                <div className="brand-neutral-gradient opacity-65" />
+                <div className="notes-retina-ambient" />
+                <div className="notes-retina-vignette" />
             </div>
 
-            <div className="relative z-40 w-full shrink-0">
-                <CommandMenu />
+            <div className="relative isolate z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 items-stretch px-5 pb-5 pt-28 [contain:layout_paint]">
+                {/* Master Clipping Stage - O "quadrado" solicitado para acoplar os canvas */}
+                <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[30px] [clip-path:inset(0_round_30px)] [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                        className="notes-retina-window group/main-window pointer-events-auto relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden [contain:layout_paint] [mask-image:linear-gradient(#fff,#fff)]"
+                    >
+                        <div className="pointer-events-none absolute inset-0 notes-retina-texture opacity-[0.18] [.light_&]:opacity-[0.12]" />
+                        {!isFocusMode && (
+                            <motion.div
+                                initial={false}
+                                animate={{ width: isSidebarCollapsed ? 66 : 226 }}
+                                transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
+                                className="notes-retina-rail relative hidden shrink-0 overflow-hidden border-r lg:flex"
+                            >
+                                <div className={cn("h-full relative z-10", isSidebarCollapsed ? "w-[66px]" : "w-[226px]")}>
+                                    <NotesSidebar
+                                        viewMode={viewMode}
+                                        setViewMode={setViewMode}
+                                        selectedModuleId={selectedModuleId}
+                                        onSelectModule={setSelectedModuleId}
+                                        onMoveNoteToModule={(id, modId) => updateNote({ id, updates: { module_id: modId } })}
+                                        onCreateNote={handleCreateNote}
+                                        isCollapsed={isSidebarCollapsed}
+                                        onToggleCollapsed={() => setIsSidebarCollapsed((current) => !current)}
+                                        isCreatingNote={isCreatingNote}
+                                    />
+                                </div>
+                            </motion.div>
+                        )}
+
+                        <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
+                            <AnimatePresence mode="wait">
+                                {renderMainContent()}
+                            </AnimatePresence>
+                        </div>
+                    </motion.div>
+                </div>
             </div>
 
-            <div className="relative z-10 mx-auto flex h-full w-full max-w-[2200px] flex-1 items-stretch overflow-hidden px-5 pb-5 pt-28">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                    className="group/main-window relative flex flex-1 overflow-hidden rounded-[30px] border border-white/[0.07] bg-[#090a0c]/92 shadow-[0_24px_64px_-42px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.035)] backdrop-blur-2xl [.light_&]:border-zinc-200/80 [.light_&]:bg-white/76 [.light_&]:shadow-[0_24px_64px_-42px_rgba(24,24,27,0.2),inset_0_1px_0_rgba(255,255,255,0.94)]"
-                >
-                    <div className="pointer-events-none absolute inset-0 premium-noise opacity-[0.016] [.light_&]:opacity-[0.01]" />
-                    {!isFocusMode && (
-                        <motion.div
-                            initial={false}
-                            animate={{ width: isSidebarCollapsed ? 66 : 226 }}
-                            transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
-                            className="relative hidden shrink-0 overflow-hidden border-r border-white/[0.055] bg-[#0d0e10]/74 lg:flex [.light_&]:border-zinc-200/65 [.light_&]:bg-white/52"
-                        >
-                            <div className={cn("h-full relative z-10", isSidebarCollapsed ? "w-[66px]" : "w-[226px]")}>
-                                <NotesSidebar
-                                    viewMode={viewMode}
-                                    setViewMode={setViewMode}
-                                    selectedModuleId={selectedModuleId}
-                                    onSelectModule={setSelectedModuleId}
-                                    onMoveNoteToModule={(id, modId) => updateNote({ id, updates: { module_id: modId } })}
-                                    onCreateNote={handleCreateNote}
-                                    isCollapsed={isSidebarCollapsed}
-                                    onToggleCollapsed={() => setIsSidebarCollapsed((current) => !current)}
-                                    isCreatingNote={isCreatingNote}
-                                />
-                            </div>
-                        </motion.div>
-                    )}
-
-                    <div className="flex-1 flex overflow-hidden relative bg-transparent">
-                        <AnimatePresence mode="wait">
-                            {renderMainContent()}
-                        </AnimatePresence>
-                    </div>
-                </motion.div>
-            </div>
-
-            {/* NeuroView Search (Ctrl+K) */}
-            <NeuroViewSearch
-                isOpen={isSearchOpen}
-                onClose={() => setIsSearchOpen(false)}
-                onSelectNote={(noteId) => {
-                    setSelectedNoteId(noteId);
-                    setViewMode('notes');
-                }}
-            />
             <style>{`
                 .notes-scroll-surface {
                     scroll-behavior: auto !important;

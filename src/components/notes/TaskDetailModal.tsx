@@ -90,7 +90,7 @@ export const TaskDetailModal = ({
         >
             <div className="relative p-10 md:p-14 max-h-[85vh] overflow-y-auto custom-scrollbar">
                 {/* Background texture */}
-                <div className="absolute inset-0 premium-noise opacity-[0.03] pointer-events-none" />
+                <div className="absolute inset-0 notes-retina-texture opacity-[0.18] pointer-events-none" />
                 <div className="absolute inset-0 bg-gradient-to-b from-zinc-50/50 dark:from-white/[0.01] via-transparent to-zinc-50/30 dark:to-white/[0.01] pointer-events-none" />
 
                 <AnimatePresence mode="wait">
@@ -131,7 +131,7 @@ export const TaskDetailModal = ({
 
                             {/* Task Title Card */}
                             <div className="p-8 bg-zinc-50/80 dark:bg-white/[0.02] border border-zinc-200/60 dark:border-white/[0.06] rounded-[36px] group transition-all duration-700 hover:bg-white dark:hover:bg-white/[0.04] hover:border-zinc-300 dark:hover:border-white/10 shadow-sm hover:shadow-lg relative overflow-hidden">
-                                <div className="absolute inset-0 premium-noise opacity-[0.02] pointer-events-none" />
+                                <div className="absolute inset-0 notes-retina-texture opacity-[0.14] pointer-events-none" />
                                 <div className="flex items-center gap-6 relative z-10">
                                     <button
                                         onClick={handleToggle}
@@ -171,7 +171,7 @@ export const TaskDetailModal = ({
                             {/* Date & Category */}
                             <div className="grid grid-cols-2 gap-5">
                                 <div className="p-7 border border-zinc-200/60 dark:border-white/[0.06] bg-zinc-50/60 dark:bg-white/[0.015] rounded-[32px] space-y-5 shadow-sm hover:shadow-md transition-all duration-700 relative overflow-hidden group">
-                                    <div className="absolute inset-0 premium-noise opacity-[0.02] pointer-events-none" />
+                                    <div className="absolute inset-0 notes-retina-texture opacity-[0.14] pointer-events-none" />
                                     <span className={labelStyle}>Prazo</span>
                                     {isEditing ? (
                                         <Popover>
@@ -204,7 +204,7 @@ export const TaskDetailModal = ({
                                 </div>
 
                                 <div className="p-7 border border-zinc-200/60 dark:border-white/[0.06] bg-zinc-50/60 dark:bg-white/[0.015] rounded-[32px] space-y-5 shadow-sm hover:shadow-md transition-all duration-700 relative overflow-hidden group">
-                                    <div className="absolute inset-0 premium-noise opacity-[0.02] pointer-events-none" />
+                                    <div className="absolute inset-0 notes-retina-texture opacity-[0.14] pointer-events-none" />
                                     <span className={labelStyle}>Contexto</span>
                                     {isEditing ? (
                                         <Select value={editedCategory} onValueChange={setEditedCategory}>

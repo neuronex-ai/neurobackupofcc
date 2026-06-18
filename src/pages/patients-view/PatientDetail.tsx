@@ -169,10 +169,9 @@ export default function PatientDetail() {
     ];
 
     return (
-        <div className="relative min-h-screen w-full bg-[#f4f4f5] pb-28 pt-5 font-sans text-foreground selection:bg-zinc-900/10 selection:text-zinc-900 dark:bg-[#0a0a0c] dark:selection:bg-white/10 dark:selection:text-white">
+        <div className="relative min-h-screen w-full bg-white pb-28 pt-5 font-sans text-foreground selection:bg-zinc-900/10 selection:text-zinc-900 dark:bg-[#050506] dark:selection:bg-white/10 dark:selection:text-white">
             <div className="relative z-10 mx-auto w-full max-w-[2200px] px-5">
-                <section className="relative isolate overflow-visible rounded-[34px] border border-zinc-200/72 bg-white/74 shadow-[0_24px_70px_-48px_rgba(24,24,27,0.24),inset_0_1px_0_rgba(255,255,255,0.92)] dark:border-white/[0.095] dark:bg-[#09090b] dark:shadow-[0_28px_80px_-58px_rgba(0,0,0,0.98),inset_0_1px_0_rgba(255,255,255,0.028)]">
-                    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[30px] premium-noise opacity-[0.01] dark:opacity-[0.014]" />
+                <section className="relative isolate overflow-visible rounded-[34px] border border-zinc-200/72 bg-zinc-50/88 shadow-[0_24px_70px_-48px_rgba(24,24,27,0.24),inset_0_1px_0_rgba(255,255,255,0.92)] dark:border-white/[0.095] dark:bg-[#09090b] dark:shadow-[0_28px_80px_-58px_rgba(0,0,0,0.98),inset_0_1px_0_rgba(255,255,255,0.028)]">
 
             {/* ─── Header Top Bar ─── */}
             <motion.div

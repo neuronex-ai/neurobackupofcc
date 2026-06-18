@@ -502,12 +502,15 @@ export const NeuroView = () => {
     }, [hoverNode, isDarkMode, config.performanceMode]);
 
     return (
-        <div ref={containerRef} className="group/canvas relative h-full w-full overflow-hidden bg-[#020204] [.light_&]:bg-[#F5F5F7]">
+        <div
+            ref={containerRef}
+            className="group/canvas relative isolate h-full min-h-0 w-full min-w-0 overflow-hidden bg-transparent [contain:layout_paint_size] [.light_&]:bg-transparent"
+        >
 
             {/* Cinematic Background */}
             <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#1a1a1a_0%,#0d0d0d_40%,#000000_100%)] [.light_&]:bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0)_0%,rgba(0,0,0,0.05)_100%)]" />
-                <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+                <div className="absolute inset-0 notes-neuroview-backdrop" />
+                <div className="absolute inset-0 notes-retina-texture opacity-[0.2] dark:opacity-[0.28]" />
             </div>
 
             <NeuroViewControls
@@ -543,44 +546,46 @@ export const NeuroView = () => {
                 </div>
             )}
 
-            <ForceGraph2D
-                ref={graphRef}
-                graphData={graphData}
-                width={Math.max(1, graphSize.width)}
-                height={Math.max(1, graphSize.height)}
-                nodeLabel={() => ""}
-                nodeColor={() => "transparent"}
-                nodeCanvasObject={handleNodeCanvasObject}
-                nodeRelSize={4}
-                linkColor={() => "transparent"}
-                linkCanvasObject={handleLinkCanvasObject}
-                linkDirectionalParticles={hoverNode ? 2 : 0}
-                linkDirectionalParticleWidth={1}
-                linkDirectionalParticleSpeed={0.003}
-                linkDirectionalParticleColor={() => "rgba(255, 255, 255, 0.48)"}
-                backgroundColor="transparent"
-                onNodeClick={(node) => handleNodeClick(node as GraphNode)}
-                onNodeHover={(node) => setHoverNode((node as GraphNode) || null)}
-                onNodeDrag={(node) => {
-                    const graphNode = node as GraphNode;
-                    graphNode.dragPulse = 1;
-                    graphNode.currentGlow = Math.max(graphNode.currentGlow || 0, graphNode.type === "patient" ? 34 : 24);
-                    setHoverNode(graphNode);
-                }}
-                onNodeDragEnd={(node) => {
-                    const graphNode = node as GraphNode;
-                    graphNode.dragPulse = 0.65;
-                    (graphNode as any).vx = ((graphNode as any).vx || 0) * 0.16;
-                    (graphNode as any).vy = ((graphNode as any).vy || 0) * 0.16;
-                    setHoverNode(null);
-                }}
-                autoPauseRedraw={false}
-                d3AlphaDecay={0.016}
-                d3VelocityDecay={0.39}
-                cooldownTicks={260}
-                warmupTicks={110}
-                onEngineStop={() => graphRef.current?.zoomToFit(600, 80)}
-            />
+            <div className="absolute inset-0 z-10 overflow-hidden">
+                <ForceGraph2D
+                    ref={graphRef}
+                    graphData={graphData}
+                    width={Math.max(1, graphSize.width)}
+                    height={Math.max(1, graphSize.height)}
+                    nodeLabel={() => ""}
+                    nodeColor={() => "transparent"}
+                    nodeCanvasObject={handleNodeCanvasObject}
+                    nodeRelSize={4}
+                    linkColor={() => "transparent"}
+                    linkCanvasObject={handleLinkCanvasObject}
+                    linkDirectionalParticles={hoverNode ? 2 : 0}
+                    linkDirectionalParticleWidth={1}
+                    linkDirectionalParticleSpeed={0.003}
+                    linkDirectionalParticleColor={() => "rgba(255, 255, 255, 0.48)"}
+                    backgroundColor="transparent"
+                    onNodeClick={(node) => handleNodeClick(node as GraphNode)}
+                    onNodeHover={(node) => setHoverNode((node as GraphNode) || null)}
+                    onNodeDrag={(node) => {
+                        const graphNode = node as GraphNode;
+                        graphNode.dragPulse = 1;
+                        graphNode.currentGlow = Math.max(graphNode.currentGlow || 0, graphNode.type === "patient" ? 34 : 24);
+                        setHoverNode(graphNode);
+                    }}
+                    onNodeDragEnd={(node) => {
+                        const graphNode = node as GraphNode;
+                        graphNode.dragPulse = 0.65;
+                        (graphNode as any).vx = ((graphNode as any).vx || 0) * 0.16;
+                        (graphNode as any).vy = ((graphNode as any).vy || 0) * 0.16;
+                        setHoverNode(null);
+                    }}
+                    autoPauseRedraw={false}
+                    d3AlphaDecay={0.016}
+                    d3VelocityDecay={0.39}
+                    cooldownTicks={260}
+                    warmupTicks={110}
+                    onEngineStop={() => graphRef.current?.zoomToFit(600, 80)}
+                />
+            </div>
 
             <GraphDetailsPanel
                 selectedNote={selectedNote}
