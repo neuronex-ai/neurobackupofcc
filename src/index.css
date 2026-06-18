@@ -105,6 +105,19 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  select {
+    color-scheme: dark;
+  }
+
+  select option {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
+
+  .light select {
+    color-scheme: light;
+  }
+
   /* Apple-style typography refinement */
   h1,
   h2,
