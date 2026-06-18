@@ -14,6 +14,8 @@ interface DesktopClinicalSessionProps {
   onSessionEnd: () => void;
 }
 
+const DESKTOP_SESSION_TOP_OFFSET = 'top-[104px]';
+
 export const DesktopClinicalSession = ({
   activeAppointment,
   patientName,
@@ -23,7 +25,7 @@ export const DesktopClinicalSession = ({
 
   if (session.showLobby) {
     return (
-      <div className="fixed inset-0 z-[100] overflow-hidden bg-background">
+      <div className={cn('fixed inset-x-0 bottom-0 z-[100] overflow-hidden bg-background', DESKTOP_SESSION_TOP_OFFSET)}>
         <DesktopTeleconsultationLobby
           patientName={patientName}
           patient={session.patient}
@@ -41,7 +43,7 @@ export const DesktopClinicalSession = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-[100] overflow-hidden bg-background">
+      <div className={cn('fixed inset-x-0 bottom-0 z-[100] overflow-hidden bg-background', DESKTOP_SESSION_TOP_OFFSET)}>
         <div
           className={cn(
             'grid h-full min-h-0 gap-4 p-4 xl:p-5',

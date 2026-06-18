@@ -117,10 +117,11 @@ const SIDEBAR_COLLAPSED_WIDTH = 88;
 const SIDEBAR_EXPANDED_WIDTH = 318;
 const SIDEBAR_EASE = [0.22, 1, 0.36, 1] as const;
 const SIDEBAR_ENTER_DELAY = 45;
-const SIDEBAR_LEAVE_DELAY = 90;
+const SIDEBAR_LEAVE_DELAY = 180;
 const SIDEBAR_DETAILS_REVEAL_DELAY = 70;
-const SIDEBAR_WIDTH_COLLAPSE_DELAY = 135;
-const SIDEBAR_WIDTH_TRANSITION = { type: "spring", stiffness: 360, damping: 40, mass: 0.7 } as const;
+const SIDEBAR_DETAILS_RECOVER_DELAY = 20;
+const SIDEBAR_WIDTH_COLLAPSE_DELAY = 160;
+const SIDEBAR_WIDTH_TRANSITION = { type: "spring", stiffness: 330, damping: 38, mass: 0.76 } as const;
 
 const getInitialFinanceView = (pathname: string, search: string): FinanceView => {
     const searchParams = new URLSearchParams(search);
@@ -202,14 +203,17 @@ const DesktopFinanceiro = () => {
         sidebarIntentTimer.current = setTimeout(() => {
             if (expanded) {
                 setIsSidebarExpanded(true);
-                sidebarDetailsTimer.current = setTimeout(() => setShowSidebarDetails(true), SIDEBAR_DETAILS_REVEAL_DELAY);
+                sidebarDetailsTimer.current = setTimeout(
+                    () => setShowSidebarDetails(true),
+                    isSidebarExpanded ? SIDEBAR_DETAILS_RECOVER_DELAY : SIDEBAR_DETAILS_REVEAL_DELAY,
+                );
                 return;
             }
 
             setShowSidebarDetails(false);
             sidebarWidthTimer.current = setTimeout(() => setIsSidebarExpanded(false), SIDEBAR_WIDTH_COLLAPSE_DELAY);
         }, expanded ? SIDEBAR_ENTER_DELAY : SIDEBAR_LEAVE_DELAY);
-    }, [clearSidebarTimers, shouldReduceSidebarMotion]);
+    }, [clearSidebarTimers, isSidebarExpanded, shouldReduceSidebarMotion]);
 
     const handleGroupClick = (group: NavItem) => {
         if (!showSidebarDetails) {
