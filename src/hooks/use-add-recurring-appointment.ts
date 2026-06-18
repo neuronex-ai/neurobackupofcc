@@ -120,6 +120,7 @@ const addRecurringAppointments = async (values: NewRecurringAppointmentFormValue
           modality: firstAppointment.type,
           durationMinutes: parseInt(values.duration, 10),
           syncStatus: 'pending',
+          financial: undefined,
         }),
         patient_name: patientData.name,
         patient_initials: patientData.name.substring(0, 2).toUpperCase(),
@@ -147,12 +148,19 @@ const addRecurringAppointments = async (values: NewRecurringAppointmentFormValue
     notes: apt.notes || null,
     location: apt.location || null,
     status: 'unscored',
-    metadata: buildSessionMetadata({
+    metadata: {
+      ...buildSessionMetadata({
       modality: apt.type,
       durationMinutes: parseInt(values.duration, 10),
       origin: 'neuronex',
       syncStatus: apt === appointmentsToCreate[0] && googleEventId ? 'synced' : 'pending',
-    }),
+      }),
+      recurrence: {
+        enabled: true,
+        frequency: values.repetition,
+        count: appointmentsToCreate.length,
+      },
+    },
     // Apenas o primeiro evento terá o ID do Google, os demais serão locais
     google_event_id: apt === appointmentsToCreate[0] ? googleEventId : null,
     google_meet_link: apt === appointmentsToCreate[0] ? googleMeetLink : null,

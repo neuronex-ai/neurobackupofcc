@@ -19,6 +19,11 @@ export interface AppointmentMetadata {
     transactionMethod?: string | null;
     installments?: number | null;
   };
+  recurrence?: {
+    enabled?: boolean;
+    frequency?: "weekly" | "biweekly" | "monthly" | string;
+    count?: number;
+  };
   eventTitle?: string;
   eventCategory?: string;
   eventCategoryLabel?: string;

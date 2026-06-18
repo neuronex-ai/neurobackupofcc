@@ -255,7 +255,7 @@ const WhatsAppAgent = () => {
     const webhookUrl = `https://[SEU-PROJETO].supabase.co/functions/v1/whatsapp-agent?professionalId=${currentSettings?.user_id || 'ID-PROFISSIONAL'}`;
 
     // Group messages by date
-    const groupedMessages = messages?.reduce((groups, msg) => {
+    const groupedMessages: Record<string, WAMessage[]> = (messages || []).reduce((groups, msg) => {
         const date = format(new Date(msg.created_at), 'yyyy-MM-dd');
         if (!groups[date]) groups[date] = [];
         groups[date].push(msg);

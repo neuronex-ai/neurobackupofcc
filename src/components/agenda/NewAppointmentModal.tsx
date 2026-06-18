@@ -25,7 +25,7 @@ import {
   Link2,
   StickyNote,
 } from "lucide-react";
-import { format, startOfDay } from "date-fns";
+import { addMonths, addWeeks, differenceInMinutes, format, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { cn } from "@/lib/utils";
@@ -100,6 +100,7 @@ const formSchema = z
 
     // Recorrência
     recurrence: z.boolean().default(false),
+    recurrenceFrequency: z.enum(["weekly", "biweekly", "monthly"]).default("weekly"),
     recurrenceCount: z.coerce.number().min(1).max(20).optional(),
   })
   .refine(
@@ -152,11 +153,26 @@ const EVENT_CATEGORIES = [
   { value: "outro", label: "Outro" },
 ];
 
+const RECURRENCE_OPTIONS = [
+  { value: "weekly", label: "Semanal" },
+  { value: "biweekly", label: "Quinzenal" },
+  { value: "monthly", label: "Mensal" },
+] as const;
+
+const getRecurrenceLabel = (value?: string | null) =>
+  RECURRENCE_OPTIONS.find((item) => item.value === value)?.label || "Semanal";
+
 const addMinutesToTime = (time: string, minutesToAdd: number) => {
   const [hours = 0, minutes = 0] = time.split(":").map(Number);
   const date = new Date();
   date.setHours(hours, minutes + minutesToAdd, 0, 0);
   return format(date, "HH:mm");
+};
+
+const addRecurrenceInterval = (date: Date, index: number, frequency: FormValues["recurrenceFrequency"]) => {
+  if (frequency === "biweekly") return addWeeks(date, index * 2);
+  if (frequency === "monthly") return addMonths(date, index);
+  return addWeeks(date, index);
 };
 
 // ─── Props ────────────────────────────────────────────────────────────
@@ -250,7 +266,7 @@ export function NewAppointmentModal({
       notes: "",
       eventTitle: "",
       eventCategory: "",
-      endTime: "",
+      endTime: addMinutesToTime(selectedTime || "09:00", 50),
       eventLocation: "",
       shouldCreateTransaction: true,
       transactionAmount: 0,
@@ -258,6 +274,7 @@ export function NewAppointmentModal({
       installments: 1,
       usePackage: false,
       recurrence: false,
+      recurrenceFrequency: "weekly",
       recurrenceCount: 4,
     },
   });
@@ -268,7 +285,9 @@ export function NewAppointmentModal({
   }, [effectiveDate, form]);
 
   useEffect(() => {
-    if (selectedTime) form.setValue("startTime", selectedTime);
+    if (!selectedTime) return;
+    form.setValue("startTime", selectedTime);
+    form.setValue("endTime", addMinutesToTime(selectedTime, form.getValues("duration") || 50));
   }, [selectedTime, form]);
 
   const eventType = form.watch("eventType");
@@ -277,12 +296,12 @@ export function NewAppointmentModal({
   const usePackageSwitch = form.watch("usePackage");
   const shouldCreateTransaction = form.watch("shouldCreateTransaction");
   const startTime = form.watch("startTime");
+  const duration = form.watch("duration");
 
   useEffect(() => {
-    if (eventType === "event" && !form.getValues("endTime")) {
-      form.setValue("endTime", addMinutesToTime(startTime, 60));
-    }
-  }, [eventType, form, startTime]);
+    if (!startTime || !duration) return;
+    form.setValue("endTime", addMinutesToTime(startTime, duration));
+  }, [duration, form, startTime]);
 
   // Reset step quando muda de tipo
   useEffect(() => {
@@ -351,7 +370,7 @@ export function NewAppointmentModal({
 
     let endDateTime: Date;
 
-    if (values.eventType === "event" && values.endTime) {
+    if (values.endTime) {
       endDateTime = new Date(values.date);
       const [eh, em] = values.endTime.split(":").map(Number);
       endDateTime.setHours(eh, em, 0, 0);
@@ -367,6 +386,14 @@ export function NewAppointmentModal({
     let locStr: string | null = null;
 
     const durationMinutes = Math.round((endDateTime.getTime() - startDateTime.getTime()) / 60000);
+    const recurrenceCount = values.recurrence ? values.recurrenceCount || 1 : 1;
+    const recurrenceMetadata = values.recurrence
+      ? {
+          enabled: true,
+          frequency: values.recurrenceFrequency,
+          count: recurrenceCount,
+        }
+      : { enabled: false };
     const metadata = values.eventType === "event"
       ? buildEventMetadata({
           title: values.eventTitle || "Compromisso",
@@ -392,6 +419,7 @@ export function NewAppointmentModal({
             installments: values.installments || 1,
           },
         });
+    metadata.recurrence = recurrenceMetadata;
 
     if (values.eventType === "event") {
       notesStr = buildEventNotesFromMetadata(metadata);
@@ -411,13 +439,11 @@ export function NewAppointmentModal({
       metadata,
     };
 
-    const recurrenceCount = values.recurrence ? values.recurrenceCount || 1 : 1;
     let createdPrimaryAppointment: any = null;
 
     try {
       if (values.eventType === "session" && recurrenceCount > 1) {
-        const recurrenceEndDate = new Date(startDateTime);
-        recurrenceEndDate.setDate(recurrenceEndDate.getDate() + 7 * (recurrenceCount - 1));
+        const recurrenceEndDate = addRecurrenceInterval(startDateTime, recurrenceCount - 1, values.recurrenceFrequency);
 
         const createdAppointments = await createRecurringAppointments({
           patient_id: values.patientId!,
@@ -427,7 +453,7 @@ export function NewAppointmentModal({
           type: values.modality,
           notes: notesStr,
           location: locStr || "",
-          repetition: "weekly",
+          repetition: values.recurrenceFrequency,
           endDate: recurrenceEndDate,
         });
 
@@ -436,11 +462,8 @@ export function NewAppointmentModal({
         const createdAppointments = [];
 
         for (let index = 0; index < recurrenceCount; index += 1) {
-          const occurrenceStart = new Date(startDateTime);
-          occurrenceStart.setDate(occurrenceStart.getDate() + 7 * index);
-
-          const occurrenceEnd = new Date(endDateTime);
-          occurrenceEnd.setDate(occurrenceEnd.getDate() + 7 * index);
+          const occurrenceStart = addRecurrenceInterval(startDateTime, index, values.recurrenceFrequency);
+          const occurrenceEnd = addRecurrenceInterval(endDateTime, index, values.recurrenceFrequency);
 
           const result = await createAppointment({
             ...appointmentPayload,
@@ -561,7 +584,7 @@ export function NewAppointmentModal({
               )}
             />
 
-            {renderDateTimeRow()}
+            {renderDateTimeRow(true)}
             {renderRecurrenceToggle()}
           </div>
         )}
@@ -722,7 +745,15 @@ export function NewAppointmentModal({
               <FormLabel className={labelBase}>{showEndTime ? "Início" : "Horário"}</FormLabel>
               <FormControl>
                 <div className="relative group">
-                  <Input type="time" {...field} className={cn(inputBase, "px-4 text-center text-lg font-bold")} />
+                  <Input
+                    type="time"
+                    {...field}
+                    onChange={(event) => {
+                      field.onChange(event);
+                      form.setValue("endTime", addMinutesToTime(event.target.value, form.getValues("duration") || 50));
+                    }}
+                    className={cn(inputBase, "px-4 text-center text-lg font-bold")}
+                  />
                   <Clock className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/20 pointer-events-none" />
                 </div>
               </FormControl>
@@ -740,7 +771,25 @@ export function NewAppointmentModal({
                 <FormLabel className={labelBase}>Fim</FormLabel>
                 <FormControl>
                   <div className="relative group">
-                    <Input type="time" {...field} className={cn(inputBase, "px-4 text-center text-lg font-bold")} />
+                    <Input
+                      type="time"
+                      {...field}
+                      onChange={(event) => {
+                        field.onChange(event);
+                        const start = form.getValues("startTime");
+                        if (!start || !event.target.value) return;
+                        const date = form.getValues("date") || new Date();
+                        const startDate = new Date(date);
+                        const [startHours, startMinutes] = start.split(":").map(Number);
+                        startDate.setHours(startHours, startMinutes, 0, 0);
+                        const endDate = new Date(date);
+                        const [endHours, endMinutes] = event.target.value.split(":").map(Number);
+                        endDate.setHours(endHours, endMinutes, 0, 0);
+                        if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
+                        form.setValue("duration", Math.max(15, differenceInMinutes(endDate, startDate)));
+                      }}
+                      className={cn(inputBase, "px-4 text-center text-lg font-bold")}
+                    />
                     <Clock className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/20 pointer-events-none" />
                   </div>
                 </FormControl>
@@ -765,9 +814,9 @@ export function NewAppointmentModal({
             <div className="space-y-1">
               <FormLabel className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Repeat className="h-4 w-4 text-muted-foreground/60" />
-                Repetir Semanalmente?
+                Recorrência
               </FormLabel>
-              <p className="text-xs text-muted-foreground/60">Cria agendamentos automáticos para as próximas semanas.</p>
+              <p className="text-xs text-muted-foreground/60">Cria novas ocorrências com a frequência selecionada.</p>
             </div>
             <FormControl>
               <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-foreground" />
@@ -777,15 +826,38 @@ export function NewAppointmentModal({
       />
 
       {form.watch("recurrence") && (
-        <div className="mt-4 animate-in slide-in-from-top-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 animate-in slide-in-from-top-2 sm:grid-cols-[1fr_160px]">
+          <FormField
+            control={form.control}
+            name="recurrenceFrequency"
+            render={({ field }) => (
+              <FormItem className="space-y-3">
+                <FormLabel className={labelBase}>Frequência</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger className={cn(inputBase, "font-medium text-base px-6 shadow-inner")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className={selectPopover}>
+                    {RECURRENCE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value} className="text-foreground/70 focus:bg-accent focus:text-foreground py-4 px-4 cursor-pointer text-base">
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="recurrenceCount"
             render={({ field }) => (
               <FormItem className="space-y-3">
-                <FormLabel className={labelBase}>{eventType === "event" ? "Quantas ocorrências?" : "Quantas sessões?"}</FormLabel>
+                <FormLabel className={labelBase}>{eventType === "event" ? "Ocorrências" : "Sessões"}</FormLabel>
                 <FormControl>
-                  <Input type="number" {...field} className={cn(inputBase, "px-6 text-lg font-medium")} />
+                  <Input type="number" min={1} max={20} {...field} className={cn(inputBase, "px-6 text-lg font-medium")} />
                 </FormControl>
               </FormItem>
             )}
@@ -883,7 +955,11 @@ export function NewAppointmentModal({
                   <Input
                     type="number"
                     {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
+                    onChange={(e) => {
+                      const nextDuration = Number(e.target.value);
+                      field.onChange(nextDuration);
+                      form.setValue("endTime", addMinutesToTime(form.getValues("startTime"), nextDuration || 50));
+                    }}
                     className={cn(inputBase, "px-6 text-lg font-medium")}
                   />
                 </FormControl>
@@ -1234,7 +1310,7 @@ export function NewAppointmentModal({
 
   const handleContinue = async () => {
     if (eventType === "session" && step === 1) {
-      const isValid = await form.trigger(["patientId", "date", "startTime"]);
+      const isValid = await form.trigger(["patientId", "date", "startTime", "endTime"]);
       if (isValid) nextStep();
     } else if (eventType === "session" && step === 2) {
       const isValid = await form.trigger(["type", "modality", "duration"]);
@@ -1259,7 +1335,7 @@ export function NewAppointmentModal({
       open={isOpen}
       onOpenChange={onOpenChange}
       trigger={children}
-      className="bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-[40px] border border-zinc-200 dark:border-white/[0.08] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] rounded-[28px] p-0 overflow-hidden sm:max-w-[600px] max-h-[90vh] flex flex-col"
+      className="w-[calc(100vw-2rem)] bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-[40px] border border-zinc-200 dark:border-white/[0.08] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] rounded-[28px] p-0 overflow-hidden sm:max-w-[720px] max-h-[calc(100dvh-2rem)] flex flex-col"
     >
       <div className="flex flex-col flex-1 min-h-0 bg-gradient-to-b from-zinc-50/50 dark:from-card/50 to-transparent">
         {/* Header */}
