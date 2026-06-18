@@ -1,0 +1,577 @@
+import { MUTATING_TOOLS } from "./tools.ts";
+
+export interface AgentToolContext {
+  admin: any;
+  userId: string;
+  sessionId: string;
+}
+
+export interface PendingAction {
+  kind: "synapse_pending_action";
+  actionId: string;
+  toolName: string;
+  arguments: Record<string, unknown>;
+  summary: string;
+  status: "pending" | "executing" | "executed" | "cancelled" | "failed";
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface AgentToolResult {
+  ok: boolean;
+  grounded: boolean;
+  data?: any;
+  error?: string;
+  recordCount?: number;
+  structuredData?: any;
+  clientAction?: any;
+  pendingAction?: PendingAction;
+  message?: string;
+}
+
+const clamp = (value: unknown, fallback: number, min: number, max: number) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.min(max, Math.max(min, Math.floor(parsed))) : fallback;
+};
+
+const cleanText = (value: unknown, max = 5000) =>
+  String(value ?? "").trim().slice(0, max);
+
+const cleanId = (value: unknown) => {
+  const result = cleanText(value, 90);
+  if (!/^[a-zA-Z0-9_-]{6,90}$/.test(result)) throw new Error("Identificador inválido.");
+  return result;
+};
+
+const brazilIso = (value: string) => {
+  const raw = cleanText(value, 40);
+  if (!raw) throw new Error("Data e hora ausentes.");
+  const withZone = raw.includes("T") && !/Z$|[+-]\d{2}:?\d{2}$/.test(raw)
+    ? `${raw}-03:00`
+    : raw;
+  const parsed = new Date(withZone);
+  if (Number.isNaN(parsed.getTime())) throw new Error("Data e hora inválidas.");
+  return parsed.toISOString();
+};
+
+const dateBounds = (startValue?: unknown, endValue?: unknown) => {
+  const now = new Date();
+  const defaultStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const defaultEnd = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+  const start = cleanText(startValue || defaultStart, 10);
+  const end = cleanText(endValue || defaultEnd, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+    throw new Error("Período inválido.");
+  }
+  return {
+    start,
+    end,
+    startIso: new Date(`${start}T00:00:00-03:00`).toISOString(),
+    endIso: new Date(`${end}T23:59:59-03:00`).toISOString(),
+  };
+};
+
+const formatDateTime = (value: string) =>
+  new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
+const summarizeMutation = (name: string, args: Record<string, any>) => {
+  switch (name) {
+    case "create_patient":
+      return `Cadastrar o paciente ${cleanText(args.name, 120)}${args.email ? `, e-mail ${cleanText(args.email, 160)}` : ""}.`;
+    case "update_patient": {
+      const fields = Object.keys(args).filter((key) => !["patient_id", "patient_name"].includes(key));
+      return `Atualizar ${fields.join(", ") || "os dados informados"} de ${cleanText(args.patient_name || "paciente selecionado", 120)}.`;
+    }
+    case "create_session_note":
+      return `Registrar uma anotação no prontuário de ${cleanText(args.patient_name || "paciente selecionado", 120)}: “${cleanText(args.notes, 240)}”.`;
+    case "create_appointment":
+      return `Agendar ${cleanText(args.patient_name || "a consulta", 120)} para ${formatDateTime(brazilIso(args.datetime))}, com ${clamp(args.duration_minutes, 50, 15, 240)} minutos.`;
+    case "reschedule_appointment":
+      return `Remarcar a consulta de ${cleanText(args.patient_name || "paciente selecionado", 120)} para ${formatDateTime(brazilIso(args.new_datetime))}.`;
+    case "cancel_appointment":
+      return `Cancelar a consulta de ${cleanText(args.patient_name || "paciente selecionado", 120)}${args.reason ? `, motivo: ${cleanText(args.reason, 240)}` : ""}.`;
+    case "create_financial_entry":
+      return `Registrar ${args.entry_type === "expense" ? "a despesa" : "a receita"} “${cleanText(args.title, 160)}” no valor de ${formatMoney(Math.abs(Number(args.amount || 0)))}.`;
+    default:
+      return "Executar a alteração solicitada.";
+  }
+};
+
+const stageMutation = (name: string, args: Record<string, unknown>): AgentToolResult => {
+  const now = new Date();
+  const pendingAction: PendingAction = {
+    kind: "synapse_pending_action",
+    actionId: crypto.randomUUID(),
+    toolName: name,
+    arguments: args,
+    summary: summarizeMutation(name, args),
+    status: "pending",
+    createdAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
+  };
+  return {
+    ok: true,
+    grounded: false,
+    pendingAction,
+    message: pendingAction.summary,
+    data: { confirmation_required: true, summary: pendingAction.summary },
+    structuredData: {
+      type: "confirmation_required",
+      data: { actionId: pendingAction.actionId, summary: pendingAction.summary },
+    },
+  };
+};
+
+export async function executeAgentTool(
+  name: string,
+  args: Record<string, any>,
+  context: AgentToolContext,
+): Promise<AgentToolResult> {
+  if (MUTATING_TOOLS.has(name)) return stageMutation(name, args);
+
+  const { admin, userId } = context;
+
+  try {
+    switch (name) {
+      case "list_patients": {
+        const limit = clamp(args.limit, 20, 1, 50);
+        let query = admin
+          .from("patients")
+          .select("id,name,status,diagnosis,risk_score,last_session,next_session,created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        if (args.status && args.status !== "all") query = query.eq("status", args.status);
+        const { data, error } = await query;
+        if (error) throw error;
+        const patients = data || [];
+        return {
+          ok: true,
+          grounded: true,
+          recordCount: patients.length,
+          data: { patients },
+          structuredData: { type: "patient_list", data: { patients } },
+        };
+      }
+
+      case "search_patients": {
+        const term = cleanText(args.query, 120).replace(/[%_]/g, "");
+        if (!term) throw new Error("Informe um nome para buscar.");
+        const { data, error } = await admin
+          .from("patients")
+          .select("id,name,status,diagnosis,risk_score,last_session,next_session,email,phone")
+          .eq("user_id", userId)
+          .ilike("name", `%${term}%`)
+          .order("name")
+          .limit(clamp(args.limit, 10, 1, 20));
+        if (error) throw error;
+        const patients = data || [];
+        return {
+          ok: true,
+          grounded: true,
+          recordCount: patients.length,
+          data: { query: term, patients },
+          structuredData: patients.length === 1
+            ? { type: "patient_card", data: patients[0] }
+            : { type: "patient_list", data: { patients } },
+        };
+      }
+
+      case "get_patient_details": {
+        const patientId = cleanId(args.patient_id);
+        const { data, error } = await admin
+          .from("patients")
+          .select("id,name,email,phone,status,diagnosis,notes,risk_score,birth_date,address,emergency_contact,medications,last_session,next_session")
+          .eq("id", patientId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) return { ok: true, grounded: true, recordCount: 0, data: { patient: null } };
+        return {
+          ok: true,
+          grounded: true,
+          recordCount: 1,
+          data: { patient: data },
+          structuredData: { type: "patient_card", data },
+        };
+      }
+
+      case "get_clinical_history": {
+        const patientId = cleanId(args.patient_id);
+        const { data: patient } = await admin
+          .from("patients")
+          .select("id,name")
+          .eq("id", patientId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (!patient) return { ok: false, grounded: true, recordCount: 0, error: "Paciente não encontrado." };
+
+        let query = admin
+          .from("session_notes")
+          .select("id,notes,ai_summary,created_at,appointment_id")
+          .eq("user_id", userId)
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false })
+          .limit(clamp(args.limit, 5, 1, 10));
+        const keywords = cleanText(args.keywords, 120).replace(/[%_]/g, "");
+        if (keywords) query = query.ilike("notes", `%${keywords}%`);
+        const { data, error } = await query;
+        if (error) throw error;
+        const notes = (data || []).map((note: any) => ({
+          id: note.id,
+          date: note.created_at,
+          summary: typeof note.ai_summary === "object" && note.ai_summary?.summary
+            ? cleanText(note.ai_summary.summary, 1200)
+            : cleanText(note.notes, 1200),
+          appointment_id: note.appointment_id,
+        }));
+        return {
+          ok: true,
+          grounded: true,
+          recordCount: notes.length,
+          data: { patient, notes },
+          structuredData: { type: "clinical_history", data: { patient, notes } },
+        };
+      }
+
+      case "get_calendar": {
+        const period = dateBounds(args.start_date, args.end_date);
+        let query = admin
+          .from("appointments")
+          .select("id,start_time,end_time,type,status,notes,patient_id,patient:patient_id(name)")
+          .eq("user_id", userId)
+          .gte("start_time", period.startIso)
+          .lte("start_time", period.endIso)
+          .order("start_time")
+          .limit(clamp(args.limit, 50, 1, 50));
+        if (args.patient_id) query = query.eq("patient_id", cleanId(args.patient_id));
+        const { data, error } = await query;
+        if (error) throw error;
+        const appointments = (data || []).map((item: any) => ({
+          id: item.id,
+          patient_id: item.patient_id,
+          patient_name: item.patient?.name || "Bloqueio",
+          start_time: item.start_time,
+          end_time: item.end_time,
+          start_time_local: formatDateTime(item.start_time),
+          end_time_local: formatDateTime(item.end_time),
+          type: item.type,
+          status: item.status,
+          notes: item.notes,
+        }));
+        return {
+          ok: true,
+          grounded: true,
+          recordCount: appointments.length,
+          data: { period: { start: period.start, end: period.end }, appointments },
+          structuredData: { type: "agenda", data: { appointments } },
+        };
+      }
+
+      case "find_available_slots": {
+        const start = cleanText(args.start_date, 10);
+        const end = cleanText(args.end_date || start, 10);
+        const period = dateBounds(start, end);
+        const duration = clamp(args.duration_minutes, 50, 15, 240);
+        const { data, error } = await admin
+          .from("appointments")
+          .select("start_time,end_time")
+          .eq("user_id", userId)
+          .neq("status", "cancelled")
+          .gte("start_time", period.startIso)
+          .lte("start_time", period.endIso)
+          .order("start_time");
+        if (error) throw error;
+        const appointments = data || [];
+        const slots: Array<{ date: string; time: string; datetime: string }> = [];
+        const cursor = new Date(`${start}T00:00:00-03:00`);
+        const endCursor = new Date(`${end}T23:59:59-03:00`);
+        while (cursor <= endCursor && slots.length < 10) {
+          const date = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(cursor);
+          const weekday = cursor.getDay();
+          if (weekday !== 0 && weekday !== 6) {
+            for (let hour = 8; hour < 20 && slots.length < 10; hour++) {
+              if (hour === 12) continue;
+              if (args.preferred_period === "morning" && hour >= 12) continue;
+              if (args.preferred_period === "afternoon" && (hour < 13 || hour >= 18)) continue;
+              if (args.preferred_period === "evening" && hour < 18) continue;
+              for (const minute of [0, 30]) {
+                const slotStart = new Date(`${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00-03:00`);
+                const slotEnd = new Date(slotStart.getTime() + duration * 60000);
+                if (slotStart <= new Date()) continue;
+                const conflict = appointments.some((appointment: any) =>
+                  slotStart < new Date(appointment.end_time) && slotEnd > new Date(appointment.start_time));
+                if (!conflict) {
+                  slots.push({
+                    date,
+                    time: new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(slotStart),
+                    datetime: slotStart.toISOString(),
+                  });
+                }
+                if (slots.length >= 10) break;
+              }
+            }
+          }
+          cursor.setDate(cursor.getDate() + 1);
+        }
+        return {
+          ok: true,
+          grounded: true,
+          recordCount: slots.length,
+          data: { duration_minutes: duration, slots },
+          structuredData: { type: "available_slots", data: { slots } },
+        };
+      }
+
+      case "get_financial_summary": {
+        const period = dateBounds(args.start_date, args.end_date);
+        const { data, error } = await admin
+          .from("financial_entries")
+          .select("id,title,amount,type,status,due_date,paid_at,patient_id,metadata")
+          .eq("professional_id", userId)
+          .gte("due_date", period.start)
+          .lte("due_date", period.end)
+          .order("due_date");
+        if (error) throw error;
+        const entries = data || [];
+        const income = entries.filter((item: any) => item.type === "income").reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+        const expenses = entries.filter((item: any) => item.type === "expense").reduce((sum: number, item: any) => sum + Math.abs(Number(item.amount || 0)), 0);
+        const pending = entries.filter((item: any) => !["paid", "received", "completed"].includes(String(item.status || "").toLowerCase()))
+          .reduce((sum: number, item: any) => sum + Math.abs(Number(item.amount || 0)), 0);
+        const summary = { start_date: period.start, end_date: period.end, income, expenses, balance: income - expenses, pending, entries_count: entries.length };
+        return {
+          ok: true,
+          grounded: true,
+          recordCount: entries.length,
+          data: summary,
+          structuredData: { type: "financial_summary", data: summary },
+        };
+      }
+
+      case "list_financial_entries": {
+        let query = admin
+          .from("financial_entries")
+          .select("id,title,description,amount,type,status,due_date,paid_at,patient_id,metadata,created_at")
+          .eq("professional_id", userId)
+          .order("due_date", { ascending: false })
+          .limit(clamp(args.limit, 20, 1, 50));
+        if (args.start_date) query = query.gte("due_date", cleanText(args.start_date, 10));
+        if (args.end_date) query = query.lte("due_date", cleanText(args.end_date, 10));
+        if (args.entry_type && args.entry_type !== "all") query = query.eq("type", args.entry_type);
+        if (args.status) query = query.eq("status", cleanText(args.status, 40));
+        const { data, error } = await query;
+        if (error) throw error;
+        const entries = data || [];
+        return { ok: true, grounded: true, recordCount: entries.length, data: { entries }, structuredData: { type: "financial_entries", data: { entries } } };
+      }
+
+      case "list_personal_notes": {
+        let query = admin.from("personal_notes").select("*").eq("user_id", userId).order("updated_at", { ascending: false }).limit(clamp(args.limit, 10, 1, 20));
+        const term = cleanText(args.query, 120).replace(/[%_]/g, "");
+        if (term) query = query.or(`title.ilike.%${term}%,content.ilike.%${term}%`);
+        const { data, error } = await query;
+        if (error) throw error;
+        const notes = (data || []).map((note: any) => ({
+          id: note.id,
+          title: note.title || note.name || "Sem título",
+          preview: cleanText(note.content || note.body || note.text, 600),
+          updated_at: note.updated_at || note.created_at,
+        }));
+        return { ok: true, grounded: true, recordCount: notes.length, data: { notes }, structuredData: { type: "notes_list", data: { notes } } };
+      }
+
+      case "list_documents": {
+        let query = admin
+          .from("document_files")
+          .select("id,patient_id,category,original_name,mime_type,size_bytes,status,uploaded_at,created_at")
+          .eq("user_id", userId)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(clamp(args.limit, 15, 1, 30));
+        if (args.patient_id) query = query.eq("patient_id", cleanId(args.patient_id));
+        if (args.category) query = query.eq("category", cleanText(args.category, 60));
+        const { data, error } = await query;
+        if (error) throw error;
+        const documents = data || [];
+        return { ok: true, grounded: true, recordCount: documents.length, data: { documents }, structuredData: { type: "documents_list", data: { documents } } };
+      }
+
+      case "request_interface_action": {
+        const allowedActions = new Set(["navigate", "open_patient", "open_patient_record", "open_daily_schedule", "scroll_to_appointment", "highlight_element", "open_modal"]);
+        const allowedTargets = new Set(["dashboard", "agenda", "patients", "finance", "notes", "teleconsultation", "synapse"]);
+        const action = cleanText(args.action, 50);
+        const target = args.target ? cleanText(args.target, 50) : undefined;
+        if (!allowedActions.has(action)) throw new Error("Ação visual inválida.");
+        if (target && !allowedTargets.has(target)) throw new Error("Destino visual inválido.");
+        const clientAction = {
+          type: "interface_action",
+          data: {
+            action,
+            target,
+            patientId: args.patient_id ? cleanId(args.patient_id) : undefined,
+            appointmentId: args.appointment_id ? cleanId(args.appointment_id) : undefined,
+            date: args.date ? cleanText(args.date, 40) : undefined,
+            element: args.element ? cleanText(args.element, 60) : undefined,
+            modal: args.modal ? cleanText(args.modal, 60) : undefined,
+            reason: args.reason ? cleanText(args.reason, 180) : undefined,
+          },
+        };
+        return { ok: true, grounded: false, data: { action_requested: action }, clientAction };
+      }
+
+      default:
+        return { ok: false, grounded: false, error: `Ferramenta não suportada: ${name}` };
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      grounded: name !== "request_interface_action",
+      error: error instanceof Error ? error.message : "Falha ao consultar o sistema.",
+    };
+  }
+}
+
+export async function executeConfirmedMutation(
+  pending: PendingAction,
+  context: AgentToolContext,
+): Promise<AgentToolResult> {
+  const { admin, userId, sessionId } = context;
+  const args = pending.arguments as Record<string, any>;
+
+  try {
+    switch (pending.toolName) {
+      case "create_patient": {
+        const { data, error } = await admin.from("patients").insert({
+          user_id: userId,
+          name: cleanText(args.name, 160),
+          email: args.email ? cleanText(args.email, 200) : null,
+          phone: args.phone ? cleanText(args.phone, 50) : null,
+          cpf: args.cpf ? cleanText(args.cpf, 30) : null,
+          diagnosis: args.diagnosis ? cleanText(args.diagnosis, 500) : null,
+          notes: args.notes ? cleanText(args.notes, 5000) : null,
+          status: "pending",
+          birth_date: args.birth_date || null,
+          address: args.address ? cleanText(args.address, 500) : null,
+          emergency_contact: args.emergency_contact ? cleanText(args.emergency_contact, 300) : null,
+          medications: [],
+        }).select("id,name,status,email,phone,diagnosis").single();
+        if (error) throw error;
+        return { ok: true, grounded: true, recordCount: 1, data: { patient: data }, message: `Paciente ${data.name} cadastrado com sucesso.`, structuredData: { type: "patient_card", data } };
+      }
+
+      case "update_patient": {
+        const patientId = cleanId(args.patient_id);
+        const update: Record<string, unknown> = {};
+        for (const field of ["name", "email", "phone", "diagnosis", "notes", "birth_date", "address", "emergency_contact", "status"]) {
+          if (args[field] !== undefined && args[field] !== null) update[field] = args[field];
+        }
+        if (!Object.keys(update).length) throw new Error("Nenhum campo foi informado para atualização.");
+        const { data, error } = await admin.from("patients").update(update).eq("id", patientId).eq("user_id", userId).select("id,name,status,email,phone,diagnosis").single();
+        if (error) throw error;
+        return { ok: true, grounded: true, recordCount: 1, data: { patient: data, updated_fields: Object.keys(update) }, message: `Dados de ${data.name} atualizados com sucesso.`, structuredData: { type: "patient_updated", data } };
+      }
+
+      case "create_session_note": {
+        const patientId = cleanId(args.patient_id);
+        const { data: patient } = await admin.from("patients").select("name").eq("id", patientId).eq("user_id", userId).maybeSingle();
+        if (!patient) throw new Error("Paciente não encontrado.");
+        const { data, error } = await admin.from("session_notes").insert({
+          user_id: userId,
+          patient_id: patientId,
+          appointment_id: args.appointment_id ? cleanId(args.appointment_id) : null,
+          notes: cleanText(args.notes, 12000),
+          created_at: new Date().toISOString(),
+        }).select("id,created_at").single();
+        if (error) throw error;
+        return { ok: true, grounded: true, recordCount: 1, data: { note: data, patient_name: patient.name }, message: `Anotação registrada no prontuário de ${patient.name}.`, structuredData: { type: "session_note_created", data: { ...data, patientName: patient.name } } };
+      }
+
+      case "create_appointment": {
+        const start = brazilIso(args.datetime);
+        const duration = clamp(args.duration_minutes, 50, 15, 240);
+        const end = new Date(new Date(start).getTime() + duration * 60000).toISOString();
+        const patientId = args.patient_id ? cleanId(args.patient_id) : null;
+        if (patientId) {
+          const { data: patient } = await admin.from("patients").select("id,name").eq("id", patientId).eq("user_id", userId).maybeSingle();
+          if (!patient) throw new Error("Paciente não encontrado.");
+        }
+        const { data, error } = await admin.from("appointments").insert({
+          user_id: userId,
+          patient_id: patientId,
+          start_time: start,
+          end_time: end,
+          type: args.appointment_type || "presencial",
+          notes: args.notes ? cleanText(args.notes, 3000) : null,
+          status: "confirmed",
+        }).select("id,start_time,end_time,type,status,patient_id,patient:patient_id(name)").single();
+        if (error) throw error;
+        const appointment = { ...data, patient_name: data.patient?.name || "Bloqueio", start_time_local: formatDateTime(data.start_time) };
+        return { ok: true, grounded: true, recordCount: 1, data: { appointment }, message: `Agendamento criado para ${appointment.start_time_local}.`, structuredData: { type: "appointment_card", data: appointment } };
+      }
+
+      case "reschedule_appointment": {
+        const appointmentId = cleanId(args.appointment_id);
+        const { data: current } = await admin.from("appointments").select("id,start_time,end_time,patient:patient_id(name)").eq("id", appointmentId).eq("user_id", userId).maybeSingle();
+        if (!current) throw new Error("Consulta não encontrada.");
+        const start = brazilIso(args.new_datetime);
+        const currentDuration = (new Date(current.end_time).getTime() - new Date(current.start_time).getTime()) / 60000;
+        const duration = clamp(args.new_duration_minutes, currentDuration || 50, 15, 240);
+        const end = new Date(new Date(start).getTime() + duration * 60000).toISOString();
+        const { data, error } = await admin.from("appointments").update({ start_time: start, end_time: end, status: "confirmed" }).eq("id", appointmentId).eq("user_id", userId).select("id,start_time,end_time,status,patient:patient_id(name)").single();
+        if (error) throw error;
+        return { ok: true, grounded: true, recordCount: 1, data: { appointment: data }, message: `Consulta de ${data.patient?.name || "paciente"} remarcada para ${formatDateTime(start)}.`, structuredData: { type: "appointment_rescheduled", data } };
+      }
+
+      case "cancel_appointment": {
+        const appointmentId = cleanId(args.appointment_id);
+        const { data: current } = await admin.from("appointments").select("id,notes,start_time,patient:patient_id(name)").eq("id", appointmentId).eq("user_id", userId).maybeSingle();
+        if (!current) throw new Error("Consulta não encontrada.");
+        const reason = cleanText(args.reason || "Sem motivo informado", 500);
+        const notes = current.notes ? `${current.notes}\n[Cancelado: ${reason}]` : `[Cancelado: ${reason}]`;
+        const { data, error } = await admin.from("appointments").update({ status: "cancelled", notes }).eq("id", appointmentId).eq("user_id", userId).select("id,status,start_time").single();
+        if (error) throw error;
+        return { ok: true, grounded: true, recordCount: 1, data: { appointment: data }, message: `Consulta de ${current.patient?.name || "paciente"} cancelada.`, structuredData: { type: "appointment_cancelled", data: { ...data, patientName: current.patient?.name, reason } } };
+      }
+
+      case "create_financial_entry": {
+        const amount = Math.abs(Number(args.amount || 0));
+        if (!Number.isFinite(amount) || amount <= 0) throw new Error("Valor financeiro inválido.");
+        const date = cleanText(args.date || new Date().toISOString().slice(0, 10), 10);
+        const idempotencyKey = `synapse:fallback:${sessionId}:${pending.actionId}`;
+        const { data: existing } = await admin.from("financial_entries").select("*").eq("professional_id", userId).eq("idempotency_key", idempotencyKey).maybeSingle();
+        if (existing) return { ok: true, grounded: true, recordCount: 1, data: { entry: existing }, message: "Esse lançamento já estava registrado; mantive o registro existente.", structuredData: { type: "transaction_created", data: { transaction: existing } } };
+        const { data, error } = await admin.from("financial_entries").insert({
+          professional_id: userId,
+          idempotency_key: idempotencyKey,
+          title: cleanText(args.title, 200),
+          description: args.description ? cleanText(args.description, 1000) : cleanText(args.title, 200),
+          amount,
+          type: args.entry_type,
+          patient_id: args.patient_id ? cleanId(args.patient_id) : null,
+          due_date: date,
+          competence_date: date,
+          paid_at: `${date}T12:00:00.000Z`,
+          status: "paid",
+          payment_method: "manual",
+          origin: "manual",
+          metadata: { category: cleanText(args.category || "Outros", 100), source: "synapse_fallback_agent", session_id: sessionId },
+        }).select().single();
+        if (error) throw error;
+        return { ok: true, grounded: true, recordCount: 1, data: { entry: data }, message: `${args.entry_type === "expense" ? "Despesa" : "Receita"} de ${formatMoney(amount)} registrada com sucesso.`, structuredData: { type: "transaction_created", data: { transaction: data } } };
+      }
+
+      default:
+        return { ok: false, grounded: false, error: "Ação pendente desconhecida." };
+    }
+  } catch (error) {
+    return { ok: false, grounded: true, error: error instanceof Error ? error.message : "Falha ao executar a alteração." };
+  }
+}
