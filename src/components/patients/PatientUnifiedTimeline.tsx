@@ -66,6 +66,7 @@ const ExpandableText = ({ text, className, limit = 150 }: { text: string, classN
 };
 
 export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProps) => {
+    const [expandedOriginalNoteId, setExpandedOriginalNoteId] = useState<string | null>(null);
     const {
         data: timelinePages,
         isLoading,
@@ -167,6 +168,11 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                                             <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                                                 {format(item.date, "HH:mm")} <span className="w-1.5 h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800" /> {item.data.ai_summary?.sentiment || "Estável"}
                                             </p>
+                                            {item.data.ai_summary_edited ? (
+                                                <span className="inline-flex w-fit rounded-full border border-sky-500/20 bg-sky-500/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.16em] text-sky-600 dark:text-sky-300">
+                                                    Editado
+                                                </span>
+                                            ) : null}
                                         </div>
                                         <BrainCircuit className="h-5 w-5 text-muted-foreground/45" />
                                     </div>
@@ -184,6 +190,27 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                                                     </span>
                                                 ))}
                                             </div>
+                                            {item.data.ai_summary_edited && item.data.original_ai_summary ? (
+                                                <div className="pt-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setExpandedOriginalNoteId((current) => current === item.id ? null : item.id)}
+                                                        className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline"
+                                                    >
+                                                        {expandedOriginalNoteId === item.id ? "Ocultar versão original da IA" : "Ver versão original da IA"}
+                                                    </button>
+                                                    {expandedOriginalNoteId === item.id ? (
+                                                        <div className="mt-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs font-medium leading-relaxed text-muted-foreground">
+                                                            <p className="mb-2 text-[9px] font-black uppercase tracking-[0.18em] text-amber-600 dark:text-amber-300">
+                                                                Registro original preservado
+                                                            </p>
+                                                            <p className="whitespace-pre-wrap">
+                                                                {item.data.original_ai_summary.summary || "Versão original sem texto principal."}
+                                                            </p>
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            ) : null}
                                         </div>
                                     ) : (
                                         <div className="relative z-10">

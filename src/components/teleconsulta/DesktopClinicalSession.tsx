@@ -171,7 +171,7 @@ export const DesktopClinicalSession = ({
         completionMode={session.completionMode}
         error={session.completionError || session.lastError}
         summaryNote={session.reviewSummaryNote}
-        onGenerate={() => void session.completeWithAi()}
+        onGenerate={(summary) => void session.completeWithAi(summary)}
         onPreserve={() => void session.completeWithoutAi()}
       />
     </>

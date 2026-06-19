@@ -170,6 +170,12 @@ export interface SessionNote {
   auto_confirmed_at?: string | null;
   locked_at?: string | null;
   source_transcript_id?: string | null;
+  original_ai_summary?: AISummary | null;
+  original_transcription?: string | null;
+  ai_summary_edited?: boolean;
+  ai_summary_edited_at?: string | null;
+  ai_summary_edited_by?: string | null;
+  ai_summary_edit_count?: number;
 }
 
 export interface PatientPackage {

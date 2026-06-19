@@ -351,8 +351,6 @@ export default function PatientDetail() {
                     {/* RIGHT COLUMN: Content Area */}
                     <main className="min-w-0 space-y-7 p-5 pb-16 md:p-7 lg:p-8">
 
-                        {false && <ClinicalSummaryCard latestNote={latestNote} patient={patient} />}
-
                         <div className="relative flex min-h-[760px] w-full flex-col">
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col h-full">
 

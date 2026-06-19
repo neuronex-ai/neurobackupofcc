@@ -36,7 +36,7 @@ const fetchPatientTimelinePage = async (
   const [notesResult, goalsResult, moodResult, filesResult] = await Promise.all([
     supabase
       .from('session_notes')
-      .select('id, created_at, notes, ai_summary, review_status')
+      .select('id, created_at, notes, ai_summary, review_status, original_ai_summary, original_transcription, ai_summary_edited, ai_summary_edited_at')
       .eq('patient_id', patientId)
       .or('review_status.is.null,review_status.eq.confirmed')
       .order('created_at', { ascending: false })

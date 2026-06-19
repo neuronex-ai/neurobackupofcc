@@ -9,7 +9,7 @@ import { useResilientSessionNotes } from '@/hooks/use-resilient-session-notes';
 import { useSessionCapture } from '@/hooks/use-session-capture';
 import { useUpdateAppointment } from '@/hooks/use-update-appointment';
 import { supabase } from '@/integrations/supabase/client';
-import type { Appointment, SessionNote } from '@/types';
+import type { AISummary, Appointment, SessionNote } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -146,7 +146,7 @@ export const useDesktopClinicalSession = (
   }, [appointmentId, updateAppointment, user?.id]);
 
   useEffect(() => {
-    if (!isOnlineSession && !hasJoined) return;
+    if (!hasJoined) return;
     if (!joinedAtRef.current) joinedAtRef.current = Date.now();
     const timer = window.setInterval(() => {
       if (joinedAtRef.current) {
@@ -157,7 +157,7 @@ export const useDesktopClinicalSession = (
   }, [hasJoined]);
 
   useEffect(() => {
-    if (!hasJoined) return;
+    if (!isOnlineSession && !hasJoined) return;
     void ensureTranscript().catch((error) => {
       toast.error(error instanceof Error ? error.message : 'Não foi possível preparar a transcrição.');
     });
@@ -266,7 +266,7 @@ export const useDesktopClinicalSession = (
       await retrySync();
       if (finalTranscriptId) await markReviewed();
       const result = await generateProntuario({
-        patientId,
+        patientId: patientId!,
         appointmentId,
         notes: finalNotes,
         chatHistory: finalTranscript,
@@ -310,12 +310,27 @@ export const useDesktopClinicalSession = (
     onSessionEnd();
   }, [activeAppointment.metadata, appointmentId, clearRecovery, isFocusMode, notesDraft, onSessionEnd, reviewNotes, toggleFocusMode, transcriptId, updateAppointment]);
 
-  const confirmSummaryNote = useCallback(async (noteId: string) => {
+  const confirmSummaryNote = useCallback(async (noteId: string, finalSummary?: AISummary) => {
     if (!user?.id) throw new Error('Usuário não autenticado.');
     const now = new Date().toISOString();
+    const currentSummary = reviewSummaryNote?.ai_summary || null;
+    const nextSummary = finalSummary || currentSummary;
+    const originalSummary = reviewSummaryNote?.original_ai_summary || currentSummary;
+    const originalTranscription = reviewSummaryNote?.original_transcription || reviewSummaryNote?.transcription || null;
+    const summaryWasEdited = Boolean(
+      finalSummary &&
+      JSON.stringify(finalSummary) !== JSON.stringify(currentSummary)
+    );
     const { data, error } = await supabase
       .from('session_notes')
       .update({
+        ai_summary: nextSummary,
+        original_ai_summary: originalSummary,
+        original_transcription: originalTranscription,
+        ai_summary_edited: Boolean(reviewSummaryNote?.ai_summary_edited || summaryWasEdited),
+        ai_summary_edited_at: summaryWasEdited ? now : reviewSummaryNote?.ai_summary_edited_at || null,
+        ai_summary_edited_by: summaryWasEdited ? user.id : reviewSummaryNote?.ai_summary_edited_by || null,
+        ai_summary_edit_count: summaryWasEdited ? (reviewSummaryNote?.ai_summary_edit_count || 0) + 1 : reviewSummaryNote?.ai_summary_edit_count || 0,
         review_status: 'confirmed',
         confirmed_at: now,
         confirmed_by: user.id,
@@ -336,7 +351,7 @@ export const useDesktopClinicalSession = (
       queryClient.invalidateQueries({ queryKey: ['patientSessionSummary'] });
     }
     return note;
-  }, [queryClient, user?.id]);
+  }, [queryClient, reviewSummaryNote, user?.id]);
 
   const completeWithAi = useCallback(async () => {
     if (!patientId || !hasNetwork) return;
@@ -352,7 +367,7 @@ export const useDesktopClinicalSession = (
       await retrySync();
       if (transcriptId) await markReviewed();
       const result = await generateProntuario({
-        patientId,
+        patientId: patientId!,
         appointmentId,
         notes: reviewNotes,
         chatHistory: reviewTranscript,
@@ -388,12 +403,12 @@ export const useDesktopClinicalSession = (
     }
   }, [finishSession, hasNetwork, markReviewed, retrySync, transcriptId]);
 
-  const confirmGeneratedSummary = useCallback(async () => {
+  const confirmGeneratedSummary = useCallback(async (finalSummary?: AISummary) => {
     if (!reviewSummaryNote?.id || !hasNetwork) return;
     setCompletionMode('saving');
     setCompletionError(null);
     try {
-      const confirmedNote = await confirmSummaryNote(reviewSummaryNote.id);
+      const confirmedNote = await confirmSummaryNote(reviewSummaryNote.id, finalSummary);
       await finishSession(false, confirmedNote.id);
       toast.success('Sessão concluída e resumo confirmado.');
     } catch (error) {

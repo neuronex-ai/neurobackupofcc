@@ -10,16 +10,26 @@ alter table public.session_notes
   add column if not exists confirmed_by uuid references auth.users(id) on delete set null,
   add column if not exists auto_confirmed_at timestamptz,
   add column if not exists locked_at timestamptz,
-  add column if not exists source_transcript_id uuid references public.session_transcripts(id) on delete set null;
+  add column if not exists source_transcript_id uuid references public.session_transcripts(id) on delete set null,
+  add column if not exists original_ai_summary jsonb,
+  add column if not exists original_transcription text,
+  add column if not exists ai_summary_edited boolean not null default false,
+  add column if not exists ai_summary_edited_at timestamptz,
+  add column if not exists ai_summary_edited_by uuid references auth.users(id) on delete set null,
+  add column if not exists ai_summary_edit_count integer not null default 0;
 
 update public.session_notes
 set
   review_status = coalesce(nullif(review_status, ''), 'confirmed'),
   confirmed_at = coalesce(confirmed_at, created_at),
-  locked_at = coalesce(locked_at, created_at)
+  locked_at = coalesce(locked_at, created_at),
+  original_ai_summary = coalesce(original_ai_summary, ai_summary),
+  original_transcription = coalesce(original_transcription, transcription)
 where review_status is null
    or review_status = ''
-   or review_status = 'confirmed';
+   or review_status = 'confirmed'
+   or original_ai_summary is null
+   or original_transcription is null;
 
 do $$
 begin
@@ -78,5 +88,7 @@ select cron.schedule(
   '15 * * * *',
   $cron$select private.confirm_expired_session_note_reviews();$cron$
 );
+
+notify pgrst, 'reload schema';
 
 commit;

@@ -121,6 +121,7 @@ serve(async (req) => {
     if (!aiText) throw new Error("IA retornou resposta vazia.");
 
     const parsedSummary = extractJSON(aiText);
+    const storedTranscription = typeof chatHistory === 'string' ? chatHistory : JSON.stringify(chatHistory);
 
     // Salvar no banco
     const { data: newNote, error: insertError } = await supabase
@@ -130,8 +131,12 @@ serve(async (req) => {
             patient_id: patientId,
             appointment_id: appointmentId,
             notes: notes, // Mantém as notas originais editadas pelo usuário
-            transcription: typeof chatHistory === 'string' ? chatHistory : JSON.stringify(chatHistory),
+            transcription: storedTranscription,
             ai_summary: parsedSummary, // JSON estruturado
+            original_ai_summary: parsedSummary,
+            original_transcription: storedTranscription,
+            ai_summary_edited: false,
+            ai_summary_edit_count: 0,
             review_status: shouldKeepPending ? 'pending_review' : 'confirmed',
             review_due_at: shouldKeepPending ? reviewDueAt.toISOString() : null,
             confirmed_at: shouldKeepPending ? null : now.toISOString(),
