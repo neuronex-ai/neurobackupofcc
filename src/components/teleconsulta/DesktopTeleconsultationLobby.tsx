@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarClock, Loader2, Play, ShieldCheck } from "lucide-react";
+import { CalendarClock, Loader2, LockKeyhole, Play, ShieldCheck } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,10 @@ interface DesktopTeleconsultationLobbyProps {
   therapistName: string;
   isOnline: boolean;
   isLoadingToken: boolean;
+  canInvitePatient?: boolean;
+  hasTranscriptionDecision?: boolean;
+  roomStatus?: "waiting" | "open" | "closed";
+  onRequireTranscriptionDecision?: () => void;
   onJoin: (selection: MediaDeviceChoice) => void;
 }
 
@@ -32,6 +36,10 @@ export const DesktopTeleconsultationLobby = ({
   therapistName,
   isOnline,
   isLoadingToken,
+  canInvitePatient = true,
+  hasTranscriptionDecision = true,
+  roomStatus = "waiting",
+  onRequireTranscriptionDecision,
   onJoin,
 }: DesktopTeleconsultationLobbyProps) => {
   const [isReady, setIsReady] = useState(false);
@@ -87,13 +95,16 @@ export const DesktopTeleconsultationLobby = ({
                 patient={patient}
                 meetLink={meetLink}
                 therapistName={therapistName}
+                disabled={!canInvitePatient}
+                disabledReason={!hasTranscriptionDecision ? "Defina se a teleconsulta será transcrita antes de convidar." : roomStatus === "closed" ? "Esta sala já foi encerrada." : undefined}
+                onDisabledClick={onRequireTranscriptionDecision}
               />
             </section>
           ) : null}
 
           <Button
             type="button"
-            disabled={!isReady || (isOnline && isLoadingToken)}
+            disabled={!isReady || (isOnline && (isLoadingToken || !hasTranscriptionDecision || roomStatus === "closed"))}
             onClick={() => onJoin(selection)}
             className="h-14 w-full rounded-[20px] bg-foreground text-[10px] font-black uppercase tracking-[0.2em] text-background shadow-xl disabled:opacity-45"
           >
