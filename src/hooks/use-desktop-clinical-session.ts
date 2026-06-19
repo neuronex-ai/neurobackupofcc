@@ -8,13 +8,16 @@ import { usePatientById } from '@/hooks/use-patient-by-id';
 import { useResilientSessionNotes } from '@/hooks/use-resilient-session-notes';
 import { useSessionCapture } from '@/hooks/use-session-capture';
 import { useUpdateAppointment } from '@/hooks/use-update-appointment';
-import type { Appointment } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import type { Appointment, SessionNote } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 export type DesktopSessionCompletionMode = 'idle' | 'generating' | 'saving';
 
 const JITSI_APP_ID = 'vpaas-magic-cookie-dc267e44c7014498a3a128625367fc67';
+const TRANSCRIPTION_NOTICE_VERSION = '2026-06-teleconsultation-transcription-v1';
 
 export const formatSessionElapsed = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -40,6 +43,7 @@ export const useDesktopClinicalSession = (
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewTranscript, setReviewTranscript] = useState('');
   const [reviewNotes, setReviewNotes] = useState('');
+  const [reviewSummaryNote, setReviewSummaryNote] = useState<SessionNote | null>(null);
   const [completionMode, setCompletionMode] = useState<DesktopSessionCompletionMode>('idle');
   const [completionError, setCompletionError] = useState<string | null>(null);
 
@@ -49,6 +53,7 @@ export const useDesktopClinicalSession = (
 
   const { toggleFocusMode, isFocusMode } = useAI();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const therapistName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Terapeuta';
   const therapistAvatar = user?.user_metadata?.avatar_url || '';
   const patientId = activeAppointment.patient_id;
@@ -124,8 +129,24 @@ export const useDesktopClinicalSession = (
     return 'Recuperação ativa';
   }, [hasNetwork, pendingCount, syncState]);
 
+  const persistTranscriptionDecision = useCallback(async (enabled: boolean) => {
+    await updateAppointment({
+      id: appointmentId,
+      updates: {
+        metadata: {
+          teleconsultationTranscription: {
+            enabled,
+            decidedAt: new Date().toISOString(),
+            decidedBy: user?.id,
+            noticeVersion: TRANSCRIPTION_NOTICE_VERSION,
+          },
+        },
+      },
+    });
+  }, [appointmentId, updateAppointment, user?.id]);
+
   useEffect(() => {
-    if (!hasJoined) return;
+    if (!isOnlineSession && !hasJoined) return;
     if (!joinedAtRef.current) joinedAtRef.current = Date.now();
     const timer = window.setInterval(() => {
       if (joinedAtRef.current) {
@@ -141,7 +162,7 @@ export const useDesktopClinicalSession = (
       toast.error(error instanceof Error ? error.message : 'Não foi possível preparar a transcrição.');
     });
     setShowConsent(consentStatus === 'pending');
-  }, [consentStatus, ensureTranscript, hasJoined]);
+  }, [consentStatus, ensureTranscript, hasJoined, isOnlineSession]);
 
   const handleJoinSession = useCallback((selection: MediaDeviceChoice) => {
     setMediaSettings(selection);
@@ -156,6 +177,7 @@ export const useDesktopClinicalSession = (
     notes?: string,
   ) => {
     try {
+      await persistTranscriptionDecision(true);
       await grantConsent(method, notes);
       if (!isOnlineSession && !speechSupported) {
         setShowConsent(false);
@@ -168,17 +190,18 @@ export const useDesktopClinicalSession = (
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível iniciar a captura.');
     }
-  }, [grantConsent, isOnlineSession, speechSupported, startCapture]);
+  }, [grantConsent, isOnlineSession, persistTranscriptionDecision, speechSupported, startCapture]);
 
   const handleDeclineConsent = useCallback(async (notes?: string) => {
     try {
+      await persistTranscriptionDecision(false);
       await declineConsent(notes);
       setShowConsent(false);
       toast.info('A sessão continuará sem transcrição.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Não foi possível registrar a decisão.');
     }
-  }, [declineConsent]);
+  }, [declineConsent, persistTranscriptionDecision]);
 
   const handleToggleCapture = useCallback(async () => {
     if (consentStatus !== 'granted') {
@@ -217,23 +240,51 @@ export const useDesktopClinicalSession = (
     if (reviewRequestedRef.current) return;
     reviewRequestedRef.current = true;
     setCompletionError(null);
+    setReviewSummaryNote(null);
     try {
       let finalTranscript = transcriptText;
+      let finalTranscriptId = transcriptId;
       if (consentStatus === 'granted' && captureState !== 'completed') {
         const result = await finalizeCapture();
         finalTranscript = result.text;
+        finalTranscriptId = result.transcriptId;
       }
+      const finalNotes = notesDraft.notes;
       setReviewTranscript(finalTranscript);
-      setReviewNotes(notesDraft.notes);
+      setReviewNotes(finalNotes);
       setReviewOpen(true);
       if (isOnlineSession && hasJoined) jitsiRef.current?.executeCommand('hangup');
+      if (!patientId) {
+        setCompletionError('Paciente não vinculado. Não foi possível gerar o resumo clínico.');
+        return;
+      }
+      if (!hasNetwork) {
+        setCompletionError('Reconecte-se para gerar o resumo clínico pendente.');
+        return;
+      }
+      setCompletionMode('generating');
+      await retrySync();
+      if (finalTranscriptId) await markReviewed();
+      const result = await generateProntuario({
+        patientId,
+        appointmentId,
+        notes: finalNotes,
+        chatHistory: finalTranscript,
+        reviewMode: 'pending',
+        sourceTranscriptId: finalTranscriptId,
+      });
+      const summaryNote = result.sessionNote || null;
+      setReviewSummaryNote(summaryNote);
+      if (finalTranscriptId && summaryNote?.id) await linkSummaryNote(summaryNote.id);
+      setCompletionMode('idle');
     } catch (error) {
       reviewRequestedRef.current = false;
+      setCompletionMode('idle');
       const message = error instanceof Error ? error.message : 'Não foi possível preparar a revisão.';
       setCompletionError(message);
       toast.error(message);
     }
-  }, [captureState, consentStatus, finalizeCapture, hasJoined, isOnlineSession, notesDraft.notes, transcriptText]);
+  }, [appointmentId, captureState, consentStatus, finalizeCapture, generateProntuario, hasJoined, hasNetwork, isOnlineSession, linkSummaryNote, markReviewed, notesDraft.notes, patientId, retrySync, transcriptId, transcriptText]);
 
   const finishSession = useCallback(async (
     draftPending: boolean,
@@ -259,11 +310,45 @@ export const useDesktopClinicalSession = (
     onSessionEnd();
   }, [activeAppointment.metadata, appointmentId, clearRecovery, isFocusMode, notesDraft, onSessionEnd, reviewNotes, toggleFocusMode, transcriptId, updateAppointment]);
 
+  const confirmSummaryNote = useCallback(async (noteId: string) => {
+    if (!user?.id) throw new Error('Usuário não autenticado.');
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('session_notes')
+      .update({
+        review_status: 'confirmed',
+        confirmed_at: now,
+        confirmed_by: user.id,
+        locked_at: now,
+      })
+      .eq('id', noteId)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    const note = data as SessionNote;
+    setReviewSummaryNote(note);
+    if (note.patient_id) {
+      queryClient.invalidateQueries({ queryKey: ['sessionNotes', note.patient_id] });
+      queryClient.invalidateQueries({ queryKey: ['pendingSessionReviews', note.patient_id] });
+      queryClient.invalidateQueries({ queryKey: ['patientTimeline', note.patient_id] });
+      queryClient.invalidateQueries({ queryKey: ['patientSessionSummary'] });
+    }
+    return note;
+  }, [queryClient, user?.id]);
+
   const completeWithAi = useCallback(async () => {
     if (!patientId || !hasNetwork) return;
     setCompletionMode('generating');
     setCompletionError(null);
     try {
+      if (!reviewSummaryNote?.id) return;
+      setCompletionMode('saving');
+      const confirmedNote = await confirmSummaryNote(reviewSummaryNote.id);
+      await finishSession(false, confirmedNote.id);
+      toast.success('Sessão concluída e resumo confirmado.');
+      return;
       await retrySync();
       if (transcriptId) await markReviewed();
       const result = await generateProntuario({
@@ -288,6 +373,10 @@ export const useDesktopClinicalSession = (
     setCompletionMode('saving');
     setCompletionError(null);
     try {
+      if (!reviewSummaryNote?.id) return;
+      await finishSession(true, reviewSummaryNote.id);
+      toast.warning('Sessão concluída. O resumo ficou pendente por até 48h.');
+      return;
       await retrySync();
       if (transcriptId) await markReviewed();
       await finishSession(true);
@@ -298,6 +387,38 @@ export const useDesktopClinicalSession = (
       setCompletionMode('idle');
     }
   }, [finishSession, hasNetwork, markReviewed, retrySync, transcriptId]);
+
+  const confirmGeneratedSummary = useCallback(async () => {
+    if (!reviewSummaryNote?.id || !hasNetwork) return;
+    setCompletionMode('saving');
+    setCompletionError(null);
+    try {
+      const confirmedNote = await confirmSummaryNote(reviewSummaryNote.id);
+      await finishSession(false, confirmedNote.id);
+      toast.success('Sessão concluída e resumo confirmado.');
+    } catch (error) {
+      setCompletionError(error instanceof Error ? error.message : 'Não foi possível confirmar o resumo.');
+    } finally {
+      setCompletionMode('idle');
+    }
+  }, [confirmSummaryNote, finishSession, hasNetwork, reviewSummaryNote?.id]);
+
+  const preserveGeneratedSummaryForLater = useCallback(async () => {
+    if (!reviewSummaryNote?.id || !hasNetwork) return;
+    setCompletionMode('saving');
+    setCompletionError(null);
+    try {
+      await finishSession(true, reviewSummaryNote.id);
+      toast.warning('Sessão concluída. O resumo ficou pendente por até 48h.');
+    } catch (error) {
+      setCompletionError(error instanceof Error ? error.message : 'Não foi possível salvar a pendência.');
+    } finally {
+      setCompletionMode('idle');
+    }
+  }, [finishSession, hasNetwork, reviewSummaryNote?.id]);
+
+  void completeWithAi;
+  void completeWithoutAi;
 
   return {
     user,
@@ -329,6 +450,7 @@ export const useDesktopClinicalSession = (
     reviewOpen,
     reviewTranscript,
     reviewNotes,
+    reviewSummaryNote,
     completionMode,
     completionError,
     isFocusMode,
@@ -356,8 +478,8 @@ export const useDesktopClinicalSession = (
     toggleScreenShare,
     toggleFocusMode,
     requestReview,
-    completeWithAi,
-    completeWithoutAi,
+    completeWithAi: confirmGeneratedSummary,
+    completeWithoutAi: preserveGeneratedSummaryForLater,
     setHasJoined,
     setShowLobby,
     setIsAudioEnabled,

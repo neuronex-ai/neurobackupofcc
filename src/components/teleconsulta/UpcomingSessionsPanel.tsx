@@ -57,11 +57,11 @@ export const UpcomingSessionsPanel = ({
     return (
         <div className="flex h-full w-full overflow-hidden bg-background">
             {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:pt-24 pr-12">
-                <div className="max-w-4xl mx-auto space-y-12">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pr-8 lg:pt-8">
+                <div className="max-w-5xl mx-auto space-y-8">
 
                     {/* Header - Floating Bar Style */}
-                    <div className="mb-8 relative z-40 w-full animate-fade-in group">
+                    <div className="mb-5 relative z-40 w-full animate-fade-in group">
                         <div className="w-full h-[72px] flex items-center justify-between px-6 py-2 bg-white/60 dark:bg-[#050505]/60 backdrop-blur-[40px] border border-white/20 dark:border-white/10 rounded-[32px] shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] hover:border-white/30 dark:hover:border-white/20 transition-all duration-500 ease-out">
 
                             {/* Left: Title & Badge */}
@@ -85,7 +85,7 @@ export const UpcomingSessionsPanel = ({
                     {nextSession ? (
                         <div className="relative group rounded-[32px] p-1 transition-all duration-500 hover:scale-[1.01]">
                             <div className="absolute inset-0 bg-gradient-to-r from-zinc-500/10 to-zinc-500/5 dark:from-white/10 dark:to-white/5 rounded-[32px] blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
-                            <div className="relative bg-white/40 dark:bg-[#050505]/40 backdrop-blur-[40px] rounded-[32px] border border-white/20 dark:border-white/10 p-10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] overflow-hidden">
+                            <div className="relative bg-white/40 dark:bg-[#050505]/40 backdrop-blur-[40px] rounded-[32px] border border-white/20 dark:border-white/10 p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] overflow-hidden">
 
                                 <div className="relative z-10 flex items-center justify-between gap-8">
                                     {/* Left Content */}
@@ -100,7 +100,7 @@ export const UpcomingSessionsPanel = ({
                                         </div>
 
                                         <div className="space-y-4">
-                                            <h2 className="text-5xl font-bold text-zinc-900 dark:text-white tracking-tight leading-[1.1]">
+                                            <h2 className="text-4xl font-bold text-zinc-900 dark:text-white tracking-tight leading-[1.1] xl:text-5xl">
                                                 {nextSession.patient_name}
                                             </h2>
                                             <div className="flex items-center gap-6 text-sm text-zinc-600 dark:text-zinc-300">
@@ -141,7 +141,7 @@ export const UpcomingSessionsPanel = ({
                         </div>
                     )}
                     {/* Lists Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                         {/* Future Sessions */}
                         <div className="space-y-6">
@@ -215,7 +215,7 @@ export const UpcomingSessionsPanel = ({
                     opacity: (selectedSession || nextSession) ? 1 : 0
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="hidden xl:block overflow-hidden h-full border-l border-border/20 pt-8 lg:pt-24"
+                className="hidden xl:block overflow-hidden h-full border-l border-border/20 pt-5 lg:pt-8"
             >
                 <PatientRecapSidebar
                     patientId={(selectedSession || nextSession)?.patient_id}

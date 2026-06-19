@@ -39,6 +39,12 @@ export interface AppointmentMetadata {
   sessionDraftPending?: boolean;
   sessionDraftNotes?: string | null;
   sessionCompletedAt?: string | null;
+  teleconsultationTranscription?: {
+    enabled: boolean;
+    decidedAt?: string;
+    decidedBy?: string;
+    noticeVersion?: string;
+  };
 }
 
 const SESSION_TYPE_LABELS: Record<string, string> = {

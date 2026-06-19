@@ -53,7 +53,17 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) throw new Error('Invalid token');
 
-    const { patientId, appointmentId, notes, chatHistory } = await req.json();
+    const {
+      patientId,
+      appointmentId,
+      notes,
+      chatHistory,
+      reviewMode = 'confirmed',
+      sourceTranscriptId = null,
+    } = await req.json();
+    const shouldKeepPending = reviewMode === 'pending';
+    const now = new Date();
+    const reviewDueAt = new Date(now.getTime() + 48 * 60 * 60 * 1000);
     
     // Preparar transcrição (unindo notas manuais + histórico/transcrição de voz)
     let fullContext = `Notas do Terapeuta: ${notes}\n\n`;
@@ -122,6 +132,12 @@ serve(async (req) => {
             notes: notes, // Mantém as notas originais editadas pelo usuário
             transcription: typeof chatHistory === 'string' ? chatHistory : JSON.stringify(chatHistory),
             ai_summary: parsedSummary, // JSON estruturado
+            review_status: shouldKeepPending ? 'pending_review' : 'confirmed',
+            review_due_at: shouldKeepPending ? reviewDueAt.toISOString() : null,
+            confirmed_at: shouldKeepPending ? null : now.toISOString(),
+            confirmed_by: shouldKeepPending ? null : user.id,
+            locked_at: shouldKeepPending ? null : now.toISOString(),
+            source_transcript_id: sourceTranscriptId,
         })
         .select()
         .single();

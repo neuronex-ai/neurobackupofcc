@@ -23,25 +23,40 @@ export const DesktopClinicalSession = ({
 
   if (session.showLobby) {
     return (
-      <div className="fixed inset-0 z-[100] overflow-hidden bg-background pt-28">
-        <DesktopTeleconsultationLobby
-          patientName={patientName}
-          patient={session.patient}
-          appointmentId={session.appointmentId}
-          appointmentStart={activeAppointment.start_time}
-          meetLink={session.effectiveMeetLink}
-          therapistName={session.therapistName}
-          isOnline={session.isOnlineSession}
-          isLoadingToken={session.isOnlineSession && session.isLoadingToken}
-          onJoin={session.handleJoinSession}
-        />
-      </div>
+      <>
+        <div className="fixed inset-0 z-[100] overflow-hidden bg-background pt-24">
+          <DesktopTeleconsultationLobby
+            patientName={patientName}
+            patient={session.patient}
+            appointmentId={session.appointmentId}
+            appointmentStart={activeAppointment.start_time}
+            meetLink={session.effectiveMeetLink}
+            therapistName={session.therapistName}
+            isOnline={session.isOnlineSession}
+            isLoadingToken={session.isOnlineSession && session.isLoadingToken}
+            onJoin={session.handleJoinSession}
+          />
+        </div>
+
+        {session.showConsent ? (
+          <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/62 p-4 backdrop-blur-md sm:p-6">
+            <div className="w-full max-w-2xl">
+              <TranscriptionConsentPanel
+                patientName={patientName}
+                isPending={session.captureState === 'restoring' || session.captureState === 'finalizing'}
+                onGrant={session.handleGrantConsent}
+                onDecline={session.handleDeclineConsent}
+              />
+            </div>
+          </div>
+        ) : null}
+      </>
     );
   }
 
   return (
     <>
-      <div className="fixed inset-0 z-[100] overflow-hidden bg-background pt-28">
+      <div className="fixed inset-0 z-[100] overflow-hidden bg-background pt-24">
         <div
           className={cn(
             'grid h-full min-h-0 gap-4 p-4 xl:p-5',
@@ -155,8 +170,7 @@ export const DesktopClinicalSession = ({
         isProcessing={session.isProcessing}
         completionMode={session.completionMode}
         error={session.completionError || session.lastError}
-        onTranscriptChange={session.setReviewTranscript}
-        onNotesChange={session.setReviewNotes}
+        summaryNote={session.reviewSummaryNote}
         onGenerate={() => void session.completeWithAi()}
         onPreserve={() => void session.completeWithoutAi()}
       />

@@ -1,12 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { JitsiMeet, JitsiRef } from '@/components/teleconsulta/JitsiMeet';
 import { useJitsiToken } from '@/hooks/use-jitsi-token';
-import { Loader2, Video, AlertCircle, Mic, MicOff, VideoIcon, VideoOff, Monitor, MessageSquare, PhoneOff } from 'lucide-react';
+import { Loader2, Video, AlertCircle, Mic, MicOff, VideoIcon, VideoOff, Monitor, MessageSquare, PhoneOff, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+
+interface SessionJoinInfo {
+  transcriptionEnabled: boolean;
+  noticeText: string | null;
+  noticeVersion: string | null;
+}
 
 const JITSI_APP_ID = "vpaas-magic-cookie-dc267e44c7014498a3a128625367fc67";
 
@@ -15,6 +22,10 @@ const JoinSession = () => {
   const navigate = useNavigate();
   const [guestName, setGuestName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
+  const [joinInfo, setJoinInfo] = useState<SessionJoinInfo | null>(null);
+  const [isLoadingJoinInfo, setIsLoadingJoinInfo] = useState(true);
+  const [joinInfoError, setJoinInfoError] = useState<string | null>(null);
+  const [noticeAccepted, setNoticeAccepted] = useState(false);
 
   // Control states
   const [isMuted, setIsMuted] = useState(false);
@@ -30,7 +41,50 @@ const JoinSession = () => {
     guestName // Pass the guest name state
   });
 
-  const handleJoin = () => {
+  const loadJoinInfo = useCallback(async () => {
+    if (!appointmentId) return null;
+    setIsLoadingJoinInfo(true);
+    setJoinInfoError(null);
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke<SessionJoinInfo>('get-session-join-info', {
+        body: { appointmentId },
+      });
+      if (invokeError) throw new Error(invokeError.message);
+      if (!data) throw new Error('Resposta vazia da validação de entrada.');
+      setJoinInfo(data);
+      if (!data.transcriptionEnabled) setNoticeAccepted(false);
+      return data;
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : 'Não foi possível validar a entrada.';
+      setJoinInfoError(message);
+      return null;
+    } finally {
+      setIsLoadingJoinInfo(false);
+    }
+  }, [appointmentId]);
+
+  useEffect(() => {
+    void loadJoinInfo();
+    const interval = window.setInterval(() => void loadJoinInfo(), 10000);
+    return () => window.clearInterval(interval);
+  }, [loadJoinInfo]);
+
+  const handleJoin = async () => {
+    if (!guestName.trim()) {
+      toast.error("Por favor, insira seu nome para entrar.");
+      return;
+    }
+
+    const latestJoinInfo = await loadJoinInfo();
+    if (!latestJoinInfo) {
+      toast.error("Não foi possível validar o aviso da sessão. Tente novamente.");
+      return;
+    }
+    if (latestJoinInfo.transcriptionEnabled && !noticeAccepted) {
+      toast.error("Leia e confirme ciência do aviso de transcrição antes de entrar.");
+      return;
+    }
+
     if (guestName.trim()) {
       setIsJoining(true);
       toast.loading("Conectando à sala...");
@@ -192,6 +246,43 @@ const JoinSession = () => {
           Você foi convidado para uma teleconsulta. Por favor, insira seu nome para participar.
         </p>
 
+        {isLoadingJoinInfo ? (
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-border/20 bg-secondary/20 px-4 py-3 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Validando dados da sessão...
+          </div>
+        ) : null}
+
+        {joinInfo?.transcriptionEnabled ? (
+          <div className="space-y-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-left">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-300" />
+              <div>
+                <p className="text-sm font-bold text-foreground">Aviso de transcrição</p>
+                <p className="mt-2 text-xs font-medium leading-relaxed text-muted-foreground">
+                  {joinInfo.noticeText}
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant={noticeAccepted ? 'default' : 'outline'}
+              onClick={() => setNoticeAccepted(true)}
+              className="h-11 w-full rounded-xl text-[10px] font-bold uppercase tracking-wider"
+            >
+              {noticeAccepted ? <CheckCircle2 className="mr-2 h-4 w-4" /> : null}
+              {noticeAccepted ? 'Aviso confirmado' : 'Li e entendi'}
+            </Button>
+          </div>
+        ) : null}
+
+        {joinInfoError ? (
+          <div className="flex items-start gap-2 rounded-xl border border-rose-500/10 bg-rose-500/10 p-3 text-left text-sm text-rose-500">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{joinInfoError}</span>
+          </div>
+        ) : null}
+
         {isJoining && isLoading ? (
           <div className="flex flex-col items-center justify-center gap-4 pt-4">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -207,7 +298,11 @@ const JoinSession = () => {
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
               className="h-12 bg-secondary/20 border-border/10 text-foreground text-center text-base focus:bg-secondary/10 hover:bg-secondary/10 transition-colors placeholder:text-muted-foreground/50"
             />
-            <Button onClick={handleJoin} disabled={!guestName.trim() || isJoining} className="w-full h-12 text-sm font-bold uppercase tracking-wider shadow-lg shadow-primary/10">
+            <Button
+              onClick={handleJoin}
+              disabled={!guestName.trim() || isJoining || isLoadingJoinInfo || !!joinInfoError || (joinInfo?.transcriptionEnabled && !noticeAccepted)}
+              className="w-full h-12 text-sm font-bold uppercase tracking-wider shadow-lg shadow-primary/10"
+            >
               {isJoining ? <Loader2 className="w-4 h-4 animate-spin" /> : "Entrar na Sala"}
             </Button>
           </div>

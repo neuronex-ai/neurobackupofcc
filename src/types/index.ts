@@ -149,7 +149,10 @@ export interface AISummary {
   summary: string;
   topics: string[];
   next_steps: string[];
+  emotional_analysis?: string;
 }
+
+export type SessionNoteReviewStatus = 'pending_review' | 'confirmed';
 
 export interface SessionNote {
   id: string;
@@ -160,6 +163,13 @@ export interface SessionNote {
   ai_summary: AISummary | null;
   transcription: string | null;
   created_at: string;
+  review_status?: SessionNoteReviewStatus;
+  review_due_at?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by?: string | null;
+  auto_confirmed_at?: string | null;
+  locked_at?: string | null;
+  source_transcript_id?: string | null;
 }
 
 export interface PatientPackage {

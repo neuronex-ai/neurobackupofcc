@@ -9,6 +9,7 @@ import { PatientGoalsTab } from "@/components/patients/PatientGoalsTab";
 import { PatientHistoryTab } from "@/components/patients/PatientHistoryTab";
 import { PatientMoodTab } from "@/components/patients/PatientMoodTab";
 import { PatientPackagesTab } from "@/components/patients/PatientPackagesTab";
+import { PatientPendingSessionReviewsTab } from "@/components/patients/PatientPendingSessionReviewsTab";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +19,7 @@ import { useSessionNotes } from "@/hooks/use-session-notes";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
-    ArrowLeft, Cake, ClipboardList, Edit, Edit2, FileOutput, FileText, MapPin, Package, Phone, Pill, Shield,
+    ArrowLeft, Cake, ClipboardList, Clock3, Edit, Edit2, FileOutput, FileText, MapPin, Package, Phone, Pill, Shield,
     Smile, Target,
     Wallet
 } from "lucide-react";
@@ -58,7 +59,7 @@ export default function PatientDetail() {
 
     useEffect(() => {
         const tab = searchParams.get('tab');
-        if (tab && ["history", "anamnesis", "mood", "goals", "packages", "finance", "documents"].includes(tab)) {
+        if (tab && ["history", "pending_reviews", "anamnesis", "mood", "goals", "packages", "finance", "documents"].includes(tab)) {
             setActiveTab(tab);
         }
     }, [searchParams]);
@@ -160,6 +161,7 @@ export default function PatientDetail() {
 
     const patientTabs = [
         { val: "history", label: "Histórico", icon: FileText },
+        { val: "pending_reviews", label: "Revisões pendentes", icon: Clock3 },
         { val: "anamnesis", label: "Anamneses", icon: ClipboardList },
         { val: "mood", label: "Humor", icon: Smile },
         { val: "goals", label: "Metas", icon: Target },
@@ -365,6 +367,7 @@ export default function PatientDetail() {
                                         <TabsList className="h-auto w-full min-w-max justify-between gap-1 bg-transparent p-0">
                                             {[
                                                 { val: "history", label: "Histórico", icon: FileText },
+                                                { val: "pending_reviews", label: "Revisões pendentes", icon: Clock3 },
                                                 { val: "anamnesis", label: "Anamneses", icon: ClipboardList },
                                                 { val: "mood", label: "Humor", icon: Smile },
                                                 { val: "goals", label: "Metas", icon: Target },
@@ -425,6 +428,9 @@ export default function PatientDetail() {
                                             <ClinicalSummaryCard latestNote={latestNote} patient={patient} />
                                             <PatientHistoryTab patientId={id!} />
                                         </motion.div>
+                                    </TabsContent>
+                                    <TabsContent value="pending_reviews" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
+                                        <PatientPendingSessionReviewsTab patientId={id!} />
                                     </TabsContent>
                                     <TabsContent value="anamnesis" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
                                         <AnamnesisTab />

@@ -70,7 +70,7 @@ const TeleconsultaCore = () => {
   }
 
   return (
-    <div className="page-spacing relative min-h-screen overflow-hidden pb-12 pt-4">
+    <div className="page-spacing relative min-h-screen overflow-hidden pb-10 pt-0">
       <UpcomingSessionsPanel
         upcomingSessions={upcomingSessions}
         activeAppointment={activeAppointment}

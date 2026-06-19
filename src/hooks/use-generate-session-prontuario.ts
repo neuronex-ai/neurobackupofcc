@@ -17,6 +17,8 @@ interface GenerateProntuarioData {
   appointmentId: string;
   notes: string;
   chatHistory: ChatMessage[] | string;
+  reviewMode?: 'pending' | 'confirmed';
+  sourceTranscriptId?: string | null;
 }
 
 interface GenerateProntuarioResponse {
@@ -69,9 +71,11 @@ export const useGenerateSessionProntuario = () => {
       return generateProntuario(data, accessToken);
     },
     onSuccess: (_data, variables) => {
-      toast.success("Prontuário gerado e salvo com sucesso!");
+      toast.success(variables.reviewMode === 'pending' ? "Resumo pendente gerado para revisão." : "Prontuário gerado e salvo com sucesso!");
       // Invalida o histórico de sessões do paciente e o resumo do portal
       queryClient.invalidateQueries({ queryKey: ['sessionNotes', variables.patientId] });
+      queryClient.invalidateQueries({ queryKey: ['pendingSessionReviews', variables.patientId] });
+      queryClient.invalidateQueries({ queryKey: ['patientTimeline', variables.patientId] });
       queryClient.invalidateQueries({ queryKey: ['patientSessionSummary'] });
     },
     onError: (error) => {
