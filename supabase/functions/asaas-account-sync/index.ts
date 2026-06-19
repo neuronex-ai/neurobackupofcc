@@ -26,6 +26,7 @@ import {
     findAsaasSubAccountByEmail,
     findAsaasSubAccountByCpfCnpj,
     getFinancialAccountAsaasApiKey,
+    ensureAsaasOperationalWebhook,
     ASAAS_ENV,
     type AsaasAccountStatus,
 } from '../_shared/asaas-client.ts';
@@ -179,6 +180,10 @@ Deno.serve(async (req: Request) => {
         const uiStatus = deriveUiStatusFromAsaasAccount(accountStatus);
         const requirementsSnapshot = buildAsaasRequirementSnapshot(accountStatus, 'sync');
         await syncFinancialAccountFromAsaas(financialAccount.id, accountStatus, 'sync');
+        const webhook = await ensureAsaasOperationalWebhook(activeApiKey || asaasApiKey).catch((webhookErr) => ({
+            configured: false,
+            reason: webhookErr?.message || 'webhook_sync_failed',
+        }));
 
         // 5. Fetch balance from Asaas API if account is active
         let balance = { available: 0, pending: 0 };
@@ -216,6 +221,7 @@ Deno.serve(async (req: Request) => {
                 provider: 'asaas',
                 wallet_id: financialAccount.asaas_wallet_id,
             },
+            webhook,
         });
 
     } catch (error: any) {

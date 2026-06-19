@@ -97,6 +97,8 @@ Deno.serve(async (req: Request) => {
             switch (event) {
                 case 'PAYMENT_RECEIVED':
                 case 'PAYMENT_CONFIRMED':
+                case 'PAYMENT_AUTHORIZED':
+                case 'PAYMENT_ANTICIPATED':
                     await handlePaymentEvent(payment, event, webhookFinancialAccount);
                     break;
 
@@ -105,29 +107,43 @@ Deno.serve(async (req: Request) => {
                     break;
 
                 case 'PAYMENT_REFUNDED':
+                case 'PAYMENT_PARTIALLY_REFUNDED':
                 case 'PAYMENT_REFUND_IN_PROGRESS':
+                case 'PAYMENT_REFUND_DENIED':
+                case 'PAYMENT_RECEIVED_IN_CASH_UNDONE':
                     await handlePaymentEvent(payment, event, webhookFinancialAccount);
                     break;
 
                 case 'PAYMENT_DELETED':
+                case 'PAYMENT_RESTORED':
                     await handlePaymentEvent(payment, event, webhookFinancialAccount);
                     break;
 
                 case 'PAYMENT_CREATED':
                 case 'PAYMENT_UPDATED':
                 case 'PAYMENT_AWAITING_RISK_ANALYSIS':
+                case 'PAYMENT_APPROVED_BY_RISK_ANALYSIS':
+                case 'PAYMENT_REPROVED_BY_RISK_ANALYSIS':
                 case 'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED':
                 case 'PAYMENT_CHARGEBACK_REQUESTED':
                 case 'PAYMENT_CHARGEBACK_DISPUTE':
                 case 'PAYMENT_AWAITING_CHARGEBACK_REVERSAL':
                 case 'PAYMENT_DUNNING_REQUESTED':
                 case 'PAYMENT_DUNNING_RECEIVED':
+                case 'PAYMENT_BANK_SLIP_CANCELLED':
+                case 'PAYMENT_BANK_SLIP_VIEWED':
+                case 'PAYMENT_CHECKOUT_VIEWED':
+                case 'PAYMENT_SPLIT_CANCELLED':
+                case 'PAYMENT_SPLIT_DIVERGENCE_BLOCK':
+                case 'PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED':
                     await handlePaymentEvent(payment, event, webhookFinancialAccount);
                     break;
 
                 case 'TRANSFER_CREATED':
                 case 'TRANSFER_PENDING':
-                    await handleTransferPending(body.transfer);
+                case 'TRANSFER_IN_BANK_PROCESSING':
+                case 'TRANSFER_BLOCKED':
+                    await handleTransferPending(body.transfer, event);
                     break;
 
                 case 'TRANSFER_DONE':
@@ -146,6 +162,8 @@ Deno.serve(async (req: Request) => {
                         await handleReceivableAnticipationEvent(body.anticipation || resource, event, webhookFinancialAccount);
                     } else if (event.startsWith('ACCOUNT_STATUS_')) {
                         await handleAccountStatus(body.accountStatus, event);
+                    } else if (isGenericNotifiableAsaasEvent(event)) {
+                        await handleGenericAsaasEvent(body, resource, event, webhookFinancialAccount);
                     } else {
                         console.log(`[asaas-webhook] Unhandled event: ${event}`);
                     }
@@ -177,6 +195,13 @@ function getWebhookResource(body: any) {
         body?.transfer ||
         body?.accountStatus ||
         body?.subscription ||
+        body?.checkout ||
+        body?.authorization ||
+        body?.paymentInstruction ||
+        body?.eligibility ||
+        body?.balance ||
+        body?.internalTransfer ||
+        body?.mobilePhoneRecharge ||
         body?.customer ||
         body?.invoice ||
         body?.pix ||
@@ -190,11 +215,223 @@ function inferProviderObjectType(body: any) {
     if (body?.transfer) return 'transfer';
     if (body?.accountStatus) return 'account_status';
     if (body?.subscription) return 'subscription';
+    if (body?.checkout) return 'checkout';
+    if (body?.authorization) return 'pix_automatic_authorization';
+    if (body?.paymentInstruction) return 'pix_automatic_payment_instruction';
+    if (body?.eligibility) return 'pix_automatic_eligibility';
+    if (body?.balance) return 'balance';
+    if (body?.internalTransfer) return 'internal_transfer';
+    if (body?.mobilePhoneRecharge) return 'mobile_phone_recharge';
     if (body?.customer) return 'customer';
     if (body?.invoice) return 'invoice';
     if (body?.pix) return 'pix';
     if (body?.anticipation) return 'anticipation';
     return 'unknown';
+}
+
+const ADMIN_ONLY_ASAAS_EVENTS = new Set([
+    'ACCESS_TOKEN_CREATED',
+    'ACCESS_TOKEN_DELETED',
+    'ACCESS_TOKEN_DISABLED',
+    'ACCESS_TOKEN_ENABLED',
+    'ACCESS_TOKEN_EXPIRED',
+    'ACCESS_TOKEN_EXPIRING_SOON',
+]);
+
+const HISTORY_ONLY_ASAAS_EVENTS = new Set([
+    'PAYMENT_BANK_SLIP_VIEWED',
+    'PAYMENT_CHECKOUT_VIEWED',
+]);
+
+const GENERIC_NOTIFIABLE_PREFIXES = [
+    'INVOICE_',
+    'SUBSCRIPTION_',
+    'CHECKOUT_',
+    'BALANCE_',
+    'INTERNAL_TRANSFER_',
+    'PIX_AUTOMATIC_',
+    'MOBILE_PHONE_RECHARGE_',
+];
+
+function isGenericNotifiableAsaasEvent(event: string) {
+    return GENERIC_NOTIFIABLE_PREFIXES.some((prefix) => event.startsWith(prefix));
+}
+
+function compactEventLabel(event: string) {
+    return event
+        .toLowerCase()
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+function amountCentsFromResource(resource: any) {
+    const raw = resource?.value ??
+        resource?.netValue ??
+        resource?.grossValue ??
+        resource?.amount ??
+        resource?.anticipatedValue ??
+        resource?.totalValue ??
+        0;
+    const numberValue = Number(raw || 0);
+    return Number.isFinite(numberValue) && numberValue > 0
+        ? Math.round(numberValue * 100)
+        : null;
+}
+
+function asaasNotificationDescriptor(event: string, resource: any) {
+    if (ADMIN_ONLY_ASAAS_EVENTS.has(event) || HISTORY_ONLY_ASAAS_EVENTS.has(event)) return null;
+
+    const amountCents = amountCentsFromResource(resource);
+    const amountText = amountCents
+        ? ` no valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amountCents / 100)}`
+        : '';
+    const base = {
+        title: 'Atualizacao do NeuroFinance',
+        message: `Evento ${compactEventLabel(event)} recebido pela Asaas${amountText}.`,
+        severity: 'info',
+        priority: 'normal',
+        requiresAction: false,
+        nativePushEligible: false,
+    };
+
+    const table: Record<string, Partial<typeof base>> = {
+        PAYMENT_AUTHORIZED: { title: 'Pagamento autorizado', message: `Uma cobranca foi autorizada${amountText}.`, severity: 'success' },
+        PAYMENT_CREATED: { title: 'Cobranca criada', message: `Uma cobranca foi criada no NeuroFinance${amountText}.` },
+        PAYMENT_UPDATED: { title: 'Cobranca atualizada', message: `Uma cobranca foi atualizada pela Asaas${amountText}.` },
+        PAYMENT_CONFIRMED: { title: 'Pagamento confirmado', message: `Um pagamento foi confirmado${amountText}.`, severity: 'success' },
+        PAYMENT_RECEIVED: { title: 'Pagamento recebido', message: `Um pagamento ficou disponivel no NeuroFinance${amountText}.`, severity: 'success' },
+        PAYMENT_ANTICIPATED: { title: 'Pagamento antecipado', message: `Uma cobranca foi antecipada${amountText}.`, severity: 'success' },
+        PAYMENT_OVERDUE: { title: 'Pagamento vencido', message: `Uma cobranca venceu e precisa de acompanhamento${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true, nativePushEligible: true },
+        PAYMENT_DELETED: { title: 'Cobranca removida', message: `Uma cobranca foi removida/cancelada${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        PAYMENT_RESTORED: { title: 'Cobranca restaurada', message: `Uma cobranca foi restaurada${amountText}.`, severity: 'success' },
+        PAYMENT_REFUNDED: { title: 'Pagamento estornado', message: `Um pagamento foi estornado${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        PAYMENT_PARTIALLY_REFUNDED: { title: 'Pagamento parcialmente estornado', message: `Um pagamento teve estorno parcial${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        PAYMENT_REFUND_IN_PROGRESS: { title: 'Estorno em processamento', message: `Um estorno esta em processamento${amountText}.`, severity: 'info' },
+        PAYMENT_REFUND_DENIED: { title: 'Estorno negado', message: `A Asaas negou uma solicitacao de estorno${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        PAYMENT_RECEIVED_IN_CASH_UNDONE: { title: 'Baixa em dinheiro desfeita', message: `Uma baixa manual de pagamento foi desfeita${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        PAYMENT_AWAITING_RISK_ANALYSIS: { title: 'Pagamento em analise de risco', message: `Uma cobranca entrou em analise de risco${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        PAYMENT_APPROVED_BY_RISK_ANALYSIS: { title: 'Analise de risco aprovada', message: `Uma cobranca foi aprovada na analise de risco${amountText}.`, severity: 'success' },
+        PAYMENT_REPROVED_BY_RISK_ANALYSIS: { title: 'Analise de risco reprovada', message: `Uma cobranca foi reprovada na analise de risco${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        PAYMENT_CREDIT_CARD_CAPTURE_REFUSED: { title: 'Cartao recusado', message: `A captura do cartao foi recusada${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        PAYMENT_CHARGEBACK_REQUESTED: { title: 'Chargeback solicitado', message: `Uma contestacao foi solicitada${amountText}.`, severity: 'destructive', priority: 'urgent', requiresAction: true, nativePushEligible: true },
+        PAYMENT_CHARGEBACK_DISPUTE: { title: 'Chargeback em disputa', message: `Uma contestacao entrou em disputa${amountText}.`, severity: 'destructive', priority: 'urgent', requiresAction: true, nativePushEligible: true },
+        PAYMENT_AWAITING_CHARGEBACK_REVERSAL: { title: 'Chargeback aguardando reversao', message: `Uma contestacao aguarda reversao${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true, nativePushEligible: true },
+        PAYMENT_DUNNING_REQUESTED: { title: 'Recuperacao de cobranca solicitada', message: `Uma recuperacao de cobranca foi solicitada${amountText}.`, severity: 'info' },
+        PAYMENT_DUNNING_RECEIVED: { title: 'Recuperacao de cobranca recebida', message: `Uma recuperacao de cobranca foi recebida${amountText}.`, severity: 'success' },
+        PAYMENT_BANK_SLIP_CANCELLED: { title: 'Boleto cancelado', message: `Um boleto foi cancelado${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        PAYMENT_SPLIT_CANCELLED: { title: 'Split cancelado', message: `O split de uma cobranca foi cancelado${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        PAYMENT_SPLIT_DIVERGENCE_BLOCK: { title: 'Divergencia de split bloqueada', message: `Uma divergencia de split bloqueou uma cobranca${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED: { title: 'Divergencia de split resolvida', message: `O bloqueio de divergencia de split foi finalizado${amountText}.`, severity: 'success' },
+        TRANSFER_DONE: { title: 'Transferencia concluida', message: `Uma transferencia foi concluida${amountText}.`, severity: 'success' },
+        TRANSFER_FAILED: { title: 'Transferencia falhou', message: `Uma transferencia falhou${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        TRANSFER_CANCELLED: { title: 'Transferencia cancelada', message: `Uma transferencia foi cancelada${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        TRANSFER_BLOCKED: { title: 'Transferencia bloqueada', message: `Uma transferencia foi bloqueada pela Asaas${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        BILL_PAID: { title: 'Conta paga', message: `Um pagamento de conta foi confirmado${amountText}.`, severity: 'success' },
+        BILL_FAILED: { title: 'Pagamento de conta falhou', message: `Um pagamento de conta falhou${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        BILL_CANCELLED: { title: 'Pagamento de conta cancelado', message: `Um pagamento de conta foi cancelado${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        BILL_REFUNDED: { title: 'Pagamento de conta estornado', message: `Um pagamento de conta foi estornado${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        RECEIVABLE_ANTICIPATION_CREDITED: { title: 'Antecipacao creditada', message: `Uma antecipacao foi creditada${amountText}.`, severity: 'success' },
+        RECEIVABLE_ANTICIPATION_DENIED: { title: 'Antecipacao negada', message: `Uma antecipacao foi negada${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        RECEIVABLE_ANTICIPATION_OVERDUE: { title: 'Antecipacao vencida', message: `Uma antecipacao ficou vencida${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true, nativePushEligible: true },
+        INVOICE_AUTHORIZED: { title: 'Nota fiscal autorizada', message: 'Uma NFS-e foi autorizada pela Asaas.', severity: 'success' },
+        INVOICE_ERROR: { title: 'Erro na nota fiscal', message: 'A Asaas retornou erro em uma NFS-e.', severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        INVOICE_CANCELLATION_DENIED: { title: 'Cancelamento de NFS-e negado', message: 'A Asaas negou o cancelamento de uma NFS-e.', severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        BALANCE_VALUE_BLOCKED: { title: 'Saldo bloqueado', message: `Um valor foi bloqueado no saldo NeuroFinance${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        BALANCE_VALUE_UNBLOCKED: { title: 'Saldo desbloqueado', message: `Um valor foi desbloqueado no saldo NeuroFinance${amountText}.`, severity: 'success' },
+        PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED: { title: 'Pix Automatico recusado', message: 'Uma autorizacao de Pix Automatico foi recusada pelo banco.', severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_REFUSED: { title: 'Instrucao Pix recusada', message: 'Uma instrucao de pagamento Pix Automatico foi recusada.', severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED: { title: 'Elegibilidade Pix atualizada', message: 'A elegibilidade da subconta para Pix Automatico foi atualizada.', severity: 'info' },
+    };
+
+    const descriptor = { ...base, ...(table[event] || {}) };
+
+    if (event.startsWith('ACCOUNT_STATUS_')) {
+        if (event.endsWith('_REJECTED')) {
+            return {
+                ...descriptor,
+                title: 'Cadastro Asaas requer atencao',
+                message: 'A Asaas rejeitou uma etapa de cadastro da subconta NeuroFinance.',
+                severity: 'destructive',
+                priority: 'high',
+                requiresAction: true,
+                nativePushEligible: true,
+            };
+        }
+        if (event.endsWith('_APPROVED')) {
+            return {
+                ...descriptor,
+                title: 'Cadastro Asaas aprovado',
+                message: 'Uma etapa de cadastro da subconta NeuroFinance foi aprovada.',
+                severity: 'success',
+            };
+        }
+        if (event.endsWith('_EXPIRING_SOON') || event.endsWith('_EXPIRED')) {
+            return {
+                ...descriptor,
+                title: 'Dados comerciais precisam de revisao',
+                message: 'Os dados comerciais da subconta Asaas precisam ser revisados.',
+                severity: 'warning',
+                priority: 'high',
+                requiresAction: true,
+                nativePushEligible: true,
+            };
+        }
+    }
+
+    return descriptor;
+}
+
+async function emitAsaasNotification(args: {
+    userId?: string | null;
+    financialAccountId?: string | null;
+    event: string;
+    resource: any;
+    objectType: string;
+    actionUrl?: string;
+}) {
+    if (!args.userId) return;
+
+    const descriptor = asaasNotificationDescriptor(args.event, args.resource);
+    if (!descriptor) return;
+
+    const providerObjectId = String(args.resource?.id || args.resource?.payment || args.resource?.authorization?.id || args.event);
+    const amountCents = amountCentsFromResource(args.resource);
+    const eventId = `asaas:${args.event}:${providerObjectId}`;
+    const { error } = await supabaseAdmin.rpc('emit_user_notification', {
+        p_user_id: args.userId,
+        p_event_id: eventId,
+        p_type: `asaas_${args.event.toLowerCase()}`,
+        p_category: 'financeiro',
+        p_severity: descriptor.severity,
+        p_title: descriptor.title,
+        p_message: descriptor.message,
+        p_action_url: args.actionUrl || '/financeiro',
+        p_priority: descriptor.priority,
+        p_data: {
+            sourceModule: 'financeiro',
+            financeScope: 'neurofinance',
+            eventSource: 'asaas_webhook',
+            provider: 'asaas',
+            asaasEvent: args.event,
+            providerObjectId,
+            providerObjectType: args.objectType,
+            financialAccountId: args.financialAccountId || null,
+            subaccountId: args.financialAccountId || null,
+            amountCents,
+            requiresAction: descriptor.requiresAction,
+            nativePushEligible: descriptor.nativePushEligible,
+        },
+        p_payload: {
+            provider: 'asaas',
+            objectType: args.objectType,
+        },
+        p_organization_id: null,
+    });
+
+    if (error) {
+        console.warn('[asaas-webhook] Failed to emit notification:', error);
+    }
 }
 
 async function findPaymentByProviderId(paymentId: string, columns = '*'): Promise<any> {

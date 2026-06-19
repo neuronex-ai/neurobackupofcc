@@ -41,6 +41,7 @@ import {
     normalizeAccountNumber,
     findAsaasSubAccountByEmail,
     findAsaasSubAccountByCpfCnpj,
+    ensureAsaasOperationalWebhook,
     ASAAS_ENV,
 } from '../_shared/asaas-client.ts';
 
@@ -101,6 +102,10 @@ Deno.serve(async (req: Request) => {
                 const uiStatus = deriveUiStatusFromAsaasAccount(status);
                 const requirements = buildAsaasRequirementSnapshot(status, 'sync');
                 await syncFinancialAccountFromAsaas(existingAccount.id, status, 'sync');
+                const webhook = await ensureAsaasOperationalWebhook(existingApiKey).catch((webhookErr) => ({
+                    configured: false,
+                    reason: webhookErr?.message || 'webhook_sync_failed',
+                }));
 
                 return jsonResponse({
                     success: true,
@@ -111,6 +116,7 @@ Deno.serve(async (req: Request) => {
                     onboarding_url: existingAccount.asaas_onboarding_url,
                     account_status: status,
                     requirements,
+                    webhook,
                 });
             } catch (err) {
                 console.error('Error syncing existing account:', err);
@@ -232,6 +238,10 @@ Deno.serve(async (req: Request) => {
             let status = 'onboarding';
             let accountStatus = null;
             let requirements = null;
+            const webhook = await ensureAsaasOperationalWebhook(providerExistingAccount.apiKey).catch((webhookErr) => ({
+                configured: false,
+                reason: webhookErr?.message || 'webhook_sync_failed',
+            }));
             try {
                 accountStatus = await getAsaasAccountStatus(providerExistingAccount.apiKey);
                 status = deriveUiStatusFromAsaasAccount(accountStatus);
@@ -252,6 +262,7 @@ Deno.serve(async (req: Request) => {
                 status,
                 account_status: accountStatus,
                 requirements,
+                webhook,
                 account_number: providerExistingAccount.accountNumber || null,
             });
         }
@@ -366,6 +377,10 @@ Deno.serve(async (req: Request) => {
         let status = 'onboarding';
         let accountStatus = null;
         let requirements = null;
+        const webhook = await ensureAsaasOperationalWebhook(subAccount.apiKey).catch((webhookErr) => ({
+            configured: false,
+            reason: webhookErr?.message || 'webhook_sync_failed',
+        }));
         try {
             accountStatus = await getAsaasAccountStatus(subAccount.apiKey);
             status = deriveUiStatusFromAsaasAccount(accountStatus);
@@ -397,6 +412,7 @@ Deno.serve(async (req: Request) => {
             status,
             account_status: accountStatus,
             requirements,
+            webhook,
             account_number: subAccount.accountNumber || null,
         });
 
