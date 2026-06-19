@@ -45,6 +45,13 @@ export interface AppointmentMetadata {
     decidedBy?: string;
     noticeVersion?: string;
   };
+  teleconsultationRoom?: {
+    status?: "waiting" | "open" | "closed";
+    openedAt?: string;
+    closedAt?: string;
+    closedReason?: string;
+    openedBy?: string;
+  };
 }
 
 const SESSION_TYPE_LABELS: Record<string, string> = {

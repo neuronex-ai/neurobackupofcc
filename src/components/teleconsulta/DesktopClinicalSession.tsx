@@ -34,6 +34,10 @@ export const DesktopClinicalSession = ({
             therapistName={session.therapistName}
             isOnline={session.isOnlineSession}
             isLoadingToken={session.isOnlineSession && session.isLoadingToken}
+            canInvitePatient={session.canInvitePatient}
+            hasTranscriptionDecision={session.hasTranscriptionDecision}
+            roomStatus={session.roomStatus}
+            onRequireTranscriptionDecision={() => session.openPatientInvite()}
             onJoin={session.handleJoinSession}
           />
         </div>
@@ -96,10 +100,7 @@ export const DesktopClinicalSession = ({
             isAudioEnabled={session.isAudioEnabled}
             isVideoEnabled={session.isVideoEnabled}
             isChatOpen={session.isChatOpen}
-            onConferenceJoined={() => {
-              session.setHasJoined(true);
-              session.setShowLobby(false);
-            }}
+            onConferenceJoined={session.handleConferenceJoined}
             onMeetingEnd={() => void session.requestReview()}
             onTranscriptUpdate={session.appendJitsiSegment}
             onMuteStatusChanged={({ audio, video }) => {
@@ -113,7 +114,7 @@ export const DesktopClinicalSession = ({
             onToggleAudio={session.toggleAudio}
             onToggleVideo={session.toggleVideo}
             onToggleChat={() => session.setIsChatOpen((current) => !current)}
-            onOpenInvite={() => session.setShowInviteModal(true)}
+            onOpenInvite={session.openPatientInvite}
             onToggleCapture={() => void session.handleToggleCapture()}
             onCloseChat={() => session.setIsChatOpen(false)}
           />
@@ -144,6 +145,7 @@ export const DesktopClinicalSession = ({
         onClose={() => session.setShowInviteModal(false)}
         patient={session.patient}
         meetLink={session.effectiveMeetLink}
+        therapistName={session.therapistName}
       />
 
       {session.showConsent && session.hasJoined && !session.reviewOpen ? (

@@ -19,6 +19,18 @@ export type DesktopSessionCompletionMode = 'idle' | 'generating' | 'saving';
 const JITSI_APP_ID = 'vpaas-magic-cookie-dc267e44c7014498a3a128625367fc67';
 const TRANSCRIPTION_NOTICE_VERSION = '2026-06-teleconsultation-transcription-v1';
 
+type TranscriptionDecision = {
+  enabled: boolean;
+  decidedAt?: string;
+  decidedBy?: string;
+  noticeVersion?: string;
+} | null;
+
+const getTranscriptionDecision = (metadata: Appointment['metadata']): TranscriptionDecision => {
+  const decision = metadata?.teleconsultationTranscription;
+  return decision && typeof decision.enabled === 'boolean' ? decision : null;
+};
+
 export const formatSessionElapsed = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
@@ -61,6 +73,12 @@ export const useDesktopClinicalSession = (
   const isOnlineSession = activeAppointment.type === 'online';
   const roomName = `${JITSI_APP_ID}/${appointmentId}`;
   const effectiveMeetLink = `${window.location.origin}/join/${appointmentId}`;
+  const [transcriptionDecision, setTranscriptionDecision] = useState<TranscriptionDecision>(() =>
+    getTranscriptionDecision(activeAppointment.metadata),
+  );
+  const [roomStatus, setRoomStatus] = useState<'waiting' | 'open' | 'closed'>(
+    activeAppointment.metadata?.teleconsultationRoom?.status || 'waiting',
+  );
 
   const { data: patient } = usePatientById(patientId || '');
   const {
@@ -108,6 +126,8 @@ export const useDesktopClinicalSession = (
 
   const isProcessing = completionMode !== 'idle' || isUpdatingAppointment || isGeneratingProntuario;
   const captureAvailable = isOnlineSession || speechSupported;
+  const hasTranscriptionDecision = !isOnlineSession || Boolean(transcriptionDecision);
+  const canInvitePatient = isOnlineSession && hasTranscriptionDecision && roomStatus !== 'closed';
 
   const captureLabel = useMemo(() => {
     if (consentStatus === 'declined') return 'Sessão sem transcrição';
@@ -130,20 +150,64 @@ export const useDesktopClinicalSession = (
   }, [hasNetwork, pendingCount, syncState]);
 
   const persistTranscriptionDecision = useCallback(async (enabled: boolean) => {
+    const decision = {
+      enabled,
+      decidedAt: new Date().toISOString(),
+      decidedBy: user?.id,
+      noticeVersion: TRANSCRIPTION_NOTICE_VERSION,
+    };
     await updateAppointment({
       id: appointmentId,
       updates: {
         metadata: {
-          teleconsultationTranscription: {
-            enabled,
-            decidedAt: new Date().toISOString(),
-            decidedBy: user?.id,
-            noticeVersion: TRANSCRIPTION_NOTICE_VERSION,
+          teleconsultationTranscription: decision,
+        },
+      },
+    });
+    setTranscriptionDecision(decision);
+  }, [appointmentId, updateAppointment, user?.id]);
+
+  const persistRoomStatus = useCallback(async (
+    status: 'waiting' | 'open' | 'closed',
+    reason?: string,
+  ) => {
+    if (!isOnlineSession) return;
+    const now = new Date().toISOString();
+    setRoomStatus(status);
+    await updateAppointment({
+      id: appointmentId,
+      updates: {
+        metadata: {
+          teleconsultationRoom: {
+            status,
+            openedAt: status === 'open' ? now : activeAppointment.metadata?.teleconsultationRoom?.openedAt,
+            openedBy: status === 'open' ? user?.id : activeAppointment.metadata?.teleconsultationRoom?.openedBy,
+            closedAt: status === 'closed' ? now : undefined,
+            closedReason: status === 'closed' ? reason || 'therapist_left' : undefined,
           },
         },
       },
     });
-  }, [appointmentId, updateAppointment, user?.id]);
+  }, [activeAppointment.metadata?.teleconsultationRoom?.openedAt, activeAppointment.metadata?.teleconsultationRoom?.openedBy, appointmentId, isOnlineSession, updateAppointment, user?.id]);
+
+  const openPatientInvite = useCallback(() => {
+    if (!hasTranscriptionDecision) {
+      setShowConsent(true);
+      toast.info('Defina se a teleconsulta será transcrita antes de convidar o paciente.');
+      return;
+    }
+    if (roomStatus === 'closed') {
+      toast.error('Esta sala já foi encerrada.');
+      return;
+    }
+    setShowInviteModal(true);
+  }, [hasTranscriptionDecision, roomStatus]);
+
+  useEffect(() => {
+    const nextDecision = getTranscriptionDecision(activeAppointment.metadata);
+    if (nextDecision) setTranscriptionDecision(nextDecision);
+    setRoomStatus(activeAppointment.metadata?.teleconsultationRoom?.status || 'waiting');
+  }, [activeAppointment.metadata]);
 
   useEffect(() => {
     if (!hasJoined) return;
@@ -157,20 +221,47 @@ export const useDesktopClinicalSession = (
   }, [hasJoined]);
 
   useEffect(() => {
+    if (isOnlineSession) {
+      void ensureTranscript().catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Não foi possível preparar a transcrição.');
+      });
+      setShowConsent(!transcriptionDecision && !reviewOpen);
+      return;
+    }
+
     if (!isOnlineSession && !hasJoined) return;
     void ensureTranscript().catch((error) => {
       toast.error(error instanceof Error ? error.message : 'Não foi possível preparar a transcrição.');
     });
     setShowConsent(consentStatus === 'pending');
-  }, [consentStatus, ensureTranscript, hasJoined, isOnlineSession]);
+  }, [consentStatus, ensureTranscript, hasJoined, isOnlineSession, reviewOpen, transcriptionDecision]);
 
   const handleJoinSession = useCallback((selection: MediaDeviceChoice) => {
+    if (isOnlineSession && !hasTranscriptionDecision) {
+      setShowConsent(true);
+      toast.info('Defina se a teleconsulta será transcrita antes de abrir a sala.');
+      return;
+    }
+    if (roomStatus === 'closed') {
+      toast.error('Esta sala já foi encerrada.');
+      return;
+    }
     setMediaSettings(selection);
     setIsAudioEnabled(selection.audioEnabled);
     setIsVideoEnabled(selection.videoEnabled);
     setShowLobby(false);
     if (!isOnlineSession) setHasJoined(true);
-  }, [isOnlineSession]);
+  }, [hasTranscriptionDecision, isOnlineSession, roomStatus]);
+
+  const handleConferenceJoined = useCallback(() => {
+    setHasJoined(true);
+    setShowLobby(false);
+    if (isOnlineSession) {
+      void persistRoomStatus('open').catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Não foi possível abrir a sala para o paciente.');
+      });
+    }
+  }, [isOnlineSession, persistRoomStatus]);
 
   const handleGrantConsent = useCallback(async (
     method: Parameters<typeof grantConsent>[0],
@@ -242,6 +333,9 @@ export const useDesktopClinicalSession = (
     setCompletionError(null);
     setReviewSummaryNote(null);
     try {
+      if (isOnlineSession) {
+        await persistRoomStatus('closed', 'therapist_left');
+      }
       let finalTranscript = transcriptText;
       let finalTranscriptId = transcriptId;
       if (consentStatus === 'granted' && captureState !== 'completed') {
@@ -284,7 +378,7 @@ export const useDesktopClinicalSession = (
       setCompletionError(message);
       toast.error(message);
     }
-  }, [appointmentId, captureState, consentStatus, finalizeCapture, generateProntuario, hasJoined, hasNetwork, isOnlineSession, linkSummaryNote, markReviewed, notesDraft.notes, patientId, retrySync, transcriptId, transcriptText]);
+  }, [appointmentId, captureState, consentStatus, finalizeCapture, generateProntuario, hasJoined, hasNetwork, isOnlineSession, linkSummaryNote, markReviewed, notesDraft.notes, patientId, persistRoomStatus, retrySync, transcriptId, transcriptText]);
 
   const finishSession = useCallback(async (
     draftPending: boolean,
@@ -455,6 +549,10 @@ export const useDesktopClinicalSession = (
     showLobby,
     hasJoined,
     showConsent,
+    transcriptionDecision,
+    hasTranscriptionDecision,
+    roomStatus,
+    canInvitePatient,
     mediaSettings,
     isScreenSharing,
     isAudioEnabled,
@@ -485,6 +583,7 @@ export const useDesktopClinicalSession = (
     appendJitsiSegment,
     retrySync,
     handleJoinSession,
+    handleConferenceJoined,
     handleGrantConsent,
     handleDeclineConsent,
     handleToggleCapture,
@@ -500,6 +599,7 @@ export const useDesktopClinicalSession = (
     setIsAudioEnabled,
     setIsVideoEnabled,
     setIsChatOpen,
+    openPatientInvite,
     setShowInviteModal,
     setReviewTranscript,
     setReviewNotes,
