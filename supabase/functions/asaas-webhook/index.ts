@@ -610,6 +610,15 @@ async function handlePaymentEvent(payment: any, event: string, webhookAccount?: 
         await tryScheduleAutomaticInvoice(nbPayment, payment);
     }
 
+    await emitAsaasNotification({
+        userId: financialAccount.user_id,
+        financialAccountId: financialAccount.id,
+        event,
+        resource: payment,
+        objectType: 'payment',
+        actionUrl: '/financeiro?tab=neurofinance',
+    });
+
     console.log(`[asaas-webhook] Payment synchronized (${event}): ${nbPayment.id}`);
 }
 
@@ -923,6 +932,14 @@ async function handleReceivableAnticipationEvent(anticipation: any, event: strin
 
     await refreshOverviewSnapshot(financialAccount.id);
     await touchFinancialAccountEvent(financialAccount.id, event);
+    await emitAsaasNotification({
+        userId: financialAccount.user_id,
+        financialAccountId: financialAccount.id,
+        event,
+        resource: anticipation,
+        objectType: 'anticipation',
+        actionUrl: '/financeiro?tab=neurofinance',
+    });
 }
 
 async function findBillPaymentByProviderResource(bill: any) {
@@ -999,6 +1016,14 @@ async function handleBillEvent(bill: any, event: string) {
 
     await refreshOverviewSnapshot(record.financial_account_id);
     await touchFinancialAccountEvent(record.financial_account_id, event);
+    await emitAsaasNotification({
+        userId: record.user_id,
+        financialAccountId: record.financial_account_id,
+        event,
+        resource: bill,
+        objectType: 'bill',
+        actionUrl: '/financeiro?tab=neurofinance',
+    });
     console.log(`[asaas-webhook] Bill synchronized (${event}): ${record.id}`);
 }
 
@@ -1025,10 +1050,10 @@ async function updateSecureOutgoingTransfer(transfer: any, values: Record<string
     if (error) throw error;
 }
 
-async function handleTransferPending(transfer: any) {
+async function handleTransferPending(transfer: any, event = 'TRANSFER_PENDING') {
     if (!transfer?.id) return;
 
-    const payout = await findPayoutByProviderId(transfer.id, 'id, financial_account_id');
+    const payout = await findPayoutByProviderId(transfer.id, 'id,user_id,financial_account_id');
 
     if (!payout) {
         console.log(`[asaas-webhook] Transfer not found in nb_payouts: ${transfer.id}`);
@@ -1053,7 +1078,15 @@ async function handleTransferPending(transfer: any) {
         receipt_url: transfer.transactionReceiptUrl || null,
     });
 
-    await touchFinancialAccountEvent(payout.financial_account_id, 'TRANSFER_PENDING');
+    await touchFinancialAccountEvent(payout.financial_account_id, event);
+    await emitAsaasNotification({
+        userId: payout.user_id,
+        financialAccountId: payout.financial_account_id,
+        event,
+        resource: transfer,
+        objectType: 'transfer',
+        actionUrl: '/financeiro?tab=neurofinance',
+    });
 }
 
 async function handleTransferDone(transfer: any) {
@@ -1120,6 +1153,14 @@ async function handleTransferDone(transfer: any) {
 
     await refreshOverviewSnapshot(payout.financial_account_id);
     await touchFinancialAccountEvent(payout.financial_account_id, 'TRANSFER_DONE');
+    await emitAsaasNotification({
+        userId: payout.user_id,
+        financialAccountId: payout.financial_account_id,
+        event: 'TRANSFER_DONE',
+        resource: transfer,
+        objectType: 'transfer',
+        actionUrl: '/financeiro?tab=neurofinance',
+    });
 
     console.log(`[asaas-webhook] Transfer completed: ${payout.id}`);
 }
@@ -1152,6 +1193,14 @@ async function handleTransferFailed(transfer: any, event: string) {
     });
 
     await touchFinancialAccountEvent(payout.financial_account_id, event);
+    await emitAsaasNotification({
+        userId: payout.user_id,
+        financialAccountId: payout.financial_account_id,
+        event,
+        resource: transfer,
+        objectType: 'transfer',
+        actionUrl: '/financeiro?tab=neurofinance',
+    });
 
     console.log(`[asaas-webhook] Transfer ${status}: ${payout.id}`);
 }
@@ -1171,6 +1220,36 @@ async function handleAccountStatus(accountStatusPayload: any, event: string) {
     const accountStatus = normalizeAsaasAccountStatusPayload(accountStatusPayload);
     await syncFinancialAccountFromAsaas(financialAccount.id, accountStatus, 'webhook');
     await touchFinancialAccountEvent(financialAccount.id, event);
+    await emitAsaasNotification({
+        userId: financialAccount.user_id,
+        financialAccountId: financialAccount.id,
+        event,
+        resource: accountStatusPayload,
+        objectType: 'account_status',
+        actionUrl: '/financeiro?tab=neurofinance',
+    });
 
     console.log(`[asaas-webhook] Account status synced (${event}): ${financialAccount.id}`);
+}
+
+async function handleGenericAsaasEvent(body: any, resource: any, event: string, webhookAccount?: any) {
+    if (ADMIN_ONLY_ASAAS_EVENTS.has(event)) {
+        console.log(`[asaas-webhook] Admin-only event ignored for psychologist notifications: ${event}`);
+        return;
+    }
+
+    if (!webhookAccount?.user_id) {
+        console.log(`[asaas-webhook] Generic event without linked account: ${event}`);
+        return;
+    }
+
+    await touchFinancialAccountEvent(webhookAccount.id, event);
+    await emitAsaasNotification({
+        userId: webhookAccount.user_id,
+        financialAccountId: webhookAccount.id,
+        event,
+        resource: resource || body,
+        objectType: inferProviderObjectType(body),
+        actionUrl: '/financeiro?tab=neurofinance',
+    });
 }
