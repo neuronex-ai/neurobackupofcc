@@ -30,11 +30,18 @@ async function refreshAccessToken(supabaseService: any, userId: string, refreshT
   return tokens.access_token;
 }
 
+const frontendUrl = () => Deno.env.get("FRONTEND_URL") || "https://neuronexai.com.br";
 const metadataOf = (appointment: any) => appointment?.metadata || {};
+
 const titleOf = (appointment: any) => {
   const metadata = metadataOf(appointment);
   if (metadata.kind === "event") return metadata.eventTitle || appointment.notes?.split("\n")?.[0] || "Compromisso";
   return `Consulta: ${appointment.patient?.name || appointment.patient_name || "Paciente"}`;
+};
+
+const teleconsultationLinkOf = (appointment: any) => {
+  if (appointment?.type !== "online" || !appointment?.id) return null;
+  return `${frontendUrl()}/join/${appointment.id}`;
 };
 
 const descriptionOf = (appointment: any) => {
@@ -49,14 +56,16 @@ const descriptionOf = (appointment: any) => {
     ].join("\n");
   }
 
+  const teleconsultationLink = teleconsultationLinkOf(appointment);
   return [
     `Tipo: ${appointment.type === "online" ? "Teleconsulta (Online)" : "Presencial"}`,
-    `Sessão: ${metadata.sessionType || "follow_up"}`,
+    `Sessao: ${metadata.sessionType || "follow_up"}`,
+    teleconsultationLink ? `Link da teleconsulta NeuroNex: ${teleconsultationLink}` : null,
     `Notas: ${appointment.notes || "Nenhuma"}`,
     "",
     "---",
     "Evento sincronizado pelo NeuroNex.",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 };
 
 const patchFromAppointment = (appointment: any) => {
@@ -68,9 +77,10 @@ const patchFromAppointment = (appointment: any) => {
     end: { dateTime: appointment.end_time, timeZone: "America/Sao_Paulo" },
   };
 
+  const teleconsultationLink = teleconsultationLinkOf(appointment);
   const location = metadata.kind === "event"
     ? metadata.eventLocation || appointment.location
-    : appointment.location;
+    : teleconsultationLink || appointment.location;
   if (location) patch.location = location;
 
   return patch;
@@ -93,7 +103,9 @@ serve(async (req) => {
 
     const { action, googleEventId, appointmentData } = await req.json();
     if (!googleEventId) {
-      return new Response(JSON.stringify({ message: "No Google Event ID provided, skipping sync." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ message: "No Google Event ID provided, skipping sync." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const { data: tokenData } = await supabaseService
@@ -114,13 +126,13 @@ serve(async (req) => {
     if (action === "delete") {
       response = await fetch(`${baseUrl}?sendUpdates=all`, {
         method: "DELETE",
-        headers: { "Authorization": `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
     } else if (action === "update" && appointmentData) {
-      response = await fetch(`${baseUrl}?conferenceDataVersion=1`, {
+      response = await fetch(`${baseUrl}?sendUpdates=all`, {
         method: "PATCH",
         headers: {
-          "Authorization": `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(patchFromAppointment(appointmentData)),
@@ -130,13 +142,19 @@ serve(async (req) => {
     if (response && !response.ok && response.status !== 410) {
       const errText = await response.text();
       console.error("Google Calendar API Error:", errText);
-      return new Response(JSON.stringify({ error: "Failed to sync with Google", details: errText }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Failed to sync with Google", details: errText }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

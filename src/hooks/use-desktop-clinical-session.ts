@@ -181,6 +181,7 @@ export const useDesktopClinicalSession = (
           teleconsultationRoom: {
             status,
             openedAt: status === 'open' ? now : activeAppointment.metadata?.teleconsultationRoom?.openedAt,
+            lastHeartbeatAt: status === 'open' ? now : activeAppointment.metadata?.teleconsultationRoom?.lastHeartbeatAt,
             openedBy: status === 'open' ? user?.id : activeAppointment.metadata?.teleconsultationRoom?.openedBy,
             closedAt: status === 'closed' ? now : undefined,
             closedReason: status === 'closed' ? reason || 'therapist_left' : undefined,
@@ -188,7 +189,7 @@ export const useDesktopClinicalSession = (
         },
       },
     });
-  }, [activeAppointment.metadata?.teleconsultationRoom?.openedAt, activeAppointment.metadata?.teleconsultationRoom?.openedBy, appointmentId, isOnlineSession, updateAppointment, user?.id]);
+  }, [activeAppointment.metadata?.teleconsultationRoom?.lastHeartbeatAt, activeAppointment.metadata?.teleconsultationRoom?.openedAt, activeAppointment.metadata?.teleconsultationRoom?.openedBy, appointmentId, isOnlineSession, updateAppointment, user?.id]);
 
   const openPatientInvite = useCallback(() => {
     if (!hasTranscriptionDecision) {
@@ -219,6 +220,35 @@ export const useDesktopClinicalSession = (
     }, 1000);
     return () => window.clearInterval(timer);
   }, [hasJoined]);
+
+  useEffect(() => {
+    if (!isOnlineSession || !hasJoined || roomStatus !== 'open' || !user?.id) return;
+
+    const writeHeartbeat = async () => {
+      const now = new Date().toISOString();
+      await supabase
+        .from('appointments')
+        .update({
+          metadata: {
+            ...(activeAppointment.metadata || {}),
+            ...(transcriptionDecision ? { teleconsultationTranscription: transcriptionDecision } : {}),
+            teleconsultationRoom: {
+              ...(activeAppointment.metadata?.teleconsultationRoom || {}),
+              status: 'open',
+              openedAt: activeAppointment.metadata?.teleconsultationRoom?.openedAt || now,
+              openedBy: activeAppointment.metadata?.teleconsultationRoom?.openedBy || user.id,
+              lastHeartbeatAt: now,
+            },
+          },
+        })
+        .eq('id', appointmentId)
+        .eq('user_id', user.id);
+    };
+
+    void writeHeartbeat();
+    const interval = window.setInterval(() => void writeHeartbeat(), 15000);
+    return () => window.clearInterval(interval);
+  }, [activeAppointment.metadata, appointmentId, hasJoined, isOnlineSession, roomStatus, transcriptionDecision, user?.id]);
 
   useEffect(() => {
     if (isOnlineSession) {

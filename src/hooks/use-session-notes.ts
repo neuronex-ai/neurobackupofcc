@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { SessionNote } from '@/types';
+import { AISummary, SessionNote } from '@/types';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
 
@@ -95,6 +95,65 @@ export const useConfirmSessionReview = (patientId: string) => {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Não foi possível confirmar o resumo.');
+    },
+  });
+};
+
+export const useUpdatePendingSessionReview = (patientId: string) => {
+  const { user } = useAuth();
+  const userId = user?.id;
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ note, summary }: { note: SessionNote; summary: AISummary }) => {
+      if (!userId) throw new Error('Usuário não autenticado.');
+      if (note.review_status !== 'pending_review') throw new Error('Este resumo já foi confirmado.');
+      if (!note.review_due_at || new Date(note.review_due_at).getTime() <= Date.now()) {
+        throw new Error('O prazo de 48h terminou. Este resumo não pode mais ser editado.');
+      }
+
+      const currentSummary = note.ai_summary || null;
+      const summaryWasEdited = JSON.stringify(summary) !== JSON.stringify(currentSummary);
+      if (!summaryWasEdited) return note;
+
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('session_notes')
+        .update({
+          ai_summary: summary,
+          original_ai_summary: note.original_ai_summary || currentSummary || summary,
+          original_transcription: note.original_transcription || note.transcription || null,
+          ai_summary_edited: true,
+          ai_summary_edited_at: now,
+          ai_summary_edited_by: userId,
+          ai_summary_edit_count: (note.ai_summary_edit_count || 0) + 1,
+        })
+        .eq('id', note.id)
+        .eq('patient_id', patientId)
+        .eq('user_id', userId)
+        .eq('review_status', 'pending_review')
+        .gt('review_due_at', now)
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(error.code === 'PGRST116'
+          ? 'O prazo de 48h terminou. Este resumo não pode mais ser editado.'
+          : error.message);
+      }
+      return data as SessionNote;
+    },
+    onSuccess: (note) => {
+      if (note.ai_summary_edited) {
+        toast.success('Resumo atualizado. A versão original foi preservada.');
+      }
+      queryClient.invalidateQueries({ queryKey: ['pendingSessionReviews', patientId] });
+      queryClient.invalidateQueries({ queryKey: ['sessionNotes', patientId] });
+      queryClient.invalidateQueries({ queryKey: ['patientTimeline', patientId] });
+      queryClient.invalidateQueries({ queryKey: ['patientSessionSummary'] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível atualizar o resumo.');
     },
   });
 };

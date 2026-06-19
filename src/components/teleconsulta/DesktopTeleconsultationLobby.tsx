@@ -53,6 +53,10 @@ export const DesktopTeleconsultationLobby = ({
     setSelection(nextSelection);
   }, []);
 
+  const isDecisionBlocked = isOnline && !hasTranscriptionDecision;
+  const isRoomClosed = isOnline && roomStatus === "closed";
+  const isJoinDisabled = !isReady || (isOnline && (isLoadingToken || isDecisionBlocked || isRoomClosed));
+
   return (
     <div className="h-full w-full overflow-y-auto bg-background p-4 xl:p-5">
       <div className="mx-auto grid min-h-full max-w-7xl gap-4 xl:grid-cols-[1.35fr_0.65fr] xl:items-start">
@@ -81,7 +85,7 @@ export const DesktopTeleconsultationLobby = ({
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
               <p className="text-xs font-medium leading-relaxed opacity-70">
                 {isOnline
-                  ? "Revise os dispositivos e confirme que o ambiente está reservado antes de entrar."
+                  ? "Defina a transcrição, revise os dispositivos e só então libere o convite da sala."
                   : "Confirme o consentimento antes de iniciar qualquer captura de áudio da sessão presencial."}
               </p>
             </div>
@@ -96,7 +100,13 @@ export const DesktopTeleconsultationLobby = ({
                 meetLink={meetLink}
                 therapistName={therapistName}
                 disabled={!canInvitePatient}
-                disabledReason={!hasTranscriptionDecision ? "Defina se a teleconsulta será transcrita antes de convidar." : roomStatus === "closed" ? "Esta sala já foi encerrada." : undefined}
+                disabledReason={
+                  !hasTranscriptionDecision
+                    ? "Defina se a teleconsulta será transcrita antes de convidar."
+                    : roomStatus === "closed"
+                      ? "Esta sala já foi encerrada."
+                      : undefined
+                }
                 onDisabledClick={onRequireTranscriptionDecision}
               />
             </section>
@@ -104,7 +114,7 @@ export const DesktopTeleconsultationLobby = ({
 
           <Button
             type="button"
-            disabled={!isReady || (isOnline && (isLoadingToken || !hasTranscriptionDecision || roomStatus === "closed"))}
+            disabled={isJoinDisabled}
             onClick={() => onJoin(selection)}
             className="h-14 w-full rounded-[20px] bg-foreground text-[10px] font-black uppercase tracking-[0.2em] text-background shadow-xl disabled:opacity-45"
           >
@@ -115,15 +125,23 @@ export const DesktopTeleconsultationLobby = ({
               </>
             ) : (
               <>
-                <Play className="mr-2 h-4 w-4 fill-current" />
-                {isOnline ? "Entrar na sessão" : "Iniciar sessão presencial"}
+                {isDecisionBlocked ? <LockKeyhole className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4 fill-current" />}
+                {isDecisionBlocked ? "Definir transcrição" : isOnline ? "Entrar na sessão" : "Iniciar sessão presencial"}
               </>
             )}
           </Button>
 
-          {!isReady ? (
+          {isDecisionBlocked ? (
+            <p className="text-center text-[8px] font-black uppercase tracking-[0.14em] text-muted-foreground/65">
+              A decisão de transcrição é obrigatória antes de liberar o convite.
+            </p>
+          ) : isRoomClosed ? (
+            <p className="text-center text-[8px] font-black uppercase tracking-[0.14em] text-rose-500/80">
+              Esta sala já foi encerrada.
+            </p>
+          ) : !isReady ? (
             <p className="text-center text-[8px] font-black uppercase tracking-[0.14em] text-muted-foreground/55">
-              Conclua o teste ou desligue o dispositivo indisponível
+              Conclua o teste ou desligue o dispositivo indisponível.
             </p>
           ) : null}
         </aside>

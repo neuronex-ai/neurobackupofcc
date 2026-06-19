@@ -223,7 +223,7 @@ export const AppointmentDetailModal = ({
         1,
         Math.round((new Date(timeUpdates.end_time).getTime() - new Date(timeUpdates.start_time).getTime()) / 60000)
       );
-      nextLocation = modality === "online" ? appointment.location || "Online (Google Meet)" : appointment.location || "Consultório";
+      nextLocation = modality === "online" ? appointment.location || "Teleconsulta NeuroNex" : appointment.location || "Consultório";
     }
 
     await updateAppointment.mutateAsync({

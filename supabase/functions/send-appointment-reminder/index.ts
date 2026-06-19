@@ -89,14 +89,21 @@ serve(async (request) => {
 
     const profile = profileResult.data;
     const professionalName = profile?.full_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || profile?.clinic_name || 'Seu psicólogo';
-    const confirmationUrl = `https://neuronexai.com.br/confirmar-agendamento/${token}`;
+    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://neuronexai.com.br';
+    const confirmationUrl = `${frontendUrl}/confirmar-agendamento/${token}`;
+    const isOnlineAppointment = appointment.type === 'online';
+    const sessionAccessUrl = isOnlineAppointment ? `${frontendUrl}/join/${appointment.id}` : confirmationUrl;
+    const appointmentLocation = isOnlineAppointment
+      ? `Teleconsulta NeuroNex: ${sessionAccessUrl}`
+      : appointment.location || 'Local a combinar com o profissional';
     const actionUrl = isCancellation
-      ? 'https://neuronexai.com.br/agenda'
-      : appointment.google_meet_link || confirmationUrl;
+      ? `${frontendUrl}/agenda`
+      : sessionAccessUrl;
     const variables = {
       RECIPIENT_NAME: recipientName.split(' ')[0],
       APPOINTMENT_DATE: appointmentDate,
       APPOINTMENT_TIME: appointmentTime,
+      APPOINTMENT_LOCATION: appointmentLocation,
       ACTION_URL: actionUrl,
       CANCELLATION_MESSAGE: cancellationReason || 'Entre em contato com o profissional para combinar um novo horário.',
       PROFESSIONAL_NAME: professionalName,
@@ -107,8 +114,14 @@ serve(async (request) => {
     const fallbackHtml = isCancellation
       ? '<p>Olá, {{{RECIPIENT_NAME}}}.</p><p>O atendimento de {{{APPOINTMENT_DATE}}} às {{{APPOINTMENT_TIME}}} foi cancelado.</p><p>{{{CANCELLATION_MESSAGE}}}</p>'
       : '<p>Olá, {{{RECIPIENT_NAME}}}.</p><p>Seu atendimento será em {{{APPOINTMENT_DATE}}} às {{{APPOINTMENT_TIME}}}.</p><p><a href="{{{ACTION_URL}}}">Abrir atendimento</a></p>';
+    const fallbackHtmlWithLocation = isCancellation
+      ? fallbackHtml
+      : fallbackHtml.replace('</p><p><a href="{{{ACTION_URL}}}">', '</p><p><strong>Local:</strong> {{{APPOINTMENT_LOCATION}}}</p><p><a href="{{{ACTION_URL}}}">');
     const subject = renderTemplate(templateResult.data?.subject || fallbackSubject, variables);
-    const html = renderTemplate(templateResult.data?.body_html || fallbackHtml, variables);
+    let html = renderTemplate(templateResult.data?.body_html || fallbackHtmlWithLocation, variables);
+    if (!isCancellation && !html.includes(appointmentLocation)) {
+      html += `<p><strong>Local:</strong> ${appointmentLocation}</p>`;
+    }
 
     const delivery = await deliverPatientEmail({
       db,

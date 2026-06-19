@@ -48,6 +48,7 @@ export interface AppointmentMetadata {
   teleconsultationRoom?: {
     status?: "waiting" | "open" | "closed";
     openedAt?: string;
+    lastHeartbeatAt?: string;
     closedAt?: string;
     closedReason?: string;
     openedBy?: string;

@@ -82,6 +82,7 @@ const formSchema = z
     duration: z.number().min(15, "Mínimo 15 minutos"),
     type: z.enum(["first_visit", "follow_up", "emergency", "block"]).default("follow_up"),
     modality: z.enum(["presencial", "online"]).default("presencial"),
+    sessionLocation: z.string().optional(),
     notes: z.string().optional(),
 
     // Evento Geral
@@ -263,6 +264,7 @@ export function NewAppointmentModal({
       duration: 50,
       type: "follow_up",
       modality: "presencial",
+      sessionLocation: "",
       notes: "",
       eventTitle: "",
       eventCategory: "",
@@ -297,6 +299,7 @@ export function NewAppointmentModal({
   const shouldCreateTransaction = form.watch("shouldCreateTransaction");
   const startTime = form.watch("startTime");
   const duration = form.watch("duration");
+  const modality = form.watch("modality");
 
   useEffect(() => {
     if (!startTime || !duration) return;
@@ -426,7 +429,7 @@ export function NewAppointmentModal({
     } else if (values.eventType === "session") {
       const prefix = values.type === "first_visit" ? "[Primeira Consulta] " : "";
       notesStr = `${prefix}${values.notes || (values.type === "first_visit" ? "Primeira Consulta" : "")}`;
-      locStr = values.modality === "online" ? "Online (Google Meet)" : "Consultório";
+      locStr = values.modality === "online" ? "Teleconsulta NeuroNex" : values.sessionLocation?.trim() || "Consultório";
     }
 
     const appointmentPayload = {
@@ -442,7 +445,7 @@ export function NewAppointmentModal({
     let createdPrimaryAppointment: any = null;
 
     try {
-      if (values.eventType === "session" && recurrenceCount > 1) {
+      if (false && values.eventType === "session" && recurrenceCount > 1) {
         const recurrenceEndDate = addRecurrenceInterval(startDateTime, recurrenceCount - 1, values.recurrenceFrequency);
 
         const createdAppointments = await createRecurringAppointments({
@@ -945,6 +948,26 @@ export function NewAppointmentModal({
             )}
           />
 
+          {modality === "presencial" ? (
+            <FormField
+              control={form.control}
+              name="sessionLocation"
+              render={({ field }) => (
+                <FormItem className="space-y-2.5">
+                  <FormLabel className={labelBase}>Local da consulta</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="Ex: Clínica, sala 302, endereço completo..."
+                      className={cn(inputBase, "px-4 font-medium")}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ) : null}
+
           <FormField
             control={form.control}
             name="duration"
@@ -1011,7 +1034,7 @@ export function NewAppointmentModal({
                     <Link2 className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/30 pointer-events-none" />
                     <Input
                       {...field}
-                      placeholder="Ex: Sala 202 ou https://meet.google.com/..."
+                      placeholder="Ex: Sala 202, endereço completo ou link externo..."
                         className={cn(inputBase, "pl-10 font-medium")}
                     />
                   </div>

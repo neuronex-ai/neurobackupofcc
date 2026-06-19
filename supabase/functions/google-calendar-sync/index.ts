@@ -42,13 +42,17 @@ const isOnline = (appointment: any) => appointment.type === "online" || getMetad
 const buildEventBody = (appointment: any, patient: any, userEmail?: string, profileAddress?: string) => {
   const metadata = getMetadata(appointment);
   const session = isSession(appointment);
+  const frontendUrl = Deno.env.get("FRONTEND_URL") || "https://neuronexai.com.br";
+  const teleconsultationLink = session && isOnline(appointment) && appointment.id
+    ? `${frontendUrl}/join/${appointment.id}`
+    : null;
   const title = session
     ? `Consulta: ${patient?.name || appointment.patient_name || "Paciente"}`
     : metadata.eventTitle || appointment.notes?.split("\n")?.[0] || "Compromisso";
 
   const location = session
     ? isOnline(appointment)
-      ? appointment.location || "Online (Google Meet)"
+      ? teleconsultationLink || appointment.location || "Teleconsulta NeuroNex"
       : appointment.location || profileAddress || undefined
     : metadata.eventLocation || appointment.location || undefined;
 
@@ -56,6 +60,7 @@ const buildEventBody = (appointment: any, patient: any, userEmail?: string, prof
     ? [
         `Tipo: ${isOnline(appointment) ? "Teleconsulta (Online)" : "Presencial"}`,
         `Sessão: ${metadata.sessionType || "follow_up"}`,
+        ...(teleconsultationLink ? [`Link da teleconsulta NeuroNex: ${teleconsultationLink}`] : []),
         `Notas: ${appointment.notes || "Nenhuma"}`,
         "",
         `Paciente: ${patient?.name || "N/A"}`,
@@ -93,15 +98,6 @@ const buildEventBody = (appointment: any, patient: any, userEmail?: string, prof
   };
 
   if (location) body.location = location;
-
-  if (session && isOnline(appointment)) {
-    body.conferenceData = {
-      createRequest: {
-        requestId: `neuronex-${appointment.id || crypto.randomUUID()}`,
-        conferenceSolutionKey: { type: "hangoutsMeet" },
-      },
-    };
-  }
 
   return body;
 };
@@ -147,7 +143,7 @@ serve(async (req) => {
       .eq("id", user.id)
       .single();
 
-    const calendarResponse = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1", {
+    const calendarResponse = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,

@@ -93,7 +93,7 @@ export interface Appointment {
   patient_initials?: string;
   /** Identificador único do evento no Google Calendar sincronizado */
   google_event_id?: string | null;
-  /** URL da sala de conferência (Google Meet) para consultas online */
+  /** URL da sala de conferência para consultas online */
   google_meet_link?: string | null;
 }
 

@@ -8,6 +8,7 @@ import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 import { createAppointmentFinancialEntryIfEnabled } from '@/lib/financial-appointment-automation';
 
 interface NewAppointmentData {
+  id?: string;
   patient_id: string | null;
   start_time: Date;
   end_time: Date;
@@ -72,6 +73,12 @@ const resolveMetadata = (appointmentData: NewAppointmentData): AppointmentMetada
 };
 
 const addAppointment = async (appointmentData: NewAppointmentData, userId: string, accessToken: string) => {
+  const appointmentId = appointmentData.id || crypto.randomUUID();
+  const frontendOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://neuronexai.com.br';
+  const teleconsultationLink = appointmentData.type === 'online'
+    ? `${frontendOrigin}/join/${appointmentId}`
+    : null;
+
   const { data: hasConflict, error: conflictError } = await supabase.rpc('check_appointment_overlap', {
     p_user_id: userId,
     p_start_time: appointmentData.start_time.toISOString(),
@@ -112,7 +119,7 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
         {
           ...appointmentData,
           metadata,
-          id: 'temp',
+          id: appointmentId,
           user_id: userId,
           created_at: new Date().toISOString(),
           status: 'unscored',
@@ -135,6 +142,7 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
   const { data: newAppointment, error: appointmentError } = await supabase
     .from('appointments')
     .insert({
+      id: appointmentId,
       user_id: userId,
       patient_id: appointmentData.patient_id,
       start_time: appointmentData.start_time.toISOString(),
@@ -148,9 +156,12 @@ const addAppointment = async (appointmentData: NewAppointmentData, userId: strin
         origin: metadata.origin || 'neuronex',
         syncStatus: googleEventId ? 'synced' : metadata.syncStatus || 'pending',
         lastSyncedAt: googleEventId ? new Date().toISOString() : metadata.lastSyncedAt,
+        ...(appointmentData.type === 'online'
+          ? { teleconsultationRoom: { status: 'waiting' } }
+          : {}),
       },
       google_event_id: googleEventId,
-      google_meet_link: googleMeetLink,
+      google_meet_link: teleconsultationLink || googleMeetLink,
     })
     .select()
     .single();

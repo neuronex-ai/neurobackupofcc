@@ -59,8 +59,10 @@ serve(async (req) => {
       })
     }
 
-    const FRONTEND_URL = Deno.env.get('FRONTEND_URL') || 'http://localhost:8080';
-    const meetLink = appointment.google_meet_link || `${FRONTEND_URL}/join/${appointment.id}`;
+    const FRONTEND_URL = Deno.env.get('FRONTEND_URL') || 'https://neuronexai.com.br';
+    const meetLink = appointment.type === 'online'
+      ? `${FRONTEND_URL}/join/${appointment.id}`
+      : appointment.google_meet_link || `${FRONTEND_URL}/confirmar-agendamento/${appointment.id}`;
 
     const event_type = `reminder.${method}`;
     const payload = {
@@ -70,6 +72,7 @@ serve(async (req) => {
       patient_phone: appointment.patients.phone,
       start_time: appointment.start_time,
       meet_link: meetLink,
+      location: appointment.location,
       psychologist_id: user.id,
     };
 

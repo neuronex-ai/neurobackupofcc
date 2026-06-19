@@ -13,18 +13,18 @@ const isUuid = (value: unknown) =>
   typeof value === "string" &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, "Content-Type": "application/json" },
+});
+
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { appointmentId } = await req.json();
     if (!isUuid(appointmentId)) {
-      return new Response(JSON.stringify({ error: "Agendamento inválido." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Agendamento inválido." }, 400);
     }
 
     const supabase = createClient(
@@ -39,12 +39,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (error) throw error;
-    if (!appointment) {
-      return new Response(JSON.stringify({ error: "Sessão não encontrada." }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!appointment) return json({ error: "Sessão não encontrada." }, 404);
 
     const metadata = appointment.metadata && typeof appointment.metadata === "object"
       ? appointment.metadata as Record<string, any>
@@ -52,21 +47,38 @@ serve(async (req) => {
     const decision = metadata.teleconsultationTranscription && typeof metadata.teleconsultationTranscription === "object"
       ? metadata.teleconsultationTranscription as Record<string, any>
       : {};
-    const transcriptionEnabled = appointment.type === "online" && decision.enabled === true;
+    const room = metadata.teleconsultationRoom && typeof metadata.teleconsultationRoom === "object"
+      ? metadata.teleconsultationRoom as Record<string, any>
+      : {};
 
-    return new Response(JSON.stringify({
+    const isOnline = appointment.type === "online";
+    const hasDecision = isOnline && typeof decision.enabled === "boolean";
+    const rawRoomStatus = room.status === "open" || room.status === "closed" ? room.status : "waiting";
+    const lastHeartbeatAt = typeof room.lastHeartbeatAt === "string" ? new Date(room.lastHeartbeatAt) : null;
+    const heartbeatExpired = rawRoomStatus === "open" &&
+      (!lastHeartbeatAt || Number.isNaN(lastHeartbeatAt.getTime()) || Date.now() - lastHeartbeatAt.getTime() > 45000);
+    const roomStatus = heartbeatExpired ? "closed" : rawRoomStatus;
+    const transcriptionEnabled = hasDecision && decision.enabled === true;
+    const canJoin = hasDecision && roomStatus === "open";
+    const waitMessage = !hasDecision
+      ? "Aguarde o psicólogo definir se a teleconsulta será transcrita."
+      : roomStatus === "waiting"
+        ? "Aguarde o psicólogo abrir a sala."
+        : roomStatus === "closed"
+          ? "Esta sala foi encerrada pelo psicólogo."
+          : null;
+
+    return json({
       transcriptionEnabled,
       noticeText: transcriptionEnabled ? TRANSCRIPTION_NOTICE : null,
       noticeVersion: transcriptionEnabled ? decision.noticeVersion || "2026-06-teleconsultation-transcription-v1" : null,
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      decisionStatus: hasDecision ? "decided" : "pending",
+      roomStatus,
+      canJoin,
+      waitMessage,
     });
   } catch (error) {
     console.error("get-session-join-info error", error);
-    return new Response(JSON.stringify({ error: "Não foi possível carregar os dados de entrada." }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: "Não foi possível carregar os dados de entrada." }, 500);
   }
 });

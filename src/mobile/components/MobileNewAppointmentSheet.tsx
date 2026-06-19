@@ -79,7 +79,7 @@ export function MobileNewAppointmentSheet({
         start_time: startDateTime,
         end_time: endDateTime,
         type: modality,
-        location: modality === "online" ? "Online (Google Meet)" : "Consultório",
+        location: modality === "online" ? "Teleconsulta NeuroNex" : "Consultório",
         notes,
         metadata: buildSessionMetadata({
           sessionType,

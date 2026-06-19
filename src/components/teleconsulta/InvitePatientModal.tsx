@@ -12,9 +12,10 @@ interface InvitePatientModalProps {
     onClose: () => void;
     patient: Patient | undefined | null;
     meetLink: string;
+    therapistName: string;
 }
 
-export const InvitePatientModal = ({ isOpen, onClose, patient, meetLink }: InvitePatientModalProps) => {
+export const InvitePatientModal = ({ isOpen, onClose, patient, meetLink, therapistName }: InvitePatientModalProps) => {
     const [copied, setCopied] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
 
@@ -31,9 +32,10 @@ export const InvitePatientModal = ({ isOpen, onClose, patient, meetLink }: Invit
             return;
         }
 
-        const phone = patient.phone.replace(/\D/g, '');
+        const digits = patient.phone.replace(/\D/g, '');
+        const phone = digits.startsWith('55') ? digits : `55${digits}`;
         const message = `Olá, ${patient.name}. Sua teleconsulta já vai começar. Acesse pelo link: ${meetLink}`;
-        const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 
         window.open(url, '_blank');
         onClose();
@@ -47,12 +49,12 @@ export const InvitePatientModal = ({ isOpen, onClose, patient, meetLink }: Invit
 
         setIsSendingEmail(true);
         try {
-            const { error } = await supabase.functions.invoke('send-session-invite', {
+            const { error } = await supabase.functions.invoke('send-google-invite', {
                 body: {
-                    appointmentId: 'manual', // Opcional ou contextual
                     patientEmail: patient.email,
                     patientName: patient.name,
-                    meetLink: meetLink
+                    meetLink,
+                    therapistName,
                 }
             });
 

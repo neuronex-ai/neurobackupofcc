@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, MessageSquare, Loader2, Link } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Link, Loader2, Mail, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { Patient } from "@/types";
@@ -10,102 +11,116 @@ interface PreJoinActionsProps {
   patient: Patient | undefined | null;
   meetLink: string;
   therapistName: string;
+  disabled?: boolean;
+  disabledReason?: string;
+  onDisabledClick?: () => void;
 }
 
-export const PreJoinActions = ({ appointmentId, patient, meetLink, therapistName }: PreJoinActionsProps) => {
-  const [sending, setSending] = useState<'whatsapp' | 'email' | null>(null);
+export const PreJoinActions = ({
+  appointmentId,
+  patient,
+  meetLink,
+  therapistName,
+  disabled = false,
+  disabledReason,
+  onDisabledClick,
+}: PreJoinActionsProps) => {
+  const [sending, setSending] = useState<"email" | null>(null);
 
-  const handleSendReminder = async (method: 'email' | 'whatsapp') => {
-    setSending(method);
+  const guardDisabled = () => {
+    if (!disabled) return false;
+    toast.info(disabledReason || "Conclua as decisões da sala antes de convidar o paciente.");
+    onDisabledClick?.();
+    return true;
+  };
 
-    if (method === 'email') {
-      if (!patient || !patient.email) {
-        toast.error("E-mail do paciente não encontrado.");
-        setSending(null);
-        return;
-      }
+  const handleWhatsApp = () => {
+    if (guardDisabled()) return;
+    if (!patient?.phone) {
+      toast.error("Telefone do paciente não cadastrado.");
+      return;
+    }
 
-      const toastId = toast.loading("Enviando convite por e-mail...");
-      try {
-        const { error } = await supabase.functions.invoke('send-google-invite', {
-          body: {
-            patientEmail: patient.email,
-            patientName: patient.name,
-            meetLink: meetLink,
-            therapistName: therapistName,
-          },
-        });
+    const digits = patient.phone.replace(/\D/g, "");
+    if (!digits) {
+      toast.error("Telefone do paciente não cadastrado.");
+      return;
+    }
 
-        if (error) throw new Error(error.message);
+    const phone = digits.startsWith("55") ? digits : `55${digits}`;
+    const message = `Olá, ${patient.name}. Sua teleconsulta já pode ser acessada pelo link da sala NeuroNex: ${meetLink}`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  };
 
-        toast.success("E-mail enviado com sucesso!", { id: toastId });
-      } catch (error) {
-        console.error("Failed to send Google invite:", error);
-        const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
-        toast.error(`Falha ao enviar e-mail: ${errorMessage}`, { id: toastId });
-      } finally {
-        setSending(null);
-      }
-    } else { // 'whatsapp'
-      const toastId = toast.loading(`Enviando lembrete via ${method}...`);
+  const handleEmail = async () => {
+    if (guardDisabled()) return;
+    if (!patient?.email) {
+      toast.error("E-mail do paciente não cadastrado.");
+      return;
+    }
 
-      try {
-        const { error } = await supabase.functions.invoke('send-reminder', {
-          body: { appointmentId, method },
-        });
+    setSending("email");
+    const toastId = toast.loading("Enviando convite por e-mail...");
+    try {
+      const { error } = await supabase.functions.invoke("send-google-invite", {
+        body: {
+          appointmentId,
+          patientEmail: patient.email,
+          patientName: patient.name,
+          meetLink,
+          therapistName,
+        },
+      });
 
-        if (error) throw error;
-
-        toast.success("Lembrete enviado com sucesso!", { id: toastId });
-      } catch (error) {
-        console.error("Failed to send reminder:", error);
-        const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
-
-        if (errorMessage.includes("Webhook for reminder")) {
-          toast.success("Lembrete enviado! (Webhook acionado)", { id: toastId });
-        } else {
-          toast.error(`Falha ao enviar lembrete: ${errorMessage}`, { id: toastId });
-        }
-      } finally {
-        setSending(null);
-      }
+      if (error) throw new Error(error.message);
+      toast.success("Convite enviado por e-mail.", { id: toastId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível enviar o convite.";
+      toast.error(message, { id: toastId });
+    } finally {
+      setSending(null);
     }
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(meetLink);
-    toast.success("Link copiado para a área de transferência!");
+    if (guardDisabled()) return;
+    void navigator.clipboard.writeText(meetLink);
+    toast.success("Link copiado para a área de transferência.");
   };
+
+  const buttonClass = (tone: "emerald" | "sky" | "amber") =>
+    cn(
+      "h-11 w-11 shrink-0 rounded-full border border-black/5 bg-white/5 shadow-sm backdrop-blur-md transition-all duration-500 ease-apple hover:scale-105 hover:bg-white/10 active:scale-95 dark:border-white/10 dark:bg-black/20 dark:hover:bg-white/5",
+      disabled && "opacity-45",
+      tone === "emerald" && "group hover:[&>svg]:text-emerald-500",
+      tone === "sky" && "group hover:[&>svg]:text-sky-500",
+      tone === "amber" && "group hover:[&>svg]:text-amber-500",
+    );
 
   return (
     <div className="flex w-full min-w-0 flex-wrap items-center gap-2 animate-fade-up delay-200">
       <Button
         variant="outline"
         size="icon"
-        className="h-11 w-11 shrink-0 rounded-full bg-white/5 dark:bg-black/20 hover:bg-white/10 dark:hover:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm hover:scale-105 active:scale-95 transition-all duration-500 ease-apple group relative"
-        onClick={() => handleSendReminder('whatsapp')}
-        disabled={!!sending}
+        className={buttonClass("emerald")}
+        onClick={handleWhatsApp}
         aria-label="Enviar via WhatsApp"
       >
-        {sending === 'whatsapp' ? (
-          <Loader2 className="h-4 w-4 animate-spin text-zinc-500 dark:text-zinc-400" />
-        ) : (
-          <MessageSquare className="h-4 w-4 text-zinc-500 dark:text-zinc-400 group-hover:text-emerald-500 transition-colors duration-300" />
-        )}
+        <MessageSquare className="h-4 w-4 text-zinc-500 transition-colors duration-300 dark:text-zinc-400" />
       </Button>
 
       <Button
         variant="outline"
         size="icon"
-        className="h-11 w-11 shrink-0 rounded-full bg-white/5 dark:bg-black/20 hover:bg-white/10 dark:hover:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm hover:scale-105 active:scale-95 transition-all duration-500 ease-apple group relative"
-        onClick={() => handleSendReminder('email')}
-        disabled={!!sending || !patient?.email}
-        aria-label="Enviar via Gmail"
+        className={buttonClass("sky")}
+        onClick={handleEmail}
+        disabled={sending === "email"}
+        aria-label="Enviar por e-mail"
       >
-        {sending === 'email' ? (
+        {sending === "email" ? (
           <Loader2 className="h-4 w-4 animate-spin text-zinc-500 dark:text-zinc-400" />
         ) : (
-          <Mail className="h-4 w-4 text-zinc-500 dark:text-zinc-400 group-hover:text-sky-500 transition-colors duration-300" />
+          <Mail className="h-4 w-4 text-zinc-500 transition-colors duration-300 dark:text-zinc-400" />
         )}
       </Button>
 
@@ -114,15 +129,15 @@ export const PreJoinActions = ({ appointmentId, patient, meetLink, therapistName
       <Button
         variant="outline"
         size="icon"
-        className="h-11 w-11 shrink-0 rounded-full bg-white/5 dark:bg-black/20 hover:bg-white/10 dark:hover:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-md shadow-sm hover:scale-105 active:scale-95 transition-all duration-500 ease-apple group relative"
+        className={buttonClass("amber")}
         onClick={handleCopyLink}
-        aria-label="Copiar Link"
+        aria-label="Copiar link"
       >
-        <Link className="h-4 w-4 text-zinc-500 dark:text-zinc-400 group-hover:text-amber-500 transition-colors duration-300" />
+        <Link className="h-4 w-4 text-zinc-500 transition-colors duration-300 dark:text-zinc-400" />
       </Button>
 
       <span className="min-w-0 flex-[1_1_8rem] text-[9px] font-bold uppercase leading-tight tracking-[0.16em] text-zinc-400 dark:text-zinc-600 sm:ml-2">
-        Convidar Paciente
+        {disabled ? "Decisão pendente" : "Convidar paciente"}
       </span>
     </div>
   );
