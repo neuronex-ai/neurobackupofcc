@@ -16,6 +16,22 @@ interface SessionJoinInfo {
 }
 
 const JITSI_APP_ID = "vpaas-magic-cookie-dc267e44c7014498a3a128625367fc67";
+const TRANSCRIPTION_NOTICE =
+  "Esta teleconsulta será transcrita pela plataforma NeuroNex AI para apoiar a elaboração do registro clínico. Você pode solicitar ao seu psicólogo acesso às informações pertinentes, correção e avaliação de eliminação quando aplicável, observadas as obrigações legais, éticas e de guarda do prontuário/registro documental.";
+
+const buildJoinInfoFromMetadata = (metadata: unknown): SessionJoinInfo => {
+  const source = metadata && typeof metadata === 'object' ? metadata as Record<string, any> : {};
+  const transcription = source.teleconsultationTranscription && typeof source.teleconsultationTranscription === 'object'
+    ? source.teleconsultationTranscription as Record<string, any>
+    : {};
+  const enabled = transcription.enabled === true;
+
+  return {
+    transcriptionEnabled: enabled,
+    noticeText: enabled ? TRANSCRIPTION_NOTICE : null,
+    noticeVersion: enabled ? transcription.noticeVersion || '2026-06-teleconsultation-transcription-v1' : null,
+  };
+};
 
 const JoinSession = () => {
   const { appointmentId } = useParams<{ appointmentId: string }>();
