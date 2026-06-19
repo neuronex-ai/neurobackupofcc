@@ -782,6 +782,99 @@ $$;
 
 revoke all on function public.emit_neurofinance_payment_notification() from public;
 
+create or replace function public.emit_financial_entry_notification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_event text;
+  v_title text;
+  v_message text;
+  v_severity text := 'info';
+  v_priority text := 'normal';
+  v_requires_action boolean := false;
+  v_native_push boolean := false;
+begin
+  if coalesce(new.origin, 'manual') = 'neurofinance' then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.status in ('pending', 'planned')
+      and new.due_date is not null
+      and new.due_date < current_date
+    then
+      v_event := 'overdue';
+    else
+      return new;
+    end if;
+  elsif old.status is distinct from new.status then
+    if new.status in ('paid', 'overdue', 'cancelled') then
+      v_event := new.status;
+    else
+      return new;
+    end if;
+  else
+    return new;
+  end if;
+
+  if v_event = 'paid' then
+    v_title := case when new.type = 'income' then 'Recebimento marcado como pago' else 'Despesa marcada como paga' end;
+    v_message := format('%s foi marcado como pago na Gestao Financeira.', coalesce(new.title, 'Um lancamento'));
+    v_severity := 'success';
+  elsif v_event = 'overdue' then
+    v_title := case when new.type = 'income' then 'Recebimento vencido' else 'Despesa vencida' end;
+    v_message := format('%s esta vencido na Gestao Financeira.', coalesce(new.title, 'Um lancamento'));
+    v_severity := 'warning';
+    v_priority := 'high';
+    v_requires_action := true;
+    v_native_push := true;
+  else
+    v_title := 'Lancamento financeiro cancelado';
+    v_message := format('%s foi cancelado na Gestao Financeira.', coalesce(new.title, 'Um lancamento'));
+    v_severity := 'warning';
+  end if;
+
+  perform public.emit_user_notification(
+    new.professional_id,
+    'financial_entry:' || new.id::text || ':' || v_event,
+    'financial_entry_' || v_event,
+    'financeiro',
+    v_severity,
+    v_title,
+    v_message,
+    '/financeiro?tab=gestao',
+    v_priority,
+    jsonb_build_object(
+      'sourceModule', 'financeiro',
+      'financeScope', 'gestao',
+      'eventSource', 'financial_entries',
+      'financialEntryId', new.id,
+      'patientId', new.patient_id,
+      'appointmentId', new.appointment_id,
+      'amountCents', round(new.amount * 100),
+      'entryType', new.type,
+      'status', new.status,
+      'dueDate', new.due_date,
+      'requiresAction', v_requires_action,
+      'nativePushEligible', v_native_push,
+      'deadlineAt', new.due_date
+    ),
+    '{}'::jsonb,
+    new.clinic_id
+  );
+
+  return new;
+end;
+$$;
+
+drop trigger if exists financial_entries_emit_notification on public.financial_entries;
+create trigger financial_entries_emit_notification
+after insert or update of status, due_date on public.financial_entries
+for each row execute function public.emit_financial_entry_notification();
+
 drop trigger if exists notifications_dispatch_delivery on public.notifications;
 drop trigger if exists notifications_dispatch_delivery_on_insert on public.notifications;
 drop trigger if exists notifications_dispatch_delivery_on_update on public.notifications;

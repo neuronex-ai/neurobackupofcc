@@ -17,7 +17,8 @@
     "test:coverage": "vitest run --coverage",
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:8080 && npx tsc -p tsconfig.electron.json && node scripts/rename-cjs.cjs && electron .\"",
     "electron:preview": "vite build && npx tsc -p tsconfig.electron.json && node scripts/rename-cjs.cjs && electron .",
-    "electron:build": "vite build && npx tsc -p tsconfig.electron.json && node scripts/rename-cjs.cjs && electron-builder --win --config electron-builder.json5"
+    "electron:build": "vite build && npx tsc -p tsconfig.electron.json && node scripts/rename-cjs.cjs && electron-builder --win --config electron-builder.json5",
+    "electron:build:store": "vite build && npx tsc -p tsconfig.electron.json && node scripts/rename-cjs.cjs && electron-builder --win appx --config electron-builder.store.json5"
   },
   "dependencies": {
     "@babylonjs/core": "^8.52.0",

@@ -54,6 +54,33 @@ function getMissingFirebaseConfig() {
   return requiredConfigKeys.filter((key) => !config[key]);
 }
 
+export function getWebPushAvailability() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return { supported: false, reason: 'Ambiente sem navegador.' };
+  }
+  if (!window.isSecureContext) {
+    return { supported: false, reason: 'Notificacoes nativas exigem HTTPS ou localhost.' };
+  }
+  if (!('serviceWorker' in navigator) || typeof Notification === 'undefined') {
+    return { supported: false, reason: 'Este navegador nao oferece Service Worker/Notification para push nativo.' };
+  }
+  if (!import.meta.env.VITE_FIREBASE_VAPID_KEY) {
+    return { supported: false, reason: 'Firebase Web Push ainda nao foi configurado.' };
+  }
+  const missingConfig = getMissingFirebaseConfig();
+  if (missingConfig.length > 0) {
+    return { supported: false, reason: `Firebase Web Push incompleto: ${missingConfig.join(', ')}.` };
+  }
+  if (Notification.permission === 'denied') {
+    return { supported: false, reason: 'As notificacoes estao bloqueadas neste navegador.' };
+  }
+  return { supported: true, reason: 'Aparecem no Windows, Android e PWA mesmo com a aba fechada.' };
+}
+
+export function getWebPushPermission() {
+  return typeof Notification === 'undefined' ? 'default' : Notification.permission;
+}
+
 async function assertPushEnvironment() {
   if (!window.isSecureContext) {
     throw new Error('Notificacoes nativas exigem HTTPS ou localhost.');

@@ -21,7 +21,6 @@ import {
   Settings,
   Shield,
   Sparkles,
-  Users,
   Video,
   X,
 } from 'lucide-react';
@@ -184,14 +183,14 @@ export const AlertsPanel = () => {
           ) : null}
         </div>
 
-        <div className="mt-5 grid grid-cols-4 gap-1 rounded-2xl border border-border/35 bg-muted/45 p-1 dark:border-white/8">
+        <div className="mt-5 flex gap-1 overflow-x-auto rounded-xl border border-border/35 bg-muted/45 p-1 dark:border-white/8">
           {filters.map((item) => (
             <button
               key={item.value}
               type="button"
               onClick={() => setFilter(item.value)}
               className={cn(
-                'h-9 rounded-xl text-[8px] font-black uppercase tracking-[0.1em] transition',
+                'h-9 shrink-0 rounded-lg px-3 text-[8px] font-black uppercase tracking-[0.1em] transition',
                 filter === item.value
                   ? 'bg-foreground text-background shadow-sm'
                   : 'text-muted-foreground hover:text-foreground',
@@ -210,9 +209,9 @@ export const AlertsPanel = () => {
               <motion.section
                 key={label}
                 layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
                 className="mb-6"
               >
                 <p className="mb-3 px-2 text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground/70">{label}</p>
@@ -225,9 +224,9 @@ export const AlertsPanel = () => {
                       dragConstraints={{ left: 0, right: 0 }}
                       dragElastic={0.22}
                       onDragEnd={(_event, info) => handleDragEnd(notification, info)}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.97 }}
+                      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                      animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97 }}
                       className={cn(
                         'group relative overflow-hidden rounded-[24px] border p-4 shadow-sm transition',
                         notification.isRead
@@ -255,7 +254,14 @@ export const AlertsPanel = () => {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-[8px] font-black uppercase tracking-[0.15em] text-muted-foreground">{notification.category}</p>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <p className="text-[8px] font-black uppercase tracking-[0.15em] text-muted-foreground">{categoryLabel[notification.category]}</p>
+                                {financeTag(notification) ? (
+                                  <span className="rounded-md border border-border/45 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-muted-foreground">
+                                    {financeTag(notification)}
+                                  </span>
+                                ) : null}
+                              </div>
                               <h4 className="mt-1 text-sm font-black leading-tight tracking-[-0.02em] text-foreground">{notification.title}</h4>
                             </div>
                             <span className="shrink-0 text-[9px] font-bold text-muted-foreground">{timeLabel(notification.createdAt)}</span>
