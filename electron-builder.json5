@@ -25,7 +25,7 @@
 
   "extraResources": [
     {
-      "from": "build/icon.ico",
+      "from": "public/favicon-S-FUNDO-PRETA.ico",
       "to": "icon.ico"
     }
   ],
@@ -38,7 +38,7 @@
         "arch": ["x64"]
       }
     ],
-    "icon": "build/icon.ico",
+    "icon": "public/favicon-S-FUNDO-PRETA.ico",
     "artifactName": "NeuroNex-Desktop-Setup-${version}.${ext}"
   },
 
@@ -50,9 +50,9 @@
     "allowElevation": true,
 
     // Branding
-    "installerIcon": "build/icon.ico",
-    "uninstallerIcon": "build/icon.ico",
-    "installerHeaderIcon": "build/icon.ico",
+    "installerIcon": "public/favicon-S-FUNDO-PRETA.ico",
+    "uninstallerIcon": "public/favicon-S-FUNDO-PRETA.ico",
+    "installerHeaderIcon": "public/favicon-S-FUNDO-PRETA.ico",
 
     // Shortcuts
     "createDesktopShortcut": true,

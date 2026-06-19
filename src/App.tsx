@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, HashRouter, BrowserRouter } from "react-router-dom";
+import { Routes, Route, Navigate, HashRouter, BrowserRouter, useNavigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -13,7 +13,7 @@ import { TourProvider } from "@/components/onboarding/TourContext";
 import { CookieConsent } from "@/components/landing/CookieConsent";
 import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import { NeuroFinancePostOnboardingGate } from "@/components/financeiro/NeuroFinancePostOnboardingGate";
-import { isElectron } from "@/lib/electron";
+import { getElectronAPI, isElectron } from "@/lib/electron";
 import { ElectronTitleBar } from "@/components/electron/ElectronTitleBar";
 import { ElectronUpdateManager } from "@/components/electron/ElectronUpdateManager";
 import { useEffect, lazy, Suspense } from "react";
@@ -81,6 +81,20 @@ const ElectronBodyOffset = () => {
       document.body.style.paddingTop = '';
     };
   }, []);
+  return null;
+};
+
+const ElectronNavigationBridge = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isElectron()) return;
+    const api = getElectronAPI();
+    if (!api) return;
+    api.onNavigate((path) => navigate(path || "/dashboard"));
+    return () => api.removeAllListeners("app:navigate");
+  }, [navigate]);
+
   return null;
 };
 
@@ -166,6 +180,7 @@ function App() {
                       {electronMode && <ElectronTitleBar />}
                       {electronMode && <ElectronBodyOffset />}
                       {electronMode && <ElectronUpdateManager />}
+                      {electronMode && <ElectronNavigationBridge />}
 
                       <NeuroFinancePostOnboardingGate />
 
