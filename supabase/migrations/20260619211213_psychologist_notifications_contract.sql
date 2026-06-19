@@ -626,7 +626,8 @@ begin
       '{}'::jsonb,
       null
     );
-  elsif new.review_status = 'confirmed'
+  elsif tg_op = 'UPDATE'
+    and new.review_status = 'confirmed'
     and old.review_status = 'pending_review'
     and new.auto_confirmed_at is not null
     and old.auto_confirmed_at is distinct from new.auto_confirmed_at
