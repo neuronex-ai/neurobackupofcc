@@ -1,25 +1,73 @@
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { getElectronAPI, isElectron } from '@/lib/electron';
 import { hasActivePushSubscription, listenForForegroundPush } from '@/lib/push-notifications';
 import { useNotificationSettings } from '@/hooks/use-notification-settings';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 
-export type NotificationCategory = 'agenda' | 'financeiro' | 'pacientes' | 'clinica' | 'seguranca' | 'sistema';
+export type NotificationCategory = 'dashboard' | 'agenda' | 'prontuario' | 'teleconsulta' | 'neurodrive' | 'financeiro' | 'synapse' | 'ajustes' | 'seguranca' | 'sistema';
 export type NotificationSeverity = 'success' | 'info' | 'warning' | 'destructive';
 export type AppNotification = { id: string; userId: string; eventId: string | null; type: string; category: NotificationCategory; severity: NotificationSeverity; title: string; message: string; actionUrl: string | null; metadata: Record<string, unknown>; priority: string; createdAt: string; updatedAt: string | null; readAt: string | null; dismissedAt: string | null; isRead: boolean };
 type Row = { id: string; user_id: string; event_id: string | null; type: string; category: string | null; severity: string | null; title: string; message: string; action_url: string | null; data: Record<string, unknown> | null; payload: Record<string, unknown> | null; priority: string | null; created_at: string | null; updated_at: string | null; read: boolean | null; read_at: string | null; dismissed_at: string | null };
 
 const category = (value?: string | null): NotificationCategory => {
   const item = value?.toLowerCase();
-  if (item === 'agenda' || item === 'financeiro' || item === 'pacientes') return item;
-  if (item === 'clinica' || item === 'clínica') return 'clinica';
+  if (item === 'dashboard' || item === 'agenda' || item === 'prontuario' || item === 'teleconsulta' || item === 'neurodrive' || item === 'financeiro' || item === 'synapse' || item === 'ajustes') return item;
+  if (item === 'pacientes') return 'prontuario';
+  if (item === 'clinica' || item === 'clínica') return 'sistema';
   if (item === 'seguranca' || item === 'segurança') return 'seguranca';
   return 'sistema';
 };
+
 const severity = (value?: string | null): NotificationSeverity => value === 'success' || value === 'warning' || value === 'destructive' ? value : 'info';
-const map = (row: Row): AppNotification => ({ id: row.id, userId: row.user_id, eventId: row.event_id, type: row.type, category: category(row.category || String(row.data?.category || '')), severity: severity(row.severity || String(row.data?.severity || row.priority || '')), title: row.title, message: row.message, actionUrl: row.action_url, metadata: row.data || row.payload || {}, priority: row.priority || 'normal', createdAt: row.created_at || new Date().toISOString(), updatedAt: row.updated_at, readAt: row.read_at, dismissedAt: row.dismissed_at, isRead: Boolean(row.read || row.read_at) });
+
+const map = (row: Row): AppNotification => ({
+  id: row.id,
+  userId: row.user_id,
+  eventId: row.event_id,
+  type: row.type,
+  category: category(row.category || String(row.data?.category || '')),
+  severity: severity(row.severity || String(row.data?.severity || row.priority || '')),
+  title: row.title,
+  message: row.message,
+  actionUrl: row.action_url,
+  metadata: { ...(row.payload || {}), ...(row.data || {}) },
+  priority: row.priority || 'normal',
+  createdAt: row.created_at || new Date().toISOString(),
+  updatedAt: row.updated_at,
+  readAt: row.read_at,
+  dismissedAt: row.dismissed_at,
+  isRead: Boolean(row.read || row.read_at),
+});
+
+const nativeEligible = (item: AppNotification) => (
+  item.priority === 'urgent' ||
+  item.metadata.nativePushEligible === true ||
+  String(item.metadata.nativePushEligible || '').toLowerCase() === 'true'
+);
+
+const showDesktopNativeNotification = async (item: AppNotification) => {
+  if (!isElectron() || !nativeEligible(item)) return;
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible' && document.hasFocus()) return;
+
+  const api = getElectronAPI();
+  if (!api?.notifications) return;
+
+  try {
+    const permission = await api.notifications.requestPermission();
+    if (permission !== 'granted') return;
+    await api.notifications.showNative({
+      title: item.title,
+      body: item.message,
+      actionUrl: item.actionUrl || undefined,
+      notificationId: item.id,
+    });
+  } catch (error) {
+    console.warn('[desktop-native-notification]', error);
+  }
+};
 
 export const useNotifications = () => {
   const { user } = useAuth();
@@ -40,11 +88,12 @@ export const useNotifications = () => {
       invalidate();
       if (payload.eventType === 'INSERT') {
         const item = map(payload.new as Row);
+        if (settings?.push_enabled) void showDesktopNativeNotification(item);
         toast(item.title, { description: item.message, action: item.actionUrl ? { label: 'Abrir', onClick: () => { window.location.href = item.actionUrl!; } } : undefined });
       }
     }).subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [invalidate, userId]);
+  }, [invalidate, settings?.push_enabled, userId]);
 
   useEffect(() => {
     if (!userId || !settings?.push_enabled || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;

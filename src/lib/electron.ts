@@ -32,6 +32,17 @@ interface ElectronUpdaterAPI {
     onStatus: (callback: (data: UpdateStatusData) => void) => void;
 }
 
+interface ElectronNotificationsAPI {
+    isSupported: () => Promise<boolean>;
+    requestPermission: () => Promise<'granted' | 'denied'>;
+    showNative: (payload: {
+        title: string;
+        body?: string;
+        actionUrl?: string;
+        notificationId?: string;
+    }) => Promise<{ shown: boolean; reason?: string; notificationId?: string | null }>;
+}
+
 interface ElectronAPI {
     platform: string;
     appVersion: string;
@@ -44,6 +55,7 @@ interface ElectronAPI {
     };
     onMaximizeChange: (callback: (isMaximized: boolean) => void) => void;
     onNavigate: (callback: (path: string) => void) => void;
+    notifications: ElectronNotificationsAPI;
     updater: ElectronUpdaterAPI;
     removeAllListeners: (channel: string) => void;
 }

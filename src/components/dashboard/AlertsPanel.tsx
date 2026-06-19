@@ -3,7 +3,7 @@ import { useNotifications, type AppNotification, type NotificationCategory } fro
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AnimatePresence, motion, type PanInfo } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion, type PanInfo } from 'framer-motion';
 import {
   AlertCircle,
   AlertTriangle,
@@ -13,10 +13,16 @@ import {
   Check,
   CheckCheck,
   CircleDollarSign,
+  FileText,
+  FolderOpen,
   Info,
+  LayoutDashboard,
   Loader2,
+  Settings,
   Shield,
+  Sparkles,
   Users,
+  Video,
   X,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -24,19 +30,33 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-type NotificationFilter = 'all' | 'agenda' | 'financeiro' | 'sistema';
+type NotificationFilter = 'all' | NotificationCategory;
 
 const filters: Array<{ value: NotificationFilter; label: string }> = [
   { value: 'all', label: 'Todas' },
+  { value: 'dashboard', label: 'Painel' },
   { value: 'agenda', label: 'Agenda' },
+  { value: 'prontuario', label: 'Prontuario' },
+  { value: 'teleconsulta', label: 'Teleconsulta' },
   { value: 'financeiro', label: 'Financeiro' },
+  { value: 'neurodrive', label: 'NeuroDrive' },
+  { value: 'synapse', label: 'Synapse' },
+  { value: 'ajustes', label: 'Ajustes' },
+  { value: 'seguranca', label: 'Seguranca' },
   { value: 'sistema', label: 'Sistema' },
 ];
 
-const filterCategory = (category: NotificationCategory): NotificationFilter => {
-  if (category === 'agenda') return 'agenda';
-  if (category === 'financeiro') return 'financeiro';
-  return 'sistema';
+const categoryLabel: Record<NotificationCategory, string> = {
+  dashboard: 'Painel',
+  agenda: 'Agenda',
+  prontuario: 'Prontuario',
+  teleconsulta: 'Teleconsulta',
+  neurodrive: 'NeuroDrive',
+  financeiro: 'Financeiro',
+  synapse: 'Synapse',
+  ajustes: 'Ajustes',
+  seguranca: 'Seguranca',
+  sistema: 'Sistema',
 };
 
 const groupLabel = (dateValue: string) => {
@@ -52,10 +72,24 @@ const NotificationIcon = ({ notification }: { notification: AppNotification }) =
   if (notification.severity === 'success') return <CheckCheck className="h-4 w-4" />;
   if (notification.severity === 'warning') return <AlertTriangle className="h-4 w-4" />;
   if (notification.severity === 'destructive') return <AlertCircle className="h-4 w-4" />;
+  if (notification.category === 'dashboard') return <LayoutDashboard className="h-4 w-4" />;
   if (notification.category === 'agenda') return <CalendarDays className="h-4 w-4" />;
   if (notification.category === 'financeiro') return <CircleDollarSign className="h-4 w-4" />;
-  if (notification.category === 'pacientes') return <Users className="h-4 w-4" />;
+  if (notification.category === 'prontuario') return <FileText className="h-4 w-4" />;
+  if (notification.category === 'teleconsulta') return <Video className="h-4 w-4" />;
+  if (notification.category === 'neurodrive') return <FolderOpen className="h-4 w-4" />;
+  if (notification.category === 'synapse') return <Sparkles className="h-4 w-4" />;
+  if (notification.category === 'ajustes') return <Settings className="h-4 w-4" />;
+  if (notification.category === 'seguranca') return <Shield className="h-4 w-4" />;
   return <Info className="h-4 w-4" />;
+};
+
+const financeTag = (notification: AppNotification) => {
+  if (notification.category !== 'financeiro') return null;
+  const scope = String(notification.metadata.financeScope || notification.metadata.finance_scope || '').toLowerCase();
+  if (scope === 'neurofinance') return 'NeuroFinance';
+  if (scope === 'gestao' || scope === 'gestao_financeira') return 'Gestao';
+  return null;
 };
 
 export const AlertsPanel = () => {
@@ -71,12 +105,13 @@ export const AlertsPanel = () => {
   } = useNotifications();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const reduceMotion = useReducedMotion();
   const [filter, setFilter] = useState<NotificationFilter>('all');
 
   const visibleNotifications = useMemo(() => (
     filter === 'all'
       ? notifications
-      : notifications.filter((notification) => filterCategory(notification.category) === filter)
+      : notifications.filter((notification) => notification.category === filter)
   ), [filter, notifications]);
 
   const groupedNotifications = useMemo(() => {
