@@ -5,8 +5,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -27,10 +25,110 @@ import {
 } from '@/lib/native-mobile-security';
 import { cn } from '@/lib/utils';
 import type { Session } from '@supabase/supabase-js';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Eye, EyeOff, Fingerprint, Loader2, ShieldCheck } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+
+type BiometricPromptDialogProps = {
+  open: boolean;
+  isMobile: boolean;
+  loading: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSkip: () => void | Promise<void>;
+  onEnable: () => void | Promise<void>;
+};
+
+const BiometricPromptDialog = ({
+  open,
+  isMobile,
+  loading,
+  onOpenChange,
+  onSkip,
+  onEnable,
+}: BiometricPromptDialogProps) => {
+  const shouldReduceMotion = Boolean(useReducedMotion());
+  const contentMotion = shouldReduceMotion
+    ? {}
+    : {
+      initial: { opacity: 0, y: isMobile ? 18 : 12, scale: 0.98 },
+      animate: { opacity: 1, y: 0, scale: 1 },
+      transition: { type: 'spring', stiffness: 300, damping: 28 },
+    };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className={cn(
+          'gap-0 border p-0 text-foreground shadow-2xl outline-none',
+          'max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-[30px]',
+          'border-black/10 bg-white/95 backdrop-blur-2xl dark:border-white/12 dark:bg-[#08080a]/95',
+          'sm:max-h-[calc(100dvh-2.5rem)] sm:overflow-y-auto',
+          isMobile ? 'max-w-[min(100vw-1rem,24rem)]' : 'sm:max-w-[27rem] sm:rounded-[34px]',
+        )}
+      >
+        <motion.div
+          {...contentMotion}
+          className={cn(
+            'relative overflow-hidden px-5 py-6',
+            isMobile ? 'pb-[calc(1.5rem+env(safe-area-inset-bottom))]' : 'sm:p-7',
+          )}
+        >
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-black/20 to-transparent dark:via-white/25" />
+
+          <div className="flex items-start gap-4 text-left">
+            <motion.div
+              initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.92 }}
+              animate={shouldReduceMotion ? undefined : { opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 330, damping: 24 }}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] border border-black/10 bg-black/[0.035] text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
+            >
+              <Fingerprint className="h-6 w-6" />
+            </motion.div>
+            <div className="min-w-0 pt-0.5">
+              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-muted-foreground">Segurança do dispositivo</p>
+              <DialogTitle className="mt-2 text-2xl font-black leading-[1.02] tracking-normal text-foreground">
+                Entrar com biometria?
+              </DialogTitle>
+            </div>
+          </div>
+
+          <DialogDescription className="mt-4 text-sm font-medium leading-relaxed text-zinc-600 dark:text-zinc-300">
+            Ative neste aparelho para desbloquear o app com digital, rosto ou senha do dispositivo. Se falhar, o login normal continua disponível.
+          </DialogDescription>
+
+          <div className={cn('mt-6 flex gap-3', isMobile ? 'flex-col' : 'justify-end')}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading}
+              onClick={() => void onSkip()}
+              className={cn(
+                'h-12 rounded-[18px] border-black/10 bg-transparent px-5 text-xs font-black text-foreground hover:bg-muted/70 dark:border-white/12',
+                isMobile && 'w-full',
+              )}
+            >
+              Agora não
+            </Button>
+            <Button
+              type="button"
+              disabled={loading}
+              onClick={() => void onEnable()}
+              className={cn(
+                'h-12 rounded-[18px] bg-foreground px-5 text-xs font-black text-background shadow-xl shadow-black/10 hover:bg-foreground/90 dark:shadow-black/35',
+                isMobile && 'w-full',
+              )}
+            >
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Ativar
+            </Button>
+          </div>
+        </motion.div>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const AuthPageV2 = () => {
   const navigate = useNavigate();
@@ -320,35 +418,18 @@ const AuthPageV2 = () => {
     <>
       <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
       <TotpMfaDialog open={mfaOpen} mode="challenge" onOpenChange={setMfaOpen} onSuccess={finishAuthenticatedSession} onCancel={cancelMfa} />
-      <Dialog
+      <BiometricPromptDialog
         open={biometricPromptOpen}
+        isMobile={isMobile}
+        loading={biometricLoading}
         onOpenChange={(open) => {
           if (biometricLoading) return;
           if (!open) void skipBiometrics();
           else setBiometricPromptOpen(open);
         }}
-      >
-        <DialogContent className="max-w-sm rounded-[28px] p-6">
-          <DialogHeader>
-            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-[18px] border border-border/40 bg-card">
-              <Fingerprint className="h-5 w-5" />
-            </div>
-            <DialogTitle>Entrar com biometria?</DialogTitle>
-            <DialogDescription>
-              Ative neste aparelho para desbloquear o app com digital, rosto ou senha do dispositivo. Se falhar, o login normal continua disponivel.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:space-x-0">
-            <Button type="button" variant="ghost" disabled={biometricLoading} onClick={() => void skipBiometrics()}>
-              Agora nao
-            </Button>
-            <Button type="button" disabled={biometricLoading} onClick={() => void enableBiometrics()}>
-              {biometricLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Ativar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onSkip={skipBiometrics}
+        onEnable={enableBiometrics}
+      />
     </>
   );
 

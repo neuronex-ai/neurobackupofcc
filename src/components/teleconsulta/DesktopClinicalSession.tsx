@@ -23,7 +23,7 @@ export const DesktopClinicalSession = ({
 
   if (session.showLobby) {
     return (
-      <div className="fixed inset-0 z-[100] overflow-hidden bg-background">
+      <div className="fixed inset-0 z-[100] overflow-hidden bg-background pt-28">
         <DesktopTeleconsultationLobby
           patientName={patientName}
           patient={session.patient}
@@ -41,7 +41,7 @@ export const DesktopClinicalSession = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-[100] overflow-hidden bg-background">
+      <div className="fixed inset-0 z-[100] overflow-hidden bg-background pt-28">
         <div
           className={cn(
             'grid h-full min-h-0 gap-4 p-4 xl:p-5',
