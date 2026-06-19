@@ -33,11 +33,26 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Promote reviewed agent entrypoint
-        run: cp supabase/functions/synapse-text-fallback/index-v2.ts supabase/functions/synapse-text-fallback/index.ts
+        shell: bash
+        run: |
+          cp supabase/functions/synapse-text-fallback/index-v2.ts supabase/functions/synapse-text-fallback/index.ts
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("supabase/functions/synapse-text-fallback/index.ts")
+          text = path.read_text()
+          text = text.replace('from "./executor.ts";', 'from "./executor-v2.ts";')
+          text = text.replace(
+              'const SYSTEM_DATA=/\\b(paciente|pacientes|consulta|consultas|agenda|agendamento|horário|horario|prontuário|prontuario|sessão|sessao|financeiro|saldo|receita|despesa|lançamento|lancamento|transação|transacao|nota|notas|documento|arquivo|medicação|medicacao|risco|cobrança|cobranca|fatura)\\b/i;',
+              'const SYSTEM_DATA=/\\b(paciente|pacientes|consulta|consultas|agenda|agendamento|horário|horario|prontuário|prontuario|sessão|sessao|financeiro|saldo|receita|despesa|lançamento|lancamento|transação|transacao|nota|notas|documento|arquivo|medicação|medicacao|risco|cobrança|cobranca|fatura|neurofinance|neuroscan|teleconsulta|neuronotes|configuração|configuracao|integração|integracao|dashboard|synapse)\\b/i;'
+          )
+          text = text.replace(
+              '"Para pacientes, agenda, prontuário, finanças, notas e documentos, use ferramentas.",',
+              '"Para pacientes, agenda, prontuário, finanças, notas e documentos, use ferramentas.",\n    "Para perguntas sobre como o NeuroNex funciona, use get_system_help.",\n    "IDs e UUIDs são proibidos na conversa e nunca devem ser pedidos ao profissional.",\n    "Quando houver um nome, envie patient_name; o backend resolve a pessoa internamente.",'
+          )
+          path.write_text(text)
+          PY
 
       - name: Deploy authenticated fallback agent
         run: npx --yes supabase@latest functions deploy synapse-text-fallback --project-ref krewdaklcyzqfxkkgvqr
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-
-# Deployment trigger: 2026-06-18
