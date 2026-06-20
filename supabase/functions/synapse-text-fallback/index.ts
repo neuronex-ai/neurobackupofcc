@@ -1,188 +1,48 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { AGENT_TOOLS_V3 } from "./tools-v3.ts";
-import {
-  executeAgentToolV3,
-  executeConfirmedMutationV3,
-  type AgentToolContextV3,
-} from "./executor-v3.ts";
-import {
-  formatContextForPrompt,
-  loadConversationContext,
-  saveConversationContext,
-  updateContextFromResult,
-  type SynapseConversationState,
-} from "./entity-context.ts";
-import { invokeSynapseModel } from "./provider.ts";
 
-const CORS = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization,x-client-info,apikey,content-type",
-  "Access-Control-Allow-Methods": "POST,OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status,
-  headers: { ...CORS, "Content-Type": "application/json; charset=utf-8" },
-});
 
-const CONFIRM = /^\s*(confirmo|sim[,! ]*confirmo|pode executar|pode fazer|autorizo|confirmado|pode prosseguir|prosseguir)\s*[.!]?\s*$/i;
-const CANCEL = /^\s*(cancelar|cancele|não confirmo|nao confirmo|desistir|desisto)\s*[.!]?\s*$/i;
-const SYSTEM_DATA = /\b(paciente|pacientes|consulta|consultas|agenda|agendamento|horário|horario|prontuário|prontuario|sessão|sessao|financeiro|neurofinance|saldo|receita|despesa|lançamento|lancamento|transação|transacao|nota fiscal|nfs-e|nfse|nota|notas|documento|arquivo|medicação|medicacao|risco|cobrança|cobranca|fatura|pagamento|email|e-mail|lembrete)\b/i;
-const MUTATION_INTENT = /\b(crie|criar|cadastre|cadastrar|agende|agendar|remarque|remarcar|cancele|cancelar|envie|enviar|registre|registrar|atualize|atualizar|emita|emitir|cobre|cobrar)\b/i;
-const UUID_PATTERN = /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
-
-type MessageRow = {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  attachments?: unknown;
-  created_at: string;
-};
-type PendingAction = {
-  kind: "synapse_pending_action";
-  actionId: string;
-  toolName: string;
-  arguments: Record<string, unknown>;
-  summary: string;
-  status: "pending" | "executing" | "executed" | "cancelled" | "failed";
-  createdAt: string;
-  expiresAt: string;
-  errorMessage?: string;
-  updatedAt?: string;
-};
-type PendingReference = { row: MessageRow; action: PendingAction; attachments: any[] };
-
-const arrayValue = (value: unknown) => Array.isArray(value) ? value : value && typeof value === "object" ? [value] : [];
-const cleanHistory = (value: unknown, max = 2600) => String(value || "")
-  .replace(/```json\s+synapse_widget[\s\S]*?```/gi, "[componente visual do Synapse]")
-  .replace(UUID_PATTERN, "[identificador interno]")
-  .slice(0, max);
-const appendWidget = (text: string, structured?: any) => structured
-  ? `${text}\n\n\`\`\`json synapse_widget\n${JSON.stringify({ __actionType: structured.type, data: structured.data || structured.payload || {} }, null, 2)}\n\`\`\``
-  : text;
-const safeUserText = (value: unknown) => String(value || "").replace(UUID_PATTERN, "").replace(/\n{3,}/g, "\n\n").trim();
-
-function findPending(rows: MessageRow[]): PendingReference | null {
-  for (const row of rows) {
-    if (row.role !== "assistant") continue;
-    const attachments = arrayValue(row.attachments);
-    const action = attachments.find((item: any) =>
-      item?.kind === "synapse_pending_action" &&
-      item?.status === "pending" &&
-      new Date(item.expiresAt).getTime() > Date.now()
-    );
-    if (action) return { row, action, attachments };
-  }
-  return null;
-}
-
-async function updatePending(admin: any, pending: PendingReference, status: PendingAction["status"], errorMessage?: string) {
-  const attachments = pending.attachments.map((item: any) =>
-    item?.kind === "synapse_pending_action" && item?.actionId === pending.action.actionId
-      ? { ...item, status, updatedAt: new Date().toISOString(), ...(errorMessage ? { errorMessage } : {}) }
-      : item
-  );
-  await admin.from("messages").update({ attachments }).eq("id", pending.row.id);
-}
-
-async function saveUserMessage(
-  admin: any,
-  userId: string,
-  sessionId: string,
-  message: string,
-  existingRows: MessageRow[],
-  attachments: unknown[],
-) {
-  const latestUser = existingRows.find((row) => row.role === "user");
-  if (latestUser?.content === message && Date.now() - new Date(latestUser.created_at).getTime() < 120_000) return;
-  const { error } = await admin.from("messages").insert({
-    user_id: userId,
-    session_id: sessionId,
-    role: "user",
-    content: message,
-    attachments: attachments.length ? attachments : null,
+const json = (value: unknown, status = 200) =>
+  new Response(JSON.stringify(value), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-  if (error) throw error;
-}
 
-async function saveAssistantMessage(
-  admin: any,
-  userId: string,
-  sessionId: string,
-  content: string,
-  attachments: unknown[],
-) {
-  const { error } = await admin.from("messages").insert({
-    user_id: userId,
-    session_id: sessionId,
-    role: "assistant",
-    content,
-    attachments: attachments.length ? attachments : null,
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+async function callGroq(apiKey: string, model: string, messages: Array<Record<string, string>>) {
+  return fetch(GROQ_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.3,
+      max_completion_tokens: 1100,
+    }),
   });
-  if (error) throw error;
-  await admin.from("chat_sessions").update({ updated_at: new Date().toISOString() })
-    .eq("id", sessionId).eq("user_id", userId);
-}
-
-function groundingRequired(message: string, context: any) {
-  if (SYSTEM_DATA.test(message) || MUTATION_INTENT.test(message)) return true;
-  const route = String(context?.currentContext || context?.route || "").toLowerCase();
-  return /(pacient|agenda|finance|nota|document|prontu)/.test(route) &&
-    /\b(meu|minha|meus|minhas|tenho|quantos|qual|quais|liste|mostre|consulte|faça|faca)\b/i.test(message);
-}
-
-function buildSystemPrompt(context: any, state: SynapseConversationState, memorySummary: string, pending?: PendingAction | null) {
-  const now = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    dateStyle: "full",
-    timeStyle: "short",
-  }).format(new Date());
-  const route = String(context?.currentContext || context?.route || "Synapse");
-
-  return [
-    "Você é o Synapse, agente operacional central da plataforma NeuroNex para psicólogos.",
-    "Responda em português brasileiro natural, direto, profissional e sem jargão desnecessário.",
-    `Data e hora de Brasília: ${now}. Tela atual: ${route}.`,
-    "Você possui ferramentas reais para pacientes, prontuários, agenda, comunicações, gestão financeira, NeuroFinance e NFS-e.",
-    "Para qualquer pergunta sobre dados do sistema, use ferramentas. O histórico da conversa não prova o estado atual do banco.",
-    "Nunca invente nomes, horários, valores, saldos, pagamentos, notas fiscais, diagnósticos ou resultados de ações.",
-    "Nunca peça IDs, UUIDs ou códigos internos. Quando o profissional citar um nome, resolva a pessoa silenciosamente pelo cadastro e pelo contexto.",
-    "Se houver uma única pessoa ou consulta plausível, prossiga. Só peça esclarecimento quando houver ambiguidade humana real, mostrando nomes ou datas, nunca IDs.",
-    "Mantenha referências conversacionais: depois de localizar um paciente, expressões como 'ele', 'ela', 'esse paciente', 'a consulta dele' e 'mande para ela' se referem ao contexto durável, salvo indicação contrária.",
-    "Ações que alteram dados, enviam mensagens, criam cobranças ou emitem NFS-e exigem uma confirmação separada. Prepare a ação e aguarde 'Confirmo'.",
-    "Para agenda, você pode consultar horários, localizar vagas, criar, remarcar, cancelar e enviar lembretes por e-mail.",
-    "Para NeuroFinance, diferencie gestão manual de dinheiro real. Consulte primeiro o status da conta. Se ela não existir ou estiver pendente, explique o estágio correto e não invente saldo.",
-    "Para NFS-e, consulte dados reais. Uma solicitação de emissão não significa autorização municipal; descreva como solicitada, agendada ou em processamento até haver confirmação.",
-    "Nunca exponha rotas, URLs internas, JSON, SQL, nomes de tabelas, provedores de infraestrutura ou identificadores internos.",
-    "Não narre ferramentas nem raciocínio interno. Execute silenciosamente e entregue apenas o resultado útil.",
-    `CONTEXTO DURÁVEL:\n${formatContextForPrompt(state)}`,
-    memorySummary ? `RESUMO ANTERIOR DA CONVERSA:\n${memorySummary}` : "",
-    context?.summary ? `CONTEXTO VISUAL INFORMADO PELO APLICATIVO:\n${cleanHistory(context.summary, 1200)}` : "",
-    pending ? `AÇÃO AGUARDANDO CONFIRMAÇÃO: ${pending.summary}` : "",
-  ].filter(Boolean).join("\n\n");
-}
-
-async function seedContextFromFrontend(admin: any, userId: string, state: SynapseConversationState, context: any) {
-  const patientId = String(context?.activePatientId || context?.patientId || "").trim();
-  if (!patientId) return state;
-  const { data } = await admin.from("patients").select("id,name").eq("id", patientId).eq("user_id", userId).maybeSingle();
-  if (!data) return state;
-  return { ...state, activePatientId: data.id, activePatientName: data.name, updatedAt: new Date().toISOString() };
 }
 
 Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  if (request.method !== "POST") return reply({ error: "Método não permitido." }, 405);
+  if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
 
   try {
     const authorization = request.headers.get("Authorization") || "";
-    if (!authorization.startsWith("Bearer ")) return reply({ error: "Sessão ausente." }, 401);
+    if (!authorization.startsWith("Bearer ")) return json({ error: "Sessão ausente." }, 401);
 
     const body = await request.json();
     const message = String(body.message || "").trim();
     const sessionId = String(body.sessionId || body.session_id || "").trim();
     const context = body.context || {};
-    const inputAttachments = Array.isArray(body.attachments) ? body.attachments : [];
-    if (!message || !sessionId) return reply({ error: "Mensagem ou conversa ausente." }, 400);
+    if (!message || !sessionId) return json({ error: "Mensagem ou conversa ausente." }, 400);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -191,232 +51,108 @@ Deno.serve(async (request) => {
       global: { headers: { Authorization: authorization } },
       auth: { persistSession: false },
     });
-    const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+    const admin = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false },
+    });
+
     const { data: authData, error: authError } = await userClient.auth.getUser();
     const user = authData.user;
-    if (authError || !user) return reply({ error: "Sessão inválida." }, 401);
+    if (authError || !user) return json({ error: "Sessão inválida." }, 401);
 
-    const { data: session, error: sessionError } = await admin
-      .from("chat_sessions")
-      .select("id")
-      .eq("id", sessionId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (sessionError || !session) return reply({ error: "Conversa não encontrada." }, 404);
-
-    const { data: historyData, error: historyError } = await admin
+    const { data: history } = await admin
       .from("messages")
-      .select("id,role,content,attachments,created_at")
+      .select("role,content")
       .eq("user_id", user.id)
       .eq("session_id", sessionId)
       .order("created_at", { ascending: false })
-      .limit(30);
-    if (historyError) throw historyError;
-    const rows = (historyData || []) as MessageRow[];
-    const pending = findPending(rows);
-    const loadedContext = await loadConversationContext(admin, user.id, sessionId);
-    let conversationState = await seedContextFromFrontend(admin, user.id, loadedContext.state, context);
+      .limit(10);
 
-    await saveUserMessage(admin, user.id, sessionId, message, rows, inputAttachments);
+    const systemPrompt = [
+      "Você é o Synapse, assistente central da plataforma NeuroNex para profissionais de saúde mental.",
+      "Responda em português brasileiro, de forma clara, simples e confiável.",
+      "Este é um modo de contingência: não invente dados, não afirme que executou ferramentas e não realize ações de escrita.",
+      "Nunca mostre URLs, rotas, UUIDs, IDs, JSON ou detalhes técnicos internos.",
+      `Contexto atual: ${String(context.currentContext || context.route || "Synapse")}.`,
+    ].join("\n");
 
-    const toolContext: AgentToolContextV3 = {
-      admin,
-      userId: user.id,
-      sessionId,
-      authorization,
-      requestOrigin: request.headers.get("origin") || context?.origin || null,
-    };
-
-    if (pending && CANCEL.test(message)) {
-      await updatePending(admin, pending, "cancelled");
-      const response = "A ação pendente foi cancelada. Nenhuma alteração foi realizada.";
-      await saveAssistantMessage(admin, user.id, sessionId, response, [{
-        kind: "synapse_grounding",
-        provider: "system",
-        grounded: true,
-        toolsUsed: [],
-        generatedAt: new Date().toISOString(),
-      }]);
-      return reply({ response, clientAction: null, session_id: sessionId, provider: "system", grounded: true });
-    }
-
-    if (pending && CONFIRM.test(message)) {
-      await updatePending(admin, pending, "executing");
-      const result = await executeConfirmedMutationV3(pending.action, toolContext);
-      await updatePending(admin, pending, result.ok ? "executed" : "failed", result.error);
-      conversationState = updateContextFromResult(conversationState, pending.action.toolName, pending.action.arguments, result);
-      await saveConversationContext(admin, user.id, sessionId, conversationState);
-      const response = appendWidget(
-        result.ok ? (result.message || "Ação concluída.") : `Não consegui executar: ${result.error || "erro desconhecido"}.`,
-        result.structuredData,
-      );
-      await saveAssistantMessage(admin, user.id, sessionId, response, [{
-        kind: "synapse_grounding",
-        provider: "system",
-        grounded: result.grounded,
-        toolsUsed: [pending.action.toolName],
-        recordsFound: result.recordCount || 0,
-        generatedAt: new Date().toISOString(),
-      }]);
-      return reply({
-        response,
-        clientAction: result.clientAction || null,
-        session_id: sessionId,
-        provider: "system",
-        model: "confirmed_action_executor",
-        grounded: result.grounded,
-        toolsUsed: [pending.action.toolName],
-        recordsFound: result.recordCount || 0,
-      });
-    }
-
-    if (!pending && CONFIRM.test(message)) {
-      const response = "Não há nenhuma ação pendente para confirmar.";
-      await saveAssistantMessage(admin, user.id, sessionId, response, []);
-      return reply({ response, clientAction: null, session_id: sessionId, provider: "system", grounded: true });
-    }
-
-    const chronological = [...rows].reverse();
-    const systemPrompt = buildSystemPrompt(context, conversationState, loadedContext.memorySummary, pending?.action || null);
-    const modelMessages: any[] = [
+    const messages = [
       { role: "system", content: systemPrompt },
-      ...chronological.slice(-24).map((row) => ({
-        role: row.role === "assistant" ? "assistant" : row.role === "system" ? "system" : "user",
-        content: cleanHistory(row.content),
+      ...(history || []).reverse().map((item: any) => ({
+        role: item.role === "assistant" ? "assistant" : "user",
+        content: String(item.content || "").slice(0, 3500),
       })),
       { role: "user", content: message },
     ];
 
-    const mustGround = groundingRequired(message, context);
-    const records: Array<{ name: string; result: any }> = [];
-    let finalText = "";
-    let structured: any = null;
-    let clientAction: any = null;
-    let pendingAction: PendingAction | null = null;
-    let selectedProvider = "nvidia";
-    let selectedModel = Deno.env.get("NVIDIA_SYNAPSE_MODEL") || "nvidia/nemotron-3-ultra-550b-a55b";
+    const apiKey = Deno.env.get("GROQ_API_KEY");
+    if (!apiKey) return json({ error: "Provedor alternativo indisponível." }, 503);
 
-    outer: for (let step = 0; step < 7; step += 1) {
-      const modelResult = await invokeSynapseModel({
-        messages: modelMessages,
-        tools: AGENT_TOOLS_V3,
-        toolChoice: step === 0 && mustGround ? "required" : "auto",
-        temperature: 0.12,
-        maxTokens: 2400,
-      });
-      selectedProvider = modelResult.provider;
-      selectedModel = modelResult.model;
-      const assistant = modelResult.data?.choices?.[0]?.message;
-      if (!assistant) throw new Error("Resposta inválida do agente.");
-      const calls = Array.isArray(assistant.tool_calls) ? assistant.tool_calls : [];
+    const primaryModel = Deno.env.get("GROQ_CHAT_MODEL") || "llama-3.1-8b-instant";
+    const secondaryModel = Deno.env.get("GROQ_FALLBACK_MODEL") || "llama-3.3-70b-versatile";
+    let selectedModel = primaryModel;
+    let response = await callGroq(apiKey, primaryModel, messages);
 
-      if (!calls.length) {
-        finalText = String(assistant.content || assistant.reasoning_content || "").trim();
-        break;
-      }
-
-      modelMessages.push({
-        role: "assistant",
-        content: assistant.content || null,
-        tool_calls: calls,
-      });
-
-      for (const call of calls) {
-        const name = String(call?.function?.name || "");
-        let args: Record<string, any> = {};
-        try {
-          args = JSON.parse(call?.function?.arguments || "{}");
-        } catch {
-          args = {};
-        }
-        const execution = await executeAgentToolV3(name, args, toolContext, conversationState);
-        conversationState = execution.state;
-        records.push({ name, result: execution.result });
-        if (execution.result.structuredData) structured = execution.result.structuredData;
-        if (execution.result.clientAction) clientAction = execution.result.clientAction;
-        if (execution.result.pendingAction) pendingAction = execution.result.pendingAction as PendingAction;
-        modelMessages.push({
-          role: "tool",
-          tool_call_id: call.id,
-          name,
-          content: JSON.stringify(execution.result.ok
-            ? (execution.result.data || { success: true })
-            : { error: execution.result.error, details: execution.result.data || null }),
-        });
-        if (pendingAction) break outer;
-      }
+    if (!response.ok && secondaryModel !== primaryModel) {
+      selectedModel = secondaryModel;
+      response = await callGroq(apiKey, secondaryModel, messages);
     }
 
-    await saveConversationContext(admin, user.id, sessionId, conversationState);
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      return json({ error: payload?.error?.message || "Provedor alternativo indisponível." }, 503);
+    }
 
-    if (pendingAction) {
-      const response = appendWidget(
-        `Antes de executar, preciso da sua confirmação:\n\n**${pendingAction.summary}**\n\nResponda **“Confirmo”** para prosseguir ou **“Cancelar”** para desistir.`,
-        { type: "confirmation_required", data: { actionId: pendingAction.actionId, summary: pendingAction.summary } },
-      );
-      await saveAssistantMessage(admin, user.id, sessionId, response, [
-        pendingAction,
-        {
-          kind: "synapse_grounding",
-          provider: selectedProvider,
-          model: selectedModel,
-          grounded: false,
-          toolsUsed: records.map((item) => item.name),
-          generatedAt: new Date().toISOString(),
-        },
-      ]);
-      return reply({
-        response,
-        clientAction: null,
+    const responseText = String(payload?.choices?.[0]?.message?.content || "").trim();
+    if (!responseText) return json({ error: "Resposta vazia do provedor alternativo." }, 502);
+
+    const { data: latestUserMessage } = await admin
+      .from("messages")
+      .select("content,created_at")
+      .eq("user_id", user.id)
+      .eq("session_id", sessionId)
+      .eq("role", "user")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const latestAge = latestUserMessage?.created_at
+      ? Date.now() - new Date(latestUserMessage.created_at).getTime()
+      : Number.POSITIVE_INFINITY;
+
+    if (latestUserMessage?.content !== message || latestAge > 60_000) {
+      await admin.from("messages").insert({
+        user_id: user.id,
         session_id: sessionId,
-        provider: selectedProvider,
-        model: selectedModel,
-        fallback: selectedProvider !== "nvidia",
-        grounded: false,
-        confirmationRequired: true,
-        toolsUsed: records.map((item) => item.name),
+        role: "user",
+        content: message,
       });
     }
 
-    const groundedSuccess = records.some((item) => item.result.ok && item.result.grounded);
-    const groundedFailure = [...records].reverse().find((item) => !item.result.ok && item.result.grounded);
-    let response = safeUserText(finalText);
-
-    if (!response && groundedFailure) response = groundedFailure.result.error || "Não consegui concluir a consulta.";
-    if (!response && groundedSuccess) response = "Consulta concluída com os dados disponíveis no NeuroNex.";
-    if (!response && clientAction) response = clientAction.data?.reason || "A ação foi preparada na interface.";
-    if (!response && mustGround) response = "Não consegui obter dados confirmados do sistema agora. Não vou estimar nem inventar uma resposta.";
-    if (!response) response = "Não consegui concluir a resposta agora.";
-    if (structured && structured.type !== "confirmation_required") response = appendWidget(response, structured);
-
-    const isGrounded = groundedSuccess || Boolean(clientAction);
-    const toolsUsed = records.map((item) => item.name);
-    const recordsFound = records.reduce((total, item) => total + Number(item.result.recordCount || 0), 0);
-    await saveAssistantMessage(admin, user.id, sessionId, response, [{
-      kind: "synapse_grounding",
-      provider: selectedProvider,
-      model: selectedModel,
-      grounded: isGrounded,
-      toolsUsed,
-      recordsFound,
-      generatedAt: new Date().toISOString(),
-    }]);
-
-    return reply({
-      response,
-      clientAction,
+    await admin.from("messages").insert({
+      user_id: user.id,
       session_id: sessionId,
-      provider: selectedProvider,
+      role: "assistant",
+      content: responseText,
+    });
+
+    await admin
+      .from("chat_sessions")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", sessionId)
+      .eq("user_id", user.id);
+
+    return json({
+      response: responseText,
+      clientAction: null,
+      session_id: sessionId,
+      provider: "groq",
       model: selectedModel,
-      fallback: selectedProvider !== "nvidia",
-      grounded: isGrounded,
-      toolsUsed,
-      recordsFound,
+      fallback: true,
     });
   } catch (error) {
-    console.error("[synapse-text-agent]", error);
-    return reply({
-      error: error instanceof Error ? error.message : "Falha no agente Synapse.",
+    console.error("[synapse-text-fallback]", error);
+    return json({
+      error: error instanceof Error ? error.message : "Falha no modo de contingência.",
     }, 500);
   }
 });
