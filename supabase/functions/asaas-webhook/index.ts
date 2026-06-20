@@ -799,12 +799,18 @@ async function handlePaymentConfirmed(payment: any) {
 
 async function tryScheduleAutomaticInvoice(nbPayment: any, payment: any) {
     try {
-        const invoiceId = nbPayment?.metadata?.invoice_id;
-        if (!invoiceId) return;
+        const existingNfse = nbPayment?.nfse_reference || nbPayment?.metadata?.asaas_nfse_id;
+        if (existingNfse) {
+            console.log(`[asaas-webhook] Automatic NFS-e already linked: ${nbPayment.id} -> ${existingNfse}`);
+            return;
+        }
+
+        const providerPaymentId = payment?.id || nbPayment?.provider_payment_id || nbPayment?.metadata?.asaas_payment_id;
+        if (!providerPaymentId) return;
 
         const { data: settings } = await supabaseAdmin
             .from('user_fiscal_settings')
-            .select('auto_issue, service_code, iss_aliquot, asaas_municipal_service_id, asaas_municipal_service_name')
+            .select('*')
             .eq('user_id', nbPayment.user_id)
             .maybeSingle();
 
