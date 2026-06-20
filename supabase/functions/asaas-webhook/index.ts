@@ -43,6 +43,12 @@ import {
     dateInTimeZone,
     normalizeBillPaymentStatus,
 } from '../_shared/asaas-bill-scheduling.ts';
+import {
+    authorizeAsaasInvoice,
+    buildAsaasInvoicePayload,
+    createAsaasInvoice,
+    persistAsaasInvoiceState,
+} from '../_shared/asaas-nfse.ts';
 
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return corsResponse();
@@ -158,6 +164,8 @@ Deno.serve(async (req: Request) => {
                 default:
                     if (event.startsWith('BILL_')) {
                         await handleBillEvent(body.bill || resource, event);
+                    } else if (event.startsWith('INVOICE_')) {
+                        await handleInvoiceEvent(body.invoice || resource, event, webhookFinancialAccount);
                     } else if (event.startsWith('RECEIVABLE_ANTICIPATION_')) {
                         await handleReceivableAnticipationEvent(body.anticipation || resource, event, webhookFinancialAccount);
                     } else if (event.startsWith('ACCOUNT_STATUS_')) {
@@ -238,10 +246,7 @@ const ADMIN_ONLY_ASAAS_EVENTS = new Set([
     'ACCESS_TOKEN_EXPIRING_SOON',
 ]);
 
-const HISTORY_ONLY_ASAAS_EVENTS = new Set([
-    'PAYMENT_BANK_SLIP_VIEWED',
-    'PAYMENT_CHECKOUT_VIEWED',
-]);
+const HISTORY_ONLY_ASAAS_EVENTS = new Set<string>();
 
 const GENERIC_NOTIFIABLE_PREFIXES = [
     'INVOICE_',
@@ -279,7 +284,83 @@ function amountCentsFromResource(resource: any) {
         : null;
 }
 
-function asaasNotificationDescriptor(event: string, resource: any) {
+type AsaasNotificationContext = {
+    patientId?: string | null;
+    patientName?: string | null;
+    eventTimestamp?: string | null;
+    eventTimestampLabel?: string | null;
+    eventIdSuffix?: string | null;
+};
+
+function formatAsaasDateTime(value?: string | null) {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    }).format(parsed);
+}
+
+function paymentViewTimestamp(payment: any, event: string) {
+    if (event === 'PAYMENT_BANK_SLIP_VIEWED') {
+        return payment?.lastBankSlipViewedDate ||
+            payment?.bankSlipViewedDate ||
+            payment?.lastInvoiceViewedDate ||
+            payment?.dateCreated ||
+            null;
+    }
+
+    if (event === 'PAYMENT_CHECKOUT_VIEWED') {
+        return payment?.lastInvoiceViewedDate ||
+            payment?.invoiceViewedDate ||
+            payment?.lastBankSlipViewedDate ||
+            payment?.dateCreated ||
+            null;
+    }
+
+    return null;
+}
+
+function notificationEventSuffixFromTimestamp(value?: string | null) {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toISOString().replace(/[^0-9TZ]/g, '');
+}
+
+async function buildPaymentNotificationContext(nbPayment: any, payment: any, event: string): Promise<AsaasNotificationContext> {
+    let patientName: string | null = null;
+
+    if (nbPayment?.patient_id) {
+        const { data, error } = await supabaseAdmin
+            .from('patients')
+            .select('name')
+            .eq('id', nbPayment.patient_id)
+            .eq('user_id', nbPayment.user_id)
+            .maybeSingle();
+        if (error) {
+            console.warn('[asaas-webhook] Failed to resolve patient name for notification:', error);
+        }
+        patientName = data?.name || null;
+    }
+
+    const eventTimestamp = paymentViewTimestamp(payment, event);
+
+    return {
+        patientId: nbPayment?.patient_id || null,
+        patientName,
+        eventTimestamp,
+        eventTimestampLabel: formatAsaasDateTime(eventTimestamp),
+        eventIdSuffix: notificationEventSuffixFromTimestamp(eventTimestamp),
+    };
+}
+
+function asaasNotificationDescriptor(event: string, resource: any, context: AsaasNotificationContext = {}) {
     if (ADMIN_ONLY_ASAAS_EVENTS.has(event) || HISTORY_ONLY_ASAAS_EVENTS.has(event)) return null;
 
     const amountCents = amountCentsFromResource(resource);
@@ -294,6 +375,8 @@ function asaasNotificationDescriptor(event: string, resource: any) {
         requiresAction: false,
         nativePushEligible: false,
     };
+    const patientLabel = context.patientName || 'Paciente';
+    const viewedAt = context.eventTimestampLabel ? ` em ${context.eventTimestampLabel}` : '';
 
     const table: Record<string, Partial<typeof base>> = {
         PAYMENT_AUTHORIZED: { title: 'Pagamento autorizado', message: `Uma cobranca foi autorizada${amountText}.`, severity: 'success' },
@@ -320,27 +403,68 @@ function asaasNotificationDescriptor(event: string, resource: any) {
         PAYMENT_DUNNING_REQUESTED: { title: 'Recuperacao de cobranca solicitada', message: `Uma recuperacao de cobranca foi solicitada${amountText}.`, severity: 'info' },
         PAYMENT_DUNNING_RECEIVED: { title: 'Recuperacao de cobranca recebida', message: `Uma recuperacao de cobranca foi recebida${amountText}.`, severity: 'success' },
         PAYMENT_BANK_SLIP_CANCELLED: { title: 'Boleto cancelado', message: `Um boleto foi cancelado${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        PAYMENT_BANK_SLIP_VIEWED: { title: 'Boleto visualizado', message: `${patientLabel} visualizou o boleto${viewedAt}.`, severity: 'info', priority: 'low' },
+        PAYMENT_CHECKOUT_VIEWED: { title: 'Cobranca visualizada', message: `${patientLabel} visualizou a cobranca${viewedAt}.`, severity: 'info', priority: 'low' },
         PAYMENT_SPLIT_CANCELLED: { title: 'Split cancelado', message: `O split de uma cobranca foi cancelado${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
         PAYMENT_SPLIT_DIVERGENCE_BLOCK: { title: 'Divergencia de split bloqueada', message: `Uma divergencia de split bloqueou uma cobranca${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
         PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED: { title: 'Divergencia de split resolvida', message: `O bloqueio de divergencia de split foi finalizado${amountText}.`, severity: 'success' },
+        TRANSFER_CREATED: { title: 'Transferencia criada', message: `Uma transferencia foi criada${amountText}.` },
+        TRANSFER_PENDING: { title: 'Transferencia pendente', message: `Uma transferencia esta pendente${amountText}.`, severity: 'info' },
+        TRANSFER_IN_BANK_PROCESSING: { title: 'Transferencia em processamento', message: `Uma transferencia entrou em processamento bancario${amountText}.`, severity: 'info' },
         TRANSFER_DONE: { title: 'Transferencia concluida', message: `Uma transferencia foi concluida${amountText}.`, severity: 'success' },
         TRANSFER_FAILED: { title: 'Transferencia falhou', message: `Uma transferencia falhou${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
         TRANSFER_CANCELLED: { title: 'Transferencia cancelada', message: `Uma transferencia foi cancelada${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
         TRANSFER_BLOCKED: { title: 'Transferencia bloqueada', message: `Uma transferencia foi bloqueada pela Asaas${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        BILL_CREATED: { title: 'Conta criada', message: `Um pagamento de conta foi criado${amountText}.` },
+        BILL_PENDING: { title: 'Conta pendente', message: `Um pagamento de conta esta pendente${amountText}.`, severity: 'info' },
+        BILL_BANK_PROCESSING: { title: 'Conta em processamento', message: `Um pagamento de conta entrou em processamento bancario${amountText}.`, severity: 'info' },
         BILL_PAID: { title: 'Conta paga', message: `Um pagamento de conta foi confirmado${amountText}.`, severity: 'success' },
         BILL_FAILED: { title: 'Pagamento de conta falhou', message: `Um pagamento de conta falhou${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
         BILL_CANCELLED: { title: 'Pagamento de conta cancelado', message: `Um pagamento de conta foi cancelado${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
         BILL_REFUNDED: { title: 'Pagamento de conta estornado', message: `Um pagamento de conta foi estornado${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        RECEIVABLE_ANTICIPATION_PENDING: { title: 'Antecipacao pendente', message: `Uma antecipacao esta pendente${amountText}.`, severity: 'info' },
+        RECEIVABLE_ANTICIPATION_SCHEDULED: { title: 'Antecipacao agendada', message: `Uma antecipacao foi agendada${amountText}.`, severity: 'info' },
         RECEIVABLE_ANTICIPATION_CREDITED: { title: 'Antecipacao creditada', message: `Uma antecipacao foi creditada${amountText}.`, severity: 'success' },
+        RECEIVABLE_ANTICIPATION_DEBITED: { title: 'Antecipacao debitada', message: `Uma antecipacao foi debitada${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
         RECEIVABLE_ANTICIPATION_DENIED: { title: 'Antecipacao negada', message: `Uma antecipacao foi negada${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        RECEIVABLE_ANTICIPATION_CANCELLED: { title: 'Antecipacao cancelada', message: `Uma antecipacao foi cancelada${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
         RECEIVABLE_ANTICIPATION_OVERDUE: { title: 'Antecipacao vencida', message: `Uma antecipacao ficou vencida${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true, nativePushEligible: true },
+        INVOICE_CREATED: { title: 'NFS-e criada', message: 'Uma NFS-e foi criada na Asaas.', severity: 'info' },
+        INVOICE_UPDATED: { title: 'NFS-e atualizada', message: 'Uma NFS-e foi atualizada pela Asaas.', severity: 'info' },
+        INVOICE_SYNCHRONIZED: { title: 'NFS-e sincronizada', message: 'Uma NFS-e foi sincronizada com a prefeitura.', severity: 'success' },
         INVOICE_AUTHORIZED: { title: 'Nota fiscal autorizada', message: 'Uma NFS-e foi autorizada pela Asaas.', severity: 'success' },
+        INVOICE_PROCESSING_CANCELLATION: { title: 'Cancelamento de NFS-e em processamento', message: 'O cancelamento de uma NFS-e esta em processamento.', severity: 'warning', priority: 'high', requiresAction: true },
+        INVOICE_CANCELED: { title: 'NFS-e cancelada', message: 'Uma NFS-e foi cancelada pela Asaas.', severity: 'warning', priority: 'high', requiresAction: true },
         INVOICE_ERROR: { title: 'Erro na nota fiscal', message: 'A Asaas retornou erro em uma NFS-e.', severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
         INVOICE_CANCELLATION_DENIED: { title: 'Cancelamento de NFS-e negado', message: 'A Asaas negou o cancelamento de uma NFS-e.', severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        SUBSCRIPTION_CREATED: { title: 'Assinatura criada', message: `Uma assinatura foi criada${amountText}.` },
+        SUBSCRIPTION_UPDATED: { title: 'Assinatura atualizada', message: `Uma assinatura foi atualizada${amountText}.` },
+        SUBSCRIPTION_INACTIVATED: { title: 'Assinatura inativada', message: `Uma assinatura foi inativada${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        SUBSCRIPTION_DELETED: { title: 'Assinatura removida', message: `Uma assinatura foi removida${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK: { title: 'Divergencia de split na assinatura', message: 'Uma assinatura foi bloqueada por divergencia de split.', severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK_FINISHED: { title: 'Divergencia de split resolvida', message: 'A divergencia de split da assinatura foi resolvida.', severity: 'success' },
+        SUBSCRIPTION_SPLIT_DISABLED: { title: 'Split desativado na assinatura', message: 'O split de uma assinatura foi desativado.', severity: 'warning', priority: 'high', requiresAction: true },
+        CHECKOUT_CREATED: { title: 'Checkout criado', message: `Um checkout foi criado${amountText}.` },
+        CHECKOUT_CANCELED: { title: 'Checkout cancelado', message: `Um checkout foi cancelado${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        CHECKOUT_EXPIRED: { title: 'Checkout expirado', message: `Um checkout expirou${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        CHECKOUT_PAID: { title: 'Checkout pago', message: `Um checkout foi pago${amountText}.`, severity: 'success' },
         BALANCE_VALUE_BLOCKED: { title: 'Saldo bloqueado', message: `Um valor foi bloqueado no saldo NeuroFinance${amountText}.`, severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
         BALANCE_VALUE_UNBLOCKED: { title: 'Saldo desbloqueado', message: `Um valor foi desbloqueado no saldo NeuroFinance${amountText}.`, severity: 'success' },
+        INTERNAL_TRANSFER_CREDIT: { title: 'Transferencia interna recebida', message: `Uma transferencia interna creditou sua conta${amountText}.`, severity: 'success' },
+        INTERNAL_TRANSFER_DEBIT: { title: 'Transferencia interna enviada', message: `Uma transferencia interna debitou sua conta${amountText}.`, severity: 'info' },
+        MOBILE_PHONE_RECHARGE_PENDING: { title: 'Recarga pendente', message: `Uma recarga esta pendente${amountText}.`, severity: 'info' },
+        MOBILE_PHONE_RECHARGE_CANCELLED: { title: 'Recarga cancelada', message: `Uma recarga foi cancelada${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        MOBILE_PHONE_RECHARGE_CONFIRMED: { title: 'Recarga confirmada', message: `Uma recarga foi confirmada${amountText}.`, severity: 'success' },
+        MOBILE_PHONE_RECHARGE_REFUNDED: { title: 'Recarga estornada', message: `Uma recarga foi estornada${amountText}.`, severity: 'warning', priority: 'high', requiresAction: true },
+        PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CREATED: { title: 'Pix Automatico criado', message: 'Uma autorizacao de Pix Automatico foi criada.', severity: 'info' },
+        PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED: { title: 'Pix Automatico ativado', message: 'Uma autorizacao de Pix Automatico foi ativada.', severity: 'success' },
+        PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED: { title: 'Pix Automatico cancelado', message: 'Uma autorizacao de Pix Automatico foi cancelada.', severity: 'warning', priority: 'high', requiresAction: true },
+        PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED: { title: 'Pix Automatico expirado', message: 'Uma autorizacao de Pix Automatico expirou.', severity: 'warning', priority: 'high', requiresAction: true },
         PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED: { title: 'Pix Automatico recusado', message: 'Uma autorizacao de Pix Automatico foi recusada pelo banco.', severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CREATED: { title: 'Instrucao Pix criada', message: 'Uma instrucao de pagamento Pix Automatico foi criada.', severity: 'info' },
+        PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_SCHEDULED: { title: 'Instrucao Pix agendada', message: 'Uma instrucao de pagamento Pix Automatico foi agendada.', severity: 'info' },
         PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_REFUSED: { title: 'Instrucao Pix recusada', message: 'Uma instrucao de pagamento Pix Automatico foi recusada.', severity: 'destructive', priority: 'high', requiresAction: true, nativePushEligible: true },
+        PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_CANCELLED: { title: 'Instrucao Pix cancelada', message: 'Uma instrucao de pagamento Pix Automatico foi cancelada.', severity: 'warning', priority: 'high', requiresAction: true },
         PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED: { title: 'Elegibilidade Pix atualizada', message: 'A elegibilidade da subconta para Pix Automatico foi atualizada.', severity: 'info' },
     };
 
@@ -389,15 +513,16 @@ async function emitAsaasNotification(args: {
     resource: any;
     objectType: string;
     actionUrl?: string;
+    context?: AsaasNotificationContext;
 }) {
     if (!args.userId) return;
 
-    const descriptor = asaasNotificationDescriptor(args.event, args.resource);
+    const descriptor = asaasNotificationDescriptor(args.event, args.resource, args.context);
     if (!descriptor) return;
 
     const providerObjectId = String(args.resource?.id || args.resource?.payment || args.resource?.authorization?.id || args.event);
     const amountCents = amountCentsFromResource(args.resource);
-    const eventId = `asaas:${args.event}:${providerObjectId}`;
+    const eventId = `asaas:${args.event}:${providerObjectId}${args.context?.eventIdSuffix ? `:${args.context.eventIdSuffix}` : ''}`;
     const { error } = await supabaseAdmin.rpc('emit_user_notification', {
         p_user_id: args.userId,
         p_event_id: eventId,
@@ -419,6 +544,9 @@ async function emitAsaasNotification(args: {
             financialAccountId: args.financialAccountId || null,
             subaccountId: args.financialAccountId || null,
             amountCents,
+            patientId: args.context?.patientId || null,
+            patientName: args.context?.patientName || null,
+            eventOccurredAt: args.context?.eventTimestamp || null,
             requiresAction: descriptor.requiresAction,
             nativePushEligible: descriptor.nativePushEligible,
         },
@@ -617,6 +745,7 @@ async function handlePaymentEvent(payment: any, event: string, webhookAccount?: 
         resource: payment,
         objectType: 'payment',
         actionUrl: '/financeiro?tab=neurofinance',
+        context: await buildPaymentNotificationContext(nbPayment, payment, event),
     });
 
     console.log(`[asaas-webhook] Payment synchronized (${event}): ${nbPayment.id}`);
