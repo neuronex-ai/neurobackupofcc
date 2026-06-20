@@ -86,7 +86,7 @@ export async function fetchAsaasInvoice(apiKey: string, invoiceId: string) {
 function buildNfsePatch(invoice: Record<string, any>, errorMessage?: string | null) {
     const status = invoice?.status || (errorMessage ? 'ERROR' : null);
     const now = new Date().toISOString();
-    return {
+    const patch: Record<string, any> = {
         nfse_provider: 'asaas',
         nfse_reference: invoice?.id || null,
         nfse_status: status,
@@ -96,11 +96,16 @@ function buildNfsePatch(invoice: Record<string, any>, errorMessage?: string | nu
         nfse_xml_url: invoice?.xmlUrl || null,
         nfse_status_description: invoice?.statusDescription || errorMessage || null,
         nfse_payload: invoice || {},
-        nfse_authorized_at: status === 'AUTHORIZED' ? now : null,
         nfse_synced_at: now,
         nfse_error_message: errorMessage || (status === 'ERROR' ? invoice?.statusDescription || null : null),
         updated_at: now,
     };
+
+    if (status === 'AUTHORIZED') {
+        patch.nfse_authorized_at = now;
+    }
+
+    return patch;
 }
 
 async function findPaymentTarget(target: NfseStateTarget) {

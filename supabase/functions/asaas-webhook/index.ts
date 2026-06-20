@@ -824,6 +824,40 @@ async function tryScheduleAutomaticInvoice(nbPayment: any, payment: any) {
         const apiKey = getFinancialAccountAsaasApiKey(financialAccount);
         if (!apiKey) return;
 
+        const invoiceId = nbPayment?.metadata?.invoice_id;
+        const payload = buildAsaasInvoicePayload({
+            payment: providerPaymentId,
+            serviceDescription: nbPayment.description || 'Servicos de psicologia e saude mental',
+            observations: `Emissao automatica NeuroFinance para a cobranca ${providerPaymentId}.`,
+            value: Number(payment.value || Number(nbPayment.gross_amount || 0) / 100 || 0),
+            effectiveDate: new Date().toISOString().slice(0, 10),
+            externalReference: nbPayment.id,
+        }, settings);
+
+        const scheduledInvoice = await createAsaasInvoice(apiKey, payload);
+        await persistAsaasInvoiceState({
+            userId: nbPayment.user_id,
+            financialAccountId: nbPayment.financial_account_id,
+            nbPaymentId: nbPayment.id,
+            providerPaymentId,
+            legacyInvoiceId: invoiceId || null,
+            invoice: scheduledInvoice,
+        });
+
+        if (scheduledInvoice?.id) {
+            const authorizedInvoice = await authorizeAsaasInvoice(apiKey, scheduledInvoice.id);
+            await persistAsaasInvoiceState({
+                userId: nbPayment.user_id,
+                financialAccountId: nbPayment.financial_account_id,
+                nbPaymentId: nbPayment.id,
+                providerPaymentId,
+                legacyInvoiceId: invoiceId || null,
+                invoice: authorizedInvoice,
+            });
+        }
+
+        return;
+
         const scheduled = await asaasRequest('/invoices', 'POST', {
             payment: payment.id,
             serviceDescription: nbPayment.description || 'Serviços de psicologia e saúde mental',
@@ -847,6 +881,77 @@ async function tryScheduleAutomaticInvoice(nbPayment: any, payment: any) {
         }).eq('id', invoiceId);
     } catch (error) {
         console.warn('[asaas-webhook] Automatic NFS-e scheduling deferred:', error);
+        await markAutomaticNfseFailure(nbPayment, payment, error);
+    }
+}
+
+async function markAutomaticNfseFailure(nbPayment: any, payment: any, error: any) {
+    if (!nbPayment?.id) return;
+    const message = error?.message || 'Falha ao emitir NFS-e pela Asaas.';
+    const now = new Date().toISOString();
+
+    await supabaseAdmin
+        .from('nb_payments')
+        .update({
+            nfse_status: 'ERROR',
+            nfse_status_description: message,
+            nfse_error_message: message,
+            nfse_synced_at: now,
+            metadata: {
+                ...(nbPayment.metadata || {}),
+                asaas_nfse_last_error: message,
+                asaas_nfse_last_error_at: now,
+            },
+            updated_at: now,
+        })
+        .eq('id', nbPayment.id);
+
+    const legacyInvoiceId = nbPayment?.metadata?.invoice_id || null;
+    if (legacyInvoiceId) {
+        await supabaseAdmin
+            .from('invoices')
+            .update({
+                nfse_status: 'ERROR',
+                nfse_status_description: message,
+                nfse_error_message: message,
+                nfse_synced_at: now,
+                updated_at: now,
+            })
+            .eq('id', legacyInvoiceId);
+    }
+
+    const { error: notificationError } = await supabaseAdmin.rpc('emit_user_notification', {
+        p_user_id: nbPayment.user_id,
+        p_event_id: `asaas:INVOICE_ERROR:auto:${nbPayment.id}`,
+        p_type: 'asaas_invoice_error',
+        p_category: 'financeiro',
+        p_severity: 'destructive',
+        p_title: 'Erro na nota fiscal',
+        p_message: 'A emissao automatica de NFS-e falhou. Revise os dados fiscais no NeuroFinance.',
+        p_action_url: '/financeiro?tab=neurofinance',
+        p_priority: 'high',
+        p_data: {
+            sourceModule: 'financeiro',
+            financeScope: 'neurofinance',
+            eventSource: 'asaas_webhook',
+            provider: 'asaas',
+            asaasEvent: 'INVOICE_ERROR',
+            providerPaymentId: payment?.id || nbPayment.provider_payment_id || null,
+            patientId: nbPayment.patient_id || null,
+            financialAccountId: nbPayment.financial_account_id || null,
+            requiresAction: true,
+            nativePushEligible: true,
+        },
+        p_payload: {
+            provider: 'asaas',
+            objectType: 'invoice',
+            error: message,
+        },
+        p_organization_id: null,
+    });
+
+    if (notificationError) {
+        console.warn('[asaas-webhook] Failed to emit automatic NFS-e failure notification:', notificationError);
     }
 }
 
@@ -1365,6 +1470,61 @@ async function handleAccountStatus(accountStatusPayload: any, event: string) {
     });
 
     console.log(`[asaas-webhook] Account status synced (${event}): ${financialAccount.id}`);
+}
+
+async function handleInvoiceEvent(invoice: any, event: string, webhookAccount?: any) {
+    if (!invoice?.id) {
+        console.log(`[asaas-webhook] Invoice event without invoice id: ${event}`);
+        return;
+    }
+
+    let financialAccount = webhookAccount;
+    const providerPaymentId = invoice.payment || invoice.paymentId || null;
+    let nbPayment: any = null;
+
+    if (providerPaymentId) {
+        nbPayment = await findPaymentByProviderId(providerPaymentId, 'id,user_id,patient_id,financial_account_id,provider_payment_id,metadata');
+
+        if (!financialAccount && nbPayment?.financial_account_id) {
+            const { data, error } = await supabaseAdmin
+                .from('financial_accounts')
+                .select('*')
+                .eq('id', nbPayment.financial_account_id)
+                .maybeSingle();
+            if (error) throw error;
+            financialAccount = data;
+        }
+    }
+
+    if (!financialAccount?.user_id) {
+        console.log(`[asaas-webhook] Invoice event without linked account: ${event}`);
+        return;
+    }
+
+    await persistAsaasInvoiceState({
+        userId: financialAccount.user_id,
+        financialAccountId: financialAccount.id,
+        nbPaymentId: nbPayment?.id || null,
+        providerPaymentId,
+        legacyInvoiceId: nbPayment?.metadata?.invoice_id || null,
+        invoice,
+        errorMessage: event === 'INVOICE_ERROR' ? invoice.statusDescription || 'Erro retornado pela Asaas.' : null,
+    });
+
+    await touchFinancialAccountEvent(financialAccount.id, event);
+    await emitAsaasNotification({
+        userId: financialAccount.user_id,
+        financialAccountId: financialAccount.id,
+        event,
+        resource: invoice,
+        objectType: 'invoice',
+        actionUrl: '/financeiro?tab=neurofinance',
+        context: {
+            patientId: nbPayment?.patient_id || null,
+        },
+    });
+
+    console.log(`[asaas-webhook] Invoice synchronized (${event}): ${invoice.id}`);
 }
 
 async function handleGenericAsaasEvent(body: any, resource: any, event: string, webhookAccount?: any) {

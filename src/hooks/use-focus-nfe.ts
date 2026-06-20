@@ -4,11 +4,13 @@ import { toast } from 'sonner';
 
 interface IssueInvoiceParams {
   payment_id: string;
+  payment_record_id?: string;
   service_description: string;
   amount: number;
   municipal_service_id?: string;
   municipal_service_code?: string;
   municipal_service_name?: string;
+  taxes?: Record<string, unknown>;
 }
 
 export const useFocusNfe = () => {
@@ -18,12 +20,15 @@ export const useFocusNfe = () => {
         body: {
           action: 'create',
           payment: params.payment_id,
+          localPaymentId: params.payment_record_id,
+          authorize: true,
           serviceDescription: params.service_description,
           value: params.amount,
           effectiveDate: new Date().toISOString().slice(0, 10),
           municipalServiceId: params.municipal_service_id,
           municipalServiceCode: params.municipal_service_code,
           municipalServiceName: params.municipal_service_name,
+          taxes: params.taxes,
         }
       });
 

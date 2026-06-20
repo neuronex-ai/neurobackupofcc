@@ -15,6 +15,21 @@ export interface FiscalSettings {
   rps_number: number | null;
   auto_issue: boolean | null;
   fiscal_provider?: 'asaas' | null;
+  fiscal_email?: string | null;
+  simples_nacional?: boolean | null;
+  cultural_projects_promoter?: boolean | null;
+  cnae?: string | null;
+  special_tax_regime?: string | null;
+  service_list_item?: string | null;
+  nbs_code?: string | null;
+  retain_iss?: boolean | null;
+  pis_aliquot?: number | null;
+  cofins_aliquot?: number | null;
+  csll_aliquot?: number | null;
+  inss_aliquot?: number | null;
+  ir_aliquot?: number | null;
+  asaas_fiscal_info?: Record<string, unknown> | null;
+  asaas_municipal_options?: Record<string, unknown> | null;
   asaas_municipal_service_id?: string | null;
   asaas_municipal_service_name?: string | null;
   // Focus NFe fields
@@ -35,9 +50,25 @@ const fetchFiscalSettings = async (userId: string): Promise<FiscalSettings | nul
 };
 
 const upsertFiscalSettings = async (settings: Partial<FiscalSettings>, userId:string) => {
+  const normalizedSettings = { ...settings };
+
+  if (settings.fiscal_provider === 'asaas' && settings.fiscal_email) {
+    const { data: fiscalData, error: fiscalError } = await supabase.functions.invoke('asaas-invoices', {
+      body: {
+        action: 'save_fiscal_info',
+        fiscalInfo: normalizedSettings,
+      },
+    });
+
+    if (fiscalError) throw new Error(fiscalError.message);
+    if (fiscalData?.fiscalInfo) {
+      normalizedSettings.asaas_fiscal_info = fiscalData.fiscalInfo;
+    }
+  }
+
   const { data, error } = await supabase
     .from('user_fiscal_settings')
-    .upsert({ ...settings, user_id: userId }, { onConflict: 'user_id' })
+    .upsert({ ...normalizedSettings, user_id: userId }, { onConflict: 'user_id' })
     .select()
     .single();
 

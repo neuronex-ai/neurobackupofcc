@@ -219,17 +219,22 @@ export interface Invoice {
   gateway_payment_id?: string | null;
   pdf_url?: string | null;
   payment_url?: string | null; // Payment links / checkout URL
+  metadata?: Record<string, any> | null;
 
   // Focus NFe Integration
   focus_nfe_ref?: string | null;
   focus_nfe_status?: string | null;
 
   // NFSe Data (from webhook)
+  nfse_reference?: string | null;
   nfse_status?: string | null;
   nfse_number?: string | null;
   nfse_verification_code?: string | null;
   nfse_pdf_url?: string | null;
   nfse_xml_url?: string | null;
+  nfse_status_description?: string | null;
+  nfse_error_message?: string | null;
+  nfse_synced_at?: string | null;
 }
 
 export interface Message {
