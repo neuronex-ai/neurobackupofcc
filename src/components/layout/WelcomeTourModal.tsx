@@ -1,176 +1,166 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/SessionContextProvider";
-import { toast } from "sonner";
-import confetti from "canvas-confetti";
 import { motion } from "framer-motion";
 import {
-    Sparkles,
-    Calendar,
-    Users,
-    Gem,
-    ArrowRight,
-    Check
+  ArrowRight,
+  Bell,
+  Calendar,
+  Check,
+  Command,
+  LayoutDashboard,
+  Menu,
+  Search,
+  Smartphone,
+  Sparkles,
 } from "lucide-react";
 import { useTour } from "@/components/onboarding/TourContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 export const WelcomeTourModal = () => {
-    const { user } = useAuth();
-    const { startTour, isTourCompleted, completeTour } = useTour();
-    const [showModal, setShowModal] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
+  const { startTour, isTourOpen, isTourCompleted, completeTour } = useTour();
+  const [showModal, setShowModal] = useState(false);
 
-    // Check if modal should be shown
-    useEffect(() => {
-        if (!user) return;
+  useEffect(() => {
+    if (!user || isTourCompleted || isTourOpen) {
+      setShowModal(false);
+      return;
+    }
 
-        const checkTourStatus = async () => {
-            if (isTourCompleted) {
-                setIsLoading(false);
-                return;
-            }
+    const timer = window.setTimeout(() => setShowModal(true), 260);
+    return () => window.clearTimeout(timer);
+  }, [isTourCompleted, isTourOpen, user]);
 
-            // Show welcome modal for first-time users
-            setShowModal(true);
-            setIsLoading(false);
-        };
+  const content = useMemo(
+    () =>
+      isMobile
+        ? {
+            eyebrow: "Tour mobile-first",
+            title: "Conheça a NeuroNex no celular.",
+            description:
+              "Um tour curto e próprio para uso com uma mão, navegação inferior, painéis deslizantes e acesso rápido ao Synapse.",
+            features: [
+              { icon: Smartphone, label: "Mobile" },
+              { icon: Calendar, label: "Agenda" },
+              { icon: Sparkles, label: "Synapse" },
+              { icon: Menu, label: "Menu" },
+            ],
+          }
+        : {
+            eyebrow: "Tour desktop",
+            title: "Conheça sua central de operação.",
+            description:
+              "Uma apresentação pensada para tela ampla, módulos completos, busca global e produtividade por teclado.",
+            features: [
+              { icon: LayoutDashboard, label: "Painel" },
+              { icon: Calendar, label: "Agenda" },
+              { icon: Search, label: "Busca" },
+              { icon: Bell, label: "Alertas" },
+            ],
+          },
+    [isMobile],
+  );
 
-        checkTourStatus();
-    }, [user, isTourCompleted]);
+  const handleStartTour = () => {
+    setShowModal(false);
+    window.setTimeout(startTour, 220);
+  };
 
-    const handleStartTour = () => {
-        // Trigger monochromatic confetti
-        confetti({
-            particleCount: 120,
-            spread: 55,
-            origin: { y: 0.65 },
-            colors: ['#ffffff', '#d4d4d4', '#a3a3a3', '#737373', '#525252']
-        });
+  const handleSkip = () => {
+    setShowModal(false);
+    completeTour();
+  };
 
-        setShowModal(false);
+  if (!user || isTourCompleted || isTourOpen || !showModal) return null;
 
-        // Small delay to allow modal to close before tour starts
-        setTimeout(() => {
-            startTour();
-            toast.success("Iniciando tour guiado...");
-        }, 500);
-    };
+  return (
+    <Dialog open={showModal} onOpenChange={() => undefined}>
+      <DialogContent
+        className={cn(
+          "z-[10020] w-[calc(100vw-1.5rem)] overflow-hidden border-0 bg-transparent p-0 shadow-none focus:outline-none",
+          isMobile ? "max-w-[420px]" : "max-w-[470px]",
+        )}
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: isMobile ? 30 : 18 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+          className="relative overflow-hidden rounded-[32px] border border-black/[0.065] bg-white/95 text-zinc-950 shadow-[0_40px_130px_-30px_rgba(0,0,0,0.58)] backdrop-blur-3xl dark:border-white/[0.09] dark:bg-[#09090a]/95 dark:text-white"
+        >
+          <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-black/20 to-transparent dark:via-white/25" />
 
-    const handleSkip = () => {
-        completeTour();
-        setShowModal(false);
-    };
+          <div className={cn("flex flex-col items-center text-center", isMobile ? "p-6" : "p-9")}>
+            <div className="relative mb-6">
+              <div className="absolute inset-0 rounded-full bg-foreground/10 blur-[38px]" />
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-[26px] border border-black/[0.06] bg-black/[0.035] dark:border-white/[0.08] dark:bg-white/[0.045]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-950 text-white shadow-lg dark:bg-white dark:text-zinc-950">
+                  <Check className="h-5 w-5" strokeWidth={3} />
+                </div>
+              </div>
+            </div>
 
-    if (isLoading || !showModal) return null;
+            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-400 dark:text-white/38">
+              {content.eyebrow}
+            </p>
+            <h2 className="mt-3 text-[1.75rem] font-black leading-[0.96] tracking-[-0.055em]">
+              {content.title}
+            </h2>
+            <p className="mt-4 max-w-sm text-[13px] font-medium leading-relaxed text-zinc-600 dark:text-white/52">
+              {content.description}
+            </p>
 
-    const features = [
-        { icon: Calendar, label: "AGENDA" },
-        { icon: Users, label: "PACIENTES" },
-        { icon: Gem, label: "FINANCEIRO" },
-    ];
-
-    return (
-        <Dialog open={showModal} onOpenChange={setShowModal}>
-            <DialogContent
-                className="w-full max-w-[92vw] sm:max-w-[400px] md:max-w-[420px] p-0 border-none bg-transparent shadow-none gap-0 overflow-visible focus:outline-none z-[9999]"
-                onInteractOutside={(e) => e.preventDefault()}
-                onEscapeKeyDown={(e) => e.preventDefault()}
-            >
+            <div className="mt-7 grid w-full grid-cols-4 gap-2">
+              {content.features.map((item, index) => (
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.94, y: 24 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.94, y: 24 }}
-                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                    className="relative flex flex-col items-center justify-center"
+                  key={item.label}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.16 + index * 0.06, duration: 0.3 }}
+                  className="flex min-w-0 flex-col items-center gap-2 rounded-[18px] border border-black/[0.05] bg-black/[0.025] px-2 py-3 dark:border-white/[0.07] dark:bg-white/[0.035]"
                 >
-                    {/* Main Card - Liquid Glass */}
-                    <div className="relative w-full bg-white/80 dark:bg-zinc-900/70 backdrop-blur-3xl border border-black/[0.05] dark:border-white/[0.06] rounded-[24px] sm:rounded-[28px] md:rounded-[32px] overflow-hidden shadow-2xl shadow-black/[0.08] dark:shadow-black/40 flex flex-col items-center text-center p-5 sm:p-7 md:p-10">
-
-                        {/* Liquid Glass Highlight */}
-                        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/60 dark:via-white/10 to-transparent" />
-
-                        {/* 1. Success Icon - Monochromatic */}
-                        <div className="relative mb-5 sm:mb-7 md:mb-8">
-                            <div className="absolute inset-0 bg-foreground/10 dark:bg-white/10 blur-[35px] sm:blur-[45px] rounded-full" />
-                            <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-[20px] sm:rounded-[28px] md:rounded-[32px] bg-white/50 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08] flex items-center justify-center shadow-lg z-10">
-                                <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ delay: 0.3, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                                    className="w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-foreground dark:bg-white flex items-center justify-center shadow-lg"
-                                >
-                                    <Check className="w-4 h-4 sm:w-5 sm:h-5 md:w-5.5 md:h-5.5 text-background dark:text-black" strokeWidth={3} />
-                                </motion.div>
-                            </div>
-                        </div>
-
-                        {/* 2. Text Content */}
-                        <div className="space-y-2 sm:space-y-3 mb-6 sm:mb-8 md:mb-10 max-w-[260px] sm:max-w-[280px] md:max-w-[300px]">
-                            <motion.h2
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2, duration: 0.5 }}
-                                className="text-lg sm:text-xl md:text-2xl font-bold text-foreground tracking-tight"
-                            >
-                                Configuração Concluída!
-                            </motion.h2>
-                            <motion.p
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3, duration: 0.5 }}
-                                className="text-[11px] sm:text-xs md:text-sm text-muted-foreground font-medium leading-relaxed"
-                            >
-                                Seu NeuroNex está pronto. Que tal um tour rápido para conhecer o seu novo sistema?
-                            </motion.p>
-                        </div>
-
-                        {/* 3. Feature Shortcuts - Monochromatic */}
-                        <div className="flex items-center justify-center gap-4 sm:gap-5 md:gap-6 mb-6 sm:mb-8 md:mb-10">
-                            {features.map((item, i) => (
-                                <motion.div
-                                    key={i}
-                                    initial={{ opacity: 0, y: 16 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.4 + i * 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                                    className="flex flex-col items-center gap-2 sm:gap-2.5 group"
-                                >
-                                    <motion.div
-                                        whileHover={{ scale: 1.1 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        className="w-11 h-11 sm:w-13 sm:h-13 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-black/[0.03] dark:bg-white/[0.03] border border-black/[0.05] dark:border-white/[0.05] flex items-center justify-center transition-all duration-300 group-hover:bg-black/[0.06] dark:group-hover:bg-white/[0.06] group-hover:border-black/[0.08] dark:group-hover:border-white/[0.08]"
-                                    >
-                                        <item.icon className="w-5 h-5 sm:w-5.5 sm:h-5.5 md:w-6 md:h-6 text-muted-foreground group-hover:text-foreground transition-colors duration-300" />
-                                    </motion.div>
-                                    <span className="text-[7px] sm:text-[8px] md:text-[9px] font-black tracking-[0.12em] sm:tracking-[0.18em] text-muted-foreground/60 uppercase">
-                                        {item.label}
-                                    </span>
-                                </motion.div>
-                            ))}
-                        </div>
-
-                        {/* 4. Action Buttons */}
-                        <div className="w-full space-y-2.5 sm:space-y-3">
-                            <Button
-                                onClick={handleStartTour}
-                                className="w-full h-11 sm:h-12 md:h-14 bg-foreground text-background dark:bg-white dark:text-black hover:opacity-90 hover:scale-[1.01] rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] md:text-xs font-black uppercase tracking-[0.12em] sm:tracking-[0.18em] shadow-xl shadow-foreground/5 dark:shadow-white/5 transition-all duration-300 active:scale-[0.97] group will-change-transform"
-                            >
-                                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5 text-background/70 dark:text-black/70" />
-                                Iniciar Tour Guiado
-                                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-2 sm:ml-2.5 opacity-50 group-hover:translate-x-1 transition-transform duration-300" />
-                            </Button>
-
-                            <button
-                                onClick={handleSkip}
-                                className="w-full h-8 sm:h-9 md:h-10 text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase tracking-[0.25em] sm:tracking-[0.35em] text-muted-foreground/50 hover:text-foreground transition-all duration-300"
-                            >
-                                Pular Tour
-                            </button>
-                        </div>
-
-                    </div>
+                  <item.icon className="h-4.5 w-4.5 text-zinc-600 dark:text-white/60" />
+                  <span className="truncate text-[7px] font-black uppercase tracking-[0.12em] text-zinc-400 dark:text-white/35">
+                    {item.label}
+                  </span>
                 </motion.div>
-            </DialogContent>
-        </Dialog>
-    );
+              ))}
+            </div>
+
+            {!isMobile ? (
+              <div className="mt-4 flex items-center gap-2 rounded-full border border-black/[0.06] bg-black/[0.025] px-3 py-2 text-[9px] font-bold text-zinc-500 dark:border-white/[0.08] dark:bg-white/[0.035] dark:text-white/40">
+                <Command className="h-3.5 w-3.5" />
+                Setas para navegar · Esc para encerrar
+              </div>
+            ) : null}
+
+            <div className="mt-7 w-full space-y-2.5">
+              <Button
+                type="button"
+                onClick={handleStartTour}
+                className="h-13 w-full rounded-[17px] bg-zinc-950 text-[9px] font-black uppercase tracking-[0.18em] text-white hover:bg-black active:scale-[0.98] dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                Iniciar tour personalizado
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+
+              <button
+                type="button"
+                onClick={handleSkip}
+                className="h-10 w-full text-[8px] font-black uppercase tracking-[0.22em] text-zinc-400 transition hover:text-zinc-700 dark:text-white/32 dark:hover:text-white/65"
+              >
+                Pular por enquanto
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </DialogContent>
+    </Dialog>
+  );
 };
