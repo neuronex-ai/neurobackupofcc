@@ -25,7 +25,7 @@ import {
 } from '@/lib/native-mobile-security';
 import { cn } from '@/lib/utils';
 import type { Session } from '@supabase/supabase-js';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, type MotionProps, useReducedMotion } from 'framer-motion';
 import { Eye, EyeOff, Fingerprint, Loader2, ShieldCheck } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -49,7 +49,7 @@ const BiometricPromptDialog = ({
   onEnable,
 }: BiometricPromptDialogProps) => {
   const shouldReduceMotion = Boolean(useReducedMotion());
-  const contentMotion = shouldReduceMotion
+  const contentMotion: MotionProps = shouldReduceMotion
     ? {}
     : {
       initial: { opacity: 0, y: isMobile ? 18 : 12, scale: 0.98 },

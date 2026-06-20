@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { enrollTotpFactor, getVerifiedTotpFactor, removeTotpFactor, verifyTotpCode } from '@/hooks/use-totp-mfa';
 import { cn } from '@/lib/utils';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, type MotionProps, useReducedMotion } from 'framer-motion';
 import { Clipboard, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -137,14 +137,14 @@ export const TotpMfaDialog = ({ open, mode, onOpenChange, onSuccess, onCancel }:
       ? 'Desativar'
       : 'Verificar token';
   const Icon = mode === 'challenge' ? KeyRound : ShieldCheck;
-  const contentMotion = shouldReduceMotion
+  const contentMotion: MotionProps = shouldReduceMotion
     ? {}
     : {
       initial: { opacity: 0, y: isMobile ? 16 : 10, scale: 0.98 },
       animate: { opacity: 1, y: 0, scale: 1 },
       transition: { type: 'spring', stiffness: 280, damping: 28 },
     };
-  const qrMotion = shouldReduceMotion
+  const qrMotion: MotionProps = shouldReduceMotion
     ? {}
     : {
       initial: { opacity: 0, y: 12, scale: 0.96 },
