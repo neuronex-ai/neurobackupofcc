@@ -117,6 +117,40 @@ export const FiscalConfigPanel = () => {
     }
   }, [settings, form]);
 
+  const loadMunicipalServices = async () => {
+    setIsLoadingServices(true);
+    try {
+      const description = form.getValues("service_code") || "psicologia";
+      const { data, error } = await supabase.functions.invoke("asaas-invoices", {
+        body: {
+          action: "municipal_services",
+          description,
+          limit: 100,
+        },
+      });
+
+      if (error) throw new Error(error.message);
+      setMunicipalServices(data?.data || []);
+      if (!data?.data?.length) {
+        toast.info("Nenhum servico municipal encontrado para esse filtro.");
+      }
+    } catch (error: any) {
+      toast.error(`Erro ao buscar servicos Asaas: ${error.message}`);
+    } finally {
+      setIsLoadingServices(false);
+    }
+  };
+
+  const selectMunicipalService = (serviceId: string) => {
+    const service = municipalServices.find((item) => item.id === serviceId);
+    if (!service) return;
+    form.setValue("asaas_municipal_service_id", service.id, { shouldDirty: true });
+    form.setValue("asaas_municipal_service_name", service.description, { shouldDirty: true });
+    if (typeof service.issTax === "number") {
+      form.setValue("iss_aliquot", service.issTax, { shouldDirty: true });
+    }
+  };
+
   const onSubmit = (data: FiscalFormValues) => {
     saveSettings(data);
   };
