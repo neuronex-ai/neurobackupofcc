@@ -1,54 +1,85 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-const TOUR_COMPLETED_KEY = 'neuro_nex_tour_completed';
+type TourPlatform = "mobile" | "desktop";
+
+const LEGACY_TOUR_COMPLETED_KEY = "neuro_nex_tour_completed";
+const TOUR_VERSION = "v2";
+
+const completionKeyFor = (platform: TourPlatform) => `neuro_nex_tour_${TOUR_VERSION}_${platform}_completed`;
+
+const readCompletion = (platform: TourPlatform) => {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(completionKeyFor(platform)) === "true";
+};
 
 interface TourContextType {
-    startTour: () => void;
-    isTourOpen: boolean;
-    closeTour: () => void;
-    completeTour: () => void;
-    isTourCompleted: boolean;
-    resetTourCompleted: () => void;
+  startTour: () => void;
+  isTourOpen: boolean;
+  closeTour: () => void;
+  completeTour: () => void;
+  isTourCompleted: boolean;
+  resetTourCompleted: () => void;
+  platform: TourPlatform;
 }
 
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
 export const useTour = () => {
-    const context = useContext(TourContext);
-    if (!context) {
-        throw new Error('useTour must be used within a TourProvider');
-    }
-    return context;
+  const context = useContext(TourContext);
+  if (!context) throw new Error("useTour must be used within a TourProvider");
+  return context;
 };
 
 export const TourProvider = ({ children }: { children: ReactNode }) => {
-    const [isTourOpen, setIsTourOpen] = useState(false);
-    const [isTourCompleted, setIsTourCompleted] = useState(() => {
-        return localStorage.getItem(TOUR_COMPLETED_KEY) === 'true';
-    });
+  const isMobile = useIsMobile();
+  const platform: TourPlatform = isMobile ? "mobile" : "desktop";
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [isTourCompleted, setIsTourCompleted] = useState(() => readCompletion(platform));
 
-    const startTour = useCallback(() => {
-        setIsTourOpen(true);
-    }, []);
+  useEffect(() => {
+    setIsTourOpen(false);
+    setIsTourCompleted(readCompletion(platform));
+  }, [platform]);
 
-    const closeTour = useCallback(() => {
-        setIsTourOpen(false);
-    }, []);
+  const startTour = useCallback(() => {
+    setIsTourOpen(true);
+  }, []);
 
-    const completeTour = useCallback(() => {
-        setIsTourOpen(false);
-        setIsTourCompleted(true);
-        localStorage.setItem(TOUR_COMPLETED_KEY, 'true');
-    }, []);
+  const closeTour = useCallback(() => {
+    setIsTourOpen(false);
+  }, []);
 
-    const resetTourCompleted = useCallback(() => {
-        setIsTourCompleted(false);
-        localStorage.removeItem(TOUR_COMPLETED_KEY);
-    }, []);
+  const completeTour = useCallback(() => {
+    setIsTourOpen(false);
+    setIsTourCompleted(true);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(completionKeyFor(platform), "true");
+      window.localStorage.setItem(LEGACY_TOUR_COMPLETED_KEY, "true");
+    }
+  }, [platform]);
 
-    return (
-        <TourContext.Provider value={{ startTour, isTourOpen, closeTour, completeTour, isTourCompleted, resetTourCompleted }}>
-            {children}
-        </TourContext.Provider>
-    );
+  const resetTourCompleted = useCallback(() => {
+    setIsTourOpen(false);
+    setIsTourCompleted(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(completionKeyFor(platform));
+      window.localStorage.removeItem(LEGACY_TOUR_COMPLETED_KEY);
+    }
+  }, [platform]);
+
+  const value = useMemo(
+    () => ({
+      startTour,
+      isTourOpen,
+      closeTour,
+      completeTour,
+      isTourCompleted,
+      resetTourCompleted,
+      platform,
+    }),
+    [closeTour, completeTour, isTourCompleted, isTourOpen, platform, resetTourCompleted, startTour],
+  );
+
+  return <TourContext.Provider value={value}>{children}</TourContext.Provider>;
 };
