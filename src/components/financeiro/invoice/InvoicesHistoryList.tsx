@@ -79,7 +79,9 @@ export const InvoicesHistoryList = ({ fiscalOnly = false, heightClassName = "h-[
             <div className="space-y-2">
                 {allInvoices.map((inv) => {
                     const isFiscal = !!inv.nfse_status;
+                    const nfseStatus = inv.nfse_status?.toUpperCase();
                     const statusColor = inv.status === 'paid' ? "text-emerald-500" : "text-amber-500";
+                    const primaryDocumentUrl = inv.nfse_pdf_url || inv.nfse_xml_url || inv.payment_url || inv.pdf_url;
 
                     return (
                         <div
@@ -99,8 +101,14 @@ export const InvoicesHistoryList = ({ fiscalOnly = false, heightClassName = "h-[
                                         <span className={cn("uppercase font-medium", statusColor)}>{inv.status === 'paid' ? 'PAGO' : 'PENDENTE'}</span>
                                         <span>•</span>
                                         <span>{format(new Date(inv.created_at), "dd/MM/yyyy")}</span>
-                                        {isFiscal && <span className="text-blue-400 font-bold ml-1">NFS-e</span>}
+                                        {isFiscal && <span className="text-blue-400 font-bold ml-1">NFS-e {nfseStatus}</span>}
                                     </div>
+                                    {inv.nfse_number && (
+                                        <p className="mt-1 text-[10px] text-zinc-500">Nota {inv.nfse_number}</p>
+                                    )}
+                                    {inv.nfse_error_message && (
+                                        <p className="mt-1 max-w-[260px] truncate text-[10px] text-rose-500">{inv.nfse_error_message}</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -109,15 +117,27 @@ export const InvoicesHistoryList = ({ fiscalOnly = false, heightClassName = "h-[
                                     {formatCurrency(inv.amount)}
                                 </span>
 
-                                {(inv.payment_url || inv.pdf_url) && (
+                                {primaryDocumentUrl && (
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         className="h-7 w-7 rounded-lg hover:bg-white/10 text-zinc-500 hover:text-white"
-                                        onClick={() => window.open(inv.payment_url || inv.pdf_url!, '_blank')}
-                                        title="Link de Pagamento"
+                                        onClick={() => window.open(primaryDocumentUrl, '_blank')}
+                                        title={isFiscal ? "Abrir documento fiscal" : "Link de Pagamento"}
                                     >
                                         <ExternalLink className="h-3.5 w-3.5" />
+                                    </Button>
+                                )}
+
+                                {inv.nfse_pdf_url && inv.nfse_xml_url && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 rounded-lg hover:bg-white/10 text-zinc-500 hover:text-white"
+                                        onClick={() => window.open(inv.nfse_xml_url!, '_blank')}
+                                        title="Abrir XML da NFS-e"
+                                    >
+                                        <FileCheck className="h-3.5 w-3.5" />
                                     </Button>
                                 )}
 

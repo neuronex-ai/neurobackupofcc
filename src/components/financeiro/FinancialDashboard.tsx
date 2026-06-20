@@ -32,6 +32,7 @@ import { NeuroNexBankPanel } from "@/components/financeiro/NeuroNexBankPanel";
 import { FinancialStatement } from "@/components/financeiro/FinancialStatement";
 import { SmartSplit } from "@/components/financeiro/SmartSplit";
 import { InvoicesHistoryList } from "@/components/financeiro/invoice/InvoicesHistoryList";
+import { GenerateRPSForm } from "@/components/financeiro/invoice/GenerateRPSForm";
 import { BankTransferView } from "@/components/financeiro/BankTransferView";
 import { BankAccountsView } from "@/components/financeiro/BankAccountsView";
 import { ReceivablesCalendarCard } from "@/components/financeiro/ReceivablesCalendarCard";
@@ -350,7 +351,7 @@ export function FinancialDashboard({
         case "fiscal-dados":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={Landmark} title="Dados Fiscais" subtitle="Informações usadas na emissão da NFS-e" onBack={handleGoBack} /><ContentWrapper><FiscalConfigPanel /></ContentWrapper></motion.div>;
         case "fiscal-nova":
-            return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={PlusCircle} title="Emitir nova nota fiscal" subtitle="Nova emissão de NFS-e" onBack={handleGoBack} /><ContentWrapper><CapabilityNotice icon={PlusCircle} title="Em breve" description="A emissão manual de uma nova nota fiscal estará disponível nesta área." /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="px-6 py-6"><GenerateRPSForm onBack={handleGoBack} onSuccess={() => setActiveView("fiscal-lista")} /></motion.div>;
         case "fiscal-lista":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={FileText} title="Minhas Notas Fiscais" subtitle="Histórico fiscal" onBack={handleGoBack} /><ContentWrapper><InvoicesHistoryList fiscalOnly /></ContentWrapper></motion.div>;
         case "repasses-profissional":

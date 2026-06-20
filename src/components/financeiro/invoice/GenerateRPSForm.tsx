@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useFiscalSettings } from "@/hooks/use-fiscal-settings";
 import { useFocusNfe } from "@/hooks/use-focus-nfe";
 import { useGenerateInvoice } from "@/hooks/use-generate-invoice";
+import { useInvoices } from "@/hooks/use-invoices";
 import { usePatients } from "@/hooks/use-patients";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -18,28 +19,70 @@ interface GenerateRPSFormProps {
     onSuccess: () => void;
 }
 
-export const GenerateRPSForm = ({ onBack, onSuccess: _ }: GenerateRPSFormProps) => {
+export const GenerateRPSForm = ({ onBack, onSuccess }: GenerateRPSFormProps) => {
     const [step, setStep] = useState(0);
     const { data: patients } = usePatients();
+    const { data: invoices } = useInvoices();
     const { settings: fiscalSettings, isLoading: isLoadingSettings } = useFiscalSettings();
     const { issueInvoice, isIssuing } = useFocusNfe();
     const { mutate: createInvoice, isPending: isCreatingInvoice } = useGenerateInvoice();
 
     const [patientId, setPatientId] = useState("");
+    const [selectedPaymentId, setSelectedPaymentId] = useState("new");
     const [amount, setAmount] = useState("");
     const [description, setDescription] = useState("Sessão de Psicoterapia");
+    const eligiblePayments = (invoices || []).filter((invoice) =>
+        invoice.gateway_payment_id &&
+        invoice.status === "paid" &&
+        !invoice.nfse_reference
+    );
 
     // Requisitos mínimos para emissão
     const missingFields = [];
     if (!fiscalSettings?.cnpj) missingFields.push("CNPJ");
     if (!fiscalSettings?.municipal_inscription) missingFields.push("Inscrição Municipal");
-    if (!fiscalSettings?.service_code) missingFields.push("Código de Serviço (CNAE)");
+    if (!fiscalSettings?.service_code && !fiscalSettings?.asaas_municipal_service_id) missingFields.push("Serviço municipal Asaas");
 
     const hasFiscalSettings = missingFields.length === 0;
+
+    const handlePaymentSelection = (value: string) => {
+        setSelectedPaymentId(value);
+        if (value === "new") return;
+
+        const selectedPayment = eligiblePayments.find((invoice) => invoice.id === value);
+        if (!selectedPayment) return;
+
+        setPatientId(selectedPayment.patient_id || "");
+        setAmount(String(selectedPayment.amount || ""));
+        setDescription(selectedPayment.description || description);
+    };
 
     const handleIssue = () => {
         if (!patientId || !amount) {
             toast.error("Por favor, selecione um paciente e informe o valor.");
+            return;
+        }
+
+        const selectedPayment = eligiblePayments.find((invoice) => invoice.id === selectedPaymentId);
+        if (selectedPayment) {
+            issueInvoice({
+                payment_id: selectedPayment.gateway_payment_id!,
+                payment_record_id: selectedPayment.id,
+                service_description: description || selectedPayment.description || "Serviços de psicologia",
+                amount: Number(amount || selectedPayment.amount || 0),
+                municipal_service_id: fiscalSettings?.asaas_municipal_service_id || undefined,
+                municipal_service_code: fiscalSettings?.service_code || undefined,
+                municipal_service_name: fiscalSettings?.asaas_municipal_service_name || undefined,
+            }, {
+                onSuccess: () => {
+                    setStep(3);
+                    onSuccess();
+                },
+                onError: (error: any) => {
+                    console.error("[GenerateRPSForm] Falha ao emitir documento fiscal", error);
+                    toast.error(getUserFacingErrorMessage(error, "payment"));
+                }
+            });
             return;
         }
 
@@ -59,7 +102,10 @@ export const GenerateRPSForm = ({ onBack, onSuccess: _ }: GenerateRPSFormProps) 
                     municipal_service_code: fiscalSettings?.service_code || undefined,
                     municipal_service_name: fiscalSettings?.asaas_municipal_service_name || undefined,
                 }, {
-                    onSuccess: () => setStep(3),
+                    onSuccess: () => {
+                        setStep(3);
+                        onSuccess();
+                    },
                     onError: (error: any) => {
                         console.error("[GenerateRPSForm] Falha ao emitir documento fiscal", error);
                         toast.error(getUserFacingErrorMessage(error, "payment"));
@@ -127,6 +173,23 @@ export const GenerateRPSForm = ({ onBack, onSuccess: _ }: GenerateRPSFormProps) 
 
                     {step === 1 && (
                         <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-2xl space-y-8 relative z-10">
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Cobrança NeuroFinance</label>
+                                <Select value={selectedPaymentId} onValueChange={handlePaymentSelection}>
+                                    <SelectTrigger className="bg-accent/30 dark:bg-white/[0.03] border-border h-14 rounded-[20px] text-sm px-6 shadow-sm focus:ring-ring">
+                                        <SelectValue placeholder="Selecione uma cobrança paga" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-popover border-border">
+                                        <SelectItem value="new">Criar nova cobrança</SelectItem>
+                                        {eligiblePayments.map((invoice) => (
+                                            <SelectItem key={invoice.id} value={invoice.id}>
+                                                {patients?.find(p => p.id === invoice.patient_id)?.name || "Paciente"} - R$ {Number(invoice.amount || 0).toFixed(2)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
                             <div className="space-y-3">
                                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Paciente (Tomador)</label>
                                 <Select value={patientId} onValueChange={setPatientId}>

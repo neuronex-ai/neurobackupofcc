@@ -856,29 +856,6 @@ async function tryScheduleAutomaticInvoice(nbPayment: any, payment: any) {
             });
         }
 
-        return;
-
-        const scheduled = await asaasRequest('/invoices', 'POST', {
-            payment: payment.id,
-            serviceDescription: nbPayment.description || 'Serviços de psicologia e saúde mental',
-            observations: `Emissão automática NeuroFinance para a cobrança ${payment.id}.`,
-            value: Number(payment.value || 0),
-            deductions: 0,
-            effectiveDate: new Date().toISOString().slice(0, 10),
-            municipalServiceId: settings.asaas_municipal_service_id || null,
-            municipalServiceCode: settings.asaas_municipal_service_id ? null : settings.service_code,
-            municipalServiceName: settings.asaas_municipal_service_name || 'Serviços de psicologia',
-            taxes: {
-                retainIss: false,
-                iss: Number(settings.iss_aliquot || 0),
-            },
-        }, apiKey) as any;
-
-        await supabaseAdmin.from('invoices').update({
-            nfse_status: scheduled.status || 'SCHEDULED',
-            nfse_reference: scheduled.id || null,
-            updated_at: new Date().toISOString(),
-        }).eq('id', invoiceId);
     } catch (error) {
         console.warn('[asaas-webhook] Automatic NFS-e scheduling deferred:', error);
         await markAutomaticNfseFailure(nbPayment, payment, error);

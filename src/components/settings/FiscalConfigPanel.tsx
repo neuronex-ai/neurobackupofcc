@@ -232,6 +232,48 @@ export const FiscalConfigPanel = () => {
                   <FormMessage />
                 </FormItem>
               )} />
+
+              <FormField control={form.control} name="fiscal_email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">Email fiscal Asaas</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="email" className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl focus:border-primary/50 transition-all focus:bg-secondary/30 dark:focus:bg-secondary/10" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="cnae" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[10px] text-muted-foreground/60 font-bold uppercase tracking-widest">CNAE</FormLabel>
+                  <FormControl>
+                    <Input {...field} className="bg-secondary/40 dark:bg-secondary/20 border-border/10 h-12 rounded-xl focus:border-primary/50 transition-all focus:bg-secondary/30 dark:focus:bg-secondary/10" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="simples_nacional" render={({ field }) => (
+                <FormItem className="flex items-center justify-between gap-6 rounded-2xl border border-border/10 bg-secondary/20 p-4">
+                  <div>
+                    <FormLabel className="text-sm font-bold">Simples Nacional</FormLabel>
+                    <FormDescription className="text-[10px] text-muted-foreground">Enviado para o fiscalInfo da subconta Asaas.</FormDescription>
+                  </div>
+                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="cultural_projects_promoter" render={({ field }) => (
+                <FormItem className="flex items-center justify-between gap-6 rounded-2xl border border-border/10 bg-secondary/20 p-4">
+                  <div>
+                    <FormLabel className="text-sm font-bold">Incentivo cultural</FormLabel>
+                    <FormDescription className="text-[10px] text-muted-foreground">Marque apenas quando aplicavel ao cadastro municipal.</FormDescription>
+                  </div>
+                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                </FormItem>
+              )} />
             </div>
           </div>
 
@@ -251,6 +293,33 @@ export const FiscalConfigPanel = () => {
                   <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                 </FormItem>
               )} />
+
+              <div className="rounded-2xl border border-border/10 bg-secondary/20 p-4 space-y-3">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-sm font-bold">Servico municipal Asaas</p>
+                    <p className="text-[10px] text-muted-foreground">Busca oficial da subconta para selecionar o codigo usado na NFS-e.</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={loadMunicipalServices} disabled={isLoadingServices}>
+                    {isLoadingServices ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar servicos"}
+                  </Button>
+                </div>
+
+                {municipalServices.length > 0 && (
+                  <Select onValueChange={selectMunicipalService}>
+                    <SelectTrigger className="h-12 rounded-xl bg-background/60">
+                      <SelectValue placeholder="Selecionar servico municipal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {municipalServices.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.description}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField control={form.control} name="asaas_municipal_service_id" render={({ field }) => (
