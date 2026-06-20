@@ -47,6 +47,8 @@ type FiscalFormValues = z.infer<typeof fiscalSchema>;
 
 export const FiscalConfigPanel = () => {
   const { settings, isLoading, saveSettings, isSaving } = useFiscalSettings();
+  const [municipalServices, setMunicipalServices] = useState<Array<{ id: string; description: string; issTax?: number }>>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
 
   const form = useForm<FiscalFormValues>({
     resolver: zodResolver(fiscalSchema),
@@ -96,6 +98,19 @@ export const FiscalConfigPanel = () => {
         municipal_code: (settings as any).municipal_code || "",
         auto_issue: settings.auto_issue || false,
         fiscal_provider: "asaas",
+        fiscal_email: settings.fiscal_email || "",
+        simples_nacional: settings.simples_nacional ?? true,
+        cultural_projects_promoter: settings.cultural_projects_promoter ?? false,
+        cnae: settings.cnae || "",
+        special_tax_regime: settings.special_tax_regime || "",
+        service_list_item: settings.service_list_item || "",
+        nbs_code: settings.nbs_code || "",
+        retain_iss: settings.retain_iss ?? false,
+        pis_aliquot: settings.pis_aliquot || 0,
+        cofins_aliquot: settings.cofins_aliquot || 0,
+        csll_aliquot: settings.csll_aliquot || 0,
+        inss_aliquot: settings.inss_aliquot || 0,
+        ir_aliquot: settings.ir_aliquot || 0,
         asaas_municipal_service_id: settings.asaas_municipal_service_id || "",
         asaas_municipal_service_name: settings.asaas_municipal_service_name || "",
       });
