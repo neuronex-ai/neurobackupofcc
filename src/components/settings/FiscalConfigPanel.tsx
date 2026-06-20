@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Building2, FileCheck2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useFiscalSettings } from "@/hooks/use-fiscal-settings";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const fiscalSchema = z.object({
   company_name: z.string().min(1, "Razão Social é obrigatória"),
