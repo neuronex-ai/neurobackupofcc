@@ -1,7 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 
-// The gateway runner lives outside src, but Vitest is configured to collect src tests only.
-// @ts-expect-error JS gateway module has no TS declaration in the app build.
 import { VoiceFunctionRunner } from "../../server/voice-agent-gateway/function-runner.js";
 
 const toolResponse = (payload: Record<string, unknown>) => ({
@@ -103,7 +101,7 @@ describe("VoiceFunctionRunner", () => {
     expect(capturedSignal?.aborted).toBe(true);
     expect(client.some((event) => event.type === "function_status" && event.status === "cancelling")).toBe(true);
     const response = deepgram.find((event) => event.type === "FunctionCallResponse");
-    expect(JSON.parse(response.content)).toMatchObject({ ok: false, cancelled: true });
+    expect(JSON.parse(String(response?.content || "{}"))).toMatchObject({ ok: false, cancelled: true });
   });
 
   it("keeps the function alive when the user complements the request", async () => {
