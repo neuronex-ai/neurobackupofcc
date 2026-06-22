@@ -62,6 +62,42 @@ type AgentActionItem = {
     action: SynapseInterfaceAction;
 };
 
+type ChatSessionRow = {
+    id: string;
+    title?: string | null;
+    updated_at?: string | null;
+    created_at?: string | null;
+};
+
+type SpeechRecognitionEventLike = {
+    results: ArrayLike<{ 0: { transcript: string } }>;
+};
+
+type SpeechRecognitionLike = {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+    onerror: ((event: { error: string }) => void) | null;
+    onend: (() => void) | null;
+    start: () => void;
+    stop: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+type WindowWithSpeechRecognition = Window & typeof globalThis & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
+
+type MarkdownPreProps = React.ComponentPropsWithoutRef<'pre'> & { node?: unknown };
+type MarkdownCodeProps = React.ComponentPropsWithoutRef<'code'> & {
+    node?: unknown;
+    inline?: boolean;
+    className?: string;
+};
+
 const AGENT_ACTIONS: AgentActionItem[] = [
     {
         id: 'open-daily-schedule',
@@ -156,13 +192,13 @@ export const SynapseCompactPanel = () => {
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const recognitionRef = useRef<any>(null);
+    const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [isListening, setIsListening] = useState(false);
     const [isInputFocused, setIsInputFocused] = useState(false);
     const [showAllActions, setShowAllActions] = useState(false);
-    const [sessions, setSessions] = useState<any[]>([]);
+    const [sessions, setSessions] = useState<ChatSessionRow[]>([]);
     const [isLoadingSessions, setIsLoadingSessions] = useState(false);
 
     useEffect(() => {
@@ -180,7 +216,7 @@ export const SynapseCompactPanel = () => {
                         console.error("Error fetching sessions:", error);
                     } else if (data) {
                         // Filter out NeuroPulse internal analysis sessions
-                        const filtered = data.filter((s: any) => !s.title?.startsWith('NeuroPulse Analysis'));
+                        const filtered = (data as ChatSessionRow[]).filter((session) => !session.title?.startsWith('NeuroPulse Analysis'));
                         setSessions(filtered);
                     }
                 } catch (err) {
@@ -205,20 +241,21 @@ export const SynapseCompactPanel = () => {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            const speechWindow = window as WindowWithSpeechRecognition;
+            const SpeechRecognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
             if (SpeechRecognition) {
                 const recognition = new SpeechRecognition();
                 recognition.continuous = true;
                 recognition.interimResults = false;
                 recognition.lang = 'pt-BR';
 
-                recognition.onresult = (event: any) => {
+                recognition.onresult = (event: SpeechRecognitionEventLike) => {
                     const transcript = event.results[event.results.length - 1][0].transcript;
                     const current = inputDraftRef.current;
                     setInputDraft(current ? current + ' ' + transcript : transcript);
                 };
 
-                recognition.onerror = (event: any) => {
+                recognition.onerror = (event: { error: string }) => {
                     console.error('Speech recognition error:', event.error);
                     setIsListening(false);
                 };

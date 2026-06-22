@@ -299,10 +299,10 @@ export const SynapseProvider = ({ children }: { children: ReactNode }) => {
         const accessToken = session?.access_token;
         if (!accessToken) return {};
 
-        const tools: Record<string, (params: any) => Promise<string>> = {};
+        const tools: Record<string, (params: Record<string, unknown>) => Promise<string>> = {};
 
         for (const toolName of ALL_VOICE_TOOLS) {
-            tools[toolName] = async (params: any) => {
+            tools[toolName] = async (params: Record<string, unknown>) => {
                 addTimelineEntry({
                     label: `🎙️ Voz: ${toolName}`,
                     state: 'thinking',
