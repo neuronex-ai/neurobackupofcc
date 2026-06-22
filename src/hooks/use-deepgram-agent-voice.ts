@@ -222,7 +222,7 @@ export function useDeepgramAgentVoice({
     } else {
       setVoicePhase("idle");
     }
-  }, [applyRestingPhase]);
+  }, []);
 
   const stopPlayback = useCallback(() => {
     playerRef.current?.stop();
@@ -264,7 +264,7 @@ export function useDeepgramAgentVoice({
       );
     }
     return playerRef.current;
-  }, []);
+  }, [applyRestingPhase]);
 
   const closeEverything = useCallback(async () => {
     activeRef.current = false;
