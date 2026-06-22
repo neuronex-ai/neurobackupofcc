@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSynapseCascadeVoice } from "@/hooks/use-synapse-cascade-voice";
+import { useGeminiVoice } from "@/hooks/use-gemini-voice";
 import type { GeminiLiveStatus } from "@/lib/gemini-live-client";
 import {
   executeSynapseInterfaceAction,
@@ -22,7 +22,10 @@ export function useGeminiLive(options?: UseGeminiLiveOptions) {
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
-  const cascade = useSynapseCascadeVoice({
+  const voice = useGeminiVoice({
+    token: null,
+    language: "pt-BR",
+    systemInstruction: "Voce e o Synapse por voz global da NeuroNex. Responda em portugues brasileiro com frases curtas e naturais, usando ferramentas quando precisar de dados reais.",
     onClientAction: (rawAction) => {
       optionsRef.current?.onClientAction?.(rawAction);
       const action = normalizeSynapseClientAction(rawAction);
@@ -38,41 +41,41 @@ export function useGeminiLive(options?: UseGeminiLiveOptions) {
   });
 
   const status = useMemo<GeminiLiveStatus>(() => {
-    if (cascade.error) return "error";
-    if (cascade.isConnected) return "connected";
-    if (cascade.isProcessing) return "connecting";
+    if (voice.error) return "error";
+    if (voice.isConnected) return "connected";
+    if (voice.isProcessing) return "connecting";
     return "disconnected";
-  }, [cascade.error, cascade.isConnected, cascade.isProcessing]);
+  }, [voice.error, voice.isConnected, voice.isProcessing]);
 
   useEffect(() => {
-    if (cascade.error) optionsRef.current?.onError?.(cascade.error);
-  }, [cascade.error]);
+    if (voice.error) optionsRef.current?.onError?.(voice.error);
+  }, [voice.error]);
 
   useEffect(() => {
-    if (cascade.isConnected && !connectedRef.current) {
+    if (voice.isConnected && !connectedRef.current) {
       connectedRef.current = true;
       optionsRef.current?.onConnect?.();
       return;
     }
 
-    if (!cascade.isConnected && connectedRef.current) {
+    if (!voice.isConnected && connectedRef.current) {
       connectedRef.current = false;
       optionsRef.current?.onDisconnect?.();
     }
-  }, [cascade.isConnected]);
+  }, [voice.isConnected]);
 
   const startSession = useCallback(async (_args?: { clientTools?: ClientToolMap }) => {
-    await cascade.startSession();
-  }, [cascade.startSession]);
+    await voice.startSession();
+  }, [voice.startSession]);
 
   const endSession = useCallback(async () => {
-    cascade.endSession();
-  }, [cascade.endSession]);
+    voice.endSession();
+  }, [voice.endSession]);
 
   return {
     status,
-    isSpeaking: cascade.isSpeaking,
-    getInputVolume: cascade.getAudioVolume,
+    isSpeaking: voice.isSpeaking,
+    getInputVolume: voice.getAudioVolume,
     startSession,
     endSession,
   };

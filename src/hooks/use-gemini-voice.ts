@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useDeepgramAgentVoice } from "@/hooks/use-deepgram-agent-voice";
 import { useSynapseCascadeVoice } from "@/hooks/use-synapse-cascade-voice";
 
 type ClientAction = { type?: string; payload?: unknown; data?: unknown };
@@ -8,6 +9,8 @@ interface UseGeminiVoiceOptions {
   model?: string;
   systemInstruction?: string;
   voiceName?: string;
+  gatewayUrl?: string | null;
+  provider?: string | null;
   language?: string;
   sessionId?: string | null;
   onSessionIdChange?: (sessionId: string) => void;
@@ -20,6 +23,24 @@ interface UseGeminiVoiceOptions {
 }
 
 export function useGeminiVoice(options: UseGeminiVoiceOptions) {
+  const [usingFallback, setUsingFallback] = useState(false);
+  const preferredProvider = options.provider || import.meta.env.VITE_SYNAPSE_VOICE_PROVIDER || "deepgram-agent";
+  const shouldUseDeepgram = preferredProvider !== "legacy-cascade" && !usingFallback;
+
+  const deepgram = useDeepgramAgentVoice({
+    gatewayUrl: options.gatewayUrl,
+    sessionId: options.sessionId,
+    systemInstruction: options.systemInstruction,
+    language: options.language,
+    onSessionIdChange: options.onSessionIdChange,
+    onSpeakingStart: options.onSpeakingStart,
+    onSpeakingEnd: options.onSpeakingEnd,
+    onTranscript: options.onTranscript,
+    onResponseText: options.onResponseText,
+    onAudioIntensity: options.onAudioIntensity,
+    onClientAction: options.onClientAction,
+  });
+
   const cascade = useSynapseCascadeVoice({
     sessionId: options.sessionId,
     onSessionIdChange: options.onSessionIdChange,
@@ -32,15 +53,50 @@ export function useGeminiVoice(options: UseGeminiVoiceOptions) {
   });
 
   const startSession = useCallback(async (_override?: {
-    token?: string;
+    token?: string | null;
     model?: string;
     voiceName?: string;
+    gatewayUrl?: string | null;
+    provider?: string | null;
+    sessionId?: string | null;
   }) => {
-    await cascade.startSession();
-  }, [cascade.startSession]);
+    const provider = _override?.provider || preferredProvider;
+    const fallbackEnabled = import.meta.env.VITE_SYNAPSE_VOICE_DISABLE_FALLBACK !== "true";
+
+    if (provider === "legacy-cascade") {
+      setUsingFallback(true);
+      await cascade.startSession();
+      return;
+    }
+
+    setUsingFallback(false);
+    try {
+      await deepgram.startSession(_override);
+    } catch (error) {
+      if (!fallbackEnabled) throw error;
+      console.warn("[Synapse Voice] Deepgram indisponivel; usando cascade legado.", error);
+      setUsingFallback(true);
+      await cascade.startSession();
+    }
+  }, [cascade.startSession, deepgram.startSession, preferredProvider]);
+
+  const endSession = useCallback(() => {
+    deepgram.endSession();
+    cascade.endSession();
+    setUsingFallback(false);
+  }, [cascade.endSession, deepgram.endSession]);
+
+  const active = shouldUseDeepgram ? deepgram : cascade;
+
+  const provider = useMemo(() => {
+    if (!shouldUseDeepgram) return cascade.provider;
+    return deepgram.provider;
+  }, [cascade.provider, deepgram.provider, shouldUseDeepgram]);
 
   return {
-    ...cascade,
+    ...active,
     startSession,
+    endSession,
+    provider,
   };
 }

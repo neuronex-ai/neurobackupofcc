@@ -152,6 +152,16 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/get-voice-config/index.ts"
 
+[functions.synapse-voice-agent-session]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/synapse-voice-agent-session/index.ts"
+
+[functions.synapse-voice-tool]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/synapse-voice-tool/index.ts"
+
 [functions.synapse-voice-turn]
 enabled = true
 verify_jwt = true

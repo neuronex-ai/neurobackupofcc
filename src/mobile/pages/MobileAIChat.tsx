@@ -112,6 +112,9 @@ export const MobileAIChat = () => {
     token: voiceToken,
     model: voiceModel,
     voiceName,
+    provider: voiceProvider,
+    gatewayUrl: voiceGatewayUrl,
+    sessionId: voiceAgentSessionId,
     isLoading: isVoiceConfigLoading,
     error: voiceConfigError,
     refresh: refreshVoiceConfig,
@@ -130,6 +133,9 @@ export const MobileAIChat = () => {
     token: voiceToken,
     model: voiceModel,
     voiceName,
+    provider: voiceProvider,
+    gatewayUrl: voiceGatewayUrl,
+    sessionId: voiceAgentSessionId || sessionId,
     language: "pt-BR",
     systemInstruction: "Você é o Synapse AI mobile do NeuroNex. Converse por voz em português brasileiro com respostas curtas, naturais e úteis para a rotina clínica, agenda, pacientes e financeiro.",
   });
@@ -250,6 +256,9 @@ export const MobileAIChat = () => {
         token: config.token,
         model: config.model,
         voiceName: config.voiceName,
+        gatewayUrl: config.gatewayUrl,
+        provider: config.provider,
+        sessionId: config.sessionId || sessionId,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Não foi possível iniciar o modo voz.";
@@ -265,6 +274,9 @@ export const MobileAIChat = () => {
         token: config.token,
         model: config.model,
         voiceName: config.voiceName,
+        gatewayUrl: config.gatewayUrl,
+        provider: config.provider,
+        sessionId: config.sessionId || sessionId,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Nao foi possivel reiniciar o modo voz.";

@@ -30,6 +30,9 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
     isLoading: voiceConfigLoading,
     refresh: refreshVoiceConfig,
     error: voiceConfigError,
+    provider: voiceProvider,
+    gatewayUrl: voiceGatewayUrl,
+    sessionId: voiceSessionId,
   } = useVoiceConfig();
 
   const handleResponseText = useCallback((text: string) => {
@@ -50,6 +53,9 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
     error: runtimeError,
   } = useGeminiVoice({
     token: null,
+    provider: voiceProvider,
+    gatewayUrl: voiceGatewayUrl,
+    sessionId: voiceSessionId,
     systemInstruction: SYSTEM_INSTRUCTION,
     language: "pt-BR",
     onResponseText: handleResponseText,
@@ -68,6 +74,9 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
         token: config.token,
         model: config.model,
         voiceName: config.voiceName,
+        gatewayUrl: config.gatewayUrl,
+        provider: config.provider,
+        sessionId: config.sessionId,
       });
     } catch (caught: unknown) {
       const message = caught instanceof Error ? caught.message : "Não foi possível iniciar o modo voz.";
