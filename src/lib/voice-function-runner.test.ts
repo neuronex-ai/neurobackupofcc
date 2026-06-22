@@ -14,11 +14,11 @@ const tick = async () => {
 };
 
 function createHarness(invokeTool = vi.fn(async () => toolResponse({ ok: true, spoken_summary: "Concluido." }))) {
-  const deepgram: any[] = [];
-  const client: any[] = [];
+  const deepgram: Array<Record<string, unknown>> = [];
+  const client: Array<Record<string, unknown>> = [];
   const runner = new VoiceFunctionRunner({
-    sendDeepgram: (payload: any) => deepgram.push(payload),
-    sendClient: (payload: any) => client.push(payload),
+    sendDeepgram: (payload: Record<string, unknown>) => deepgram.push(payload),
+    sendClient: (payload: Record<string, unknown>) => client.push(payload),
     invokeTool,
   });
 
