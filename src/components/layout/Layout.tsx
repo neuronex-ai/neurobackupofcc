@@ -4,8 +4,6 @@ import React from "react";
 import { Navbar } from "./Navbar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { AppTour } from "@/components/onboarding/AppTour";
-import { useTour } from "@/components/onboarding/TourContext";
 import { useLocation } from "react-router-dom";
 
 interface LayoutProps {
@@ -15,7 +13,6 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
   const isMobile = useIsMobile();
   const location = useLocation();
-  const { isTourOpen, completeTour } = useTour();
   const hasFullBleedDesktopShell =
     !isMobile &&
     (location.pathname === "/dashboard" || location.pathname.startsWith("/notas"));
@@ -36,8 +33,6 @@ export const Layout = ({ children }: LayoutProps) => {
       )}>
         {children}
       </main>
-      {/* Global Tour Overlay */}
-      <AppTour open={isTourOpen} onComplete={completeTour} />
     </div>
   );
 };

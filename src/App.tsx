@@ -10,6 +10,8 @@ import { SynapseProvider } from "@/context/SynapseProvider";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { TourProvider } from "@/components/onboarding/TourContext";
+import { GlobalTourOverlay } from "@/components/onboarding/GlobalTourOverlay";
+import { TrialExpiredUpsell } from "@/components/subscription/TrialExpiredUpsell";
 import { CookieConsent } from "@/components/landing/CookieConsent";
 import { ScrollToTop } from "@/components/layout/ScrollToTop";
 import { NeuroFinancePostOnboardingGate } from "@/components/financeiro/NeuroFinancePostOnboardingGate";
@@ -190,6 +192,8 @@ function App() {
                       </Suspense>
 
                       <SharedRoutes />
+                      <GlobalTourOverlay />
+                      <TrialExpiredUpsell />
 
                       <Toaster position="top-right" />
 

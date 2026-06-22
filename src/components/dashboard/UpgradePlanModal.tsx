@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PROFESSIONAL_PLAN_PRICE } from "@/lib/subscription-plans";
 
 interface PlanOffer {
     id: string;
@@ -48,7 +49,7 @@ export const UpgradePlanModal = ({ currentPlan, children }: UpgradePlanModalProp
         {
             id: 'Professional',
             name: "Professional",
-            price: "R$ 199,90",
+            price: PROFESSIONAL_PLAN_PRICE,
             description: "A escolha ideal para consultórios em pleno crescimento.",
             popular: true,
             features: [

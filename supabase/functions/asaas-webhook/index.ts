@@ -166,6 +166,8 @@ Deno.serve(async (req: Request) => {
                         await handleBillEvent(body.bill || resource, event);
                     } else if (event.startsWith('INVOICE_')) {
                         await handleInvoiceEvent(body.invoice || resource, event, webhookFinancialAccount);
+                    } else if (event.startsWith('SUBSCRIPTION_') || event.startsWith('CHECKOUT_')) {
+                        await handlePlatformSubscriptionEvent(body, resource, event);
                     } else if (event.startsWith('RECEIVABLE_ANTICIPATION_')) {
                         await handleReceivableAnticipationEvent(body.anticipation || resource, event, webhookFinancialAccount);
                     } else if (event.startsWith('ACCOUNT_STATUS_')) {
@@ -1524,4 +1526,167 @@ async function handleGenericAsaasEvent(body: any, resource: any, event: string, 
         objectType: inferProviderObjectType(body),
         actionUrl: '/financeiro?tab=neurofinance',
     });
+}
+
+function getPlatformSubscriptionReference(body: any, resource: any) {
+    return String(
+        body?.subscription?.externalReference ||
+        body?.checkout?.externalReference ||
+        resource?.externalReference ||
+        body?.externalReference ||
+        ''
+    ).trim();
+}
+
+function getProviderSubscriptionId(body: any, resource: any) {
+    return String(
+        body?.subscription?.id ||
+        body?.checkout?.subscription ||
+        body?.checkout?.subscriptionId ||
+        resource?.subscription ||
+        resource?.subscriptionId ||
+        ''
+    ).trim();
+}
+
+function getProviderCheckoutId(body: any, resource: any) {
+    return String(
+        body?.checkout?.id ||
+        resource?.checkout ||
+        (resource?.object === 'checkout' ? resource?.id : '') ||
+        ''
+    ).trim();
+}
+
+function subscriptionPeriodEnd(resource: any) {
+    const raw = resource?.nextDueDate || resource?.endDate || null;
+    if (!raw) return null;
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+async function upsertUserSubscriptionByUserId(userId: string, values: Record<string, unknown>) {
+    const { data: existing, error: findError } = await supabaseAdmin
+        .from('user_subscriptions')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (findError) throw findError;
+
+    if (existing?.id) {
+        const { error } = await supabaseAdmin
+            .from('user_subscriptions')
+            .update(values)
+            .eq('id', existing.id);
+        if (error) throw error;
+        return;
+    }
+
+    const { error } = await supabaseAdmin
+        .from('user_subscriptions')
+        .insert({
+            user_id: userId,
+            ...values,
+        });
+    if (error) throw error;
+}
+
+async function handlePlatformSubscriptionEvent(body: any, resource: any, event: string) {
+    const externalReference = getPlatformSubscriptionReference(body, resource);
+    if (!externalReference) {
+        console.log(`[asaas-webhook] Platform subscription event without external reference: ${event}`);
+        return;
+    }
+
+    const { data: checkoutSession, error } = await supabaseAdmin
+        .from('subscription_checkout_sessions')
+        .select('*')
+        .eq('external_reference', externalReference)
+        .maybeSingle();
+
+    if (error) throw error;
+    if (!checkoutSession?.user_id) {
+        console.log(`[asaas-webhook] Platform subscription session not found for ${externalReference}`);
+        return;
+    }
+
+    const now = new Date().toISOString();
+    const providerSubscriptionId = getProviderSubscriptionId(body, resource);
+    const providerCheckoutId = getProviderCheckoutId(body, resource) || checkoutSession.provider_checkout_id;
+    const sourceResource = body?.subscription || body?.checkout || resource || {};
+    const providerStatus = String(sourceResource?.status || '').toUpperCase();
+    const activeEvent =
+        event === 'CHECKOUT_PAID' ||
+        event === 'SUBSCRIPTION_CREATED' ||
+        (event === 'SUBSCRIPTION_UPDATED' && providerStatus === 'ACTIVE');
+    const blockedEvent =
+        event === 'CHECKOUT_CANCELED' ||
+        event === 'CHECKOUT_EXPIRED' ||
+        event === 'SUBSCRIPTION_INACTIVATED' ||
+        event === 'SUBSCRIPTION_DELETED' ||
+        event === 'SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK' ||
+        providerStatus === 'INACTIVE' ||
+        providerStatus === 'DELETED';
+
+    const checkoutStatus = activeEvent ? 'paid' : blockedEvent ? 'blocked' : 'updated';
+
+    const { error: checkoutUpdateError } = await supabaseAdmin
+        .from('subscription_checkout_sessions')
+        .update({
+            provider_checkout_id: providerCheckoutId || null,
+            provider_subscription_id: providerSubscriptionId || checkoutSession.provider_subscription_id || null,
+            status: checkoutStatus,
+            metadata: {
+                ...(checkoutSession.metadata || {}),
+                last_asaas_event: event,
+                last_asaas_payload: body,
+            },
+            updated_at: now,
+        })
+        .eq('id', checkoutSession.id);
+
+    if (checkoutUpdateError) throw checkoutUpdateError;
+
+    if (activeEvent) {
+        await upsertUserSubscriptionByUserId(checkoutSession.user_id, {
+            plan: 'Professional',
+            status: 'active',
+            asaas_subscription_id: providerSubscriptionId || null,
+            asaas_checkout_id: providerCheckoutId || null,
+            current_period_start: now,
+            current_period_end: subscriptionPeriodEnd(sourceResource),
+            canceled_at: null,
+            metadata: {
+                source: 'asaas-webhook',
+                last_asaas_event: event,
+                checkout_external_reference: externalReference,
+            },
+            updated_at: now,
+        });
+    } else if (blockedEvent) {
+        await upsertUserSubscriptionByUserId(checkoutSession.user_id, {
+            plan: 'Professional',
+            status: event === 'SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK' ? 'past_due' : 'canceled',
+            asaas_subscription_id: providerSubscriptionId || checkoutSession.provider_subscription_id || null,
+            asaas_checkout_id: providerCheckoutId || null,
+            canceled_at: now,
+            metadata: {
+                source: 'asaas-webhook',
+                last_asaas_event: event,
+                checkout_external_reference: externalReference,
+            },
+            updated_at: now,
+        });
+    }
+
+    await emitAsaasNotification({
+        userId: checkoutSession.user_id,
+        event,
+        resource: sourceResource,
+        objectType: inferProviderObjectType(body),
+        actionUrl: '/ajustes?tab=pagamentos',
+    });
+
+    console.log(`[asaas-webhook] Platform subscription synchronized (${event}): ${externalReference}`);
 }

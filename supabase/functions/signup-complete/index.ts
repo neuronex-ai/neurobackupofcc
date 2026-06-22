@@ -9,6 +9,51 @@ import {
   splitFullName,
 } from "../_shared/signup.ts";
 
+const PROFESSIONAL_TRIAL_DAYS = 7;
+
+async function createProfessionalTrial(admin: ReturnType<typeof createAdminClient>, userId: string, metadata: Record<string, unknown>) {
+  const now = new Date();
+  const trialEndsAt = new Date(now.getTime() + PROFESSIONAL_TRIAL_DAYS * 24 * 60 * 60 * 1000);
+  const payload = {
+    user_id: userId,
+    plan: "Professional",
+    status: "trialing",
+    current_period_start: now.toISOString(),
+    current_period_end: trialEndsAt.toISOString(),
+    trial_started_at: now.toISOString(),
+    trial_ends_at: trialEndsAt.toISOString(),
+    canceled_at: null,
+    metadata: {
+      ...metadata,
+      source: "signup-complete",
+      trial_days: PROFESSIONAL_TRIAL_DAYS,
+    },
+    updated_at: now.toISOString(),
+  };
+
+  const { data: existing, error: findError } = await admin
+    .from("user_subscriptions")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (findError) throw findError;
+
+  if (existing?.id) {
+    const { error } = await admin
+      .from("user_subscriptions")
+      .update(payload)
+      .eq("id", existing.id);
+    if (error) throw error;
+    return;
+  }
+
+  const { error } = await admin
+    .from("user_subscriptions")
+    .insert(payload);
+  if (error) throw error;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -116,6 +161,17 @@ Deno.serve(async (req) => {
       console.error("signup-complete:profile-error", profileError);
       await admin.auth.admin.deleteUser(userId);
       return jsonResponse({ error: "Não conseguimos salvar seu perfil. Tente novamente." }, 500);
+    }
+
+    try {
+      await createProfessionalTrial(admin, userId, {
+        signup_verification_id: verification.id,
+        requested_plan: verification.metadata?.requested_plan || "professional_trial",
+      });
+    } catch (subscriptionError) {
+      console.error("signup-complete:subscription-error", subscriptionError);
+      await admin.auth.admin.deleteUser(userId);
+      return jsonResponse({ error: "Não conseguimos iniciar seu teste grátis. Tente novamente." }, 500);
     }
 
     await admin

@@ -9,6 +9,7 @@ import {
   MobileRealSynapseSection,
 } from "@/components/landing/MobileProductScreenshots";
 import { Button } from "@/components/ui/button";
+import { PROFESSIONAL_PLAN_PERIOD, PROFESSIONAL_PLAN_PRICE, PROFESSIONAL_TRIAL_DAYS } from "@/lib/subscription-plans";
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -110,9 +111,9 @@ const plans = [
   },
   {
     name: "Profissional",
-    eyebrow: "7 dias grátis",
-    price: "R$ 140,00",
-    period: "/mês",
+    eyebrow: `${PROFESSIONAL_TRIAL_DAYS} dias grátis`,
+    price: PROFESSIONAL_PLAN_PRICE,
+    period: PROFESSIONAL_PLAN_PERIOD,
     featured: true,
     href: "/create-account?plan=professional",
     cta: "Testar grátis",

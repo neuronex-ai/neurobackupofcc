@@ -13,6 +13,7 @@ import {
     FEATURE_UPSELL_PLANS,
     PLAN_FEATURES
 } from "@/types/subscription";
+import { PLAN_PRICE_LABELS } from "@/lib/subscription-plans";
 import {
     Sparkles,
     Zap,
@@ -39,8 +40,8 @@ const PLAN_ICONS = {
 
 const PLAN_PRICES = {
     Essential: 'Gratuito',
-    Professional: 'R$ 129,90/mês',
-    Enterprise: 'R$ 299,00/mês',
+    Professional: PLAN_PRICE_LABELS.Professional,
+    Enterprise: PLAN_PRICE_LABELS.Enterprise,
 };
 
 const PLAN_DESCRIPTIONS = {

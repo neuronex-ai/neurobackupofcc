@@ -19,6 +19,10 @@ interface SubscriptionData {
     isDevAccount: boolean;
     subscriptionId?: string;
     currentPeriodEnd?: Date;
+    trialEndsAt?: Date;
+    isTrial: boolean;
+    isTrialExpired: boolean;
+    daysUntilTrialEnds?: number;
 }
 
 interface UseSubscriptionPlanReturn {
@@ -47,6 +51,8 @@ export const useSubscriptionPlan = (): UseSubscriptionPlanReturn => {
                     status: 'active',
                     features: PLAN_FEATURES.Enterprise,
                     isDevAccount: true,
+                    isTrial: false,
+                    isTrialExpired: false,
                 };
             }
 
@@ -65,21 +71,40 @@ export const useSubscriptionPlan = (): UseSubscriptionPlanReturn => {
                     status: 'active',
                     features: PLAN_FEATURES.Essential,
                     isDevAccount: false,
+                    isTrial: false,
+                    isTrialExpired: false,
                 };
             }
 
             const plan = (subscription.plan as SubscriptionPlan) || 'Essential';
             const status = (subscription.status as SubscriptionStatus) || 'inactive';
+            const currentPeriodEnd = subscription.current_period_end
+                ? new Date(subscription.current_period_end)
+                : undefined;
+            const trialEndsAt = subscription.trial_ends_at
+                ? new Date(subscription.trial_ends_at)
+                : status === 'trialing'
+                    ? currentPeriodEnd
+                    : undefined;
+            const isTrial = status === 'trialing';
+            const isTrialExpired = Boolean(isTrial && trialEndsAt && trialEndsAt.getTime() <= Date.now());
+            const effectivePlan = isTrialExpired ? 'Essential' : plan;
+            const effectiveStatus = isTrialExpired ? 'inactive' : status;
+            const daysUntilTrialEnds = isTrial && trialEndsAt
+                ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                : undefined;
 
             return {
-                plan,
-                status,
-                features: PLAN_FEATURES[plan],
+                plan: effectivePlan,
+                status: effectiveStatus,
+                features: PLAN_FEATURES[effectivePlan],
                 isDevAccount: false,
                 subscriptionId: subscription.asaas_subscription_id || subscription.id,
-                currentPeriodEnd: subscription.current_period_end
-                    ? new Date(subscription.current_period_end)
-                    : undefined,
+                currentPeriodEnd,
+                trialEndsAt,
+                isTrial,
+                isTrialExpired,
+                daysUntilTrialEnds,
             };
         },
         enabled: !!user && !isAuthLoading,
@@ -90,6 +115,7 @@ export const useSubscriptionPlan = (): UseSubscriptionPlanReturn => {
     const canAccess = (feature: FeatureKey): boolean => {
         if (!data) return false;
         if (data.isDevAccount) return true;
+        if (data.isTrialExpired) return false;
         if (data.status !== 'active' && data.status !== 'trialing') return false;
 
         const featureMap: Record<FeatureKey, keyof PlanFeatures | 'maxPatients'> = {
@@ -115,6 +141,7 @@ export const useSubscriptionPlan = (): UseSubscriptionPlanReturn => {
     const canAddPatient = (currentPatientCount: number): boolean => {
         if (!data) return false;
         if (data.isDevAccount) return true;
+        if (data.isTrialExpired) return false;
         if (data.status !== 'active' && data.status !== 'trialing') return false;
 
         const maxPatients = data.features.maxPatients;

@@ -550,7 +550,7 @@ export function MobileNeuroFinancePage() {
             />
             <MobileFinanceTabs
               value={activityView}
-              onValueChange={setActivityView}
+              onValueChange={(value) => setActivityView(value as ActivityView)}
               options={[
                 { value: "statement", label: "Extrato", description: `${filteredTransactions.length} itens`, icon: FileText },
                 { value: "charges", label: "Cobranças", description: `${invoices.length} itens`, icon: Receipt },

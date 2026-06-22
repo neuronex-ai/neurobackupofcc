@@ -199,6 +199,21 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/signup-complete/index.ts"
 
+[functions.create-checkout-session]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/create-checkout-session/index.ts"
+
+[functions.verify-checkout-session]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/verify-checkout-session/index.ts"
+
+[functions.continue-free-plan]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/continue-free-plan/index.ts"
+
 [functions.address-autocomplete]
 enabled = true
 verify_jwt = false

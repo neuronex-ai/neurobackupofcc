@@ -142,7 +142,7 @@ export const TotpMfaDialog = ({ open, mode, onOpenChange, onSuccess, onCancel }:
     : {
       initial: { opacity: 0, y: isMobile ? 16 : 10, scale: 0.98 },
       animate: { opacity: 1, y: 0, scale: 1 },
-      transition: { type: 'spring', stiffness: 280, damping: 28 },
+      transition: { type: 'spring' as const, stiffness: 280, damping: 28 },
     };
   const qrMotion: MotionProps = shouldReduceMotion
     ? {}
@@ -160,9 +160,9 @@ export const TotpMfaDialog = ({ open, mode, onOpenChange, onSuccess, onCancel }:
       },
       transition: {
         opacity: { duration: 0.18 },
-        y: { type: 'spring', stiffness: 260, damping: 24 },
-        scale: { type: 'spring', stiffness: 260, damping: 24 },
-        boxShadow: { duration: 3.2, repeat: Infinity, ease: 'easeInOut' },
+        y: { type: 'spring' as const, stiffness: 260, damping: 24 },
+        scale: { type: 'spring' as const, stiffness: 260, damping: 24 },
+        boxShadow: { duration: 3.2, repeat: Infinity, ease: 'easeInOut' as const },
       },
     };
 
@@ -192,7 +192,7 @@ export const TotpMfaDialog = ({ open, mode, onOpenChange, onSuccess, onCancel }:
             <motion.div
               initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.92 }}
               animate={shouldReduceMotion ? undefined : { opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+              transition={{ type: 'spring' as const, stiffness: 320, damping: 24 }}
               className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[22px] border border-black/10 bg-black/[0.035] text-zinc-950 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
             >
               <Icon className="h-6 w-6" />

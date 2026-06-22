@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -13,17 +14,24 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { MOBILE_TOUR_STEPS, type TourStep } from "./tour-content";
+import { useTourSpotlight } from "./useTourSpotlight";
 
 interface MobileAppTourProps {
   open: boolean;
   onComplete: () => void;
+  onClose: () => void;
 }
 
 const TARGET_PADDING = 9;
 const SWIPE_THRESHOLD = 72;
+
+const overlayFillForTheme = (isDarkTheme: boolean, isModal: boolean) => {
+  if (isDarkTheme) return isModal ? "rgba(0,0,0,0.74)" : "rgba(0,0,0,0.58)";
+  return isModal ? "rgba(244,244,245,0.78)" : "rgba(244,244,245,0.62)";
+};
 
 const MobileTourCard = ({
   step,
@@ -60,18 +68,18 @@ const MobileTourCard = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={reducedMotion ? undefined : { opacity: 0, x: -36, scale: 0.98 }}
       transition={{ duration: reducedMotion ? 0 : 0.26, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-[28px] border border-black/[0.07] bg-white/96 text-zinc-950 shadow-[0_28px_90px_-24px_rgba(0,0,0,0.7)] backdrop-blur-2xl dark:border-white/[0.11] dark:bg-[#09090a]/96 dark:text-white"
+      className="relative overflow-hidden rounded-[28px] border border-border/70 bg-background/95 text-foreground shadow-[0_28px_90px_-24px_rgba(15,23,42,0.36)] backdrop-blur-2xl dark:border-white/10 dark:bg-zinc-950/95 dark:shadow-[0_28px_90px_-24px_rgba(0,0,0,0.86)]"
       role="dialog"
       aria-modal="true"
       aria-label={`Tour mobile: ${step.title}`}
     >
-      <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-zinc-950/12 dark:bg-white/15" />
-      <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-black/16 to-transparent dark:via-white/20" />
+      <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-foreground/14" />
+      <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-foreground/18 to-transparent" />
 
       <button
         type="button"
         onClick={onClose}
-        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-black/[0.045] text-black/45 active:scale-95 dark:bg-white/[0.055] dark:text-white/45"
+        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-muted/70 text-muted-foreground active:scale-95"
         aria-label="Encerrar tour"
       >
         <X className="h-4 w-4" />
@@ -79,11 +87,11 @@ const MobileTourCard = ({
 
       <div className="px-5 pb-5 pt-4">
         <div className="flex items-start gap-3.5 pr-9">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-foreground text-background shadow-lg shadow-foreground/10">
             {isLast ? <Check className="h-5 w-5" strokeWidth={3} /> : <Smartphone className="h-5 w-5" />}
           </div>
           <div className="min-w-0">
-            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-white/38">
+            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground">
               {step.eyebrow} · {index + 1}/{total}
             </p>
             <h3 className="mt-1.5 text-[1.28rem] font-black leading-[0.98] tracking-[-0.045em]">
@@ -92,12 +100,12 @@ const MobileTourCard = ({
           </div>
         </div>
 
-        <p className="mt-4 text-[13px] font-medium leading-relaxed text-zinc-600 dark:text-white/55">
+        <p className="mt-4 text-[13px] font-medium leading-relaxed text-muted-foreground">
           {step.description}
         </p>
 
         {step.hint ? (
-          <div className="mt-3.5 flex items-center gap-2 rounded-[15px] border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 text-[9px] font-bold text-zinc-500 dark:border-white/10 dark:bg-white/[0.045] dark:text-white/42">
+          <div className="mt-3.5 flex items-center gap-2 rounded-[15px] border border-border/70 bg-muted/60 px-3 py-2.5 text-[9px] font-bold text-muted-foreground">
             <Hand className="h-4 w-4 shrink-0" />
             {step.hint}
           </div>
@@ -116,10 +124,10 @@ const MobileTourCard = ({
               className={cn(
                 "h-1.5 rounded-full transition-all duration-300",
                 itemIndex === index
-                  ? "w-7 bg-zinc-950 dark:bg-white"
+                  ? "w-7 bg-foreground"
                   : itemIndex < index
-                    ? "w-1.5 bg-zinc-950/35 dark:bg-white/35"
-                    : "w-1.5 bg-zinc-950/10 dark:bg-white/10",
+                    ? "w-1.5 bg-foreground/35"
+                    : "w-1.5 bg-foreground/12",
               )}
             />
           ))}
@@ -130,7 +138,7 @@ const MobileTourCard = ({
             <button
               type="button"
               onClick={onBack}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-zinc-200 bg-zinc-50 text-zinc-700 active:scale-95 dark:border-white/10 dark:bg-white/[0.045] dark:text-white/70"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-border bg-muted text-muted-foreground active:scale-95"
               aria-label="Voltar uma etapa"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -140,7 +148,7 @@ const MobileTourCard = ({
           <Button
             type="button"
             onClick={onNext}
-            className="h-12 flex-1 rounded-[16px] bg-zinc-950 text-[9px] font-black uppercase tracking-[0.17em] text-white active:scale-[0.98] dark:bg-white dark:text-zinc-950"
+            className="h-12 flex-1 rounded-[16px] bg-foreground text-[9px] font-black uppercase tracking-[0.17em] text-background active:scale-[0.98] hover:bg-foreground/90"
           >
             {isLast ? "Começar a usar" : "Próximo"}
             {!isLast ? <ChevronRight className="ml-1.5 h-4 w-4" /> : <Sparkles className="ml-1.5 h-4 w-4" />}
@@ -151,18 +159,30 @@ const MobileTourCard = ({
   );
 };
 
-export const MobileAppTour = ({ open, onComplete }: MobileAppTourProps) => {
+export const MobileAppTour = ({ open, onComplete, onClose }: MobileAppTourProps) => {
   const [active, setActive] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const [targetMissing, setTargetMissing] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const reducedMotion = useReducedMotion();
+  const { theme } = useTheme();
 
   const step = MOBILE_TOUR_STEPS[currentIndex];
   const isLast = currentIndex === MOBILE_TOUR_STEPS.length - 1;
   const isModal = step?.layout === "modal" || !step?.targetSelector;
+  const isDarkTheme = theme === "dark";
+  const overlayFill = overlayFillForTheme(isDarkTheme, isModal);
+  const { rect, targetMissing, viewport } = useTourSpotlight({
+    open,
+    active,
+    isModal,
+    step,
+    reducedMotion: Boolean(reducedMotion),
+    missingAfter: 7,
+    retryDelay: 460,
+    scrollBlock: "center",
+    scrollInline: "nearest",
+  });
 
   const giveHapticFeedback = () => {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(8);
@@ -206,7 +226,6 @@ export const MobileAppTour = ({ open, onComplete }: MobileAppTourProps) => {
     if (!open) {
       setActive(false);
       setCurrentIndex(0);
-      setRect(null);
       return;
     }
     const timer = window.setTimeout(() => setActive(true), 70);
@@ -218,66 +237,21 @@ export const MobileAppTour = ({ open, onComplete }: MobileAppTourProps) => {
     navigate(step.expectedRoute, { replace: false });
   }, [location.pathname, navigate, open, step]);
 
-  useLayoutEffect(() => {
-    if (!open || !active || isModal || !step?.targetSelector) {
-      setRect(null);
-      setTargetMissing(false);
-      return;
-    }
-
-    let attempts = 0;
-    let resizeObserver: ResizeObserver | null = null;
-    let observedElement: Element | null = null;
-
-    const sync = () => {
-      const target = document.querySelector(step.targetSelector!);
-      if (!target) {
-        attempts += 1;
-        setRect(null);
-        setTargetMissing(attempts > 7);
-        return;
-      }
-
-      attempts = 0;
-      setTargetMissing(false);
-      setRect(target.getBoundingClientRect());
-      target.scrollIntoView({
-        behavior: reducedMotion ? "auto" : "smooth",
-        block: "center",
-        inline: "nearest",
-      });
-
-      if (observedElement !== target) {
-        resizeObserver?.disconnect();
-        observedElement = target;
-        resizeObserver = new ResizeObserver(sync);
-        resizeObserver.observe(target);
+  useEffect(() => {
+    if (!open || !active) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
       }
     };
-
-    const initialTimer = window.setTimeout(sync, 180);
-    const retryTimer = window.setInterval(sync, 430);
-    const mutationObserver = new MutationObserver(sync);
-    mutationObserver.observe(document.body, { childList: true, subtree: true, attributes: true });
-    window.addEventListener("resize", sync);
-    window.addEventListener("orientationchange", sync);
-    window.addEventListener("scroll", sync, true);
-
-    return () => {
-      window.clearTimeout(initialTimer);
-      window.clearInterval(retryTimer);
-      mutationObserver.disconnect();
-      resizeObserver?.disconnect();
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("orientationchange", sync);
-      window.removeEventListener("scroll", sync, true);
-    };
-  }, [active, currentIndex, isModal, location.pathname, open, reducedMotion, step]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [active, onClose, open]);
 
   const overlayPath = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const width = viewport.width;
+    const height = viewport.height;
     const full = `M 0 0 H ${width} V ${height} H 0 Z`;
     if (!rect || isModal) return full;
 
@@ -288,7 +262,7 @@ export const MobileAppTour = ({ open, onComplete }: MobileAppTourProps) => {
     const radius = Math.min(20, Math.max(10, Math.min(w, h) / 4));
     const hole = `M ${x + radius} ${y} H ${x + w - radius} A ${radius} ${radius} 0 0 1 ${x + w} ${y + radius} V ${y + h - radius} A ${radius} ${radius} 0 0 1 ${x + w - radius} ${y + h} H ${x + radius} A ${radius} ${radius} 0 0 1 ${x} ${y + h - radius} V ${y + radius} A ${radius} ${radius} 0 0 1 ${x + radius} ${y} Z`;
     return `${full} ${hole}`;
-  }, [isModal, rect]);
+  }, [isModal, rect, viewport]);
 
   if (!open || !active || !step) return null;
 
@@ -297,7 +271,7 @@ export const MobileAppTour = ({ open, onComplete }: MobileAppTourProps) => {
       <svg className="absolute inset-0 h-full w-full" aria-hidden="true">
         <motion.path
           initial={reducedMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1, fill: isModal ? "rgba(0,0,0,0.72)" : "rgba(0,0,0,0.58)" }}
+          animate={{ opacity: 1, fill: overlayFill }}
           d={overlayPath}
           fillRule="evenodd"
           transition={{ duration: reducedMotion ? 0 : 0.22 }}
@@ -306,7 +280,12 @@ export const MobileAppTour = ({ open, onComplete }: MobileAppTourProps) => {
 
       {rect && !isModal ? (
         <motion.div
-          className="pointer-events-none fixed z-[10051] rounded-[20px] ring-2 ring-white/80 shadow-[0_0_0_5px_rgba(255,255,255,0.08),0_0_34px_rgba(255,255,255,0.24)]"
+          className={cn(
+            "pointer-events-none fixed z-[10051] rounded-[20px] ring-2",
+            isDarkTheme
+              ? "ring-white/80 shadow-[0_0_0_5px_rgba(255,255,255,0.08),0_0_34px_rgba(255,255,255,0.24)]"
+              : "ring-zinc-950/70 shadow-[0_0_0_5px_rgba(0,0,0,0.055),0_0_34px_rgba(0,0,0,0.16)]",
+          )}
           animate={{
             left: rect.left - TARGET_PADDING,
             top: rect.top - TARGET_PADDING,
@@ -334,7 +313,7 @@ export const MobileAppTour = ({ open, onComplete }: MobileAppTourProps) => {
             targetMissing={targetMissing}
             onBack={back}
             onNext={next}
-            onClose={onComplete}
+            onClose={onClose}
           />
         </AnimatePresence>
       </div>

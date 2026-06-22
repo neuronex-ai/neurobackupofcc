@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Building2, CheckCircle2, Sparkles, Star, Zap } from "lucide-react";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { Button } from "@/components/ui/button";
+import { PROFESSIONAL_PLAN_PERIOD, PROFESSIONAL_PLAN_PRICE, PROFESSIONAL_TRIAL_DAYS } from "@/lib/subscription-plans";
 import { cn } from "@/lib/utils";
 
 const plans = [
@@ -28,9 +29,9 @@ const plans = [
     },
     {
         name: "Profissional",
-        eyebrow: "7 dias grátis",
-        price: "R$ 140,00",
-        period: "/mês",
+        eyebrow: `${PROFESSIONAL_TRIAL_DAYS} dias grátis`,
+        price: PROFESSIONAL_PLAN_PRICE,
+        period: PROFESSIONAL_PLAN_PERIOD,
         description: "Para psicólogos que querem automação, voz, finanças integradas e operação de ponta a ponta.",
         icon: Zap,
         cta: "Testar grátis",

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -13,13 +14,15 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DESKTOP_TOUR_STEPS, type TourPlacement, type TourStep } from "./tour-content";
+import { useTourSpotlight } from "./useTourSpotlight";
 
 interface DesktopAppTourProps {
   open: boolean;
   onComplete: () => void;
+  onClose: () => void;
 }
 
 const CARD_WIDTH = 390;
@@ -29,6 +32,11 @@ const TARGET_PADDING = 12;
 const GAP = 18;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const overlayFillForTheme = (isDarkTheme: boolean, isModal: boolean) => {
+  if (isDarkTheme) return isModal ? "rgba(0,0,0,0.78)" : "rgba(0,0,0,0.68)";
+  return isModal ? "rgba(244,244,245,0.82)" : "rgba(244,244,245,0.68)";
+};
 
 const resolvePopoverPosition = (rect: DOMRect | null, placement: TourPlacement = "auto") => {
   if (!rect || typeof window === "undefined") {
@@ -108,17 +116,17 @@ const DesktopTourCard = ({
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={reducedMotion ? undefined : { opacity: 0, scale: 0.97, y: -8 }}
       transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-[30px] border border-black/[0.07] bg-white/96 text-zinc-950 shadow-[0_34px_120px_-28px_rgba(0,0,0,0.62)] backdrop-blur-2xl dark:border-white/[0.09] dark:bg-[#09090a]/96 dark:text-white"
+      className="relative overflow-hidden rounded-[30px] border border-border/70 bg-background/95 text-foreground shadow-[0_34px_120px_-28px_rgba(15,23,42,0.34)] backdrop-blur-2xl dark:border-white/10 dark:bg-zinc-950/95 dark:shadow-[0_34px_120px_-28px_rgba(0,0,0,0.82)]"
       role="dialog"
       aria-modal="true"
       aria-label={`Tour desktop: ${step.title}`}
     >
-      <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-black/20 to-transparent dark:via-white/25" />
+      <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
 
       <button
         type="button"
         onClick={onClose}
-        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-black/[0.045] text-black/45 transition hover:bg-black/[0.08] hover:text-black dark:bg-white/[0.055] dark:text-white/45 dark:hover:bg-white/[0.1] dark:hover:text-white"
+        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-muted/70 text-muted-foreground transition hover:bg-muted hover:text-foreground"
         aria-label="Encerrar tour"
       >
         <X className="h-4 w-4" />
@@ -126,11 +134,11 @@ const DesktopTourCard = ({
 
       <div className="p-7">
         <div className="flex items-start gap-4 pr-8">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[17px] bg-zinc-950 text-white shadow-lg dark:bg-white dark:text-zinc-950">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[17px] bg-foreground text-background shadow-lg shadow-foreground/10">
             {isLast ? <Check className="h-5 w-5" strokeWidth={3} /> : <Command className="h-5 w-5" />}
           </div>
           <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.24em] text-zinc-400 dark:text-white/38">
+            <p className="text-[9px] font-black uppercase tracking-[0.24em] text-muted-foreground">
               {step.eyebrow} · {index + 1}/{total}
             </p>
             <h3 className="mt-2 text-[1.45rem] font-black leading-[0.98] tracking-[-0.045em]">
@@ -139,12 +147,12 @@ const DesktopTourCard = ({
           </div>
         </div>
 
-        <p className="mt-5 text-sm font-medium leading-relaxed text-zinc-600 dark:text-white/55">
+        <p className="mt-5 text-sm font-medium leading-relaxed text-muted-foreground">
           {step.description}
         </p>
 
         {step.hint ? (
-          <div className="mt-4 flex items-center gap-2 rounded-[16px] border border-zinc-200/80 bg-zinc-50/80 px-3.5 py-3 text-[10px] font-bold text-zinc-500 dark:border-white/10 dark:bg-white/[0.045] dark:text-white/42">
+          <div className="mt-4 flex items-center gap-2 rounded-[16px] border border-border/70 bg-muted/60 px-3.5 py-3 text-[10px] font-bold text-muted-foreground">
             <Keyboard className="h-4 w-4 shrink-0" />
             {step.hint}
           </div>
@@ -163,10 +171,10 @@ const DesktopTourCard = ({
               className={cn(
                 "h-1.5 rounded-full transition-all duration-300",
                 itemIndex === index
-                  ? "w-8 bg-zinc-950 dark:bg-white"
+                  ? "w-8 bg-foreground"
                   : itemIndex < index
-                    ? "w-2 bg-zinc-950/35 dark:bg-white/35"
-                    : "w-2 bg-zinc-950/10 dark:bg-white/10",
+                    ? "w-2 bg-foreground/35"
+                    : "w-2 bg-foreground/12",
               )}
             />
           ))}
@@ -177,7 +185,7 @@ const DesktopTourCard = ({
             <button
               type="button"
               onClick={onBack}
-              className="flex h-13 w-13 items-center justify-center rounded-[17px] border border-zinc-200 bg-zinc-50 text-zinc-700 transition hover:bg-zinc-100 active:scale-95 dark:border-white/10 dark:bg-white/[0.045] dark:text-white/70 dark:hover:bg-white/[0.08]"
+              className="flex h-13 w-13 items-center justify-center rounded-[17px] border border-border bg-muted text-muted-foreground transition hover:bg-accent hover:text-accent-foreground active:scale-95"
               aria-label="Voltar uma etapa"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -187,7 +195,7 @@ const DesktopTourCard = ({
           <Button
             type="button"
             onClick={onNext}
-            className="h-13 flex-1 rounded-[17px] bg-zinc-950 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-black dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+            className="h-13 flex-1 rounded-[17px] bg-foreground text-[10px] font-black uppercase tracking-[0.2em] text-background hover:bg-foreground/90"
           >
             {isLast ? "Começar a usar" : "Próximo"}
             {!isLast ? <ChevronRight className="ml-2 h-4 w-4" /> : <Sparkles className="ml-2 h-4 w-4" />}
@@ -198,18 +206,30 @@ const DesktopTourCard = ({
   );
 };
 
-export const DesktopAppTour = ({ open, onComplete }: DesktopAppTourProps) => {
+export const DesktopAppTour = ({ open, onComplete, onClose }: DesktopAppTourProps) => {
   const [active, setActive] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const [targetMissing, setTargetMissing] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const reducedMotion = useReducedMotion();
+  const { theme } = useTheme();
 
   const step = DESKTOP_TOUR_STEPS[currentIndex];
   const isLast = currentIndex === DESKTOP_TOUR_STEPS.length - 1;
   const isModal = step?.layout === "modal" || !step?.targetSelector;
+  const isDarkTheme = theme === "dark";
+  const overlayFill = overlayFillForTheme(isDarkTheme, isModal);
+  const { rect, targetMissing, viewport } = useTourSpotlight({
+    open,
+    active,
+    isModal,
+    step,
+    reducedMotion: Boolean(reducedMotion),
+    missingAfter: 8,
+    retryDelay: 460,
+    scrollBlock: "center",
+    scrollInline: "center",
+  });
 
   const goToStep = useCallback(
     (index: number) => {
@@ -247,7 +267,6 @@ export const DesktopAppTour = ({ open, onComplete }: DesktopAppTourProps) => {
     if (!open) {
       setActive(false);
       setCurrentIndex(0);
-      setRect(null);
       return;
     }
     const timer = window.setTimeout(() => setActive(true), 80);
@@ -258,61 +277,6 @@ export const DesktopAppTour = ({ open, onComplete }: DesktopAppTourProps) => {
     if (!open || !step?.expectedRoute || location.pathname === step.expectedRoute) return;
     navigate(step.expectedRoute, { replace: false });
   }, [location.pathname, navigate, open, step]);
-
-  useLayoutEffect(() => {
-    if (!open || !active || isModal || !step?.targetSelector) {
-      setRect(null);
-      setTargetMissing(false);
-      return;
-    }
-
-    let resizeObserver: ResizeObserver | null = null;
-    let observedElement: Element | null = null;
-    let attempts = 0;
-
-    const sync = () => {
-      const target = document.querySelector(step.targetSelector!);
-      if (!target) {
-        attempts += 1;
-        setRect(null);
-        setTargetMissing(attempts > 8);
-        return;
-      }
-
-      attempts = 0;
-      setTargetMissing(false);
-      const nextRect = target.getBoundingClientRect();
-      setRect(nextRect);
-      target.scrollIntoView({
-        behavior: reducedMotion ? "auto" : "smooth",
-        block: "center",
-        inline: "center",
-      });
-
-      if (observedElement !== target) {
-        resizeObserver?.disconnect();
-        observedElement = target;
-        resizeObserver = new ResizeObserver(sync);
-        resizeObserver.observe(target);
-      }
-    };
-
-    const initialTimer = window.setTimeout(sync, 180);
-    const retryTimer = window.setInterval(sync, 420);
-    const mutationObserver = new MutationObserver(sync);
-    mutationObserver.observe(document.body, { childList: true, subtree: true, attributes: true });
-    window.addEventListener("resize", sync);
-    window.addEventListener("scroll", sync, true);
-
-    return () => {
-      window.clearTimeout(initialTimer);
-      window.clearInterval(retryTimer);
-      mutationObserver.disconnect();
-      resizeObserver?.disconnect();
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("scroll", sync, true);
-    };
-  }, [active, currentIndex, isModal, location.pathname, open, reducedMotion, step]);
 
   useEffect(() => {
     if (!open || !active) return;
@@ -327,17 +291,16 @@ export const DesktopAppTour = ({ open, onComplete }: DesktopAppTourProps) => {
       }
       if (event.key === "Escape") {
         event.preventDefault();
-        onComplete();
+        onClose();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [active, back, next, onComplete, open]);
+  }, [active, back, next, onClose, open]);
 
   const overlayPath = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const width = viewport.width;
+    const height = viewport.height;
     const full = `M 0 0 H ${width} V ${height} H 0 Z`;
     if (!rect || isModal) return full;
 
@@ -348,7 +311,7 @@ export const DesktopAppTour = ({ open, onComplete }: DesktopAppTourProps) => {
     const radius = 18;
     const hole = `M ${x + radius} ${y} H ${x + w - radius} A ${radius} ${radius} 0 0 1 ${x + w} ${y + radius} V ${y + h - radius} A ${radius} ${radius} 0 0 1 ${x + w - radius} ${y + h} H ${x + radius} A ${radius} ${radius} 0 0 1 ${x} ${y + h - radius} V ${y + radius} A ${radius} ${radius} 0 0 1 ${x + radius} ${y} Z`;
     return `${full} ${hole}`;
-  }, [isModal, rect]);
+  }, [isModal, rect, viewport]);
 
   if (!open || !active || !step) return null;
 
@@ -367,7 +330,7 @@ export const DesktopAppTour = ({ open, onComplete }: DesktopAppTourProps) => {
       <svg className="absolute inset-0 h-full w-full" aria-hidden="true">
         <motion.path
           initial={reducedMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1, fill: "rgba(0,0,0,0.84)" }}
+          animate={{ opacity: 1, fill: overlayFill }}
           d={overlayPath}
           fillRule="evenodd"
           transition={{ duration: reducedMotion ? 0 : 0.25 }}
@@ -376,7 +339,12 @@ export const DesktopAppTour = ({ open, onComplete }: DesktopAppTourProps) => {
 
       {rect && !isModal ? (
         <motion.div
-          className="pointer-events-none fixed z-[10051] rounded-[20px] ring-2 ring-white/70 shadow-[0_0_0_6px_rgba(255,255,255,0.08),0_0_42px_rgba(255,255,255,0.2)]"
+          className={cn(
+            "pointer-events-none fixed z-[10051] rounded-[20px] ring-2",
+            isDarkTheme
+              ? "ring-white/70 shadow-[0_0_0_6px_rgba(255,255,255,0.08),0_0_42px_rgba(255,255,255,0.2)]"
+              : "ring-zinc-950/70 shadow-[0_0_0_6px_rgba(0,0,0,0.055),0_0_42px_rgba(0,0,0,0.16)]",
+          )}
           animate={{
             left: rect.left - TARGET_PADDING,
             top: rect.top - TARGET_PADDING,
@@ -395,7 +363,7 @@ export const DesktopAppTour = ({ open, onComplete }: DesktopAppTourProps) => {
             total={DESKTOP_TOUR_STEPS.length}
             onBack={back}
             onNext={next}
-            onClose={onComplete}
+            onClose={onClose}
             isLast={isLast}
             targetMissing={targetMissing}
           />

@@ -13,6 +13,10 @@ interface SubscriptionContextValue {
     features: PlanFeatures;
     isLoading: boolean;
     isDevAccount: boolean;
+    isTrial: boolean;
+    isTrialExpired: boolean;
+    trialEndsAt?: Date;
+    daysUntilTrialEnds?: number;
     canAccess: (feature: FeatureKey) => boolean;
     canAddPatient: (currentPatientCount: number) => boolean;
     refreshSubscription: () => void;
@@ -43,6 +47,10 @@ export const SubscriptionProvider = ({ children }: SubscriptionProviderProps) =>
         },
         isLoading,
         isDevAccount: data?.isDevAccount || false,
+        isTrial: data?.isTrial || false,
+        isTrialExpired: data?.isTrialExpired || false,
+        trialEndsAt: data?.trialEndsAt,
+        daysUntilTrialEnds: data?.daysUntilTrialEnds,
         canAccess,
         canAddPatient,
         refreshSubscription: refetch,
