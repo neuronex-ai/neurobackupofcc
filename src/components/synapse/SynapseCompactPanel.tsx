@@ -816,19 +816,20 @@ export const SynapseCompactPanel = () => {
                                                             <>
                                                                 {cleanContent ? (
                                                                     <ReactMarkdown
-                                                                        remarkPlugins={[remarkGfm as any]}
+                                                                        remarkPlugins={[remarkGfm]}
                                                                         components={{
-                                                                            pre({ children, ...props }: any) {
+                                                                            pre({ children, ...props }: MarkdownPreProps) {
                                                                                 const childArray = React.Children.toArray(children);
-                                                                                const isWidget = childArray.some((child: any) => {
-                                                                                    return child?.props?.className?.includes('language-json') && String(child?.props?.children).includes('__actionType');
+                                                                                const isWidget = childArray.some((child) => {
+                                                                                    if (!React.isValidElement<{ className?: string; children?: React.ReactNode }>(child)) return false;
+                                                                                    return child.props.className?.includes('language-json') && String(child.props.children).includes('__actionType');
                                                                                 });
                                                                                 if (isWidget) {
                                                                                     return <div className="not-prose">{children}</div>;
                                                                                 }
                                                                                 return <pre {...props}>{children}</pre>;
                                                                             },
-                                                                            code({ node, inline, className, children, ...props }: any) {
+                                                                            code({ inline, className, children, ...props }: MarkdownCodeProps) {
                                                                                 const match = /language-(\w+)/.exec(className || '');
                                                                                 if (!inline && match && match[1] === 'json' && String(children).includes('__actionType')) {
                                                                                     try {
