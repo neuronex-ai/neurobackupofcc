@@ -272,9 +272,27 @@ class SynapseVoiceSession {
         headers: { Authorization: `Token ${process.env.DEEPGRAM_API_KEY}` },
       });
       this.deepgram = ws;
+      let settled = false;
+
+      const settleReady = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(failTimer);
+        this.settingsApplied = true;
+        this.startKeepAlive();
+        resolve();
+      };
+
+      const settleFailure = (error) => {
+        if (settled) return false;
+        settled = true;
+        clearTimeout(failTimer);
+        reject(error);
+        return true;
+      };
 
       const failTimer = setTimeout(() => {
-        reject(new Error("Timeout ao conectar na Deepgram."));
+        if (!settleFailure(new Error("Timeout ao conectar na Deepgram."))) return;
         this.closeDeepgram();
       }, 12000);
 
@@ -292,15 +310,11 @@ class SynapseVoiceSession {
         if (!event) return;
         this.handleDeepgramEvent(event, settings);
 
-        if (event.type === "SettingsApplied" && !this.settingsApplied) {
-          this.settingsApplied = true;
-          clearTimeout(failTimer);
-          this.startKeepAlive();
-          resolve();
-        }
+        if (event.type === "SettingsApplied") settleReady();
       });
 
       ws.on("close", (code, reason) => {
+        const wasSettled = settled;
         clearTimeout(failTimer);
         this.deepgramReady = false;
         this.settingsApplied = false;
@@ -310,15 +324,18 @@ class SynapseVoiceSession {
           code,
           reason: reason?.toString?.() || "",
         });
+        if (!wasSettled) {
+          const detail = reason?.toString?.() || `codigo ${code}`;
+          settleFailure(new Error(`Conexao com a Deepgram encerrada antes de ficar pronta (${detail}).`));
+        }
       });
 
       ws.on("error", (error) => {
-        clearTimeout(failTimer);
         this.sendClient({
           type: "gateway_error",
           error: clean(error?.message || "Erro no WebSocket da Deepgram.", 800),
         });
-        reject(error);
+        settleFailure(error);
       });
     });
   }
@@ -432,7 +449,7 @@ class SynapseVoiceSession {
   startKeepAlive() {
     clearInterval(this.keepAliveTimer);
     this.keepAliveTimer = setInterval(() => {
-      this.sendDeepgram({ type: "AgentKeepAlive" });
+      this.sendDeepgram({ type: "KeepAlive" });
     }, 8000);
   }
 
