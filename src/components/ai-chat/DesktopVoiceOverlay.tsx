@@ -66,7 +66,7 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
   });
 
   const error = friendlyError(runtimeError || voiceConfigError);
-  const isBusy = isStarting || voiceConfigLoading || isProcessing;
+  const isBlockingBusy = isStarting || voiceConfigLoading || (isProcessing && !isToolActive);
 
   const beginSession = useCallback(async () => {
     if (isConnected || isStarting) return;
@@ -122,13 +122,21 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
       setDisplayText(error);
       return;
     }
-    if (isSpeaking && lastResponse) return;
-    if (isListening && !isSpeaking && !isProcessing) {
-      setDisplayText("Ouvindo você...");
+    if (isStarting || voiceConfigLoading) {
+      setDisplayText("Preparando a conversa...");
       return;
     }
-    if (isProcessing || isStarting || voiceConfigLoading) {
+    if (isSpeaking && lastResponse) return;
+    if (isToolActive) {
+      setDisplayText(activeToolMessage || (activeToolLabel ? `Consultando ${activeToolLabel}...` : "Consultando no sistema..."));
+      return;
+    }
+    if (isProcessing) {
       setDisplayText("Pensando...");
+      return;
+    }
+    if (isListening && !isSpeaking) {
+      setDisplayText("Ouvindo você...");
       return;
     }
     if (isConnected) {
@@ -136,7 +144,7 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
       return;
     }
     setDisplayText("Toque para iniciar o Synapse por voz.");
-  }, [error, isConnected, isListening, isProcessing, isSpeaking, isStarting, lastResponse, voiceConfigLoading]);
+  }, [activeToolLabel, activeToolMessage, error, isConnected, isListening, isProcessing, isSpeaking, isStarting, isToolActive, lastResponse, voiceConfigLoading]);
 
   const handleClose = useCallback(() => {
     endSession();
@@ -163,13 +171,15 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
     ? { label: "Requer atenção", tone: "danger" }
     : isSpeaking
       ? { label: "Respondendo", tone: "active" }
-      : isListening
-        ? { label: "Ouvindo", tone: "success" }
-        : isBusy
+      : isToolActive
+        ? { label: "Consultando", tone: "active" }
+        : isBlockingBusy
           ? { label: "Pensando", tone: "neutral" }
-          : isConnected
-            ? { label: "Conectado", tone: "neutral" }
-            : { label: "Synapse voz", tone: "neutral" };
+          : isListening
+            ? { label: "Ouvindo", tone: "success" }
+            : isConnected
+              ? { label: "Conectado", tone: "neutral" }
+              : { label: "Synapse voz", tone: "neutral" };
 
   return (
     <AnimatePresence>
@@ -194,6 +204,8 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
               style={{
                 filter: isSpeaking
                   ? "hue-rotate(-16deg) brightness(1.18)"
+                  : isToolActive
+                    ? "hue-rotate(12deg) brightness(1.02)"
                   : isListening
                     ? "brightness(1.1)"
                     : error
@@ -205,14 +217,14 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
               <VoiceSpiral
                 totalDots={760}
                 dotRadius={2.4}
-                duration={isSpeaking ? 1.45 : isProcessing ? 2 : 3}
+                duration={isSpeaking ? 1.45 : isToolActive ? 2.15 : isProcessing ? 2 : 3}
                 minOpacity={0.12}
-                maxOpacity={isListening || isSpeaking ? 1 : 0.62}
+                maxOpacity={isListening || isSpeaking ? 1 : isToolActive ? 0.82 : 0.62}
                 minScale={0.3}
-                maxScale={isListening ? 2.35 : isSpeaking ? 1.9 : 1.35}
+                maxScale={isListening ? 2.35 : isSpeaking ? 1.9 : isToolActive ? 1.55 : 1.35}
                 getAudioVolume={getAudioVolume}
                 isListening={isListening}
-                isProcessing={isProcessing || isSpeaking}
+                isProcessing={isProcessing || isSpeaking || isToolActive}
                 useMultipleColors
                 colors={isSpeaking ? ["#f8fafc", "#c4b5fd", "#8b5cf6"] : ["#e5e7eb", "#a5b4fc", "#6366f1"]}
               />
@@ -249,7 +261,7 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
                 variant="ghost"
                 size="icon"
                 onClick={handleReset}
-                disabled={isBusy}
+                disabled={isStarting || voiceConfigLoading}
                 className="h-[clamp(3rem,7vh,3.5rem)] w-[clamp(3rem,7vh,3.5rem)] rounded-full border border-black/10 bg-white/50 text-zinc-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-2xl transition hover:bg-white/80 hover:text-zinc-950 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.07] dark:text-white/55 dark:hover:bg-white/12 dark:hover:text-white"
                 title="Reiniciar conversa"
               >
@@ -258,7 +270,7 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
 
               <Button
                 onClick={handleMainAction}
-                disabled={isBusy}
+                disabled={isStarting || voiceConfigLoading}
                 className={cn(
                   "h-[clamp(4rem,10vh,5rem)] w-[clamp(4rem,10vh,5rem)] rounded-full border text-white shadow-[0_24px_64px_-30px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.22)] transition active:scale-95 disabled:opacity-60",
                   error
