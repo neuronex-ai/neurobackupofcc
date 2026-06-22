@@ -205,7 +205,7 @@ export function useDeepgramAgentVoice({
       startedAt,
       elapsedMs,
     };
-  }, [applyRestingPhase]);
+  }, []);
 
   const applyRestingPhase = useCallback(() => {
     const tool = activeToolRef.current;
@@ -222,7 +222,7 @@ export function useDeepgramAgentVoice({
     } else {
       setVoicePhase("idle");
     }
-  }, []);
+  }, [applyRestingPhase]);
 
   const stopPlayback = useCallback(() => {
     playerRef.current?.stop();
