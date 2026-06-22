@@ -69,6 +69,10 @@ interface SynapseContextType {
     // Voice Integration
     voiceStatus: 'disconnected' | 'connecting' | 'connected' | 'disconnecting' | 'error';
     isVoiceSpeaking: boolean;
+    voicePhase: string;
+    isVoiceToolActive: boolean;
+    voiceActivityLabel: string;
+    voiceActivityMessage: string;
     getVoiceInputVolume: () => number;
     toggleVoiceMode: () => Promise<void>;
     isVoiceExpanded: boolean;
@@ -270,6 +274,27 @@ export const SynapseProvider = ({ children }: { children: ReactNode }) => {
         },
     });
 
+    useEffect(() => {
+        if (activeTab !== 'voice') return;
+        if (geminiLive.status === 'error') {
+            setExecState('error');
+            return;
+        }
+        if (geminiLive.isToolActive) {
+            setExecState('executing');
+            return;
+        }
+        if (geminiLive.status === 'connecting') {
+            setExecState('thinking');
+            return;
+        }
+        if (geminiLive.status === 'connected') {
+            setExecState(geminiLive.isSpeaking ? 'thinking' : 'listening');
+            return;
+        }
+        setExecState('idle');
+    }, [activeTab, geminiLive.isSpeaking, geminiLive.isToolActive, geminiLive.status]);
+
     const buildClientTools = useCallback(() => {
         const accessToken = session?.access_token;
         if (!accessToken) return {};
@@ -346,6 +371,10 @@ export const SynapseProvider = ({ children }: { children: ReactNode }) => {
                 isVisible,
                 voiceStatus: geminiLive.status,
                 isVoiceSpeaking: geminiLive.isSpeaking,
+                voicePhase: String(geminiLive.voicePhase || geminiLive.status),
+                isVoiceToolActive: geminiLive.isToolActive,
+                voiceActivityLabel: geminiLive.activeToolLabel,
+                voiceActivityMessage: geminiLive.activeToolMessage,
                 getVoiceInputVolume: geminiLive.getInputVolume,
                 toggleVoiceMode,
                 isVoiceExpanded,

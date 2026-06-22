@@ -302,6 +302,8 @@ export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProp
                     ? "border-rose-500/25 bg-rose-500/10 text-rose-500"
                     : status.tone === "success"
                       ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+                      : status.tone === "active"
+                        ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-500 dark:text-indigo-300"
                       : "border-black/10 bg-white/42 text-zinc-600 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/55",
                 )}
               >

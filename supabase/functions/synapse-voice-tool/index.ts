@@ -136,13 +136,53 @@ async function saveMessage(
 }
 
 function functionContent(payload: Record<string, unknown>) {
-  return JSON.stringify(payload);
+  return JSON.stringify(normalizeFunctionPayload(payload));
 }
 
 function humanToolLabel(name: string, args: Record<string, any>) {
   const patient = clean(args.patient_name || args.patientName, 120);
   if (patient) return `${name} para ${patient}`;
   return name.replace(/_/g, " ");
+}
+
+function isRetryableError(value: unknown) {
+  const text = clean(value, 1200).toLowerCase();
+  if (!text) return false;
+  if (/confirm|confirmacao|confirmação|pendente|ambig|mais de um|nao encontrei|não encontrei|informe|diga|obrigatori|valid/.test(text)) {
+    return false;
+  }
+  return /timeout|temporar|instavel|instável|indisponivel|indisponível|network|fetch|socket|5\d\d|rate limit|too many|gateway|asaas/.test(text);
+}
+
+function needsClarification(value: unknown) {
+  const text = clean(value, 1200).toLowerCase();
+  return /qual|informe|diga|preciso|mais de um|ambig|nao encontrei|não encontrei|selecione|confirme/.test(text);
+}
+
+function normalizeFunctionPayload(payload: Record<string, unknown>) {
+  const ok = payload.ok === undefined ? !payload.error : Boolean(payload.ok);
+  const rawMessage = clean(payload.spoken_summary || payload.message || payload.error, 1400);
+  const spoken = rawMessage || (ok ? "Consulta concluida." : "Nao consegui concluir essa acao agora.");
+  const confirmationRequired = Boolean(payload.confirmation_required ?? payload.confirmationRequired);
+  const retryable = Boolean(payload.retryable ?? (!ok && isRetryableError(payload.error || spoken)));
+
+  return {
+    ok,
+    tool: clean(payload.tool, 120) || undefined,
+    label: clean(payload.label, 180) || undefined,
+    spoken_summary: spoken,
+    message: spoken,
+    retryable,
+    needs_clarification: Boolean(payload.needs_clarification ?? (!ok && !retryable && needsClarification(spoken))),
+    confirmation_required: confirmationRequired,
+    confirmationRequired,
+    cancelled: Boolean(payload.cancelled),
+    data: ok ? payload.data ?? null : null,
+    error: ok ? null : clean(payload.error || spoken, 1400),
+    grounded: Boolean(payload.grounded),
+    recordCount: Number(payload.recordCount || 0),
+    structuredData: payload.structuredData || null,
+  };
 }
 
 async function authenticate(request: Request) {
@@ -215,7 +255,12 @@ serve(async (request) => {
       if (!pending) {
         return json({
           ok: true,
-          content: functionContent({ ok: true, cancelled: false, message: "Nao havia acao pendente para cancelar." }),
+          content: functionContent({
+            ok: true,
+            tool: "cancel_pending_action",
+            cancelled: false,
+            message: "Nao havia acao pendente para cancelar.",
+          }),
         });
       }
       await updatePending(auth.admin, pending, "cancelled");
@@ -227,14 +272,28 @@ serve(async (request) => {
         toolsUsed: ["cancel_pending_action"],
         generatedAt: new Date().toISOString(),
       }]);
-      return json({ ok: true, content: functionContent({ ok: true, cancelled: true, message }) });
+      return json({
+        ok: true,
+        content: functionContent({
+          ok: true,
+          tool: "cancel_pending_action",
+          cancelled: true,
+          message,
+        }),
+      });
     }
 
     if (action === "confirm_pending_action" || clean(body.name, 120) === "confirm_pending_action") {
       if (!pending) {
         return json({
           ok: true,
-          content: functionContent({ ok: false, message: "Nao ha nenhuma acao pendente para confirmar." }),
+          content: functionContent({
+            ok: false,
+            tool: "confirm_pending_action",
+            message: "Nao ha nenhuma acao pendente para confirmar.",
+            needs_clarification: false,
+            retryable: false,
+          }),
         });
       }
       await updatePending(auth.admin, pending, "executing");
@@ -258,8 +317,12 @@ serve(async (request) => {
         ok: true,
         content: functionContent({
           ok: result.ok,
+          tool: pending.action.toolName,
+          label: humanToolLabel(pending.action.toolName, pending.action.arguments),
           message,
           data: result.data || null,
+          error: result.ok ? null : result.error || message,
+          retryable: !result.ok && isRetryableError(result.error || message),
           structuredData: result.structuredData || null,
         }),
         clientAction: result.clientAction || null,
@@ -270,23 +333,16 @@ serve(async (request) => {
     const args = parseArgs(body.arguments || body.args);
     if (!name) return json({ error: "Ferramenta ausente." }, 400);
 
-    if (name === "synapse_progress_feedback") {
-      const task = clean(args.task_label, 160) || "essa consulta";
-      const patient = clean(args.patient_name, 120);
-      const message = patient
-        ? `Vou verificar ${task} de ${patient}.`
-        : `Vou verificar ${task}.`;
-      return json({ ok: true, content: functionContent({ ok: true, message }) });
-    }
-
     const loadedContext = await loadConversationContext(auth.admin, auth.user.id, sessionId);
     const execution = await executeAgentToolV3(name, args, toolContext, loadedContext.state);
     await saveConversationContext(auth.admin, auth.user.id, sessionId, execution.state);
 
     const result = execution.result;
+    let toolMessage = result.message || result.error || null;
     if (result.pendingAction) {
       const pendingAction = result.pendingAction as PendingAction;
       const message = `Antes de executar, preciso da sua confirmacao: ${pendingAction.summary}.`;
+      toolMessage = message;
       await saveMessage(auth.admin, auth.user.id, sessionId, "assistant", message, [
         pendingAction,
         {
@@ -305,11 +361,14 @@ serve(async (request) => {
         ok: result.ok,
         tool: name,
         label: humanToolLabel(name, execution.resolvedArgs),
-        message: result.message || result.error || null,
+        message: toolMessage,
         data: result.ok ? result.data || null : null,
         error: result.ok ? null : result.error || "Falha ao consultar o sistema.",
+        retryable: !result.ok && isRetryableError(result.error || toolMessage),
+        needs_clarification: !result.ok && needsClarification(result.error || toolMessage),
         grounded: result.grounded,
         recordCount: result.recordCount || 0,
+        confirmation_required: Boolean(result.pendingAction),
         confirmationRequired: Boolean(result.pendingAction),
         structuredData: result.structuredData || null,
       }),

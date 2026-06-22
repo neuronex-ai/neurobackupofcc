@@ -97,10 +97,25 @@ export function useGeminiVoice(options: UseGeminiVoiceOptions) {
     return deepgram.provider;
   }, [cascade.provider, deepgram.provider, shouldUseDeepgram]);
 
+  const voicePhase = "voicePhase" in active ? active.voicePhase : active.isConnected ? "listening" : "idle";
+  const activeTool = "activeTool" in active ? active.activeTool : null;
+  const activeToolLabel = "activeToolLabel" in active ? active.activeToolLabel : "";
+  const activeToolMessage = "activeToolMessage" in active ? active.activeToolMessage : "";
+  const activeToolElapsedMs = "activeToolElapsedMs" in active ? active.activeToolElapsedMs : 0;
+  const isToolActive = "isToolActive" in active ? active.isToolActive : false;
+  const lastFunctionStatus = "lastFunctionStatus" in active ? active.lastFunctionStatus : null;
+
   return {
     ...active,
     startSession,
     endSession,
     provider,
+    voicePhase,
+    activeTool,
+    activeToolLabel,
+    activeToolMessage,
+    activeToolElapsedMs,
+    isToolActive,
+    lastFunctionStatus,
   };
 }

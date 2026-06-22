@@ -416,6 +416,9 @@ export function MobileSynapseVoicePanel({
   isListening,
   isProcessing,
   isSpeaking,
+  isToolActive = false,
+  activeToolLabel = "",
+  activeToolMessage = "",
   lastResponse,
   error,
   onToggleRecording,
@@ -425,6 +428,9 @@ export function MobileSynapseVoicePanel({
   isListening: boolean;
   isProcessing: boolean;
   isSpeaking: boolean;
+  isToolActive?: boolean;
+  activeToolLabel?: string;
+  activeToolMessage?: string;
   lastResponse: string;
   error?: string | null;
   onToggleRecording: () => void;
@@ -434,15 +440,18 @@ export function MobileSynapseVoicePanel({
     ? "Requer atenção"
     : isSpeaking
       ? "Respondendo"
-      : isProcessing
-        ? "Pensando"
-        : isListening
+      : isToolActive
+        ? "Consultando"
+        : isProcessing
+          ? "Pensando"
+          : isListening
           ? "Ouvindo"
           : isConnected
             ? "Pausado"
             : "Synapse voz";
 
   const description = error
+    || (isToolActive ? activeToolMessage || (activeToolLabel ? `Consultando ${activeToolLabel}...` : "Consultando no sistema...") : "")
     || lastResponse
     || (isConnected
       ? "Fale naturalmente. O Synapse pausa a escuta enquanto responde."
@@ -461,6 +470,8 @@ export function MobileSynapseVoicePanel({
           style={{
             filter: isSpeaking
               ? "hue-rotate(-16deg) brightness(1.18)"
+              : isToolActive
+                ? "hue-rotate(12deg) brightness(1.02)"
               : isListening
                 ? "brightness(1.08)"
                 : "brightness(0.84)",
@@ -469,13 +480,13 @@ export function MobileSynapseVoicePanel({
           <VoiceSpiral
             totalDots={620}
             dotRadius={2.35}
-            duration={isSpeaking ? 1.45 : isProcessing ? 2 : 3}
+            duration={isSpeaking ? 1.45 : isToolActive ? 2.15 : isProcessing ? 2 : 3}
             minOpacity={0.12}
-            maxOpacity={isListening || isSpeaking ? 1 : 0.64}
+            maxOpacity={isListening || isSpeaking ? 1 : isToolActive ? 0.82 : 0.64}
             minScale={0.3}
-            maxScale={isListening ? 2.2 : isSpeaking ? 1.85 : 1.35}
+            maxScale={isListening ? 2.2 : isSpeaking ? 1.85 : isToolActive ? 1.55 : 1.35}
             isListening={isListening}
-            isProcessing={isProcessing || isSpeaking}
+            isProcessing={isProcessing || isSpeaking || isToolActive}
             useMultipleColors
             colors={isSpeaking ? ["#f8fafc", "#c4b5fd", "#8b5cf6"] : ["#e5e7eb", "#a5b4fc", "#6366f1"]}
           />
@@ -487,6 +498,8 @@ export function MobileSynapseVoicePanel({
               "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[9px] font-black uppercase tracking-[0.16em] backdrop-blur-2xl",
               error
                 ? "border-rose-500/25 bg-rose-500/10 text-rose-500"
+                : isToolActive
+                  ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300"
                 : isListening
                   ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
                   : "border-border/45 bg-card/55 text-muted-foreground dark:border-white/10 dark:bg-white/[0.055]",
@@ -517,7 +530,7 @@ export function MobileSynapseVoicePanel({
         <button
           type="button"
           onClick={onReset}
-          disabled={isProcessing}
+          disabled={isProcessing && !isToolActive}
           className="flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200/75 bg-white/82 text-zinc-500 shadow-sm backdrop-blur-xl transition active:scale-95 disabled:opacity-45 dark:border-white/10 dark:bg-white/[0.06] dark:text-white/55"
           aria-label="Reiniciar conversa"
         >
@@ -527,7 +540,7 @@ export function MobileSynapseVoicePanel({
         <button
           type="button"
           onClick={onToggleRecording}
-          disabled={isProcessing}
+          disabled={isProcessing && !isToolActive}
           className={cn(
             "flex h-[4.6rem] w-[4.6rem] items-center justify-center rounded-full border text-white shadow-[0_22px_62px_-28px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.2)] transition active:scale-95 disabled:opacity-60",
             error
@@ -536,7 +549,7 @@ export function MobileSynapseVoicePanel({
           )}
           aria-label={isListening ? "Pausar microfone" : "Ativar microfone"}
         >
-          {isProcessing ? (
+          {isProcessing && !isToolActive ? (
             <Loader2 className="h-7 w-7 animate-spin" />
           ) : isListening ? (
             <MicOff className="h-7 w-7" />

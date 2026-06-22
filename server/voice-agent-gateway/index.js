@@ -123,6 +123,7 @@ function buildLocalAgentSettings(payload) {
           type: "deepgram",
           version: "v2",
           model: process.env.DEEPGRAM_LISTEN_MODEL || "flux-general-multi",
+          language: process.env.DEEPGRAM_LISTEN_LANGUAGE || "pt-BR",
           language_hints: ["pt-BR"],
           eot_threshold: Number(process.env.DEEPGRAM_EOT_THRESHOLD || "0.78"),
           eager_eot_threshold: Number(process.env.DEEPGRAM_EAGER_EOT_THRESHOLD || "0.52"),

@@ -139,6 +139,9 @@ export const SynapseCompactPanel = () => {
         setExecState,
         voiceStatus,
         isVoiceSpeaking,
+        isVoiceToolActive,
+        voiceActivityLabel,
+        voiceActivityMessage,
         getVoiceInputVolume,
         toggleVoiceMode,
         setActiveSessionId,
@@ -324,6 +327,19 @@ export const SynapseCompactPanel = () => {
             setActiveTab('voice');
         }
     };
+
+    const voiceModeLabel = isVoiceToolActive
+        ? 'Consultando no sistema'
+        : isVoiceSpeaking
+            ? 'Respondendo'
+            : voiceStatus === 'connected'
+                ? 'Modo de Voz Ativo'
+                : 'Conectando...';
+    const voiceModeDescription = isVoiceToolActive
+        ? voiceActivityMessage || (voiceActivityLabel ? `Executando ${voiceActivityLabel}. Voce ainda pode interromper ou complementar por voz.` : 'Executando a solicitacao no sistema. Voce ainda pode interromper ou complementar por voz.')
+        : voiceStatus === 'connected'
+            ? 'O Synapse esta ouvindo em tempo real. Fale naturalmente para realizar acoes ou tirar duvidas.'
+            : 'Preparando conexao de voz em tempo real.';
 
     return (
         <>
@@ -664,18 +680,18 @@ export const SynapseCompactPanel = () => {
                                     <div className="relative w-56 h-56 flex items-center justify-center bg-black/[0.03] dark:bg-white/[0.02] rounded-full shadow-inner border border-black/[0.05] dark:border-white/[0.05]">
                                         <VoiceSpiral
                                             getAudioVolume={getVoiceInputVolume}
-                                            isListening={voiceStatus === 'connected' && !isVoiceSpeaking}
-                                            isProcessing={voiceStatus === 'connecting'}
+                                            isListening={voiceStatus === 'connected' && !isVoiceSpeaking && !isVoiceToolActive}
+                                            isProcessing={voiceStatus === 'connecting' || isVoiceToolActive}
                                             className="rounded-full overflow-hidden opacity-90 dark:opacity-100 mix-blend-multiply dark:mix-blend-screen"
                                         />
                                     </div>
 
                                     <div className="flex flex-col items-center gap-2 text-center">
-                                        <span className={cn("text-sm uppercase tracking-[0.2em] font-black", voiceStatus === 'connected' ? 'text-indigo-500' : 'text-zinc-400 animate-pulse')}>
-                                            {voiceStatus === 'connected' ? 'Modo de Voz Ativo' : 'Conectando...'}
+                                        <span className={cn("text-sm uppercase tracking-[0.2em] font-black", voiceStatus === 'connected' || isVoiceToolActive ? 'text-indigo-500' : 'text-zinc-400 animate-pulse')}>
+                                            {voiceModeLabel}
                                         </span>
                                         <p className="text-[11px] text-zinc-500 dark:text-zinc-500 max-w-[280px] leading-relaxed">
-                                            O Synapse está ouvindo em tempo real. Fale naturalmente para realizar ações ou tirar dúvidas.
+                                            {voiceModeDescription}
                                         </p>
                                     </div>
 

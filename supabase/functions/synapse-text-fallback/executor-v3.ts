@@ -51,10 +51,12 @@ async function invokeAuthenticatedFunction(
   name: string,
   body: Record<string, unknown>,
 ) {
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
   const response = await fetch(functionUrl(name), {
     method: "POST",
     headers: {
       Authorization: context.authorization,
+      ...(anonKey ? { apikey: anonKey } : {}),
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),

@@ -124,6 +124,9 @@ export const MobileAIChat = () => {
     isListening: isVoiceListening,
     isProcessing: isVoiceProcessing,
     isSpeaking: isVoiceSpeaking,
+    isToolActive: isVoiceToolActive,
+    activeToolLabel: voiceActiveToolLabel,
+    activeToolMessage: voiceActiveToolMessage,
     lastResponse: voiceLastResponse,
     startSession: startVoiceSession,
     endSession: endVoiceSession,
@@ -362,6 +365,9 @@ export const MobileAIChat = () => {
               isListening={isVoiceListening}
               isProcessing={isVoiceProcessing || isVoiceConfigLoading}
               isSpeaking={isVoiceSpeaking}
+              isToolActive={isVoiceToolActive}
+              activeToolLabel={voiceActiveToolLabel}
+              activeToolMessage={voiceActiveToolMessage}
               lastResponse={voiceLastResponse}
               error={voiceRuntimeError || voiceConfigError}
               onToggleRecording={() => void handleVoiceToggle()}

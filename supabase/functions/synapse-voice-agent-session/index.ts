@@ -38,27 +38,28 @@ const toDeepgramFunction = (tool: any) => {
   };
 };
 
+function professionalNameFromProfile(profile: any) {
+  const joined = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
+  return clean(profile?.full_name || joined || profile?.clinic_name || "", 160);
+}
+
+async function loadProfessionalProfile(admin: any, userId: string) {
+  const { data, error } = await admin
+    .from("profiles")
+    .select("first_name,last_name,full_name,clinic_name")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) {
+    console.warn("[synapse-voice-agent-session] profile load failed", error.message);
+    return { professionalName: "" };
+  }
+  return {
+    professionalName: professionalNameFromProfile(data),
+    clinicName: clean(data?.clinic_name, 160),
+  };
+}
+
 const VOICE_ONLY_TOOLS = [
-  {
-    name: "synapse_progress_feedback",
-    description:
-      "Use antes de executar uma consulta ou acao que pode demorar. A ferramenta fala uma frase curta e contextual para manter a conversa viva. Depois dela, chame imediatamente a ferramenta operacional adequada.",
-    parameters: {
-      type: "object",
-      properties: {
-        task_label: {
-          type: "string",
-          description: "Descricao curta da acao em andamento, sem IDs internos.",
-        },
-        patient_name: {
-          type: "string",
-          description: "Nome do paciente, quando a acao envolver uma pessoa.",
-        },
-      },
-      required: ["task_label"],
-      additionalProperties: false,
-    },
-  },
   {
     name: "confirm_pending_action",
     description:
@@ -88,6 +89,7 @@ function buildVoicePrompt(
   state: SynapseConversationState,
   memorySummary: string,
   context: Record<string, unknown>,
+  professionalName: string,
 ) {
   const now = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
@@ -98,11 +100,15 @@ function buildVoicePrompt(
   return [
     "Voce e o Synapse, agente operacional por voz da NeuroNex para psicologos.",
     "Fale em portugues brasileiro natural, curto e humano. Evite listas longas em voz alta.",
+    "Use vocabulario, ritmo e construcoes de portugues brasileiro; evite expressoes de portugues europeu.",
     `Data e hora de Brasilia: ${now}.`,
+    professionalName ? `Profissional conectado: ${professionalName}. Chame pelo primeiro nome quando soar natural, sem repetir em toda fala.` : "",
     "Use ferramentas para qualquer dado real do sistema: pacientes, agenda, prontuarios, financeiro, NeuroFinance, NFS-e, documentos e comunicacoes.",
     "Nunca invente nomes, horarios, valores, saldos, pagamentos, notas fiscais, diagnosticos ou resultado de acoes.",
     "Nunca peca IDs, UUIDs, rotas, nomes de tabelas, JSON ou codigos internos ao profissional.",
-    "Quando for chamar uma ferramenta que consulte ou altere dados, primeiro chame synapse_progress_feedback com uma frase contextual curta. Em seguida, chame a ferramenta operacional correta.",
+    "Quando chamar uma ferramenta, aguarde o FunctionCallResponse real antes de entregar conclusoes. O gateway de voz vai falar os feedbacks de progresso automaticamente enquanto a ferramenta roda.",
+    "Se uma ferramenta retornar retryable=true, voce pode solicitar nova tentativa apenas uma vez ou explicar a oscilacao de forma breve. Se needs_clarification=true, faca uma pergunta curta.",
+    "Se confirmation_required=true, peça confirmacao explicita antes de qualquer acao mutavel.",
     "Se o usuario interromper para cancelar, use cancel_pending_action quando houver acao pendente ou em andamento.",
     "Se o usuario interromper para complementar, incorpore a informacao nova e continue sem cancelar automaticamente.",
     "Acoes que alteram dados, enviam mensagens, criam cobrancas ou emitem NFS-e exigem confirmacao separada antes da execucao final.",
@@ -195,6 +201,7 @@ function buildAgentSettings(
             type: "deepgram",
             version: "v2",
             model: Deno.env.get("DEEPGRAM_LISTEN_MODEL") || "flux-general-multi",
+            language: Deno.env.get("DEEPGRAM_LISTEN_LANGUAGE") || "pt-BR",
             language_hints: ["pt-BR"],
             eot_threshold: Number(Deno.env.get("DEEPGRAM_EOT_THRESHOLD") || "0.78"),
             eager_eot_threshold: Number(Deno.env.get("DEEPGRAM_EAGER_EOT_THRESHOLD") || "0.52"),
@@ -292,8 +299,15 @@ serve(async (request) => {
 
     const sessionId = await ensureVoiceSession(admin, user.id, clean(body.sessionId, 120));
     const loadedContext = await loadConversationContext(admin, user.id, sessionId);
+    const profile = await loadProfessionalProfile(admin, user.id);
     const context = body.context && typeof body.context === "object" ? body.context : {};
-    const prompt = buildVoicePrompt(clean(body.systemInstruction, 1600), loadedContext.state, loadedContext.memorySummary, context);
+    const prompt = buildVoicePrompt(
+      clean(body.systemInstruction, 1600),
+      loadedContext.state,
+      loadedContext.memorySummary,
+      context,
+      profile.professionalName,
+    );
     const { settings, metadata } = buildAgentSettings(prompt, context);
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
