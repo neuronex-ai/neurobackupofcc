@@ -17,8 +17,9 @@ const SYSTEM_INSTRUCTION = `Você é o Synapse por voz. Fale em português brasi
 const friendlyError = (error: string | null) => {
   if (!error) return null;
   if (error.includes("microfone") || error.includes("Microfone")) return error;
-  if (error.includes("Sessão inválida")) return "Sua sessão expirou. Entre novamente para usar o modo voz.";
-  return "Não consegui continuar a conversa por voz. Tente reiniciar a sessão.";
+  if (error.includes("Sessao invalida") || error.includes("Sessão inválida")) return "Sua sessao expirou. Entre novamente para usar o modo voz.";
+  if (/deepgram|gateway|settings|cartesia|websocket|DEEPGRAM_API_KEY/i.test(error)) return error;
+  return "Nao consegui continuar a conversa por voz. Tente reiniciar a sessao.";
 };
 
 export const DesktopVoiceOverlay = ({ isOpen, onClose }: DesktopVoiceOverlayProps) => {

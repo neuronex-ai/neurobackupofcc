@@ -75,11 +75,29 @@ export function useVoiceConfig() {
             return next;
         } catch (caught) {
             const message = caught instanceof Error ? caught.message : 'Nao foi possivel preparar o agente de voz.';
-            setError(message);
-            const fallback = {
+            const gatewayFallback: VoiceConfig = {
+                ...LOCAL_CONFIG,
+                token: null,
+                expiresAt: null,
+                newSessionExpiresAt: null,
+                model: 'gpt-4o-mini',
+                voiceName: 'cartesia-sonic',
+                provider: 'deepgram-agent',
+                gatewayUrl: import.meta.env.VITE_SYNAPSE_VOICE_GATEWAY_URL || 'ws://localhost:8789/v1/synapse/voice',
+            };
+
+            if (import.meta.env.DEV || import.meta.env.VITE_SYNAPSE_VOICE_GATEWAY_URL) {
+                console.warn('[Synapse Voice] Config remota indisponivel; usando gateway local.', message);
+                setError(null);
+                setConfig(gatewayFallback);
+                return gatewayFallback;
+            }
+
+            const fallback: VoiceConfig = {
                 ...LOCAL_CONFIG,
                 provider: 'legacy-cascade',
             };
+            setError(null);
             setConfig(fallback);
             return fallback;
         } finally {

@@ -193,8 +193,8 @@ function buildAgentSettings(
         listen: {
           provider: {
             type: "deepgram",
+            version: "v2",
             model: Deno.env.get("DEEPGRAM_LISTEN_MODEL") || "flux-general-multi",
-            language: "pt-BR",
             language_hints: ["pt-BR"],
             eot_threshold: Number(Deno.env.get("DEEPGRAM_EOT_THRESHOLD") || "0.78"),
             eager_eot_threshold: Number(Deno.env.get("DEEPGRAM_EAGER_EOT_THRESHOLD") || "0.52"),

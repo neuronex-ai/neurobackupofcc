@@ -1,11 +1,34 @@
 import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import { VoiceFunctionRunner } from "./function-runner.js";
 import { isAssistantRole, isUserRole } from "./intent.js";
 
+function loadLocalEnv() {
+  for (const file of [".env.local", ".env"]) {
+    const fullPath = path.resolve(process.cwd(), file);
+    if (!fs.existsSync(fullPath)) continue;
+    const lines = fs.readFileSync(fullPath, "utf8").split(/\r?\n/);
+    for (const line of lines) {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)\s*$/);
+      if (!match || process.env[match[1]] !== undefined) continue;
+      let value = match[2].trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      process.env[match[1]] = value;
+    }
+  }
+}
+
+loadLocalEnv();
+
 const PORT = Number(process.env.SYNAPSE_VOICE_GATEWAY_PORT || process.env.PORT || "8789");
 const PATHNAME = process.env.SYNAPSE_VOICE_GATEWAY_PATH || "/v1/synapse/voice";
 const DEFAULT_DEEPGRAM_URL = "wss://agent.deepgram.com/v1/agent/converse";
+const DEFAULT_SUPABASE_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyZXdkYWtsY3l6cWZ4a2tndnFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4NjA3NDMsImV4cCI6MjA3NzQzNjc0M30.4UF003hI4Cn5denbdsSFPgYiacS_RGNkRQP_9JSOpbI";
 
 const clean = (value, max = 5000) => String(value ?? "").trim().slice(0, max);
 
@@ -15,11 +38,11 @@ function jsonResponse(res, status, payload) {
 }
 
 function getSupabaseUrl() {
-  return process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+  return process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
 }
 
 function getSupabaseAnonKey() {
-  return process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
+  return process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
 }
 
 function getFunctionsUrl() {
@@ -47,6 +70,100 @@ function conversationText(event) {
   const content = clean(event?.content || event?.text || event?.transcript || event?.message, 20000);
   if (!content) return null;
   return { role, content };
+}
+
+function buildLocalSpeakConfig() {
+  const cartesiaVoiceId =
+    process.env.CARTESIA_VOICE_ID ||
+    process.env.DEEPGRAM_CARTESIA_VOICE_ID ||
+    "a167e0f3-df7e-4d52-a9c3-f949145efdab";
+
+  return {
+    provider: {
+      type: "cartesia",
+      model_id: process.env.CARTESIA_MODEL_ID || "sonic-2",
+      voice: {
+        mode: "id",
+        id: cartesiaVoiceId,
+      },
+      speed: process.env.CARTESIA_SPEED || "normal",
+    },
+  };
+}
+
+function buildLocalAgentSettings(payload) {
+  const prompt = [
+    "Voce e o Synapse, agente de voz da NeuroNex para psicologos.",
+    "Fale em portugues brasileiro natural, curto e humano.",
+    "Use frases breves, nao leia rotas, IDs, JSON, SQL, nomes de tabelas ou detalhes internos.",
+    "Quando precisar consultar algo, diga uma frase curta de progresso antes de continuar.",
+    clean(payload.systemInstruction, 1600),
+  ].filter(Boolean).join("\n\n");
+
+  return {
+    type: "Settings",
+    tags: ["neuronex", "synapse", "voice", "pt-BR", "local-gateway"],
+    flags: { history: true },
+    audio: {
+      input: {
+        encoding: "linear16",
+        sample_rate: Number(process.env.SYNAPSE_VOICE_INPUT_SAMPLE_RATE || "16000"),
+      },
+      output: {
+        encoding: "linear16",
+        sample_rate: Number(process.env.SYNAPSE_VOICE_OUTPUT_SAMPLE_RATE || "24000"),
+        container: "none",
+      },
+    },
+    agent: {
+      listen: {
+        provider: {
+          type: "deepgram",
+          version: "v2",
+          model: process.env.DEEPGRAM_LISTEN_MODEL || "flux-general-multi",
+          language_hints: ["pt-BR"],
+          eot_threshold: Number(process.env.DEEPGRAM_EOT_THRESHOLD || "0.78"),
+          eager_eot_threshold: Number(process.env.DEEPGRAM_EAGER_EOT_THRESHOLD || "0.52"),
+          eot_timeout_ms: Number(process.env.DEEPGRAM_EOT_TIMEOUT_MS || "1800"),
+        },
+      },
+      think: {
+        provider: {
+          type: process.env.DEEPGRAM_THINK_PROVIDER || "open_ai",
+          model: process.env.DEEPGRAM_THINK_MODEL || "gpt-4o-mini",
+        },
+        prompt,
+        functions: [{
+          name: "synapse_progress_feedback",
+          description: "Fale uma frase curta de progresso antes de uma acao que pode demorar.",
+          parameters: {
+            type: "object",
+            properties: {
+              task_label: { type: "string" },
+              patient_name: { type: "string" },
+            },
+            required: ["task_label"],
+            additionalProperties: false,
+          },
+        }],
+      },
+      speak: buildLocalSpeakConfig(),
+    },
+  };
+}
+
+function buildLocalSessionConfig(payload, reason) {
+  const sessionId = clean(payload.sessionId, 120) || `voice-local-${Date.now()}`;
+  return {
+    provider: "deepgram-agent-local",
+    sessionId,
+    deepgramUrl: process.env.DEEPGRAM_AGENT_URL || DEFAULT_DEEPGRAM_URL,
+    agentSettings: buildLocalAgentSettings(payload),
+    model: process.env.DEEPGRAM_THINK_MODEL || "gpt-4o-mini",
+    voiceName: process.env.CARTESIA_VOICE_ID || "cartesia-sonic-2",
+    outputSampleRate: Number(process.env.SYNAPSE_VOICE_OUTPUT_SAMPLE_RATE || "24000"),
+    localFallbackReason: reason,
+  };
 }
 
 class SynapseVoiceSession {
@@ -97,13 +214,6 @@ class SynapseVoiceSession {
 
     const deepgramKey = process.env.DEEPGRAM_API_KEY;
     if (!deepgramKey) throw new Error("DEEPGRAM_API_KEY nao configurada no gateway.");
-    if (!getSupabaseUrl() || !getSupabaseAnonKey()) {
-      throw new Error("SUPABASE_URL/SUPABASE_ANON_KEY nao configurados no gateway.");
-    }
-    if (!getGatewaySecret()) {
-      throw new Error("SYNAPSE_VOICE_GATEWAY_SECRET nao configurado no gateway e no Supabase.");
-    }
-
     const sessionConfig = await this.fetchSessionConfig(payload);
     const settings = sessionConfig.agentSettings;
     if (!settings) throw new Error("Settings Deepgram ausentes na resposta segura do Supabase.");
@@ -123,6 +233,14 @@ class SynapseVoiceSession {
   }
 
   async fetchSessionConfig(payload) {
+    if (process.env.SYNAPSE_VOICE_FORCE_LOCAL_SETTINGS === "true") {
+      return buildLocalSessionConfig(payload, "forced_local_settings");
+    }
+
+    if (!getGatewaySecret()) {
+      return buildLocalSessionConfig(payload, "missing_gateway_secret");
+    }
+
     const response = await fetch(`${getFunctionsUrl()}/synapse-voice-agent-session`, {
       method: "POST",
       headers: {
@@ -140,6 +258,9 @@ class SynapseVoiceSession {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data?.error) {
+      if (process.env.SYNAPSE_VOICE_ALLOW_LOCAL_SETTINGS !== "false") {
+        return buildLocalSessionConfig(payload, data?.error || `session_function_${response.status}`);
+      }
       throw new Error(data?.error || `Falha ao criar sessao de voz (${response.status}).`);
     }
     return data;
