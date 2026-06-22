@@ -64,13 +64,16 @@ export function useGeminiLive(options?: UseGeminiLiveOptions) {
     }
   }, [voice.isConnected]);
 
+  const voiceStartSession = voice.startSession;
+  const voiceEndSession = voice.endSession;
+
   const startSession = useCallback(async (_args?: { clientTools?: ClientToolMap }) => {
-    await voice.startSession();
-  }, [voice.startSession]);
+    await voiceStartSession();
+  }, [voiceStartSession]);
 
   const endSession = useCallback(async () => {
-    voice.endSession();
-  }, [voice.endSession]);
+    voiceEndSession();
+  }, [voiceEndSession]);
 
   return {
     status,

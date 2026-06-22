@@ -264,7 +264,7 @@ export const MobileAIChat = () => {
       const message = error instanceof Error ? error.message : "Não foi possível iniciar o modo voz.";
       toast.error(message);
     }
-  }, [isVoiceConnected, refreshVoiceConfig, startVoiceSession, toggleVoiceListening]);
+  }, [isVoiceConnected, refreshVoiceConfig, sessionId, startVoiceSession, toggleVoiceListening]);
 
   const restartVoiceSession = useCallback(async () => {
     endVoiceSession();
@@ -282,7 +282,7 @@ export const MobileAIChat = () => {
       const message = error instanceof Error ? error.message : "Nao foi possivel reiniciar o modo voz.";
       toast.error(message);
     }
-  }, [endVoiceSession, refreshVoiceConfig, startVoiceSession]);
+  }, [endVoiceSession, refreshVoiceConfig, sessionId, startVoiceSession]);
 
   const toggleVoiceMode = () => {
     setMode((current) => {
