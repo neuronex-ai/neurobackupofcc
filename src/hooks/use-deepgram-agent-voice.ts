@@ -166,7 +166,7 @@ export function useDeepgramAgentVoice({
     if (!activeTool) return undefined;
     const timer = window.setInterval(() => setElapsedTick(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [activeTool?.id]);
+  }, [activeTool]);
 
   const setLevel = useCallback((level: number) => {
     volumeRef.current = level;
@@ -178,7 +178,7 @@ export function useDeepgramAgentVoice({
     activeToolRef.current = tool;
     setActiveTool(tool);
     setElapsedTick(Date.now());
-  }, [applyRestingPhase]);
+  }, []);
 
   const buildToolState = useCallback((
     payload: Record<string, unknown>,
@@ -205,7 +205,7 @@ export function useDeepgramAgentVoice({
       startedAt,
       elapsedMs,
     };
-  }, []);
+  }, [applyRestingPhase]);
 
   const applyRestingPhase = useCallback(() => {
     const tool = activeToolRef.current;
