@@ -66,6 +66,12 @@ export function useGeminiLive(options?: UseGeminiLiveOptions) {
 
   const voiceStartSession = voice.startSession;
   const voiceEndSession = voice.endSession;
+  const voicePhase = "voicePhase" in voice ? voice.voicePhase : status === "connected" ? "listening" : status;
+  const isToolActive = "isToolActive" in voice ? Boolean(voice.isToolActive) : false;
+  const activeToolLabel = "activeToolLabel" in voice ? String(voice.activeToolLabel || "") : "";
+  const activeToolMessage = "activeToolMessage" in voice ? String(voice.activeToolMessage || "") : "";
+  const activeToolElapsedMs = "activeToolElapsedMs" in voice ? Number(voice.activeToolElapsedMs || 0) : 0;
+  const lastFunctionStatus = "lastFunctionStatus" in voice ? voice.lastFunctionStatus : null;
 
   const startSession = useCallback(async (_args?: { clientTools?: ClientToolMap }) => {
     await voiceStartSession();
@@ -78,6 +84,12 @@ export function useGeminiLive(options?: UseGeminiLiveOptions) {
   return {
     status,
     isSpeaking: voice.isSpeaking,
+    voicePhase,
+    isToolActive,
+    activeToolLabel,
+    activeToolMessage,
+    activeToolElapsedMs,
+    lastFunctionStatus,
     getInputVolume: voice.getAudioVolume,
     startSession,
     endSession,

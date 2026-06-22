@@ -4,6 +4,37 @@ import { PcmAudioPlayer } from "@/lib/pcm-audio-player";
 
 type ClientAction = { type?: string; payload?: unknown; data?: unknown };
 
+export type SynapseVoicePhase =
+  | "idle"
+  | "connecting"
+  | "listening"
+  | "thinking"
+  | "speaking"
+  | "tool_active"
+  | "tool_retrying"
+  | "tool_cancelling"
+  | "error";
+
+export type SynapseVoiceFunctionStatus =
+  | "started"
+  | "progress"
+  | "retrying"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "cancelling"
+  | "complement_received";
+
+export interface SynapseVoiceToolState {
+  id: string;
+  name: string;
+  label: string;
+  message: string;
+  status: SynapseVoiceFunctionStatus | string;
+  startedAt: number;
+  elapsedMs: number;
+}
+
 interface StartOverride {
   token?: string | null;
   model?: string;
@@ -31,6 +62,11 @@ const DEFAULT_GATEWAY_URL = "ws://localhost:8789/v1/synapse/voice";
 
 const clean = (value: unknown, max = 5000) => String(value ?? "").trim().slice(0, max);
 
+const toNumber = (value: unknown, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const gatewayUrlFromEnv = () => {
   const configured = import.meta.env.VITE_SYNAPSE_VOICE_GATEWAY_URL;
   if (configured) return configured;
@@ -57,6 +93,12 @@ const eventRole = (event: Record<string, unknown>) => clean(
   40,
 ).toLowerCase();
 
+const phaseFromToolStatus = (status: string): SynapseVoicePhase => {
+  if (status === "retrying") return "tool_retrying";
+  if (status === "cancelling") return "tool_cancelling";
+  return "tool_active";
+};
+
 export function useDeepgramAgentVoice({
   gatewayUrl,
   sessionId,
@@ -78,6 +120,10 @@ export function useDeepgramAgentVoice({
   const [transcript, setTranscript] = useState("");
   const [lastResponse, setLastResponse] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [voicePhase, setVoicePhase] = useState<SynapseVoicePhase>("idle");
+  const [activeTool, setActiveTool] = useState<SynapseVoiceToolState | null>(null);
+  const [lastFunctionStatus, setLastFunctionStatus] = useState<SynapseVoiceFunctionStatus | null>(null);
+  const [elapsedTick, setElapsedTick] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -91,6 +137,7 @@ export function useDeepgramAgentVoice({
   const listeningRef = useRef(false);
   const volumeRef = useRef(0);
   const sessionIdRef = useRef<string | null>(sessionId || null);
+  const activeToolRef = useRef<SynapseVoiceToolState | null>(null);
   const callbacksRef = useRef({
     onSessionIdChange,
     onTranscript,
@@ -115,10 +162,66 @@ export function useDeepgramAgentVoice({
     sessionIdRef.current = sessionId || sessionIdRef.current;
   }, [sessionId]);
 
+  useEffect(() => {
+    if (!activeTool) return undefined;
+    const timer = window.setInterval(() => setElapsedTick(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [activeTool?.id]);
+
   const setLevel = useCallback((level: number) => {
     volumeRef.current = level;
     setAudioIntensity(level);
     callbacksRef.current.onAudioIntensity?.(level);
+  }, []);
+
+  const setActiveToolState = useCallback((tool: SynapseVoiceToolState | null) => {
+    activeToolRef.current = tool;
+    setActiveTool(tool);
+    setElapsedTick(Date.now());
+  }, [applyRestingPhase]);
+
+  const buildToolState = useCallback((
+    payload: Record<string, unknown>,
+    status: SynapseVoiceFunctionStatus | string,
+  ): SynapseVoiceToolState => {
+    const source = (
+      payload.activeTool && typeof payload.activeTool === "object"
+        ? payload.activeTool
+        : payload
+    ) as Record<string, unknown>;
+    const existing = activeToolRef.current;
+    const startedAt = toNumber(source.startedAt, existing?.startedAt || Date.now());
+    const elapsedMs = toNumber(source.elapsedMs, Math.max(0, Date.now() - startedAt));
+    const name = clean(source.name || existing?.name || "synapse_tool", 120);
+    const label = clean(source.label || existing?.label || name.replace(/[_-]+/g, " "), 160);
+    const message = clean(source.message || existing?.message || "", 800);
+
+    return {
+      id: clean(source.id || existing?.id || "synapse-tool", 120),
+      name,
+      label,
+      message,
+      status,
+      startedAt,
+      elapsedMs,
+    };
+  }, []);
+
+  const applyRestingPhase = useCallback(() => {
+    const tool = activeToolRef.current;
+    if (tool) {
+      setIsProcessing(true);
+      setVoicePhase(phaseFromToolStatus(String(tool.status)));
+      return;
+    }
+    setIsProcessing(false);
+    if (readyRef.current && listeningRef.current) {
+      setVoicePhase("listening");
+    } else if (activeRef.current) {
+      setVoicePhase("connecting");
+    } else {
+      setVoicePhase("idle");
+    }
   }, []);
 
   const stopPlayback = useCallback(() => {
@@ -149,11 +252,13 @@ export function useDeepgramAgentVoice({
         24000,
         () => {
           setIsSpeaking(true);
-          setIsProcessing(false);
+          setIsProcessing(Boolean(activeToolRef.current));
+          setVoicePhase("speaking");
           callbacksRef.current.onSpeakingStart?.();
         },
         () => {
           setIsSpeaking(false);
+          applyRestingPhase();
           callbacksRef.current.onSpeakingEnd?.();
         },
       );
@@ -180,7 +285,10 @@ export function useDeepgramAgentVoice({
     setIsListening(false);
     setIsProcessing(false);
     setIsSpeaking(false);
-  }, [cleanupInput]);
+    setActiveToolState(null);
+    setLastFunctionStatus(null);
+    setVoicePhase("idle");
+  }, [cleanupInput, setActiveToolState]);
 
   const startInput = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -241,29 +349,33 @@ export function useDeepgramAgentVoice({
     if (type === "SettingsApplied") {
       readyRef.current = true;
       setIsConnected(true);
-      setIsProcessing(false);
       setIsListening(listeningRef.current);
+      applyRestingPhase();
       return;
     }
 
     if (type === "UserStartedSpeaking" || type === "AgentAudioInterrupted") {
       stopPlayback();
-      setIsProcessing(false);
+      applyRestingPhase();
       return;
     }
 
     if (type === "AgentThinking" || type === "FunctionCallRequest") {
       setIsProcessing(true);
+      if (!activeToolRef.current) setVoicePhase("thinking");
       return;
     }
 
     if (type === "AgentStartedSpeaking") {
-      setIsProcessing(false);
+      setIsSpeaking(true);
+      setIsProcessing(Boolean(activeToolRef.current));
+      setVoicePhase("speaking");
       return;
     }
 
     if (type === "AgentAudioDone") {
-      setIsProcessing(false);
+      setIsSpeaking(false);
+      applyRestingPhase();
       return;
     }
 
@@ -281,7 +393,7 @@ export function useDeepgramAgentVoice({
         callbacksRef.current.onResponseText?.(text);
       }
     }
-  }, [stopPlayback]);
+  }, [applyRestingPhase, stopPlayback]);
 
   const handleGatewayMessage = useCallback((payload: Record<string, unknown>) => {
     const type = clean(payload.type, 80);
@@ -292,10 +404,14 @@ export function useDeepgramAgentVoice({
       if (status === "ready") {
         readyRef.current = true;
         setIsConnected(true);
-        setIsProcessing(false);
         setIsListening(listeningRef.current);
+        applyRestingPhase();
       } else if (["connecting_deepgram", "waiting_welcome", "settings_sent"].includes(status)) {
         setIsProcessing(true);
+        setVoicePhase("connecting");
+      } else if (status === "deepgram_closed") {
+        setActiveToolState(null);
+        setVoicePhase("idle");
       }
       return;
     }
@@ -304,6 +420,7 @@ export function useDeepgramAgentVoice({
       const message = clean(payload.error || "Nao foi possivel continuar a voz.", 1000);
       setError(message);
       setIsProcessing(false);
+      setVoicePhase("error");
       return;
     }
 
@@ -314,14 +431,54 @@ export function useDeepgramAgentVoice({
 
     if (type === "barge_in") {
       stopPlayback();
-      setIsProcessing(false);
+      applyRestingPhase();
+      return;
+    }
+
+    if (type === "voice_state") {
+      const phase = clean(payload.phase, 80);
+      if (["tool_completed", "tool_failed", "tool_cancelled"].includes(phase)) {
+        setActiveToolState(null);
+        setIsProcessing(true);
+        setVoicePhase("thinking");
+        return;
+      }
+      if (phase === "thinking") {
+        setActiveToolState(null);
+        setIsProcessing(true);
+        setVoicePhase("thinking");
+        return;
+      }
+      if (phase.startsWith("tool_") && payload.activeTool && typeof payload.activeTool === "object") {
+        const status = phase === "tool_retrying"
+          ? "retrying"
+          : phase === "tool_cancelling"
+            ? "cancelling"
+            : "progress";
+        const tool = buildToolState(payload, status);
+        setActiveToolState(tool);
+        setIsProcessing(true);
+        setVoicePhase(phaseFromToolStatus(String(tool.status)));
+      }
       return;
     }
 
     if (type === "function_status") {
-      const status = clean(payload.status, 80);
+      const status = clean(payload.status, 80) as SynapseVoiceFunctionStatus;
       const message = clean(payload.message, 500);
-      setIsProcessing(["started", "progress", "cancelling", "complement"].includes(status));
+      setLastFunctionStatus(status);
+
+      if (["started", "progress", "retrying", "cancelling", "complement_received"].includes(status)) {
+        const tool = buildToolState(payload, status);
+        setActiveToolState(tool);
+        setIsProcessing(true);
+        setVoicePhase(phaseFromToolStatus(status));
+      } else if (["completed", "failed", "cancelled"].includes(status)) {
+        setActiveToolState(null);
+        setIsProcessing(true);
+        setVoicePhase("thinking");
+      }
+
       if (message) {
         setLastResponse(message);
         callbacksRef.current.onResponseText?.(message);
@@ -332,7 +489,7 @@ export function useDeepgramAgentVoice({
     if (type === "client_action" && payload.action && typeof payload.action === "object") {
       callbacksRef.current.onClientAction?.(payload.action as ClientAction);
     }
-  }, [handleDeepgramEvent, persistSessionId, stopPlayback]);
+  }, [applyRestingPhase, buildToolState, handleDeepgramEvent, persistSessionId, setActiveToolState, stopPlayback]);
 
   const handleBinaryAudio = useCallback(async (value: Blob | ArrayBuffer) => {
     const buffer = value instanceof Blob ? await value.arrayBuffer() : value;
@@ -346,6 +503,10 @@ export function useDeepgramAgentVoice({
     listeningRef.current = true;
     setIsListening(false);
     setIsProcessing(true);
+    setIsSpeaking(false);
+    setVoicePhase("connecting");
+    setActiveToolState(null);
+    setLastFunctionStatus(null);
     setError(null);
     setTranscript("");
     setLastResponse("");
@@ -379,6 +540,9 @@ export function useDeepgramAgentVoice({
       setIsConnected(false);
       setIsListening(false);
       setIsProcessing(false);
+      setIsSpeaking(false);
+      setActiveToolState(null);
+      setVoicePhase("idle");
     };
 
     await new Promise<void>((resolve, reject) => {
@@ -405,7 +569,7 @@ export function useDeepgramAgentVoice({
         reject(new Error("Falha ao conectar no gateway de voz."));
       };
     });
-  }, [closeEverything, gatewayUrl, handleBinaryAudio, handleGatewayMessage, language, sessionIdRef, startInput, systemInstruction]);
+  }, [closeEverything, gatewayUrl, handleBinaryAudio, handleGatewayMessage, language, setActiveToolState, startInput, systemInstruction]);
 
   const endSession = useCallback(() => {
     void closeEverything();
@@ -420,7 +584,8 @@ export function useDeepgramAgentVoice({
     listeningRef.current = next;
     setIsListening(next && readyRef.current);
     if (!next) setLevel(0);
-  }, [setLevel, startSession]);
+    applyRestingPhase();
+  }, [applyRestingPhase, setLevel, startSession]);
 
   const sendTextMessage = useCallback((text: string) => {
     const message = clean(text, 2000);
@@ -436,11 +601,22 @@ export function useDeepgramAgentVoice({
     void closeEverything();
   }, [closeEverything]);
 
+  const activeToolElapsedMs = activeTool
+    ? Math.max(activeTool.elapsedMs, Date.now() - activeTool.startedAt, elapsedTick ? Date.now() - activeTool.startedAt : 0)
+    : 0;
+
   return {
     isConnected,
     isSpeaking,
     isListening,
     isProcessing,
+    voicePhase,
+    activeTool,
+    activeToolLabel: activeTool?.label || "",
+    activeToolMessage: activeTool?.message || "",
+    activeToolElapsedMs,
+    isToolActive: Boolean(activeTool),
+    lastFunctionStatus,
     audioIntensity,
     getAudioVolume: () => volumeRef.current,
     transcript,

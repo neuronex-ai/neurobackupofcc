@@ -82,6 +82,7 @@ function buildLocalSpeakConfig() {
     provider: {
       type: "cartesia",
       model_id: process.env.CARTESIA_MODEL_ID || "sonic-2",
+      language: process.env.CARTESIA_LANGUAGE || "pt-BR",
       voice: {
         mode: "id",
         id: cartesiaVoiceId,
@@ -96,7 +97,8 @@ function buildLocalAgentSettings(payload) {
     "Voce e o Synapse, agente de voz da NeuroNex para psicologos.",
     "Fale em portugues brasileiro natural, curto e humano.",
     "Use frases breves, nao leia rotas, IDs, JSON, SQL, nomes de tabelas ou detalhes internos.",
-    "Quando precisar consultar algo, diga uma frase curta de progresso antes de continuar.",
+    "Quando precisar consultar algo, aguarde o retorno real da ferramenta antes de responder conclusoes ao psicologo.",
+    "O sistema de voz injeta mensagens curtas de progresso automaticamente enquanto ferramentas rodam; nao invente resultados.",
     clean(payload.systemInstruction, 1600),
   ].filter(Boolean).join("\n\n");
 
@@ -133,19 +135,7 @@ function buildLocalAgentSettings(payload) {
           model: process.env.DEEPGRAM_THINK_MODEL || "gpt-4o-mini",
         },
         prompt,
-        functions: [{
-          name: "synapse_progress_feedback",
-          description: "Fale uma frase curta de progresso antes de uma acao que pode demorar.",
-          parameters: {
-            type: "object",
-            properties: {
-              task_label: { type: "string" },
-              patient_name: { type: "string" },
-            },
-            required: ["task_label"],
-            additionalProperties: false,
-          },
-        }],
+        functions: [],
       },
       speak: buildLocalSpeakConfig(),
     },
