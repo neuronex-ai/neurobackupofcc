@@ -103,6 +103,7 @@ export const AGENT_TOOLS = [
       end_date: { type: "string" },
       entry_type: { type: "string", enum: ["income", "expense", "all"] },
       status: { type: "string" },
+      ...patientReference,
       limit: { type: "integer", minimum: 1, maximum: 50 },
     }),
   ),

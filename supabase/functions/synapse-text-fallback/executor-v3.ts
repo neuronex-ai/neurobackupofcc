@@ -36,6 +36,40 @@ const formatMoney = (value: number) => new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 }).format(value);
 
+const dateOnly = (date: Date) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(date);
+
+const addDays = (date: Date, amount: number) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+};
+
+const listFrom = (value: any, key: string) => Array.isArray(value?.data?.[key]) ? value.data[key] : [];
+
+const getDateValue = (item: any) =>
+  item?.date || item?.start_time || item?.created_at || item?.paid_at || item?.due_date || item?.uploaded_at || null;
+
+function summarizePaymentTotals(charges: any[], entries: any[]) {
+  const chargePendingStatuses = new Set(["pending", "overdue", "processing"]);
+  const chargePaidStatuses = new Set(["paid", "received", "confirmed", "completed"]);
+  const entryPaidStatuses = new Set(["paid", "received", "completed"]);
+  const pendingCharges = charges.filter((charge) => chargePendingStatuses.has(String(charge.status || "").toLowerCase()));
+  const paidCharges = charges.filter((charge) => chargePaidStatuses.has(String(charge.status || "").toLowerCase()));
+  const pendingEntries = entries.filter((entry) => !entryPaidStatuses.has(String(entry.status || "").toLowerCase()));
+  const paidEntries = entries.filter((entry) => entryPaidStatuses.has(String(entry.status || "").toLowerCase()));
+  return {
+    neurofinance_total: charges.reduce((sum, charge) => sum + Number(charge.amount || 0), 0),
+    neurofinance_paid: paidCharges.reduce((sum, charge) => sum + Number(charge.amount || 0), 0),
+    neurofinance_pending: pendingCharges.reduce((sum, charge) => sum + Number(charge.amount || 0), 0),
+    manual_total: entries.reduce((sum, entry) => sum + Math.abs(Number(entry.amount || 0)), 0),
+    manual_paid: paidEntries.reduce((sum, entry) => sum + Math.abs(Number(entry.amount || 0)), 0),
+    manual_pending: pendingEntries.reduce((sum, entry) => sum + Math.abs(Number(entry.amount || 0)), 0),
+    pending_count: pendingCharges.length + pendingEntries.length,
+    paid_count: paidCharges.length + paidEntries.length,
+  };
+}
+
 const safeJson = async (response: Response) => {
   const payload = await response.json().catch(() => null);
   if (!response.ok || payload?.error) {
@@ -272,6 +306,215 @@ async function executeNewReadTool(
         recordCount: charge ? 1 : 0,
         data: { account, charge },
         structuredData: charge ? { type: "neurofinance_charge", data: charge } : undefined,
+      };
+    }
+
+    case "get_patient_payment_status": {
+      const account = safeAccount(await getFinancialAccount(admin, userId));
+      const status = clean(args.status || "all", 30).toLowerCase();
+      const limit = clamp(args.limit, 20, 1, 50);
+      const charges = account.has_account
+        ? await queryCharges(admin, userId, { ...args, status, limit }, false)
+        : [];
+      const manualResult = await executeBaseAgentTool("list_financial_entries", {
+        patient_id: args.patient_id,
+        entry_type: "income",
+        status: status === "all" ? undefined : status,
+        limit,
+      }, context);
+      const manualEntries = manualResult.ok ? listFrom(manualResult, "entries") : [];
+      const partialFailures = manualResult.ok ? [] : [{ section: "manual_financial_entries", error: manualResult.error || "Falha ao consultar lancamentos." }];
+      const totals = summarizePaymentTotals(charges, manualEntries);
+      const data = {
+        patient: { id: args.patient_id, name: args.patient_name || null },
+        account,
+        status_filter: status,
+        neurofinance_charges: charges,
+        manual_entries: manualEntries,
+        totals,
+        partial_failures: partialFailures,
+      };
+      return {
+        ok: true,
+        grounded: true,
+        recordCount: charges.length + manualEntries.length,
+        data,
+        structuredData: { type: "patient_payment_status", data },
+      };
+    }
+
+    case "get_patient_system_snapshot": {
+      const partialFailures: Array<{ section: string; error: string }> = [];
+      const capture = async (section: string, runner: () => Promise<any>) => {
+        try {
+          return await runner();
+        } catch (error) {
+          partialFailures.push({
+            section,
+            error: error instanceof Error ? error.message : "Falha ao consultar esta parte.",
+          });
+          return null;
+        }
+      };
+
+      const historyLimit = clamp(args.history_limit, 5, 1, 10);
+      const appointmentsLimit = clamp(args.appointments_limit, 12, 1, 30);
+      const financialLimit = clamp(args.financial_limit, 20, 1, 30);
+      const today = new Date();
+      const todayDate = dateOnly(today);
+      const pastStart = dateOnly(addDays(today, -180));
+      const futureEnd = dateOnly(addDays(today, 90));
+
+      const [details, clinical, pastAppointments, upcomingAppointments, payments, documents] = await Promise.all([
+        capture("patient_details", () => executeBaseAgentTool("get_patient_details", { patient_id: args.patient_id }, context)),
+        capture("clinical_history", () => executeBaseAgentTool("get_clinical_history", { patient_id: args.patient_id, limit: historyLimit }, context)),
+        capture("past_appointments", () => executeBaseAgentTool("get_calendar", {
+          patient_id: args.patient_id,
+          start_date: pastStart,
+          end_date: todayDate,
+          limit: appointmentsLimit,
+        }, context)),
+        capture("upcoming_appointments", () => executeBaseAgentTool("get_calendar", {
+          patient_id: args.patient_id,
+          start_date: todayDate,
+          end_date: futureEnd,
+          limit: appointmentsLimit,
+        }, context)),
+        capture("payment_status", () => executeNewReadTool("get_patient_payment_status", {
+          patient_id: args.patient_id,
+          patient_name: args.patient_name,
+          limit: financialLimit,
+        }, context)),
+        args.include_documents
+          ? capture("documents", () => executeBaseAgentTool("list_documents", { patient_id: args.patient_id, limit: 10 }, context))
+          : Promise.resolve(null),
+      ]);
+
+      for (const result of [details, clinical, pastAppointments, upcomingAppointments, payments, documents]) {
+        if (result && result.ok === false) {
+          partialFailures.push({ section: "tool_result", error: result.error || "Uma consulta retornou erro." });
+        }
+      }
+
+      const patient = details?.data?.patient || { id: args.patient_id, name: args.patient_name || null };
+      const data = {
+        patient,
+        clinical_notes: listFrom(clinical, "notes"),
+        past_appointments: listFrom(pastAppointments, "appointments"),
+        upcoming_appointments: listFrom(upcomingAppointments, "appointments"),
+        payment_status: payments?.data || null,
+        documents: args.include_documents ? listFrom(documents, "documents") : [],
+        partial_failures: partialFailures,
+      };
+      const recordCount =
+        (data.patient ? 1 : 0) +
+        data.clinical_notes.length +
+        data.past_appointments.length +
+        data.upcoming_appointments.length +
+        Number(payments?.recordCount || 0) +
+        data.documents.length;
+      return {
+        ok: Boolean(patient),
+        grounded: true,
+        recordCount,
+        data,
+        structuredData: { type: "patient_system_snapshot", data },
+      };
+    }
+
+    case "get_patient_timeline": {
+      const partialFailures: Array<{ section: string; error: string }> = [];
+      const capture = async (section: string, runner: () => Promise<any>) => {
+        try {
+          return await runner();
+        } catch (error) {
+          partialFailures.push({
+            section,
+            error: error instanceof Error ? error.message : "Falha ao consultar esta parte.",
+          });
+          return null;
+        }
+      };
+      const limit = clamp(args.limit, 30, 1, 50);
+      const today = new Date();
+      const startDate = clean(args.start_date || dateOnly(addDays(today, -365)), 10);
+      const endDate = clean(args.end_date || dateOnly(addDays(today, 90)), 10);
+      const [clinical, appointments, payments, documents] = await Promise.all([
+        capture("clinical_history", () => executeBaseAgentTool("get_clinical_history", { patient_id: args.patient_id, limit: 10 }, context)),
+        capture("appointments", () => executeBaseAgentTool("get_calendar", {
+          patient_id: args.patient_id,
+          start_date: startDate,
+          end_date: endDate,
+          limit: 50,
+        }, context)),
+        capture("payment_status", () => executeNewReadTool("get_patient_payment_status", {
+          patient_id: args.patient_id,
+          patient_name: args.patient_name,
+          limit: 50,
+        }, context)),
+        capture("documents", () => executeBaseAgentTool("list_documents", { patient_id: args.patient_id, limit: 20 }, context)),
+      ]);
+
+      const charges = Array.isArray(payments?.data?.neurofinance_charges) ? payments.data.neurofinance_charges : [];
+      const manualEntries = Array.isArray(payments?.data?.manual_entries) ? payments.data.manual_entries : [];
+      const timeline = [
+        ...listFrom(clinical, "notes").map((note: any) => ({
+          kind: "clinical_note",
+          date: note.date,
+          title: "Nota de prontuario",
+          summary: note.summary,
+          source_id: note.id,
+        })),
+        ...listFrom(appointments, "appointments").map((appointment: any) => ({
+          kind: "appointment",
+          date: appointment.start_time,
+          title: appointment.patient_name || "Consulta",
+          status: appointment.status,
+          type: appointment.type,
+          summary: appointment.notes || appointment.start_time_local,
+          source_id: appointment.id,
+        })),
+        ...charges.map((charge: any) => ({
+          kind: "neurofinance_charge",
+          date: charge.paid_at || charge.due_date || charge.created_at,
+          title: charge.description || "Cobranca NeuroFinance",
+          amount: charge.amount,
+          status: charge.status,
+          source_id: charge.id,
+        })),
+        ...manualEntries.map((entry: any) => ({
+          kind: "financial_entry",
+          date: entry.paid_at || entry.due_date || entry.created_at,
+          title: entry.title || entry.description || "Lancamento financeiro",
+          amount: Math.abs(Number(entry.amount || 0)),
+          status: entry.status,
+          source_id: entry.id,
+        })),
+        ...listFrom(documents, "documents").map((document: any) => ({
+          kind: "document",
+          date: document.uploaded_at || document.created_at,
+          title: document.original_name || "Documento",
+          status: document.status,
+          category: document.category,
+          source_id: document.id,
+        })),
+      ]
+        .filter((item) => getDateValue(item))
+        .sort((a, b) => new Date(getDateValue(b) || 0).getTime() - new Date(getDateValue(a) || 0).getTime())
+        .slice(0, limit);
+
+      const data = {
+        patient: { id: args.patient_id, name: args.patient_name || null },
+        period: { start_date: startDate, end_date: endDate },
+        timeline,
+        partial_failures: partialFailures,
+      };
+      return {
+        ok: true,
+        grounded: true,
+        recordCount: timeline.length,
+        data,
+        structuredData: { type: "patient_timeline", data },
       };
     }
 

@@ -295,10 +295,14 @@ const PATIENT_REQUIRED_TOOLS = new Set([
   "create_fiscal_invoice",
   "send_appointment_reminder",
   "send_patient_email",
+  "get_patient_system_snapshot",
+  "get_patient_payment_status",
+  "get_patient_timeline",
 ]);
 
 const PATIENT_OPTIONAL_TOOLS = new Set([
   "get_calendar",
+  "list_financial_entries",
   "list_documents",
   "request_interface_action",
   "create_financial_entry",

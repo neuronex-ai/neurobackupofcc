@@ -80,6 +80,39 @@ const EXTRA_TOOLS = [
     }),
   ),
   fn(
+    "get_patient_system_snapshot",
+    "Consulta um panorama consolidado real de um paciente: cadastro, prontuario, agenda, pagamentos gerenciais e NeuroFinance. Use para pedidos como resumir tudo que sabemos sobre uma pessoa.",
+    objectSchema({
+      ...patientReference,
+      history_limit: { type: "integer", minimum: 1, maximum: 10 },
+      appointments_limit: { type: "integer", minimum: 1, maximum: 30 },
+      financial_limit: { type: "integer", minimum: 1, maximum: 30 },
+      include_documents: { type: "boolean" },
+    }),
+  ),
+  fn(
+    "get_patient_payment_status",
+    "Consulta a situacao financeira real de um paciente combinando lancamentos gerenciais e cobrancas NeuroFinance.",
+    objectSchema({
+      ...patientReference,
+      status: {
+        type: "string",
+        enum: ["all", "pending", "paid", "overdue", "cancelled", "refunded", "processing"],
+      },
+      limit: { type: "integer", minimum: 1, maximum: 50 },
+    }),
+  ),
+  fn(
+    "get_patient_timeline",
+    "Monta uma linha do tempo real de um paciente combinando prontuario, consultas, pagamentos e documentos.",
+    objectSchema({
+      ...patientReference,
+      start_date: { type: "string", description: "Data ISO YYYY-MM-DD" },
+      end_date: { type: "string", description: "Data ISO YYYY-MM-DD" },
+      limit: { type: "integer", minimum: 1, maximum: 50 },
+    }),
+  ),
+  fn(
     "create_neurofinance_charge",
     "Prepara uma cobrança real pelo NeuroFinance e exige confirmação separada. Resolva o paciente pelo nome e informe valor, vencimento e meio de pagamento.",
     objectSchema({
@@ -158,6 +191,9 @@ export const SYSTEM_DATA_TOOLS_V3 = new Set([
   "get_neurofinance_overview",
   "list_neurofinance_charges",
   "get_neurofinance_charge",
+  "get_patient_system_snapshot",
+  "get_patient_payment_status",
+  "get_patient_timeline",
   "list_fiscal_invoices",
   "get_fiscal_invoice",
 ]);

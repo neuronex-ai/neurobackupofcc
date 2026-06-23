@@ -130,7 +130,40 @@ function groundingRequired(message: string, context: any) {
     /\b(meu|minha|meus|minhas|tenho|quantos|qual|quais|liste|mostre|consulte|faça|faca)\b/i.test(message);
 }
 
-function buildSystemPrompt(context: any, state: SynapseConversationState, memorySummary: string, pending?: PendingAction | null) {
+const normalizeIntent = (value: string) =>
+  value.toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+function buildPlannerHint(message: string) {
+  const text = normalizeIntent(message);
+  if (!text) return "";
+  const hasPatientContext = /\b(paciente|pacientes|sobre|dele|dela|do|da|esse|essa)\b/.test(text);
+  const wantsSummary = /\b(resuma|resumo|panorama|tudo|geral|sabemos|situacao geral|historico completo)\b/.test(text);
+  const wantsTimeline = /\b(linha do tempo|cronologia|historico completo|ultimos acontecimentos|ultimos eventos)\b/.test(text);
+  const domains = [
+    /\b(prontuario|historico|evolucao|sessao|sessoes|diagnostico|risco)\b/.test(text),
+    /\b(agenda|consulta|consultas|agendamento|horario|ultima consulta|proxima consulta)\b/.test(text),
+    /\b(financeiro|pagamento|pago|paga|pendente|atrasado|cobranca|cobrancas|neurofinance|receita|lancamento)\b/.test(text),
+    /\b(documento|documentos|arquivo|arquivos|nota|notas)\b/.test(text),
+  ].filter(Boolean).length;
+
+  if (wantsTimeline && hasPatientContext) {
+    return "Pedido composto detectado: use get_patient_timeline para montar uma linha do tempo consolidada do paciente antes de responder.";
+  }
+  if ((wantsSummary && hasPatientContext) || domains >= 2) {
+    return "Pedido composto detectado: use get_patient_system_snapshot quando a pergunta pedir resumo/panorama ou combinar prontuario, agenda, financeiro e documentos de um paciente.";
+  }
+  if (hasPatientContext && /\b(pagamento|pago|paga|pendente|atrasado|cobranca|cobrancas|neurofinance|inadimplente)\b/.test(text)) {
+    return "Pedido financeiro por paciente detectado: use get_patient_payment_status antes de responder.";
+  }
+  return "";
+}
+
+function buildSystemPrompt(context: any, state: SynapseConversationState, memorySummary: string, pending?: PendingAction | null, plannerHint = "") {
   const now = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
     dateStyle: "full",
@@ -155,6 +188,7 @@ function buildSystemPrompt(context: any, state: SynapseConversationState, memory
     "Nunca exponha rotas, URLs internas, JSON, SQL, nomes de tabelas, provedores de infraestrutura ou identificadores internos.",
     "Não narre ferramentas nem raciocínio interno. Execute silenciosamente e entregue apenas o resultado útil.",
     `CONTEXTO DURÁVEL:\n${formatContextForPrompt(state)}`,
+    plannerHint ? `PLANO OPERACIONAL INTERNO:\n${plannerHint}` : "",
     memorySummary ? `RESUMO ANTERIOR DA CONVERSA:\n${memorySummary}` : "",
     context?.summary ? `CONTEXTO VISUAL INFORMADO PELO APLICATIVO:\n${cleanHistory(context.summary, 1200)}` : "",
     pending ? `AÇÃO AGUARDANDO CONFIRMAÇÃO: ${pending.summary}` : "",
@@ -277,7 +311,8 @@ Deno.serve(async (request) => {
     }
 
     const chronological = [...rows].reverse();
-    const systemPrompt = buildSystemPrompt(context, conversationState, loadedContext.memorySummary, pending?.action || null);
+    const plannerHint = buildPlannerHint(message);
+    const systemPrompt = buildSystemPrompt(context, conversationState, loadedContext.memorySummary, pending?.action || null, plannerHint);
     const modelMessages: any[] = [
       { role: "system", content: systemPrompt },
       ...chronological.slice(-24).map((row) => ({
@@ -287,7 +322,7 @@ Deno.serve(async (request) => {
       { role: "user", content: message },
     ];
 
-    const mustGround = groundingRequired(message, context);
+    const mustGround = groundingRequired(message, context) || Boolean(plannerHint);
     const records: Array<{ name: string; result: any }> = [];
     let finalText = "";
     let structured: any = null;

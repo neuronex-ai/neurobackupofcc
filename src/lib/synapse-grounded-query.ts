@@ -46,6 +46,20 @@ const dateOnly = (value?: string | null) => {
 const isCreateIntent = (text: string) =>
   /\b(novo|nova|criar|cadastrar|adicionar|registrar|agendar)\b/.test(text);
 
+export const isCompositeSystemQuery = (normalized: string) => {
+  const hasPatientContext = /\b(paciente|pacientes|sobre|dele|dela|do|da|esse|essa)\b/.test(normalized);
+  const wantsFullSummary = /\b(resuma|resumo|panorama|tudo|geral|sabemos|situacao geral|historico completo)\b/.test(normalized);
+  const wantsTimeline = /\b(linha do tempo|cronologia|historico completo|ultimos acontecimentos|ultimos eventos)\b/.test(normalized);
+  const domains = [
+    /\b(prontuario|historico|evolucao|sessao|sessoes|diagnostico|risco)\b/.test(normalized),
+    /\b(agenda|consulta|consultas|agendamento|horario|ultima consulta|proxima consulta)\b/.test(normalized),
+    /\b(financeiro|pagamento|pago|paga|pendente|atrasado|cobranca|cobrancas|neurofinance|receita|lancamento)\b/.test(normalized),
+    /\b(documento|documentos|arquivo|arquivos|nota|notas)\b/.test(normalized),
+  ].filter(Boolean).length;
+
+  return Boolean(hasPatientContext && (wantsFullSummary || wantsTimeline || domains >= 2));
+};
+
 const quotedSearch = (message: string) => {
   const match = message.match(/["']([^"']{2,80})["']/);
   return match?.[1]?.trim() || null;
@@ -266,6 +280,7 @@ const formatTransactions = (rows: any[], metricsOnly: boolean): GroundedSynapseR
 export async function resolveGroundedSynapseQuery(message: string, userId: string): Promise<GroundedSynapseResult | null> {
   const normalized = normalize(message);
   if (!normalized || !userId) return null;
+  if (isCompositeSystemQuery(normalized)) return null;
 
   try {
     return (

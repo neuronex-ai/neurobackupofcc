@@ -26,11 +26,13 @@ Deno.serve(async (request: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/+$/, "");
     if (!supabaseUrl) throw new Error("SUPABASE_URL não configurada.");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const body = await request.text();
     const response = await fetch(`${supabaseUrl}/functions/v1/synapse-text-fallback`, {
       method: "POST",
       headers: {
         Authorization: authorization,
+        ...(anonKey ? { apikey: anonKey } : {}),
         "Content-Type": "application/json",
       },
       body,

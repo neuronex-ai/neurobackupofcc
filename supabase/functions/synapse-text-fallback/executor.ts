@@ -141,6 +141,103 @@ export async function executeAgentTool(
 
   try {
     switch (name) {
+      case "get_system_help": {
+        const query = cleanText(args.query, 240);
+        const modules = [
+          { name: "Pacientes", capabilities: ["cadastrar e atualizar pacientes", "consultar dados cadastrais", "abrir prontuario"] },
+          { name: "Agenda", capabilities: ["ver consultas", "encontrar horarios livres", "criar, remarcar e cancelar agendamentos"] },
+          { name: "Prontuario", capabilities: ["consultar historico clinico", "registrar anotacoes com confirmacao"] },
+          { name: "NeuroFinance", capabilities: ["consultar cobrancas", "criar cobrancas com confirmacao", "acompanhar pagamentos"] },
+          { name: "Financeiro gerencial", capabilities: ["ver receitas e despesas", "listar lancamentos", "registrar entradas e saidas com confirmacao"] },
+          { name: "Documentos e notas", capabilities: ["listar documentos", "consultar notas pessoais"] },
+          { name: "Comunicacoes", capabilities: ["preparar lembretes de consulta", "preparar e-mails para pacientes com confirmacao"] },
+        ];
+        return {
+          ok: true,
+          grounded: true,
+          recordCount: modules.length,
+          data: { query, modules },
+          structuredData: { type: "system_help", data: { modules } },
+        };
+      }
+
+      case "get_workspace_overview": {
+        const now = new Date();
+        const todayStart = new Date(now);
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date(todayStart);
+        todayEnd.setHours(23, 59, 59, 999);
+        const upcomingEnd = new Date(todayStart);
+        upcomingEnd.setDate(upcomingEnd.getDate() + 14);
+        const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+        const monthEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const monthEnd = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, "0")}-${String(monthEndDate.getDate()).padStart(2, "0")}`;
+
+        const [
+          patientsResult,
+          todayAppointmentsResult,
+          upcomingAppointmentsResult,
+          sessionNotesResult,
+          personalNotesResult,
+          documentsResult,
+          financialResult,
+        ] = await Promise.all([
+          admin.from("patients").select("id", { count: "exact", head: true }).eq("user_id", userId),
+          admin.from("appointments").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("start_time", todayStart.toISOString()).lte("start_time", todayEnd.toISOString()),
+          admin.from("appointments").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("start_time", now.toISOString()).lte("start_time", upcomingEnd.toISOString()),
+          admin.from("session_notes").select("id", { count: "exact", head: true }).eq("user_id", userId),
+          admin.from("personal_notes").select("id", { count: "exact", head: true }).eq("user_id", userId),
+          admin.from("document_files").select("id", { count: "exact", head: true }).eq("user_id", userId).is("deleted_at", null),
+          admin.from("financial_entries").select("id,title,amount,type,status,due_date", { count: "exact" }).eq("professional_id", userId).gte("due_date", monthStart).lte("due_date", monthEnd).limit(200),
+        ]);
+
+        const firstError = [
+          patientsResult.error,
+          todayAppointmentsResult.error,
+          upcomingAppointmentsResult.error,
+          sessionNotesResult.error,
+          personalNotesResult.error,
+          documentsResult.error,
+          financialResult.error,
+        ].find(Boolean);
+        if (firstError) throw firstError;
+
+        const monthEntries = financialResult.data || [];
+        const monthIncome = monthEntries
+          .filter((item: any) => item.type === "income")
+          .reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+        const monthExpenses = monthEntries
+          .filter((item: any) => item.type === "expense")
+          .reduce((sum: number, item: any) => sum + Math.abs(Number(item.amount || 0)), 0);
+        const pendingFinancial = monthEntries.filter((item: any) =>
+          !["paid", "received", "completed"].includes(String(item.status || "").toLowerCase()));
+        const overview = {
+          patients_count: patientsResult.count || 0,
+          appointments_today_count: todayAppointmentsResult.count || 0,
+          upcoming_appointments_14d_count: upcomingAppointmentsResult.count || 0,
+          clinical_notes_count: sessionNotesResult.count || 0,
+          personal_notes_count: personalNotesResult.count || 0,
+          documents_count: documentsResult.count || 0,
+          financial_month: {
+            start_date: monthStart,
+            end_date: monthEnd,
+            entries_count: financialResult.count || monthEntries.length,
+            income: monthIncome,
+            expenses: monthExpenses,
+            balance: monthIncome - monthExpenses,
+            pending_count: pendingFinancial.length,
+            pending_amount: pendingFinancial.reduce((sum: number, item: any) => sum + Math.abs(Number(item.amount || 0)), 0),
+          },
+        };
+        return {
+          ok: true,
+          grounded: true,
+          recordCount: overview.patients_count + overview.appointments_today_count + overview.financial_month.entries_count,
+          data: { overview },
+          structuredData: { type: "workspace_overview", data: overview },
+        };
+      }
+
       case "list_patients": {
         const limit = clamp(args.limit, 20, 1, 50);
         let query = admin
@@ -367,6 +464,7 @@ export async function executeAgentTool(
         if (args.end_date) query = query.lte("due_date", cleanText(args.end_date, 10));
         if (args.entry_type && args.entry_type !== "all") query = query.eq("type", args.entry_type);
         if (args.status) query = query.eq("status", cleanText(args.status, 40));
+        if (args.patient_id) query = query.eq("patient_id", cleanId(args.patient_id));
         const { data, error } = await query;
         if (error) throw error;
         const entries = data || [];
