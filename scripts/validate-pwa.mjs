@@ -21,6 +21,8 @@ const fileExists = async (relativePath) => {
 
 const manifest = JSON.parse(await readFile(path.join(publicDir, "manifest.json"), "utf8"));
 const mainSource = await readFile(path.join(projectRoot, "src/main.tsx"), "utf8");
+const pushSource = await readFile(path.join(projectRoot, "src/lib/push-notifications.ts"), "utf8");
+const workerSource = await readFile(path.join(publicDir, "firebase-messaging-sw.js"), "utf8");
 const indexSource = await readFile(path.join(projectRoot, "index.html"), "utf8");
 
 requireValue(manifest.id === "/", "O manifesto precisa declarar id como '/'.");
@@ -75,9 +77,12 @@ for (const screenshot of screenshots) {
   }
 }
 
-requireValue(await fileExists("public/sw.js"), "Service worker ausente em public/sw.js.");
+requireValue(await fileExists("public/firebase-messaging-sw.js"), "Worker unificado ausente em public/firebase-messaging-sw.js.");
 requireValue(await fileExists("public/offline.html"), "Fallback offline ausente em public/offline.html.");
-requireValue(mainSource.includes('serviceWorker.register("/sw.js"'), "src/main.tsx precisa registrar /sw.js.");
+requireValue(mainSource.includes("firebase-messaging-sw.js"), "src/main.tsx precisa registrar o worker unificado.");
+requireValue(pushSource.includes("firebase-messaging-sw.js"), "As notificações precisam usar o worker unificado.");
+requireValue(workerSource.includes("onBackgroundMessage"), "O worker unificado precisa preservar Firebase Messaging.");
+requireValue(workerSource.includes("addEventListener('fetch'"), "O worker unificado precisa preservar o comportamento PWA.");
 requireValue(indexSource.includes('rel="manifest" href="/manifest.json"'), "index.html precisa apontar para /manifest.json.");
 
 if (errors.length > 0) {
@@ -86,4 +91,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("NeuroNex PWA: manifesto, screenshots, service worker e fallback offline validados.");
+console.log("NeuroNex PWA: manifesto, screenshots, worker unificado e fallback offline validados.");
