@@ -2,6 +2,7 @@ import { useAuth } from '@/components/auth/SessionContextProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { getElectronAPI, isElectron } from '@/lib/electron';
 import { hasActivePushSubscription, listenForForegroundPush } from '@/lib/push-notifications';
+import { setPwaBadge } from '@/lib/pwa-integrations';
 import { useNotificationSettings } from '@/hooks/use-notification-settings';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -128,6 +129,11 @@ export const useNotifications = () => {
   const restore = useMutation({ mutationFn: (id: string) => update({ dismissed_at: null })(id), onSettled: invalidate });
   const notifications = query.data || [];
   const unreadCount = notifications.filter((item) => !item.isRead).length;
+
+  useEffect(() => {
+    void setPwaBadge(unreadCount);
+  }, [unreadCount]);
+
   return { ...query, notifications, unreadCount, markAsRead: markRead.mutateAsync, markAllAsRead: markAll.mutateAsync, dismiss: dismiss.mutateAsync, restore: restore.mutateAsync, isMutating: markRead.isPending || markAll.isPending || dismiss.isPending || restore.isPending, refresh: query.refetch };
 };
 

@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import "./styles/design-tokens.css";
+import { registerPwaBackgroundCapabilities, registerPwaLaunchHandlers } from "./lib/pwa-integrations";
 
 const firebaseWorkerConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -39,6 +40,9 @@ const registerServiceWorker = async () => {
 
 window.addEventListener("load", () => {
   void registerServiceWorker();
+  registerPwaBackgroundCapabilities();
 });
+
+registerPwaLaunchHandlers();
 
 createRoot(document.getElementById("root")!).render(<App />);

@@ -11,7 +11,25 @@ import {
 } from 'firebase/messaging';
 import { supabase } from '@/integrations/supabase/client';
 
-const db = supabase as any;
+type PushQueryResult = {
+  data?: unknown[] | null;
+  error?: Error | { message?: string } | null;
+};
+
+type PushQueryFilter = PromiseLike<PushQueryResult> & {
+  eq: (column: string, value: unknown) => PushQueryFilter;
+  limit: (count: number) => PushQueryFilter;
+};
+
+type PushTable = {
+  upsert: (values: Record<string, unknown>, options?: Record<string, unknown>) => Promise<PushQueryResult>;
+  update: (values: Record<string, unknown>) => PushQueryFilter;
+  select: (columns: string) => PushQueryFilter;
+};
+
+const db = supabase as unknown as {
+  from: (table: 'push_subscriptions') => PushTable;
+};
 const CLIENT_TIMEOUT_MS = 15_000;
 const TOKEN_TIMEOUT_MS = 15_000;
 const PUSH_FLOW_TIMEOUT_MS = 20_000;
@@ -254,5 +272,5 @@ export const hasActivePushSubscription = async (userId: string) => {
 
 export const listenForForegroundPush = async (handler: (title: string, body: string, actionUrl?: string) => void): Promise<Unsubscribe> => {
   const messaging = await getMessagingClient();
-  return onMessage(messaging, (payload: MessagePayload) => handler(payload.notification?.title || 'NeuroNex', payload.notification?.body || 'Nova atualizacao.', payload.data?.actionUrl));
+  return onMessage(messaging, (payload: MessagePayload) => handler(payload.notification?.title || 'NeuroNex AI', payload.notification?.body || 'Nova atualizacao.', payload.data?.actionUrl));
 };
