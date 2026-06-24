@@ -13,6 +13,11 @@
   }
 
   :root {
+    --pwa-titlebar-x: env(titlebar-area-x, 0px);
+    --pwa-titlebar-y: env(titlebar-area-y, 0px);
+    --pwa-titlebar-width: env(titlebar-area-width, 100%);
+    --pwa-titlebar-height: env(titlebar-area-height, 0px);
+
     /* --- LIQUID GLASS DARK MODE PALETTE (Vision Pro Inspired) --- */
     --background: 240 10% 4%;
     /* Deepest Onyx */
@@ -142,6 +147,35 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     letter-spacing: -0.011em;
     line-height: 1.5;
+  }
+
+  html[data-window-controls-overlay="true"]::before {
+    content: "";
+    position: fixed;
+    left: var(--pwa-titlebar-x);
+    top: var(--pwa-titlebar-y);
+    width: var(--pwa-titlebar-width);
+    height: var(--pwa-titlebar-height);
+    min-height: 28px;
+    app-region: drag;
+    -webkit-app-region: drag;
+    pointer-events: auto;
+    z-index: 59;
+  }
+
+  html[data-window-controls-overlay="true"] #navbar-container {
+    top: max(1.25rem, calc(var(--pwa-titlebar-y) + var(--pwa-titlebar-height) + 0.75rem));
+  }
+
+  html[data-window-controls-overlay="true"] a,
+  html[data-window-controls-overlay="true"] button,
+  html[data-window-controls-overlay="true"] input,
+  html[data-window-controls-overlay="true"] textarea,
+  html[data-window-controls-overlay="true"] select,
+  html[data-window-controls-overlay="true"] [role="button"],
+  html[data-window-controls-overlay="true"] [data-radix-popper-content-wrapper] {
+    app-region: no-drag;
+    -webkit-app-region: no-drag;
   }
 
   /* --- Rubber Interaction --- */

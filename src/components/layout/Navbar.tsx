@@ -153,7 +153,7 @@ export const Navbar = () => {
                 className="h-6 w-6 object-contain transition-transform duration-500 group-hover:scale-105"
               />
             </span>
-            <span className={cn("text-[10px] font-black tracking-[0.3em] uppercase hidden md:block transition-colors duration-500", isDarkTheme ? "text-white" : "text-zinc-900")}>NeuroNex</span>
+            <span className={cn("text-[10px] font-black tracking-[0.28em] uppercase hidden md:block transition-colors duration-500", isDarkTheme ? "text-white" : "text-zinc-900")}>NeuroNex AI</span>
           </Link>
         </div>
 

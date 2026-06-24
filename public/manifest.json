@@ -1,14 +1,15 @@
 {
   "id": "/",
-  "name": "NeuroNex — Gestão Inteligente para Psicólogos",
-  "short_name": "NeuroNex",
-  "description": "Plataforma de gestão com inteligência artificial para psicólogos e clínicas de psicologia.",
+  "name": "NeuroNex AI - Gestao Inteligente para Psicologos",
+  "short_name": "NeuroNex AI",
+  "description": "Plataforma de gestao com inteligencia artificial para psicologos e clinicas de psicologia.",
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": [
+    "window-controls-overlay",
     "standalone",
     "minimal-ui"
   ],
@@ -40,21 +41,21 @@
       "sizes": "1280x720",
       "type": "image/webp",
       "form_factor": "wide",
-      "label": "Dashboard desktop do NeuroNex"
+      "label": "Dashboard desktop do NeuroNex AI"
     },
     {
       "src": "/landing/screenshots/mobile/dark/20-mobile-dashboard-dark.webp",
       "sizes": "750x1334",
       "type": "image/webp",
       "form_factor": "narrow",
-      "label": "Dashboard mobile do NeuroNex"
+      "label": "Dashboard mobile do NeuroNex AI"
     }
   ],
   "shortcuts": [
     {
       "name": "Abrir dashboard",
       "short_name": "Dashboard",
-      "description": "Acesse o resumo da sua operação.",
+      "description": "Acesse o resumo da sua operacao.",
       "url": "/dashboard",
       "icons": [
         {
@@ -80,7 +81,7 @@
     {
       "name": "Abrir pacientes",
       "short_name": "Pacientes",
-      "description": "Acesse a área de pacientes.",
+      "description": "Acesse a area de pacientes.",
       "url": "/pacientes",
       "icons": [
         {
@@ -93,7 +94,7 @@
     {
       "name": "Abrir Synapse AI",
       "short_name": "Synapse AI",
-      "description": "Abra o assistente inteligente do NeuroNex.",
+      "description": "Abra o assistente inteligente do NeuroNex AI.",
       "url": "/synapse-ai",
       "icons": [
         {
@@ -102,6 +103,77 @@
           "type": "image/png"
         }
       ]
+    },
+    {
+      "name": "Criar nova nota",
+      "short_name": "Nova nota",
+      "description": "Abra o NeuroNex AI pronto para registrar uma nova anotacao.",
+      "url": "/pwa-intent?mode=new-note",
+      "icons": [
+        {
+          "src": "/pwa-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/pwa-intent",
+    "method": "GET",
+    "params": {
+      "title": "shareTitle",
+      "text": "shareText",
+      "url": "shareUrl"
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "/pwa-intent?mode=file",
+      "accept": {
+        "text/plain": [
+          ".txt",
+          ".text"
+        ],
+        "text/markdown": [
+          ".md",
+          ".markdown"
+        ],
+        "text/csv": [
+          ".csv"
+        ]
+      }
+    }
+  ],
+  "widgets": [
+    {
+      "name": "NeuroNex AI - Resumo seguro",
+      "short_name": "Resumo",
+      "description": "Acesse sinais gerais e atalhos do NeuroNex AI sem expor dados clinicos.",
+      "tag": "neuronex-ai-safe-overview",
+      "template": "neuronex-ai-safe-overview",
+      "ms_ac_template": "/widgets/clinic-overview-template.json",
+      "data": "/widgets/clinic-overview-data.json",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "/pwa-512.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "platform": "Windows",
+          "label": "Widget seguro do NeuroNex AI"
+        }
+      ],
+      "icons": [
+        {
+          "src": "/pwa-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ],
+      "auth": false,
+      "update": 3600,
+      "multiple": false
     }
   ],
   "launch_handler": {
