@@ -103,6 +103,7 @@ requireValue(indexSource.includes("NeuroNex AI"), "index.html precisa expor a ma
 
 requireValue(manifest.share_target?.action === "/pwa-intent", "Share Target precisa apontar para /pwa-intent.");
 requireValue(manifest.share_target?.method === "GET", "Share Target precisa usar GET para texto/link.");
+requireValue(manifest.share_target?.enctype === "application/x-www-form-urlencoded", "Share Target precisa declarar enctype application/x-www-form-urlencoded.");
 requireValue(Boolean(manifest.file_handlers?.length), "File handlers de anotacoes precisam estar configurados.");
 requireValue(Boolean(manifest.shortcuts?.some((shortcut) => shortcut.url === "/pwa-intent?mode=new-note")), "Atalho de nova nota ausente.");
 

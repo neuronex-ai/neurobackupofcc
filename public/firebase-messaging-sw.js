@@ -9,7 +9,7 @@
  */
 
 const APP_NAME = 'NeuroNex AI';
-const CACHE_NAME = 'neuronex-ai-pwa-v4';
+const CACHE_NAME = 'neuronex-ai-pwa-v5';
 const PWA_INTENT_SYNC_TAG = 'neuronex-pwa-intent-sync';
 const PWA_PERIODIC_SYNC_TAG = 'neuronex-ai-periodic-refresh';
 const WIDGET_TAG = 'neuronex-ai-safe-overview';
