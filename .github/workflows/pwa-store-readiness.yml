@@ -6,9 +6,10 @@ on:
       - main
     paths:
       - "public/manifest.json"
-      - "public/sw.js"
+      - "public/firebase-messaging-sw.js"
       - "public/offline.html"
       - "src/main.tsx"
+      - "src/lib/push-notifications.ts"
       - "index.html"
       - "vercel.json"
       - "scripts/validate-pwa.mjs"
