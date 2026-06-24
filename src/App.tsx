@@ -52,6 +52,7 @@ import Ajustes from "./pages/Ajustes";
 const AIChat = lazy(() => import("./pages/AIChat"));
 const Teleconsulta = lazy(() => import("./pages/Teleconsulta"));
 const PatientPortal = lazy(() => import("./pages/PatientPortal"));
+const PwaIntent = lazy(() => import("./pages/PwaIntent"));
 
 // Lazy Loaded Public Pages (web only - excluded from main bundle) - REMOVED FOR LEAN MVP
 const HelpCenter = lazy(() => import("@/pages/public/HelpCenter"));
@@ -139,6 +140,7 @@ const SharedRoutes = () => {
         {/* ─── Protected Professional Routes ──────────────── */}
         <Route path="/synapse-ai" element={<ProtectedRoute><AIChat /></ProtectedRoute>} />
         <Route path="/initial-settings" element={<ProtectedRoute isFullScreen><InitialSettings /></ProtectedRoute>} />
+        <Route path="/pwa-intent" element={<ProtectedRoute isFullScreen><PwaIntent /></ProtectedRoute>} />
 
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/agenda" element={<ProtectedRoute><Agenda /></ProtectedRoute>} />
