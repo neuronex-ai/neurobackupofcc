@@ -1,16 +1,27 @@
 import {
-  ASAAS_ENV,
   asaasRequest,
   corsResponse,
   errorResponse,
   getAuthenticatedUser,
   jsonResponse,
+  sanitizeDigits,
   supabaseAdmin,
 } from "../_shared/asaas-client.ts";
-
-const PROFESSIONAL_AMOUNT_CENTS = 14000;
-const PROFESSIONAL_AMOUNT = PROFESSIONAL_AMOUNT_CENTS / 100;
-const CHECKOUT_EXPIRATION_MINUTES = 120;
+import {
+  CHECKOUT_EXPIRATION_MINUTES,
+  PROFESSIONAL_AMOUNT_CENTS,
+  PROFESSIONAL_PLAN_CODE,
+  PROFESSIONAL_PLAN_NAME,
+  asaasBillingTypesForCheckout,
+  asaasCheckoutUrl,
+  findOrCreateAsaasCustomer,
+  getOpenCheckoutSession,
+  getUserSubscription,
+  normalizePlanCode,
+  publicPlanName,
+  subscriptionMetadata,
+  todayIsoDate,
+} from "../_shared/subscription-access.ts";
 
 type CheckoutRequest = {
   planId?: string;
@@ -26,19 +37,7 @@ type AsaasCheckoutResponse = {
   [key: string]: unknown;
 };
 
-const checkoutUrlFor = (checkoutId: string) =>
-  `https://asaas.com/checkoutSession/show?id=${encodeURIComponent(checkoutId)}`;
-
-const digitsOnly = (value?: string | null) => String(value || "").replace(/\D/g, "");
-
-const normalizePlan = (planId?: string) => {
-  const normalized = String(planId || "Professional")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-  return normalized === "profissional" || normalized === "professional" ? "Professional" : null;
-};
+const PROFESSIONAL_AMOUNT = PROFESSIONAL_AMOUNT_CENTS / 100;
 
 const resolveAppUrl = (req: Request) => {
   const configured =
@@ -50,65 +49,156 @@ const resolveAppUrl = (req: Request) => {
   return configured.replace(/\/+$/, "");
 };
 
-async function getProfileName(userId: string) {
+async function getProfile(userId: string) {
   const { data } = await supabaseAdmin
     .from("profiles")
-    .select("full_name,name,first_name,last_name")
+    .select("full_name,name,first_name,last_name,phone")
     .eq("id", userId)
     .maybeSingle();
+  return data as any;
+}
 
-  const profile = data as any;
+async function getFinancialDocument(userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("financial_accounts")
+    .select("cpf_cnpj,mobile_phone")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("create-checkout-session:financial-account-lookup", error);
+    return null;
+  }
+
+  return data as any;
+}
+
+function profileName(profile: any, fallbackEmail: string) {
   const joinedName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
-  return profile?.full_name || profile?.name || joinedName || "";
+  return String(profile?.full_name || profile?.name || joinedName || fallbackEmail || "Cliente NeuroNex").trim();
+}
+
+function hasValidCpfCnpj(value?: string | null) {
+  const digits = sanitizeDigits(value);
+  return Boolean(digits && !/^0+$/.test(digits) && [11, 14].includes(digits.length));
+}
+
+function assertCheckoutAllowed(subscription: any) {
+  if (!subscription) return;
+
+  if (
+    subscription.status === "active" &&
+    subscription.access_state === "paid_access" &&
+    subscription.asaas_subscription_id
+  ) {
+    const err: any = new Error("Sua assinatura paga ja esta ativa.");
+    err.status = 409;
+    throw err;
+  }
+
+  if (
+    subscription.status === "trialing" &&
+    subscription.trial_ends_at &&
+    new Date(subscription.trial_ends_at).getTime() > Date.now()
+  ) {
+    const err: any = new Error("Seu teste gratis ainda esta ativo.");
+    err.status = 409;
+    err.trial_ends_at = subscription.trial_ends_at;
+    throw err;
+  }
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return corsResponse();
 
   if (req.method !== "POST") {
-    return errorResponse("Método não permitido.", 405);
+    return errorResponse("Metodo nao permitido.", 405);
   }
+
+  let sessionId = "";
 
   try {
     const user = await getAuthenticatedUser(req);
     const body = (await req.json().catch(() => ({}))) as CheckoutRequest;
-    const plan = normalizePlan(body.planId);
+    const planCode = normalizePlanCode(body.planId);
 
-    if (!plan) {
-      return errorResponse("Plano inválido para checkout.", 400);
+    if (planCode !== PROFESSIONAL_PLAN_CODE) {
+      return errorResponse("Plano invalido para checkout.", 400);
     }
 
+    const existingCheckout = await getOpenCheckoutSession(user.id, planCode);
+    if (existingCheckout?.checkout_url) {
+      return jsonResponse({
+        url: existingCheckout.checkout_url,
+        session_id: existingCheckout.external_reference,
+        provider_checkout_id: existingCheckout.provider_checkout_id,
+        provider: "asaas",
+        plan: publicPlanName(planCode),
+        plan_code: planCode,
+        amount_total: existingCheckout.amount_cents,
+        currency: existingCheckout.currency,
+        reused: true,
+      });
+    }
+
+    const subscription = await getUserSubscription(user.id);
+    assertCheckoutAllowed(subscription);
+
     const now = new Date();
-    const externalReference = `nnx_${user.id}_${now.getTime()}`;
+    const expiresAt = new Date(now.getTime() + CHECKOUT_EXPIRATION_MINUTES * 60 * 1000);
+    sessionId = crypto.randomUUID();
+    const externalReference = `nnx_sub_${user.id}_${sessionId}`;
     const appUrl = resolveAppUrl(req);
     const successUrl = `${appUrl}/payment/callback?status=success&session_id=${encodeURIComponent(externalReference)}`;
     const cancelUrl = `${appUrl}/payment/callback?status=cancelled&session_id=${encodeURIComponent(externalReference)}`;
     const expiredUrl = `${appUrl}/payment/callback?status=expired&session_id=${encodeURIComponent(externalReference)}`;
-    const fallbackName = await getProfileName(user.id);
-    const customerName = String(body.name || fallbackName || user.email || "Cliente NeuroNex").trim();
+    const profile = await getProfile(user.id);
+    const financialAccount = await getFinancialDocument(user.id);
+    const customerName = String(body.name || profileName(profile, user.email || "")).trim();
     const customerEmail = String(body.email || user.email || "").trim();
-    const cpfCnpj = digitsOnly(body.cpfCnpj);
-    const customerData: Record<string, unknown> = {
+    const cpfCnpj = sanitizeDigits(body.cpfCnpj || financialAccount?.cpf_cnpj);
+    if (!subscription?.asaas_customer_id && !hasValidCpfCnpj(cpfCnpj)) {
+      const err: any = new Error("Informe um CPF ou CNPJ valido para iniciar o checkout.");
+      err.status = 422;
+      err.code = "customer_document_required";
+      err.requires_document = true;
+      throw err;
+    }
+
+    const customerId = await findOrCreateAsaasCustomer({
+      userId: user.id,
+      existingCustomerId: subscription?.asaas_customer_id,
       name: customerName,
       email: customerEmail,
-    };
+      cpfCnpj,
+    });
 
-    if (cpfCnpj && !/^0+$/.test(cpfCnpj) && (cpfCnpj.length === 11 || cpfCnpj.length === 14)) {
-      customerData.cpfCnpj = cpfCnpj;
+    if (!customerId) {
+      const err: any = new Error("Nao foi possivel criar o cliente Asaas com o CPF/CNPJ informado.");
+      err.status = 422;
+      err.code = "customer_document_required";
+      err.requires_document = true;
+      throw err;
     }
 
     const pendingPayload = {
+      id: sessionId,
       user_id: user.id,
-      plan,
+      subscription_record_id: subscription?.id || null,
+      plan: PROFESSIONAL_PLAN_NAME,
+      plan_code: planCode,
       provider: "asaas",
       external_reference: externalReference,
       amount_cents: PROFESSIONAL_AMOUNT_CENTS,
       currency: "BRL",
-      status: "pending",
-      metadata: {
+      status: "checkout_pending",
+      expires_at: expiresAt.toISOString(),
+      metadata: subscriptionMetadata({
         source: "create-checkout-session",
-        asaas_environment: ASAAS_ENV,
-      },
+        previous_status: subscription?.status || null,
+        previous_access_state: subscription?.access_state || null,
+        has_customer_id: Boolean(customerId),
+      }),
       updated_at: now.toISOString(),
     };
 
@@ -116,10 +206,28 @@ Deno.serve(async (req: Request) => {
       .from("subscription_checkout_sessions")
       .insert(pendingPayload);
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      if (insertError.code === "23505") {
+        const racedCheckout = await getOpenCheckoutSession(user.id, planCode);
+        if (racedCheckout?.checkout_url) {
+          return jsonResponse({
+            url: racedCheckout.checkout_url,
+            session_id: racedCheckout.external_reference,
+            provider_checkout_id: racedCheckout.provider_checkout_id,
+            provider: "asaas",
+            plan: publicPlanName(planCode),
+            plan_code: planCode,
+            amount_total: racedCheckout.amount_cents,
+            currency: racedCheckout.currency,
+            reused: true,
+          });
+        }
+      }
+      throw insertError;
+    }
 
-    const checkout = await asaasRequest<AsaasCheckoutResponse>("/checkouts", "POST", {
-      billingTypes: ["CREDIT_CARD", "PIX"],
+    const checkoutPayload: Record<string, unknown> = {
+      billingTypes: asaasBillingTypesForCheckout(),
       chargeTypes: ["RECURRENT"],
       minutesToExpire: CHECKOUT_EXPIRATION_MINUTES,
       externalReference,
@@ -130,55 +238,125 @@ Deno.serve(async (req: Request) => {
       },
       items: [
         {
-          name: "NeuroNex Profissional",
-          description: "Plano Profissional NeuroNex AI - assinatura mensal",
+          name: "NeuroNex Professional",
+          description: "Plano Professional NeuroNex AI - assinatura mensal",
           quantity: 1,
           value: PROFESSIONAL_AMOUNT,
         },
       ],
-      customerData,
       subscription: {
         cycle: "MONTHLY",
-        nextDueDate: now.toISOString().slice(0, 10),
+        nextDueDate: todayIsoDate(),
       },
-    });
+    };
 
-    const checkoutId = String(checkout.id || "");
-    if (!checkoutId) {
-      return errorResponse("Asaas não retornou o identificador do checkout.", 502, { provider: "asaas" });
+    if (customerId) {
+      checkoutPayload.customer = customerId;
     }
 
-    const checkoutUrl = checkoutUrlFor(checkoutId);
+    const checkout = await asaasRequest<AsaasCheckoutResponse>("/checkouts", "POST", checkoutPayload);
+    const checkoutId = String(checkout.id || "");
+
+    if (!checkoutId) {
+      throw new Error("Asaas nao retornou o identificador do checkout.");
+    }
+
+    const checkoutUrl = asaasCheckoutUrl(checkoutId);
     const { error: updateError } = await supabaseAdmin
       .from("subscription_checkout_sessions")
       .update({
         provider_checkout_id: checkoutId,
         checkout_url: checkoutUrl,
         status: "created",
-        metadata: {
+        metadata: subscriptionMetadata({
           source: "create-checkout-session",
-          asaas_environment: ASAAS_ENV,
           asaas_checkout: checkout,
-        },
+          has_customer_id: Boolean(customerId),
+        }),
         updated_at: new Date().toISOString(),
       })
-      .eq("external_reference", externalReference);
+      .eq("id", sessionId);
 
     if (updateError) throw updateError;
+
+    const shouldPreserveFreeAccess =
+      subscription?.status === "active" && subscription?.access_state === "limited_access";
+
+    const { error: subscriptionUpdateError } = await supabaseAdmin
+      .from("user_subscriptions")
+      .upsert(
+        {
+          user_id: user.id,
+          plan: shouldPreserveFreeAccess ? "Essential" : PROFESSIONAL_PLAN_NAME,
+          plan_code: shouldPreserveFreeAccess ? "essential" : planCode,
+          status: shouldPreserveFreeAccess ? "active" : "checkout_pending",
+          access_state: shouldPreserveFreeAccess ? "limited_access" : "blocked",
+          asaas_customer_id: customerId || subscription?.asaas_customer_id || null,
+          asaas_checkout_id: checkoutId,
+          external_reference: externalReference,
+          metadata: {
+            ...((subscription?.metadata || {}) as Record<string, unknown>),
+            checkout_external_reference: externalReference,
+            checkout_session_id: sessionId,
+            checkout_started_at: new Date().toISOString(),
+          },
+          status_version: Number(subscription?.status_version || 0) + 1,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+
+    if (subscriptionUpdateError) throw subscriptionUpdateError;
+
+    await supabaseAdmin.from("subscription_audit_logs").insert({
+      user_id: user.id,
+      subscription_record_id: subscription?.id || null,
+      checkout_session_id: sessionId,
+      actor_type: "edge_function",
+      action: "checkout_created",
+      from_status: subscription?.status || null,
+      to_status: shouldPreserveFreeAccess ? "active" : "checkout_pending",
+      from_access_state: subscription?.access_state || null,
+      to_access_state: shouldPreserveFreeAccess ? "limited_access" : "blocked",
+      reason: "user_started_checkout",
+      metadata: { external_reference: externalReference, provider_checkout_id: checkoutId },
+    });
 
     return jsonResponse({
       url: checkoutUrl,
       session_id: externalReference,
       provider_checkout_id: checkoutId,
       provider: "asaas",
-      plan,
+      plan: PROFESSIONAL_PLAN_NAME,
+      plan_code: planCode,
       amount_total: PROFESSIONAL_AMOUNT_CENTS,
       currency: "BRL",
+      billing_types: asaasBillingTypesForCheckout(),
+      boleto_available_in_checkout: false,
     });
   } catch (error) {
     console.error("create-checkout-session:error", error);
-    return errorResponse("Não foi possível iniciar o checkout Asaas.", 500, {
-      details: String((error as { message?: string })?.message || error),
-    });
+
+    if (sessionId) {
+      await supabaseAdmin
+        .from("subscription_checkout_sessions")
+        .update({
+          status: "failed",
+          error_message: String((error as { message?: string })?.message || error),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sessionId);
+    }
+
+    const status = Number((error as { status?: number })?.status || 500);
+    return errorResponse(
+      String((error as { message?: string })?.message || "Nao foi possivel iniciar o checkout Asaas."),
+      status,
+      {
+        code: (error as any)?.code,
+        requires_document: Boolean((error as any)?.requires_document),
+        trial_ends_at: (error as any)?.trial_ends_at,
+      },
+    );
   }
 });

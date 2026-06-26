@@ -17,23 +17,28 @@ async function createProfessionalTrial(admin: ReturnType<typeof createAdminClien
   const payload = {
     user_id: userId,
     plan: "Professional",
+    plan_code: "professional",
     status: "trialing",
+    access_state: "trial_access",
     current_period_start: now.toISOString(),
     current_period_end: trialEndsAt.toISOString(),
     trial_started_at: now.toISOString(),
     trial_ends_at: trialEndsAt.toISOString(),
     canceled_at: null,
+    blocked_at: null,
+    grace_period_ends_at: null,
     metadata: {
       ...metadata,
       source: "signup-complete",
       trial_days: PROFESSIONAL_TRIAL_DAYS,
     },
+    status_version: 0,
     updated_at: now.toISOString(),
   };
 
   const { data: existing, error: findError } = await admin
     .from("user_subscriptions")
-    .select("id")
+    .select("id,user_id")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -44,6 +49,15 @@ async function createProfessionalTrial(admin: ReturnType<typeof createAdminClien
       .from("user_subscriptions")
       .update(payload)
       .eq("id", existing.id);
+    if (error) throw error;
+    return;
+  }
+
+  if (existing?.user_id) {
+    const { error } = await admin
+      .from("user_subscriptions")
+      .update(payload)
+      .eq("user_id", userId);
     if (error) throw error;
     return;
   }
@@ -152,6 +166,7 @@ Deno.serve(async (req) => {
         professional_context: verification.professional_context,
         signup_completed_at: now,
         setup_completed: false,
+        subscription_plan: "Professional",
         updated_at: now,
       },
       { onConflict: "id" },

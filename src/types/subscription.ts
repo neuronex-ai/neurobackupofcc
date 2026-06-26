@@ -6,7 +6,28 @@ export type SubscriptionPlan = 'Essential' | 'Professional' | 'Enterprise';
 /** 
  * Status operacionais de uma assinatura sincronizados com o gateway de pagamento.
  */
-export type SubscriptionStatus = 'active' | 'trialing' | 'inactive' | 'canceled' | 'past_due';
+export type SubscriptionStatus =
+    | 'inactive'
+    | 'trialing'
+    | 'trial_expired'
+    | 'checkout_pending'
+    | 'payment_pending'
+    | 'active'
+    | 'past_due'
+    | 'grace_period'
+    | 'blocked'
+    | 'canceled'
+    | 'refunded'
+    | 'chargeback'
+    | 'admin_override'
+    | 'internal_error';
+
+export type SubscriptionAccessState =
+    | 'trial_access'
+    | 'paid_access'
+    | 'limited_access'
+    | 'blocked'
+    | 'admin_override';
 
 /** 
  * Chaves de funcionalidades para controle de acesso granular e Feature Flags.

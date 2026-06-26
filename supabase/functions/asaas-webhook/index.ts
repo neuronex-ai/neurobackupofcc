@@ -49,6 +49,11 @@ import {
     createAsaasInvoice,
     persistAsaasInvoiceState,
 } from '../_shared/asaas-nfse.ts';
+import {
+    accessStateFor,
+    markProfilePlan,
+    subscriptionMetadata,
+} from '../_shared/subscription-access.ts';
 
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return corsResponse();
@@ -105,11 +110,15 @@ Deno.serve(async (req: Request) => {
                 case 'PAYMENT_CONFIRMED':
                 case 'PAYMENT_AUTHORIZED':
                 case 'PAYMENT_ANTICIPATED':
-                    await handlePaymentEvent(payment, event, webhookFinancialAccount);
+                    if (!(await handlePlatformPaymentEvent(body, payment, event))) {
+                        await handlePaymentEvent(payment, event, webhookFinancialAccount);
+                    }
                     break;
 
                 case 'PAYMENT_OVERDUE':
-                    await handlePaymentEvent(payment, event, webhookFinancialAccount);
+                    if (!(await handlePlatformPaymentEvent(body, payment, event))) {
+                        await handlePaymentEvent(payment, event, webhookFinancialAccount);
+                    }
                     break;
 
                 case 'PAYMENT_REFUNDED':
@@ -117,12 +126,16 @@ Deno.serve(async (req: Request) => {
                 case 'PAYMENT_REFUND_IN_PROGRESS':
                 case 'PAYMENT_REFUND_DENIED':
                 case 'PAYMENT_RECEIVED_IN_CASH_UNDONE':
-                    await handlePaymentEvent(payment, event, webhookFinancialAccount);
+                    if (!(await handlePlatformPaymentEvent(body, payment, event))) {
+                        await handlePaymentEvent(payment, event, webhookFinancialAccount);
+                    }
                     break;
 
                 case 'PAYMENT_DELETED':
                 case 'PAYMENT_RESTORED':
-                    await handlePaymentEvent(payment, event, webhookFinancialAccount);
+                    if (!(await handlePlatformPaymentEvent(body, payment, event))) {
+                        await handlePaymentEvent(payment, event, webhookFinancialAccount);
+                    }
                     break;
 
                 case 'PAYMENT_CREATED':
@@ -142,7 +155,9 @@ Deno.serve(async (req: Request) => {
                 case 'PAYMENT_SPLIT_CANCELLED':
                 case 'PAYMENT_SPLIT_DIVERGENCE_BLOCK':
                 case 'PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED':
-                    await handlePaymentEvent(payment, event, webhookFinancialAccount);
+                    if (!(await handlePlatformPaymentEvent(body, payment, event))) {
+                        await handlePaymentEvent(payment, event, webhookFinancialAccount);
+                    }
                     break;
 
                 case 'TRANSFER_CREATED':
@@ -1530,6 +1545,7 @@ async function handleGenericAsaasEvent(body: any, resource: any, event: string, 
 
 function getPlatformSubscriptionReference(body: any, resource: any) {
     return String(
+        body?.payment?.externalReference ||
         body?.subscription?.externalReference ||
         body?.checkout?.externalReference ||
         resource?.externalReference ||
@@ -1541,6 +1557,7 @@ function getPlatformSubscriptionReference(body: any, resource: any) {
 function getProviderSubscriptionId(body: any, resource: any) {
     return String(
         body?.subscription?.id ||
+        body?.payment?.subscription ||
         body?.checkout?.subscription ||
         body?.checkout?.subscriptionId ||
         resource?.subscription ||
@@ -1552,10 +1569,51 @@ function getProviderSubscriptionId(body: any, resource: any) {
 function getProviderCheckoutId(body: any, resource: any) {
     return String(
         body?.checkout?.id ||
+        body?.payment?.checkoutSession ||
+        body?.payment?.checkoutSessionId ||
+        resource?.checkoutSession ||
+        resource?.checkoutSessionId ||
         resource?.checkout ||
         (resource?.object === 'checkout' ? resource?.id : '') ||
         ''
     ).trim();
+}
+
+function getProviderPaymentId(body: any, resource: any) {
+    return String(
+        body?.payment?.id ||
+        (resource?.object === 'payment' ? resource?.id : '') ||
+        ''
+    ).trim();
+}
+
+function getProviderCustomerId(body: any, resource: any) {
+    return String(
+        body?.payment?.customer ||
+        body?.subscription?.customer ||
+        body?.checkout?.customer ||
+        resource?.customer ||
+        ''
+    ).trim();
+}
+
+function getBillingType(resource: any) {
+    return String(resource?.billingType || resource?.billing_type || '').trim() || null;
+}
+
+function eventOccurredAt(body: any, resource: any) {
+    const raw =
+        body?.dateCreated ||
+        body?.createdAt ||
+        body?.eventDate ||
+        resource?.dateCreated ||
+        resource?.confirmedDate ||
+        resource?.paymentDate ||
+        resource?.clientPaymentDate ||
+        resource?.createdAt ||
+        null;
+    const parsed = raw ? new Date(raw) : new Date();
+    return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 }
 
 function subscriptionPeriodEnd(resource: any) {
@@ -1565,14 +1623,28 @@ function subscriptionPeriodEnd(resource: any) {
     return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-async function upsertUserSubscriptionByUserId(userId: string, values: Record<string, unknown>) {
-    const { data: existing, error: findError } = await supabaseAdmin
+function isOlderDowngrade(subscription: any, nextStatus: string, eventAt: string) {
+    if (!subscription?.last_payment_event_at) return false;
+    if (['active', 'admin_override', 'refunded', 'chargeback'].includes(nextStatus)) return false;
+    if (subscription.status !== 'active') return false;
+
+    const last = new Date(subscription.last_payment_event_at).getTime();
+    const incoming = new Date(eventAt).getTime();
+    return Number.isFinite(last) && Number.isFinite(incoming) && incoming < last;
+}
+
+async function getSubscriptionByUserId(userId: string) {
+    const { data, error } = await supabaseAdmin
         .from('user_subscriptions')
-        .select('id')
+        .select('*')
         .eq('user_id', userId)
         .maybeSingle();
+    if (error) throw error;
+    return data;
+}
 
-    if (findError) throw findError;
+async function upsertUserSubscriptionByUserId(userId: string, values: Record<string, unknown>) {
+    const existing = await getSubscriptionByUserId(userId);
 
     if (existing?.id) {
         const { error } = await supabaseAdmin
@@ -1580,113 +1652,387 @@ async function upsertUserSubscriptionByUserId(userId: string, values: Record<str
             .update(values)
             .eq('id', existing.id);
         if (error) throw error;
-        return;
+        return { ...existing, ...values };
     }
 
-    const { error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
         .from('user_subscriptions')
         .insert({
             user_id: userId,
             ...values,
-        });
+        })
+        .select()
+        .single();
     if (error) throw error;
+    return data;
 }
 
-async function handlePlatformSubscriptionEvent(body: any, resource: any, event: string) {
+async function findPlatformCheckoutSession(body: any, resource: any) {
     const externalReference = getPlatformSubscriptionReference(body, resource);
-    if (!externalReference) {
-        console.log(`[asaas-webhook] Platform subscription event without external reference: ${event}`);
-        return;
+    const providerCheckoutId = getProviderCheckoutId(body, resource);
+    const providerSubscriptionId = getProviderSubscriptionId(body, resource);
+
+    if (externalReference) {
+        const { data, error } = await supabaseAdmin
+            .from('subscription_checkout_sessions')
+            .select('*')
+            .eq('external_reference', externalReference)
+            .maybeSingle();
+        if (error) throw error;
+        if (data) return data;
     }
 
-    const { data: checkoutSession, error } = await supabaseAdmin
-        .from('subscription_checkout_sessions')
-        .select('*')
-        .eq('external_reference', externalReference)
+    if (providerCheckoutId) {
+        const { data, error } = await supabaseAdmin
+            .from('subscription_checkout_sessions')
+            .select('*')
+            .eq('provider_checkout_id', providerCheckoutId)
+            .maybeSingle();
+        if (error) throw error;
+        if (data) return data;
+    }
+
+    if (providerSubscriptionId) {
+        const { data, error } = await supabaseAdmin
+            .from('subscription_checkout_sessions')
+            .select('*')
+            .eq('provider_subscription_id', providerSubscriptionId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        if (error) throw error;
+        if (data) return data;
+    }
+
+    return null;
+}
+
+async function findPlatformUserSubscription(body: any, resource: any, checkoutSession: any) {
+    const providerSubscriptionId = getProviderSubscriptionId(body, resource);
+
+    if (providerSubscriptionId) {
+        const { data, error } = await supabaseAdmin
+            .from('user_subscriptions')
+            .select('*')
+            .eq('asaas_subscription_id', providerSubscriptionId)
+            .maybeSingle();
+        if (error) throw error;
+        if (data) return data;
+    }
+
+    if (checkoutSession?.user_id) {
+        return await getSubscriptionByUserId(checkoutSession.user_id);
+    }
+
+    return null;
+}
+
+async function resolvePlatformContext(body: any, resource: any) {
+    const externalReference = getPlatformSubscriptionReference(body, resource);
+    const providerSubscriptionId = getProviderSubscriptionId(body, resource);
+    const providerCheckoutId = getProviderCheckoutId(body, resource);
+    const looksLikePlatformReference = externalReference.startsWith('nnx_sub_');
+
+    const checkoutSession = await findPlatformCheckoutSession(body, resource);
+    const userSubscription = await findPlatformUserSubscription(body, resource, checkoutSession);
+    const userId = checkoutSession?.user_id || userSubscription?.user_id || null;
+
+    if (!userId) {
+        if (looksLikePlatformReference || providerSubscriptionId || providerCheckoutId) {
+            console.log(`[asaas-webhook] Platform billing context not found for reference=${externalReference || 'none'}`);
+        }
+        return null;
+    }
+
+    return {
+        userId,
+        checkoutSession,
+        userSubscription,
+        externalReference: externalReference || checkoutSession?.external_reference || userSubscription?.external_reference || '',
+        providerSubscriptionId,
+        providerCheckoutId,
+    };
+}
+
+async function recordPlatformSubscriptionEvent(
+    body: any,
+    resource: any,
+    event: string,
+    context: any,
+    effect: 'history_only' | 'checkout_update' | 'access_granted' | 'access_blocked' | 'access_warning' | 'error',
+) {
+    const providerEventId = String(body?.id || `${event}_${resource?.id || context.externalReference || Date.now()}`);
+    const payload = {
+        user_id: context.userId,
+        subscription_record_id: context.userSubscription?.id || null,
+        checkout_session_id: context.checkoutSession?.id || null,
+        provider: 'asaas',
+        provider_event_id: providerEventId,
+        event_type: event,
+        object_type: inferProviderObjectType(body),
+        object_id: String(resource?.id || ''),
+        external_reference: context.externalReference || null,
+        provider_subscription_id: context.providerSubscriptionId || context.checkoutSession?.provider_subscription_id || null,
+        provider_payment_id: getProviderPaymentId(body, resource) || null,
+        provider_checkout_id: context.providerCheckoutId || context.checkoutSession?.provider_checkout_id || null,
+        event_created_at: eventOccurredAt(body, resource),
+        processed_at: new Date().toISOString(),
+        processing_status: 'processed',
+        effect,
+        payload: body,
+    };
+
+    const { data, error } = await supabaseAdmin
+        .from('subscription_events')
+        .insert(payload)
+        .select('id')
         .maybeSingle();
 
-    if (error) throw error;
-    if (!checkoutSession?.user_id) {
-        console.log(`[asaas-webhook] Platform subscription session not found for ${externalReference}`);
-        return;
+    if (error && error.code !== '23505') throw error;
+    if (error?.code === '23505') {
+        const { data: existing } = await supabaseAdmin
+            .from('subscription_events')
+            .select('id')
+            .eq('provider', 'asaas')
+            .eq('provider_event_id', providerEventId)
+            .maybeSingle();
+        return existing?.id || null;
     }
 
+    return data?.id || null;
+}
+
+async function auditPlatformAccessChange(context: any, eventId: string | null, action: string, fromSubscription: any, nextStatus: string, nextAccessState: string, reason: string) {
+    const { error } = await supabaseAdmin.from('subscription_audit_logs').insert({
+        user_id: context.userId,
+        subscription_record_id: fromSubscription?.id || context.userSubscription?.id || null,
+        checkout_session_id: context.checkoutSession?.id || null,
+        event_id: eventId,
+        actor_type: 'asaas_webhook',
+        action,
+        from_status: fromSubscription?.status || null,
+        to_status: nextStatus,
+        from_access_state: fromSubscription?.access_state || null,
+        to_access_state: nextAccessState,
+        reason,
+        metadata: {
+            external_reference: context.externalReference || null,
+            provider_subscription_id: context.providerSubscriptionId || null,
+            provider_checkout_id: context.providerCheckoutId || null,
+        },
+    });
+    if (error) console.warn('[asaas-webhook] subscription audit failed:', error);
+}
+
+function subscriptionTransitionForEvent(event: string, providerStatus: string, currentStatus?: string) {
+    if (event === 'CHECKOUT_CREATED') {
+        return { status: currentStatus || 'checkout_pending', accessState: accessStateFor(currentStatus || 'checkout_pending', 'professional'), checkoutStatus: 'created', effect: 'checkout_update' as const };
+    }
+    if (event === 'CHECKOUT_PAID') return { status: 'active', accessState: 'paid_access', checkoutStatus: 'paid', effect: 'access_granted' as const };
+    if (event === 'CHECKOUT_CANCELED') return { status: 'canceled', accessState: 'blocked', checkoutStatus: 'canceled', effect: 'access_blocked' as const };
+    if (event === 'CHECKOUT_EXPIRED') return { status: 'blocked', accessState: 'blocked', checkoutStatus: 'expired', effect: 'access_blocked' as const };
+    if (event === 'SUBSCRIPTION_INACTIVATED' || event === 'SUBSCRIPTION_DELETED') {
+        return { status: 'canceled', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const };
+    }
+    if (event === 'SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK') {
+        return { status: 'past_due', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const };
+    }
+    if (providerStatus === 'INACTIVE' || providerStatus === 'DELETED') {
+        return { status: 'canceled', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const };
+    }
+    if (event === 'SUBSCRIPTION_CREATED' || event === 'SUBSCRIPTION_UPDATED') {
+        if (currentStatus === 'active') {
+            return { status: 'active', accessState: 'paid_access', checkoutStatus: 'updated', effect: 'history_only' as const };
+        }
+        return { status: 'payment_pending', accessState: 'blocked', checkoutStatus: 'payment_pending', effect: 'checkout_update' as const };
+    }
+    return { status: currentStatus || 'payment_pending', accessState: accessStateFor(currentStatus || 'payment_pending', 'professional'), checkoutStatus: 'updated', effect: 'history_only' as const };
+}
+
+function paymentTransitionForEvent(event: string, currentStatus?: string) {
+    if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') {
+        return { status: 'active', accessState: 'paid_access', checkoutStatus: 'paid', effect: 'access_granted' as const };
+    }
+    if (event === 'PAYMENT_OVERDUE') {
+        return { status: 'past_due', accessState: 'blocked', checkoutStatus: 'payment_pending', effect: 'access_blocked' as const };
+    }
+    if (event === 'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED' || event === 'PAYMENT_REPROVED_BY_RISK_ANALYSIS') {
+        return { status: 'payment_pending', accessState: 'blocked', checkoutStatus: 'payment_pending', effect: 'access_blocked' as const };
+    }
+    if (event === 'PAYMENT_REFUNDED') {
+        return { status: 'refunded', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const };
+    }
+    if (event === 'PAYMENT_CHARGEBACK_REQUESTED' || event === 'PAYMENT_CHARGEBACK_DISPUTE') {
+        return { status: 'chargeback', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const };
+    }
+    if (event === 'PAYMENT_DELETED' || event === 'PAYMENT_BANK_SLIP_CANCELLED') {
+        return currentStatus === 'active'
+            ? { status: 'past_due', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const }
+            : { status: 'canceled', accessState: 'blocked', checkoutStatus: 'canceled', effect: 'access_blocked' as const };
+    }
+    if (
+        event === 'PAYMENT_CREATED' ||
+        event === 'PAYMENT_UPDATED' ||
+        event === 'PAYMENT_AWAITING_RISK_ANALYSIS' ||
+        event === 'PAYMENT_AUTHORIZED' ||
+        event === 'PAYMENT_ANTICIPATED' ||
+        event === 'PAYMENT_APPROVED_BY_RISK_ANALYSIS'
+    ) {
+        if (currentStatus === 'active') {
+            return { status: 'active', accessState: 'paid_access', checkoutStatus: 'payment_pending', effect: 'history_only' as const };
+        }
+        return { status: 'payment_pending', accessState: 'blocked', checkoutStatus: 'payment_pending', effect: 'checkout_update' as const };
+    }
+    return {
+        status: currentStatus || 'payment_pending',
+        accessState: accessStateFor(currentStatus || 'payment_pending', 'professional'),
+        checkoutStatus: 'updated',
+        effect: event === 'PAYMENT_PARTIALLY_REFUNDED' ? 'access_warning' as const : 'history_only' as const,
+    };
+}
+
+async function applyPlatformTransition(args: {
+    body: any;
+    resource: any;
+    event: string;
+    context: any;
+    status: string;
+    accessState: string;
+    checkoutStatus: string;
+    effect: 'history_only' | 'checkout_update' | 'access_granted' | 'access_blocked' | 'access_warning' | 'error';
+}) {
+    const { body, resource, event, context, status, accessState, checkoutStatus, effect } = args;
     const now = new Date().toISOString();
-    const providerSubscriptionId = getProviderSubscriptionId(body, resource);
-    const providerCheckoutId = getProviderCheckoutId(body, resource) || checkoutSession.provider_checkout_id;
-    const sourceResource = body?.subscription || body?.checkout || resource || {};
-    const providerStatus = String(sourceResource?.status || '').toUpperCase();
-    const activeEvent =
-        event === 'CHECKOUT_PAID' ||
-        event === 'SUBSCRIPTION_CREATED' ||
-        (event === 'SUBSCRIPTION_UPDATED' && providerStatus === 'ACTIVE');
-    const blockedEvent =
-        event === 'CHECKOUT_CANCELED' ||
-        event === 'CHECKOUT_EXPIRED' ||
-        event === 'SUBSCRIPTION_INACTIVATED' ||
-        event === 'SUBSCRIPTION_DELETED' ||
-        event === 'SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK' ||
-        providerStatus === 'INACTIVE' ||
-        providerStatus === 'DELETED';
+    const eventAt = eventOccurredAt(body, resource);
+    const providerPaymentId = getProviderPaymentId(body, resource);
+    const providerCustomerId = getProviderCustomerId(body, resource);
+    const providerSubscriptionId = context.providerSubscriptionId || context.checkoutSession?.provider_subscription_id || '';
+    const providerCheckoutId = context.providerCheckoutId || context.checkoutSession?.provider_checkout_id || '';
+    const current = context.userSubscription || await getSubscriptionByUserId(context.userId);
+    const eventId = await recordPlatformSubscriptionEvent(body, resource, event, context, effect);
 
-    const checkoutStatus = activeEvent ? 'paid' : blockedEvent ? 'blocked' : 'updated';
+    if (context.checkoutSession?.id) {
+        const { error: checkoutUpdateError } = await supabaseAdmin
+            .from('subscription_checkout_sessions')
+            .update({
+                provider_checkout_id: providerCheckoutId || null,
+                provider_subscription_id: providerSubscriptionId || null,
+                provider_payment_id: providerPaymentId || context.checkoutSession.provider_payment_id || null,
+                billing_type: getBillingType(resource),
+                status: checkoutStatus,
+                paid_at: checkoutStatus === 'paid' ? now : context.checkoutSession.paid_at || null,
+                canceled_at: ['canceled', 'expired', 'blocked'].includes(checkoutStatus) ? now : context.checkoutSession.canceled_at || null,
+                metadata: {
+                    ...(context.checkoutSession.metadata || {}),
+                    last_asaas_event: event,
+                    last_event_at: eventAt,
+                    last_payment_id: providerPaymentId || null,
+                },
+                updated_at: now,
+            })
+            .eq('id', context.checkoutSession.id);
 
-    const { error: checkoutUpdateError } = await supabaseAdmin
-        .from('subscription_checkout_sessions')
-        .update({
-            provider_checkout_id: providerCheckoutId || null,
-            provider_subscription_id: providerSubscriptionId || checkoutSession.provider_subscription_id || null,
-            status: checkoutStatus,
-            metadata: {
-                ...(checkoutSession.metadata || {}),
-                last_asaas_event: event,
-                last_asaas_payload: body,
-            },
-            updated_at: now,
-        })
-        .eq('id', checkoutSession.id);
+        if (checkoutUpdateError) throw checkoutUpdateError;
+    }
 
-    if (checkoutUpdateError) throw checkoutUpdateError;
+    const staleDowngrade = isOlderDowngrade(current, status, eventAt);
+    if (staleDowngrade) {
+        console.log(`[asaas-webhook] Ignoring stale platform downgrade ${event} for user ${context.userId}`);
+        return true;
+    }
 
-    if (activeEvent) {
-        await upsertUserSubscriptionByUserId(checkoutSession.user_id, {
-            plan: 'Professional',
-            status: 'active',
-            asaas_subscription_id: providerSubscriptionId || null,
-            asaas_checkout_id: providerCheckoutId || null,
-            current_period_start: now,
-            current_period_end: subscriptionPeriodEnd(sourceResource),
-            canceled_at: null,
-            metadata: {
-                source: 'asaas-webhook',
-                last_asaas_event: event,
-                checkout_external_reference: externalReference,
-            },
-            updated_at: now,
-        });
-    } else if (blockedEvent) {
-        await upsertUserSubscriptionByUserId(checkoutSession.user_id, {
-            plan: 'Professional',
-            status: event === 'SUBSCRIPTION_SPLIT_DIVERGENCE_BLOCK' ? 'past_due' : 'canceled',
-            asaas_subscription_id: providerSubscriptionId || checkoutSession.provider_subscription_id || null,
-            asaas_checkout_id: providerCheckoutId || null,
-            canceled_at: now,
-            metadata: {
-                source: 'asaas-webhook',
-                last_asaas_event: event,
-                checkout_external_reference: externalReference,
-            },
-            updated_at: now,
-        });
+    const nextValues: Record<string, unknown> = {
+        plan: 'Professional',
+        plan_code: 'professional',
+        status,
+        access_state: accessState,
+        asaas_customer_id: providerCustomerId || current?.asaas_customer_id || null,
+        asaas_subscription_id: providerSubscriptionId || current?.asaas_subscription_id || null,
+        asaas_checkout_id: providerCheckoutId || current?.asaas_checkout_id || null,
+        last_payment_id: providerPaymentId || current?.last_payment_id || null,
+        last_payment_status: String(resource?.status || event),
+        last_payment_event_at: eventAt,
+        external_reference: context.externalReference || current?.external_reference || null,
+        metadata: subscriptionMetadata({
+            ...((current?.metadata || {}) as Record<string, unknown>),
+            last_asaas_event: event,
+            last_event_at: eventAt,
+            checkout_external_reference: context.externalReference || null,
+        }),
+        status_version: Number(current?.status_version || 0) + 1,
+        updated_at: now,
+    };
+
+    if (status === 'active') {
+        nextValues.current_period_start = now;
+        nextValues.current_period_end = subscriptionPeriodEnd(resource) || current?.current_period_end || null;
+        nextValues.canceled_at = null;
+        nextValues.blocked_at = null;
+        nextValues.grace_period_ends_at = null;
+    }
+
+    if (['blocked', 'past_due', 'payment_pending', 'refunded', 'chargeback'].includes(status)) {
+        nextValues.blocked_at = current?.blocked_at || now;
+    }
+
+    if (['canceled', 'refunded', 'chargeback'].includes(status)) {
+        nextValues.canceled_at = current?.canceled_at || now;
+    }
+
+    const updated = await upsertUserSubscriptionByUserId(context.userId, nextValues);
+    await auditPlatformAccessChange(context, eventId, `asaas_${event.toLowerCase()}`, current, status, accessState, event);
+
+    if (status === 'active') {
+        await markProfilePlan(context.userId, 'Professional');
     }
 
     await emitAsaasNotification({
-        userId: checkoutSession.user_id,
+        userId: context.userId,
         event,
-        resource: sourceResource,
+        resource,
         objectType: inferProviderObjectType(body),
         actionUrl: '/ajustes?tab=pagamentos',
     });
 
-    console.log(`[asaas-webhook] Platform subscription synchronized (${event}): ${externalReference}`);
+    console.log(`[asaas-webhook] Platform billing synchronized (${event}): ${context.externalReference || providerSubscriptionId || providerPaymentId}`);
+    context.userSubscription = updated;
+    return true;
+}
+
+async function handlePlatformPaymentEvent(body: any, payment: any, event: string) {
+    if (!payment) return false;
+    const context = await resolvePlatformContext(body, payment);
+    if (!context) return false;
+
+    const transition = paymentTransitionForEvent(event, context.userSubscription?.status);
+    await applyPlatformTransition({
+        body,
+        resource: payment,
+        event,
+        context,
+        status: transition.status,
+        accessState: transition.accessState,
+        checkoutStatus: transition.checkoutStatus,
+        effect: transition.effect,
+    });
+    return true;
+}
+
+async function handlePlatformSubscriptionEvent(body: any, resource: any, event: string) {
+    const sourceResource = body?.subscription || body?.checkout || resource || {};
+    const context = await resolvePlatformContext(body, sourceResource);
+    if (!context) return;
+
+    const providerStatus = String(sourceResource?.status || '').toUpperCase();
+    const transition = subscriptionTransitionForEvent(event, providerStatus, context.userSubscription?.status);
+    await applyPlatformTransition({
+        body,
+        resource: sourceResource,
+        event,
+        context,
+        status: transition.status,
+        accessState: transition.accessState,
+        checkoutStatus: transition.checkoutStatus,
+        effect: transition.effect,
+    });
 }

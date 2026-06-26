@@ -1,12 +1,19 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Check, ArrowRight, Star, MessageCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PROFESSIONAL_PLAN_PRICE } from "@/lib/subscription-plans";
+import {
+    isValidCpfCnpjLength,
+    normalizeCpfCnpj,
+    startSubscriptionCheckout,
+} from "@/lib/subscription-checkout";
 
 interface PlanOffer {
     id: string;
@@ -26,6 +33,8 @@ interface UpgradePlanModalProps {
 export const UpgradePlanModal = ({ currentPlan, children }: UpgradePlanModalProps) => {
     const [isLoading, setIsLoading] = useState(false);
     const [userProfile, setUserProfile] = useState<any>(null);
+    const [documentRequired, setDocumentRequired] = useState(false);
+    const [cpfCnpj, setCpfCnpj] = useState("");
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -89,21 +98,37 @@ export const UpgradePlanModal = ({ currentPlan, children }: UpgradePlanModalProp
                 return;
             }
 
+            if (documentRequired && !isValidCpfCnpjLength(cpfCnpj)) {
+                toast.error("Informe um CPF ou CNPJ valido para continuar.");
+                return;
+            }
+
             setIsLoading(true);
             try {
-                const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-                    body: {
-                        planId: 'Professional',
-                        name: userProfile.first_name ? `${userProfile.first_name} ${userProfile.last_name}` : userProfile.email,
-                        email: userProfile.email,
-                        cpfCnpj: '000.000.000-00', // Default or fetch from profile if stored
-                    }
+                const result = await startSubscriptionCheckout({
+                    planId: 'Professional',
+                    name: userProfile.first_name ? `${userProfile.first_name} ${userProfile.last_name}` : userProfile.email,
+                    email: userProfile.email,
+                    cpfCnpj: cpfCnpj ? normalizeCpfCnpj(cpfCnpj) : undefined,
                 });
 
-                if (error) throw error;
-                if (data?.url) {
-                    window.location.href = data.url;
+                if (result.url) {
+                    window.location.href = result.url;
+                    return;
                 }
+
+                if (result.requiresDocument || result.code === "customer_document_required") {
+                    setDocumentRequired(true);
+                    toast.error("Informe CPF/CNPJ para abrir o checkout.");
+                    return;
+                }
+
+                if (result.trialEndsAt) {
+                    toast.info("Seu teste gratis ainda esta ativo.");
+                    return;
+                }
+
+                toast.error(result.error || "Erro ao iniciar pagamento. Tente novamente.");
             } catch (error: any) {
                 console.error('Error creating checkout session:', error);
                 toast.error("Erro ao iniciar pagamento. Tente novamente.");
@@ -219,6 +244,30 @@ export const UpgradePlanModal = ({ currentPlan, children }: UpgradePlanModalProp
                                             ))}
                                         </div>
                                     </div>
+
+                                    {plan.id === 'Professional' && documentRequired && (
+                                        <div className="pt-8 space-y-2">
+                                            <Label htmlFor="upgrade-cpf-cnpj" className="text-[10px] font-black uppercase tracking-[0.18em] opacity-60">
+                                                CPF ou CNPJ
+                                            </Label>
+                                            <Input
+                                                id="upgrade-cpf-cnpj"
+                                                inputMode="numeric"
+                                                autoComplete="off"
+                                                value={cpfCnpj}
+                                                onChange={(event) => setCpfCnpj(event.target.value)}
+                                                placeholder="Digite somente numeros"
+                                                className={cn(
+                                                    plan.popular
+                                                        ? "border-white/20 bg-white/10 text-white dark:text-black placeholder:text-white/40 dark:placeholder:text-black/40"
+                                                        : "border-zinc-200 dark:border-white/10"
+                                                )}
+                                            />
+                                            <p className="text-[11px] font-medium leading-relaxed opacity-50">
+                                                Necessario para criar seu cliente na Asaas pela conta mestra da NeuroNex.
+                                            </p>
+                                        </div>
+                                    )}
 
                                     <div className="pt-12 md:pt-16">
                                         <Button

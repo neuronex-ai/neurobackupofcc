@@ -4,25 +4,33 @@ import { useAuth } from "@/components/auth/SessionContextProvider";
 import {
     SubscriptionPlan,
     SubscriptionStatus,
+    SubscriptionAccessState,
     PlanFeatures,
     PLAN_FEATURES,
     FeatureKey
 } from "@/types/subscription";
 
-// Developer accounts with full access
-const DEV_ACCOUNTS = ['jotahub@gmail.com'];
-
 interface SubscriptionData {
     plan: SubscriptionPlan;
+    planCode?: string;
     status: SubscriptionStatus;
+    accessState: SubscriptionAccessState;
     features: PlanFeatures;
+    limits?: Record<string, unknown>;
+    rawFeatures?: Record<string, unknown>;
     isDevAccount: boolean;
     subscriptionId?: string;
+    checkoutSessionId?: string;
+    checkoutUrl?: string;
     currentPeriodEnd?: Date;
     trialEndsAt?: Date;
     isTrial: boolean;
     isTrialExpired: boolean;
     daysUntilTrialEnds?: number;
+    hasPaidAccess: boolean;
+    canUseCurrentAccess: boolean;
+    requiresUpsell: boolean;
+    message?: string;
 }
 
 interface UseSubscriptionPlanReturn {
@@ -34,6 +42,11 @@ interface UseSubscriptionPlanReturn {
     refetch: () => void;
 }
 
+const normalizePlan = (plan?: string): SubscriptionPlan => {
+    if (plan === "Professional" || plan === "Enterprise" || plan === "Essential") return plan;
+    return "Essential";
+};
+
 export const useSubscriptionPlan = (): UseSubscriptionPlanReturn => {
     const { user, isLoading: isAuthLoading } = useAuth();
 
@@ -44,79 +57,55 @@ export const useSubscriptionPlan = (): UseSubscriptionPlanReturn => {
                 throw new Error('User not authenticated');
             }
 
-            // Developer bypass
-            if (user.email && DEV_ACCOUNTS.includes(user.email)) {
-                return {
-                    plan: 'Enterprise',
-                    status: 'active',
-                    features: PLAN_FEATURES.Enterprise,
-                    isDevAccount: true,
-                    isTrial: false,
-                    isTrialExpired: false,
-                };
-            }
+            const { data: entitlement, error: entitlementError } = await supabase.functions.invoke('get-current-entitlement', {
+                body: {},
+            });
 
-            const { data: subscription, error } = await supabase
-                .from('user_subscriptions')
-                .select('*')
-                .eq('user_id', user.id)
-                .maybeSingle();
+            if (entitlementError) throw entitlementError;
 
-            if (error) throw error;
-
-            // Default to Essential if no subscription found
-            if (!subscription) {
-                return {
-                    plan: 'Essential',
-                    status: 'active',
-                    features: PLAN_FEATURES.Essential,
-                    isDevAccount: false,
-                    isTrial: false,
-                    isTrialExpired: false,
-                };
-            }
-
-            const plan = (subscription.plan as SubscriptionPlan) || 'Essential';
-            const status = (subscription.status as SubscriptionStatus) || 'inactive';
-            const currentPeriodEnd = subscription.current_period_end
-                ? new Date(subscription.current_period_end)
+            const plan = normalizePlan(entitlement?.plan);
+            const status = (entitlement?.status || 'inactive') as SubscriptionStatus;
+            const accessState = (entitlement?.accessState || 'blocked') as SubscriptionAccessState;
+            const features = (entitlement?.features || PLAN_FEATURES[plan]) as PlanFeatures;
+            const currentPeriodEnd = entitlement?.currentPeriodEnd
+                ? new Date(entitlement.currentPeriodEnd)
                 : undefined;
-            const trialEndsAt = subscription.trial_ends_at
-                ? new Date(subscription.trial_ends_at)
-                : status === 'trialing'
-                    ? currentPeriodEnd
-                    : undefined;
-            const isTrial = status === 'trialing';
-            const isTrialExpired = Boolean(isTrial && trialEndsAt && trialEndsAt.getTime() <= Date.now());
-            const effectivePlan = isTrialExpired ? 'Essential' : plan;
-            const effectiveStatus = isTrialExpired ? 'inactive' : status;
-            const daysUntilTrialEnds = isTrial && trialEndsAt
-                ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+            const trialEndsAt = entitlement?.trialEndsAt
+                ? new Date(entitlement.trialEndsAt)
                 : undefined;
 
             return {
-                plan: effectivePlan,
-                status: effectiveStatus,
-                features: PLAN_FEATURES[effectivePlan],
-                isDevAccount: false,
-                subscriptionId: subscription.asaas_subscription_id || subscription.id,
+                plan,
+                planCode: entitlement?.planCode,
+                status,
+                accessState,
+                features,
+                limits: entitlement?.limits || {},
+                rawFeatures: entitlement?.rawFeatures || {},
+                isDevAccount: Boolean(entitlement?.isDevAccount),
+                subscriptionId: entitlement?.subscriptionId,
+                checkoutSessionId: entitlement?.checkoutSessionId,
+                checkoutUrl: entitlement?.checkoutUrl,
                 currentPeriodEnd,
                 trialEndsAt,
-                isTrial,
-                isTrialExpired,
-                daysUntilTrialEnds,
+                isTrial: Boolean(entitlement?.isTrial),
+                isTrialExpired: Boolean(entitlement?.isTrialExpired),
+                daysUntilTrialEnds: entitlement?.daysUntilTrialEnds,
+                hasPaidAccess: Boolean(entitlement?.hasPaidAccess),
+                canUseCurrentAccess: Boolean(entitlement?.canUseCurrentAccess),
+                requiresUpsell: Boolean(entitlement?.requiresUpsell),
+                message: entitlement?.message,
             };
         },
         enabled: !!user && !isAuthLoading,
-        staleTime: 1000 * 60 * 5, // 5 minutes
-        gcTime: 1000 * 60 * 30, // 30 minutes
+        staleTime: 1000 * 60, // 1 minute; billing status can change asynchronously by webhook.
+        gcTime: 1000 * 60 * 10,
     });
 
     const canAccess = (feature: FeatureKey): boolean => {
         if (!data) return false;
         if (data.isDevAccount) return true;
-        if (data.isTrialExpired) return false;
-        if (data.status !== 'active' && data.status !== 'trialing') return false;
+        if (!data.canUseCurrentAccess) return false;
 
         const featureMap: Record<FeatureKey, keyof PlanFeatures | 'maxPatients'> = {
             ai_copilot: 'hasAICopilot',
@@ -135,14 +124,13 @@ export const useSubscriptionPlan = (): UseSubscriptionPlanReturn => {
             return data.features.maxPatients === 'unlimited';
         }
 
-        return data.features[featureKey as keyof PlanFeatures] as boolean;
+        return Boolean(data.features[featureKey as keyof PlanFeatures]);
     };
 
     const canAddPatient = (currentPatientCount: number): boolean => {
         if (!data) return false;
         if (data.isDevAccount) return true;
-        if (data.isTrialExpired) return false;
-        if (data.status !== 'active' && data.status !== 'trialing') return false;
+        if (!data.canUseCurrentAccess) return false;
 
         const maxPatients = data.features.maxPatients;
         if (maxPatients === 'unlimited') return true;

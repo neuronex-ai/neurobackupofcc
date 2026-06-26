@@ -5,21 +5,23 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { Check, Loader2, AlertCircle, ArrowRight, Sparkles, Calendar, Users, CreditCard } from 'lucide-react';
+import { Check, Loader2, AlertCircle, ArrowRight, Sparkles, Calendar, Users, CreditCard, Clock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface SessionData {
-    customer_email: string;
-    customer_name: string;
     plan_name: string;
     amount_total: number;
     subscription_id: string;
+    status: string;
+    is_paid: boolean;
+    is_active: boolean;
+    message?: string;
 }
 
 const PaymentCallback = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+    const [status, setStatus] = useState<'loading' | 'success' | 'pending' | 'error'>('loading');
     const [sessionData, setSessionData] = useState<SessionData | null>(null);
 
     const sessionId = searchParams.get('session_id');
@@ -33,6 +35,43 @@ const PaymentCallback = () => {
         }
     }, [sessionId, paymentStatus]);
 
+    const showSuccess = () => {
+        setStatus('success');
+
+        setTimeout(() => {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#ffffff', '#d4d4d4', '#a3a3a3', '#737373', '#525252']
+            });
+        }, 500);
+    };
+
+    const waitForEntitlementActivation = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return false;
+
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+            if (attempt > 0) {
+                await new Promise((resolve) => setTimeout(resolve, 1800));
+            }
+
+            const { data } = await supabase.functions.invoke('get-current-entitlement', {
+                body: {},
+            });
+
+            if (
+                data?.status === 'active' &&
+                (data?.accessState === 'paid_access' || data?.accessState === 'admin_override')
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
     const verifySession = async () => {
         try {
             // Verify the payment session
@@ -43,39 +82,22 @@ const PaymentCallback = () => {
             if (error) throw error;
 
             setSessionData(data);
-            setStatus('success');
 
-            // Trigger celebration confetti (monochromatic)
-            setTimeout(() => {
-                confetti({
-                    particleCount: 100,
-                    spread: 70,
-                    origin: { y: 0.6 },
-                    colors: ['#ffffff', '#d4d4d4', '#a3a3a3', '#737373', '#525252']
-                });
-            }, 500);
+            if (data?.is_paid || data?.is_active || data?.status === 'paid') {
+                showSuccess();
+                return;
+            }
+
+            const activated = await waitForEntitlementActivation();
+            if (activated) {
+                showSuccess();
+            } else {
+                setStatus('pending');
+            }
 
         } catch (error: any) {
             console.error('Session verification error:', error);
-            // If the edge function doesn't exist yet, show success anyway with basic info
-            setSessionData({
-                customer_email: '',
-                customer_name: '',
-                plan_name: 'NeuroNex Professional',
-                amount_total: 0,
-                subscription_id: ''
-            });
-            setStatus('success');
-
-            // Trigger celebration confetti anyway
-            setTimeout(() => {
-                confetti({
-                    particleCount: 100,
-                    spread: 70,
-                    origin: { y: 0.6 },
-                    colors: ['#ffffff', '#d4d4d4', '#a3a3a3', '#737373', '#525252']
-                });
-            }, 500);
+            setStatus('error');
         }
     };
 
@@ -149,6 +171,36 @@ const PaymentCallback = () => {
                                 Tentar Novamente
                             </Button>
                         </div>
+                    </div>
+                </motion.div>
+            </div>
+        );
+    }
+
+    if (status === 'pending') {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center p-4 md:p-6">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative w-full max-w-md"
+                >
+                    <div className="bg-zinc-900/60 backdrop-blur-[60px] border border-white/10 rounded-[24px] md:rounded-[40px] p-6 md:p-10 text-center space-y-5 md:space-y-6">
+                        <div className="w-14 h-14 md:w-16 md:h-16 bg-amber-500/10 rounded-xl md:rounded-2xl flex items-center justify-center mx-auto">
+                            <Clock className="w-7 h-7 md:w-8 md:h-8 text-amber-300" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl md:text-2xl font-bold text-white mb-2">Pagamento em processamento</h2>
+                            <p className="text-white/50 text-xs md:text-sm">
+                                {sessionData?.message || "A liberacao acontece automaticamente apos a confirmacao da Asaas."}
+                            </p>
+                        </div>
+                        <Button
+                            onClick={() => navigate('/dashboard')}
+                            className="w-full h-11 md:h-12 rounded-xl md:rounded-2xl bg-white text-black hover:bg-white/90 text-xs md:text-sm"
+                        >
+                            Ir para o dashboard
+                        </Button>
                     </div>
                 </motion.div>
             </div>

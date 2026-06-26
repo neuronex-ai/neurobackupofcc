@@ -3,6 +3,7 @@ import { useSubscriptionPlan } from "@/hooks/use-subscription-plan";
 import {
     SubscriptionPlan,
     SubscriptionStatus,
+    SubscriptionAccessState,
     PlanFeatures,
     FeatureKey
 } from "@/types/subscription";
@@ -10,11 +11,17 @@ import {
 interface SubscriptionContextValue {
     plan: SubscriptionPlan;
     status: SubscriptionStatus;
+    accessState: SubscriptionAccessState;
     features: PlanFeatures;
     isLoading: boolean;
     isDevAccount: boolean;
     isTrial: boolean;
     isTrialExpired: boolean;
+    hasPaidAccess: boolean;
+    canUseCurrentAccess: boolean;
+    requiresUpsell: boolean;
+    checkoutUrl?: string;
+    message?: string;
     trialEndsAt?: Date;
     daysUntilTrialEnds?: number;
     canAccess: (feature: FeatureKey) => boolean;
@@ -34,6 +41,7 @@ export const SubscriptionProvider = ({ children }: SubscriptionProviderProps) =>
     const value: SubscriptionContextValue = {
         plan: data?.plan || 'Essential',
         status: data?.status || 'inactive',
+        accessState: data?.accessState || 'blocked',
         features: data?.features || {
             maxPatients: 5,
             hasAICopilot: false,
@@ -49,6 +57,11 @@ export const SubscriptionProvider = ({ children }: SubscriptionProviderProps) =>
         isDevAccount: data?.isDevAccount || false,
         isTrial: data?.isTrial || false,
         isTrialExpired: data?.isTrialExpired || false,
+        hasPaidAccess: data?.hasPaidAccess || false,
+        canUseCurrentAccess: data?.canUseCurrentAccess || false,
+        requiresUpsell: data?.requiresUpsell || false,
+        checkoutUrl: data?.checkoutUrl,
+        message: data?.message,
         trialEndsAt: data?.trialEndsAt,
         daysUntilTrialEnds: data?.daysUntilTrialEnds,
         canAccess,

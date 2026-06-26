@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -25,6 +26,7 @@ interface SubscriptionModalProps {
 
 export const SubscriptionModal = ({ open, onOpenChange, plan }: SubscriptionModalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
   const form = useForm<SubscriptionFormValues>({
     resolver: zodResolver(SubscriptionSchema),
     defaultValues: {
@@ -37,25 +39,22 @@ export const SubscriptionModal = ({ open, onOpenChange, plan }: SubscriptionModa
   const onSubmit = async (values: SubscriptionFormValues) => {
     setIsSubmitting(true);
     try {
-      const response = await fetch("https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/create-checkout-session", {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      localStorage.setItem(
+        "neuronex_pending_subscription",
+        JSON.stringify({
           planId: plan.name,
-          ...values,
+          name: values.name,
+          email: values.email,
+          cpfCnpj: values.cpfCnpj,
+          createdAt: new Date().toISOString(),
         }),
-      });
+      );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Falha ao criar sessão de pagamento.");
-      }
-
-      const { url } = await response.json();
-      window.location.href = url;
-
+      onOpenChange(false);
+      toast.info("Crie sua conta para ativar o teste gratis e assinar com seguranca.");
+      navigate("/create-account?intent=subscription&plan=professional");
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || "Nao foi possivel continuar para o cadastro.");
     } finally {
       setIsSubmitting(false);
     }

@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { SignJWT, importPKCS8 } from "https://deno.land/x/jose@v4.14.4/index.ts";
+import {
+  requireRequestEntitlement,
+  subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,7 +24,8 @@ serve(async (req) => {
       throw new Error("Configuração do servidor incompleta (Missing Env Vars).");
     }
 
-    const { user } = await req.json();
+    const { user: authUser } = await requireRequestEntitlement(req, "telemedicine");
+    const { user: requestedUser } = await req.json().catch(() => ({}));
 
     // Importa a chave privada usando 'jose', que lida bem com PKCS#8
     const privateKey = await importPKCS8(JITSI_PRIVATE_KEY, 'RS256');
@@ -37,10 +42,10 @@ serve(async (req) => {
     const payload = {
       context: {
         user: {
-          id: user?.id || 'guest',
-          name: user?.name || 'NeuroNex User',
-          email: user?.email || '',
-          avatar: user?.avatar || '',
+          id: authUser.id,
+          name: requestedUser?.name || authUser.user_metadata?.full_name || authUser.email || 'NeuroNex User',
+          email: authUser.email || '',
+          avatar: requestedUser?.avatar || '',
           moderator: true
         },
         features: {
@@ -70,6 +75,9 @@ serve(async (req) => {
     });
 
   } catch (error) {
+    const accessResponse = subscriptionAccessErrorResponse(error);
+    if (accessResponse) return accessResponse;
+
     console.error("Erro ao gerar token Jitsi:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,

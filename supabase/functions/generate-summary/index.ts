@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import {
+  requireEntitlementForUser,
+  subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,6 +61,15 @@ serve(async (req) => {
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    await requireEntitlementForUser(
+      {
+        id: user.id,
+        email: user.email,
+        user_metadata: user.user_metadata,
+      },
+      "ai_copilot",
+    );
 
     // 2. Obter as anotações do corpo da requisição
     const { notes } = await req.json();
@@ -144,6 +157,9 @@ serve(async (req) => {
     }
 
   } catch (e) {
+    const accessResponse = subscriptionAccessErrorResponse(e);
+    if (accessResponse) return accessResponse;
+
     console.error("Unhandled error in generate-summary:", e);
     return new Response(JSON.stringify({ error: 'Erro interno do servidor.', details: e.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

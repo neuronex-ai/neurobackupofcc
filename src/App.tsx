@@ -8,6 +8,7 @@ import { PatientProtectedRoute } from "@/components/auth/PatientProtectedRoute";
 import { AIProvider } from "@/context/AIContext";
 import { SynapseProvider } from "@/context/SynapseProvider";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
+import { SubscriptionRouteGuard } from "@/components/subscription/SubscriptionRouteGuard";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { TourProvider } from "@/components/onboarding/TourContext";
 import { GlobalTourOverlay } from "@/components/onboarding/GlobalTourOverlay";
@@ -18,7 +19,7 @@ import { NeuroFinancePostOnboardingGate } from "@/components/financeiro/NeuroFin
 import { getElectronAPI, isElectron } from "@/lib/electron";
 import { ElectronTitleBar } from "@/components/electron/ElectronTitleBar";
 import { ElectronUpdateManager } from "@/components/electron/ElectronUpdateManager";
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect, lazy, Suspense, ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import "@/styles/neurofinance-onboarding-overrides.css";
 import "@/styles/neurofinance-onboarding-mobile.css";
@@ -72,6 +73,12 @@ const PageLoader = () => (
       <Loader2 className="h-8 w-8 animate-spin text-foreground/20 relative z-10" />
     </div>
   </div>
+);
+
+const PaidRoute = ({ children }: { children: ReactNode }) => (
+  <ProtectedRoute>
+    <SubscriptionRouteGuard>{children}</SubscriptionRouteGuard>
+  </ProtectedRoute>
 );
 
 // ─── Electron body offset for custom title bar ────────────────────────
@@ -138,19 +145,19 @@ const SharedRoutes = () => {
         )}
 
         {/* ─── Protected Professional Routes ──────────────── */}
-        <Route path="/synapse-ai" element={<ProtectedRoute><AIChat /></ProtectedRoute>} />
+        <Route path="/synapse-ai" element={<PaidRoute><AIChat /></PaidRoute>} />
         <Route path="/initial-settings" element={<ProtectedRoute isFullScreen><InitialSettings /></ProtectedRoute>} />
         <Route path="/pwa-intent" element={<ProtectedRoute isFullScreen><PwaIntent /></ProtectedRoute>} />
 
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/agenda" element={<ProtectedRoute><Agenda /></ProtectedRoute>} />
-        <Route path="/pacientes" element={<ProtectedRoute><Pacientes /></ProtectedRoute>} />
-        <Route path="/pacientes/:id" element={<ProtectedRoute><PatientDetail /></ProtectedRoute>} />
-        <Route path="/notas" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
-        <Route path="/financeiro/*" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<PaidRoute><Dashboard /></PaidRoute>} />
+        <Route path="/agenda" element={<PaidRoute><Agenda /></PaidRoute>} />
+        <Route path="/pacientes" element={<PaidRoute><Pacientes /></PaidRoute>} />
+        <Route path="/pacientes/:id" element={<PaidRoute><PatientDetail /></PaidRoute>} />
+        <Route path="/notas" element={<PaidRoute><Notes /></PaidRoute>} />
+        <Route path="/financeiro/*" element={<PaidRoute><Financeiro /></PaidRoute>} />
 
         <Route path="/ajustes" element={<ProtectedRoute><Ajustes /></ProtectedRoute>} />
-        <Route path="/teleconsulta" element={<ProtectedRoute><Teleconsulta /></ProtectedRoute>} />
+        <Route path="/teleconsulta" element={<PaidRoute><Teleconsulta /></PaidRoute>} />
 
         {/* ─── Patient Portal Routes (Web Only) ──────────────────────── */}
         {!electronMode && (

@@ -25,6 +25,10 @@ import {
     normalizePaymentState,
 } from '../_shared/neurofinance-financial.ts';
 import { ensureFinancialEntryForCharge } from '../_shared/financial-management.ts';
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from '../_shared/subscription-access.ts';
 
 const BILLING_TYPE_MAP: Record<string, AsaasBillingType> = {
     pix: 'PIX',
@@ -38,6 +42,15 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            {
+                id: user.id,
+                email: user.email,
+                user_metadata: user.user_metadata,
+            },
+            'advanced_finance',
+        );
+
         const body = await req.json();
 
         const {
@@ -215,6 +228,9 @@ Deno.serve(async (req: Request) => {
             asaas_environment: ASAAS_ENV,
         });
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
+
         console.error('asaas-create-payment error:', error);
         return errorResponse(
             'Não foi possível criar a cobrança agora. Confira os dados e tente novamente.',

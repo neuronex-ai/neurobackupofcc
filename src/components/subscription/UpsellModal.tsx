@@ -7,6 +7,8 @@ import {
     DialogDescription
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
     FeatureKey,
     FEATURE_NAMES,
@@ -23,8 +25,12 @@ import {
     Lock,
     Loader2
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+    isValidCpfCnpjLength,
+    normalizeCpfCnpj,
+    startSubscriptionCheckout,
+} from "@/lib/subscription-checkout";
 
 interface UpsellModalProps {
     feature: FeatureKey;
@@ -55,14 +61,44 @@ export const UpsellModal = ({ feature, open, onOpenChange }: UpsellModalProps) =
     const featureName = FEATURE_NAMES[feature];
     const Icon = PLAN_ICONS[requiredPlan];
     const [isLoading, setIsLoading] = useState(false);
+    const [documentRequired, setDocumentRequired] = useState(false);
+    const [cpfCnpj, setCpfCnpj] = useState("");
 
     const handleUpgrade = async () => {
+        if (requiredPlan !== "Professional") {
+            toast.info("Para o plano Enterprise, fale com nossa equipe.");
+            return;
+        }
+
+        if (documentRequired && !isValidCpfCnpjLength(cpfCnpj)) {
+            toast.error("Informe um CPF ou CNPJ valido para continuar.");
+            return;
+        }
+
         setIsLoading(true);
         try {
-            const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-                body: { planId: requiredPlan },
+            const result = await startSubscriptionCheckout({
+                planId: requiredPlan,
+                cpfCnpj: cpfCnpj ? normalizeCpfCnpj(cpfCnpj) : undefined,
             });
-            if (error) throw error;
+
+            if (result.requiresDocument || result.code === "customer_document_required") {
+                setDocumentRequired(true);
+                toast.error("Informe CPF/CNPJ para abrir o checkout.");
+                return;
+            }
+
+            if (result.trialEndsAt) {
+                toast.info("Seu teste gratis ainda esta ativo.");
+                return;
+            }
+
+            if (result.error) {
+                toast.error(result.error);
+                return;
+            }
+
+            const data = { url: result.url };
             if (data?.url) {
                 window.location.href = data.url;
             } else {
@@ -173,6 +209,26 @@ export const UpsellModal = ({ feature, open, onOpenChange }: UpsellModalProps) =
                                     </p>
                                 )}
                             </div>
+
+                            {documentRequired && (
+                                <div className="mb-5 space-y-2">
+                                    <Label htmlFor="upsell-cpf-cnpj" className="text-[10px] font-black uppercase tracking-[0.18em] text-white/50">
+                                        CPF ou CNPJ
+                                    </Label>
+                                    <Input
+                                        id="upsell-cpf-cnpj"
+                                        inputMode="numeric"
+                                        autoComplete="off"
+                                        value={cpfCnpj}
+                                        onChange={(event) => setCpfCnpj(event.target.value)}
+                                        placeholder="Digite somente numeros"
+                                        className="border-white/10 bg-white/[0.04] text-white placeholder:text-white/25 focus-visible:border-white/30 focus-visible:ring-white/20"
+                                    />
+                                    <p className="text-[11px] font-medium leading-relaxed text-white/35">
+                                        Usamos esse dado apenas para criar seu cliente na Asaas pela conta mestra da NeuroNex.
+                                    </p>
+                                </div>
+                            )}
 
                             {/* CTA Button */}
                             <Button

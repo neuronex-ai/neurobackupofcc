@@ -214,6 +214,11 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/create-checkout-session/index.ts"
 
+[functions.get-current-entitlement]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/get-current-entitlement/index.ts"
+
 [functions.verify-checkout-session]
 enabled = true
 verify_jwt = false
@@ -223,6 +228,11 @@ entrypoint = "./functions/verify-checkout-session/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/continue-free-plan/index.ts"
+
+[functions.subscription-maintenance]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/subscription-maintenance/index.ts"
 
 [functions.address-autocomplete]
 enabled = true

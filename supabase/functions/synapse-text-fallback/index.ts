@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  requireEntitlementForUser,
+  subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 import { AGENT_TOOLS_V3 } from "./tools-v3.ts";
 import {
   executeAgentToolV3,
@@ -229,6 +233,14 @@ Deno.serve(async (request) => {
     const { data: authData, error: authError } = await userClient.auth.getUser();
     const user = authData.user;
     if (authError || !user) return reply({ error: "Sessão inválida." }, 401);
+    await requireEntitlementForUser(
+      {
+        id: user.id,
+        email: user.email,
+        user_metadata: user.user_metadata,
+      },
+      "ai_copilot",
+    );
 
     const { data: session, error: sessionError } = await admin
       .from("chat_sessions")
@@ -449,6 +461,9 @@ Deno.serve(async (request) => {
       recordsFound,
     });
   } catch (error) {
+    const accessResponse = subscriptionAccessErrorResponse(error);
+    if (accessResponse) return accessResponse;
+
     console.error("[synapse-text-agent]", error);
     return reply({
       error: error instanceof Error ? error.message : "Falha no agente Synapse.",
