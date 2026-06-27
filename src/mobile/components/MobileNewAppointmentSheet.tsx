@@ -4,7 +4,7 @@ import { usePatients } from "@/hooks/use-patients";
 import { buildSessionMetadata } from "@/lib/appointment-metadata";
 import { cn } from "@/lib/utils";
 import { addMinutes, format } from "date-fns";
-import { CalendarPlus, CheckCircle2, Clock, MapPin, Video } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Clock, MapPin, Plus, Video } from "lucide-react";
 import {
   type ReactNode,
   useEffect,
@@ -18,6 +18,7 @@ import {
   MobileSynapseField,
   mobileSynapseInputClassName,
 } from "./synapse/MobileSynapsePrimitives";
+import { NewPatientModal } from "@/components/patients/NewPatientModal";
 
 interface MobileNewAppointmentSheetProps {
   children: ReactNode;
@@ -136,12 +137,27 @@ export function MobileNewAppointmentSheet({
 
           <div className="mobile-scroll-owner min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 pb-5">
             <MobileSynapseField label="Paciente" hint={loadingPatients ? "Carregando pacientes..." : undefined}>
-              <select value={patientId} onChange={(event) => setPatientId(event.target.value)} className={mobileSynapseInputClassName}>
-                <option value="">Selecione o paciente</option>
-                {patientOptions.map((patient) => (
-                  <option key={patient.id} value={patient.id}>{patient.name}</option>
-                ))}
-              </select>
+              <div className="grid grid-cols-[1fr_3rem] gap-2">
+                <select value={patientId} onChange={(event) => setPatientId(event.target.value)} className={mobileSynapseInputClassName}>
+                  <option value="">Selecione o paciente</option>
+                  {patientOptions.map((patient) => (
+                    <option key={patient.id} value={patient.id}>{patient.name}</option>
+                  ))}
+                </select>
+                <NewPatientModal
+                  onCreated={(patient) => {
+                    if (patient?.id) setPatientId(patient.id);
+                  }}
+                >
+                  <button
+                    type="button"
+                    className={cn(mobileSynapseInputClassName, "flex items-center justify-center p-0")}
+                    aria-label="Criar novo paciente"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </NewPatientModal>
+              </div>
             </MobileSynapseField>
 
             <div className="grid grid-cols-2 gap-3">

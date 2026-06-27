@@ -108,7 +108,7 @@ export const useSessionMessages = (sessionId: string | null) => {
 };
 
 // --- Send Message ---
-const sendMessageToAI = async (message: string, sessionId: string, attachments: any[], context: any, accessToken: string, userId: string) => {
+const sendMessageToAI = async (message: string, sessionId: string, attachments: any[], context: any, accessToken: string) => {
   try {
     const response = await fetch(GEMINI_CHAT_URL, {
       method: 'POST',
@@ -155,7 +155,7 @@ export const useSendChatMessage = () => {
     mutationFn: ({ message, sessionId, attachments, context }: { message: string, sessionId: string, attachments?: any[], context?: any }) => {
       if (!accessToken) throw new Error("Sessão inválida.");
       if (!user?.id) throw new Error("UsuÃ¡rio nÃ£o autenticado");
-      return sendMessageToAI(message, sessionId, attachments || [], context || {}, accessToken, user.id);
+      return sendMessageToAI(message, sessionId, attachments || [], context || {}, accessToken);
     },
     onMutate: async ({ message, sessionId }) => {
       // Cancel outgoing refetches

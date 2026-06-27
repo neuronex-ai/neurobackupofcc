@@ -1,69 +1,92 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
+import { X, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { NewPatientForm } from "./NewPatientForm";
-import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 interface NewPatientModalProps {
-  children?: React.ReactNode;
+  children?: ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onCreated?: (patient: any) => void;
   showTrigger?: boolean;
 }
 
-export const NewPatientModal = ({ children, open, onOpenChange, showTrigger = true }: NewPatientModalProps) => {
+export const NewPatientModal = ({
+  children,
+  open,
+  onOpenChange,
+  onCreated,
+  showTrigger = true,
+}: NewPatientModalProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
-  const isMobile = useIsMobile();
   const modalOpen = open ?? internalOpen;
   const handleOpenChange = onOpenChange ?? setInternalOpen;
 
-  const triggerButton = showTrigger ? children || (
-    <Button
-      size="sm"
-      className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 rounded-full transition-all hover:scale-105 font-medium active:scale-95 shadow-lg shadow-primary/10"
-    >
-      <UserPlus className="h-4 w-4" />
-      <span className="hidden sm:inline">Novo Paciente</span>
-    </Button>
-  ) : undefined;
-
-  const HeaderContent = () => (
-    <div className={cn("space-y-4 text-center", isMobile ? "mb-6" : "mb-10")}>
-      <div className="flex flex-col items-center justify-center gap-6">
-        <div className="p-5 bg-zinc-900 dark:bg-white rounded-[24px] shadow-2xl transition-transform hover:scale-110 duration-700">
-          <UserPlus className="h-8 w-8 text-white dark:text-zinc-900" strokeWidth={2} />
-        </div>
-        <div className="space-y-1">
-          <h2 className="text-2xl font-black tracking-tighter text-zinc-900 dark:text-white uppercase tracking-widest">Novo Prontuário</h2>
-          <p className="text-[10px] text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.35em] font-black">Cadastro Digital de Paciente</p>
-        </div>
-      </div>
-    </div>
-  );
+  const triggerButton = showTrigger
+    ? children || (
+        <Button
+          size="sm"
+          className="h-9 gap-2 rounded-full bg-primary px-4 font-medium text-primary-foreground shadow-lg shadow-primary/10 transition-all hover:bg-primary/90 active:scale-[0.98]"
+        >
+          <UserPlus className="h-4 w-4" />
+          <span className="hidden sm:inline">Novo Paciente</span>
+        </Button>
+      )
+    : null;
 
   return (
-    <ResponsiveModal
-      open={modalOpen}
-      onOpenChange={handleOpenChange}
-      trigger={triggerButton}
-      className="sm:max-w-[600px] p-0 border border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-[#080809]/95 backdrop-blur-3xl shadow-[0_64px_128px_-32px_rgba(0,0,0,0.5)] gap-0 overflow-hidden rounded-[48px] ring-1 ring-black/5 dark:ring-white/5"
-      drawerClassName="bg-white dark:bg-[#080809]"
-    >
-      <div className={cn(
-        "relative overflow-hidden flex flex-col items-center flex-1",
-        isMobile ? "p-6 pt-2 pb-12" : "p-10 md:p-14"
-      )}>
-        {/* Removemos o gradiente absoluto no mobile para evitar divergência com o fundo do drawer */}
-        {!isMobile && <div className="absolute top-0 inset-x-0 bottom-0 bg-gradient-to-b from-zinc-500/[0.03] dark:from-white/[0.02] to-transparent pointer-events-none" />}
-        <div className="relative z-10 w-full flex flex-col h-full">
-          <HeaderContent />
-          <div className="w-full flex-1">
-            <NewPatientForm onSuccess={() => handleOpenChange(false)} />
+    <Dialog open={modalOpen} onOpenChange={handleOpenChange}>
+      {triggerButton ? <DialogTrigger asChild>{triggerButton}</DialogTrigger> : null}
+      <DialogContent
+        className={cn(
+          "left-0 top-0 z-[180] flex h-dvh max-h-dvh w-dvw max-w-none translate-x-0 translate-y-0 grid-cols-1 flex-col gap-0 overflow-hidden rounded-none border-0 bg-background p-0 shadow-none",
+          "data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100",
+        )}
+      >
+        <header className="shrink-0 border-b border-border/45 bg-background/94 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-xl sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-border/50 bg-card">
+              <UserPlus className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-lg font-black leading-tight tracking-tight text-foreground sm:text-xl">
+                Novo Prontuário
+              </DialogTitle>
+              <DialogDescription className="mt-0.5 text-xs font-medium text-muted-foreground">
+                Cadastro de paciente responsivo e completo.
+              </DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-full"
+                aria-label="Fechar cadastro de paciente"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </DialogClose>
           </div>
-        </div>
-      </div>
-    </ResponsiveModal>
+        </header>
+
+        <NewPatientForm
+          onCancel={() => handleOpenChange(false)}
+          onSuccess={(patient) => {
+            onCreated?.(patient);
+            handleOpenChange(false);
+          }}
+        />
+      </DialogContent>
+    </Dialog>
   );
 };

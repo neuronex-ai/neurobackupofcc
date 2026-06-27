@@ -24,6 +24,7 @@ import {
   Sparkles,
   Link2,
   StickyNote,
+  Plus,
 } from "lucide-react";
 import { addMonths, addWeeks, differenceInMinutes, format, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -60,6 +61,7 @@ import { usePatientPackages } from "@/hooks/use-patient-packages";
 import { useUsePackageSession } from "@/hooks/use-use-package-session";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
+import { NewPatientModal } from "@/components/patients/NewPatientModal";
 import {
   buildEventMetadata,
   buildEventNotes as buildEventNotesFromMetadata,
@@ -568,20 +570,38 @@ export function NewAppointmentModal({
               render={({ field }) => (
                   <FormItem className="space-y-2.5">
                   <FormLabel className={labelBase}>Paciente</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger className={cn(inputBase, "font-medium px-4 shadow-inner data-[state=open]:border-primary/50")}>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className={selectPopover}>
-                      {patients?.map((p) => (
-                        <SelectItem key={p.id} value={p.id} className="text-foreground/70 focus:bg-accent focus:text-foreground py-3 px-4 cursor-pointer text-sm">
-                          {p.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-[1fr_3rem] gap-2">
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className={cn(inputBase, "font-medium px-4 shadow-inner data-[state=open]:border-primary/50")}>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className={selectPopover}>
+                        {patients?.map((p) => (
+                          <SelectItem key={p.id} value={p.id} className="text-foreground/70 focus:bg-accent focus:text-foreground py-3 px-4 cursor-pointer text-sm">
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <NewPatientModal
+                      onCreated={(patient) => {
+                        if (patient?.id) {
+                          form.setValue("patientId", patient.id, { shouldDirty: true, shouldValidate: true });
+                        }
+                      }}
+                    >
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn(inputBase, "w-12 p-0")}
+                        aria-label="Criar novo paciente"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </NewPatientModal>
+                  </div>
                   <FormMessage className="text-rose-400 pl-1" />
                 </FormItem>
               )}

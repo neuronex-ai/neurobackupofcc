@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 // Removed unused z import
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,10 @@ import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 interface NewTransactionFormProps {
   onSuccess: () => void;
+  defaultType?: "income" | "expense";
 }
 
-export const NewTransactionForm = ({ onSuccess }: NewTransactionFormProps) => {
+export const NewTransactionForm = ({ onSuccess, defaultType = "income" }: NewTransactionFormProps) => {
   const [step, setStep] = useState(1);
   // Removed unused queryClient variable
   const { data: patients } = usePatients();
@@ -31,7 +32,7 @@ export const NewTransactionForm = ({ onSuccess }: NewTransactionFormProps) => {
   const form = useForm<NewTransactionFormValues>({
     resolver: zodResolver(NewTransactionSchema),
     defaultValues: {
-      type: "income",
+      type: defaultType,
       date: new Date(),
       description: "",
       amount: 0,
@@ -44,6 +45,10 @@ export const NewTransactionForm = ({ onSuccess }: NewTransactionFormProps) => {
   const type = form.watch("type");
   const selectedPatientId = form.watch("patient_id");
   const createPackage = form.watch("create_new_package");
+
+  useEffect(() => {
+    form.setValue("type", defaultType);
+  }, [defaultType, form]);
 
   const onSubmit = async (values: NewTransactionFormValues) => {
     try {

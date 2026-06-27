@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { ElementType, ReactNode } from "react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowDownLeft,
@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Transaction } from "@/types";
 import type { FinanceView } from "../FinancialDashboard";
+import { NewTransactionModal } from "../NewTransactionModal";
 
 type ManagementProps = {
   activeView: FinanceView;
@@ -45,6 +46,7 @@ type ManagementProps = {
 };
 
 type Metrics = ReturnType<typeof buildFinancialMetrics>;
+type EntryType = "income" | "expense";
 
 const currency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 }).format(Number.isFinite(value) ? value : 0);
@@ -203,7 +205,7 @@ const EmptyHint = ({ title, description, icon: Icon = Sparkles }: { title: strin
   </div>
 );
 
-const Hero = ({ metrics, setActiveView }: { metrics: Metrics; setActiveView: (view: FinanceView) => void }) => (
+const Hero = ({ metrics, setActiveView, onCreateEntry }: { metrics: Metrics; setActiveView: (view: FinanceView) => void; onCreateEntry: (type: EntryType) => void }) => (
   <ManagementPanel className="rounded-[42px]" delay={0.04}>
     <div className="grid gap-10 p-8 md:p-10 xl:grid-cols-[minmax(0,1fr)_430px] xl:p-12">
       <div>
@@ -216,10 +218,10 @@ const Hero = ({ metrics, setActiveView }: { metrics: Metrics; setActiveView: (vi
           Receitas, despesas, recebíveis, inadimplência e planejamento em uma camada gerencial separada do NeuroFinance.
         </p>
         <div className="mt-10 flex flex-wrap gap-3">
-          <Button onClick={() => setActiveView("gestao-receitas")} className="h-14 rounded-2xl bg-zinc-950 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-black dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100">
+          <Button onClick={() => onCreateEntry("income")} className="h-14 rounded-2xl bg-zinc-950 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-black dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100">
             Lançar receita <PlusCircle className="ml-2 h-4 w-4" />
           </Button>
-          <Button onClick={() => setActiveView("gestao-despesas")} variant="outline" className="h-14 rounded-2xl border-zinc-200/80 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 dark:hover:bg-white/[0.07]">
+          <Button onClick={() => onCreateEntry("expense")} variant="outline" className="h-14 rounded-2xl border-zinc-200/80 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 dark:hover:bg-white/[0.07]">
             Lançar despesa
           </Button>
           <Button onClick={() => setActiveView("gestao-cobrancas")} variant="outline" className="h-14 rounded-2xl border-zinc-200/80 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 dark:hover:bg-white/[0.07]">
@@ -313,7 +315,7 @@ const CashFlowOverview = ({ metrics, setActiveView }: { metrics: Metrics; setAct
   );
 };
 
-const ActionQueue = ({ metrics, setActiveView }: { metrics: Metrics; setActiveView: (view: FinanceView) => void }) => {
+const ActionQueue = ({ metrics, setActiveView, onCreateEntry }: { metrics: Metrics; setActiveView: (view: FinanceView) => void; onCreateEntry?: (type: EntryType) => void }) => {
   const actions = [
     metrics.overdueCount > 0
       ? { priority: "Alta", title: "Cobranças vencidas", description: `${metrics.overdueCount} cobrança${metrics.overdueCount > 1 ? "s" : ""} em atraso somando ${currency(metrics.overdueAmount)}.`, icon: AlertCircle, tone: "warning" as const, action: () => setActiveView("gestao-inadimplencia") }
@@ -397,12 +399,85 @@ const TransactionRows = ({ transactions, onSelect, emptyTitle, emptyDescription 
   </div>
 );
 
-const Overview = (props: ManagementProps & { metrics: Metrics }) => {
-  const { metrics, setActiveView, setSelectedTransaction } = props;
+const CashFlowTable = ({ metrics, onSelect }: { metrics: Metrics; onSelect?: (transaction: Transaction) => void }) => {
+  const rows = Array.from(
+    new Map(
+      [...metrics.currentMonth, ...metrics.futureMonth]
+        .sort((a, b) => dateOf(a).getTime() - dateOf(b).getTime())
+        .map((transaction) => [transaction.id, transaction]),
+    ).values(),
+  ).slice(0, 40);
+
+  return (
+    <ManagementPanel delay={0.16}>
+      <div className="p-7 md:p-8">
+        <SectionTitle eyebrow="Controle" title="Tabela de fluxo de caixa" description="Movimentos realizados, pendentes e previstos em ordem cronologica." />
+        <div className="mt-7 overflow-hidden rounded-[28px] border border-zinc-200/70 bg-zinc-50/70 dark:border-white/10 dark:bg-white/[0.035]">
+          {rows.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left">
+                <thead className="border-b border-zinc-200/70 bg-white/70 dark:border-white/10 dark:bg-white/[0.035]">
+                  <tr className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-white/34">
+                    <th className="px-5 py-4">Data</th>
+                    <th className="px-5 py-4">Movimento</th>
+                    <th className="px-5 py-4">Categoria</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4 text-right">Valor</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200/60 dark:divide-white/10">
+                  {rows.map((transaction) => {
+                    const income = isIncome(transaction);
+                    const pending = isPending(transaction);
+                    const amount = amountOf(transaction);
+                    return (
+                      <tr
+                        key={transaction.id}
+                        onClick={() => onSelect?.(transaction)}
+                        className="cursor-pointer transition-colors hover:bg-white/80 dark:hover:bg-white/[0.055]"
+                      >
+                        <td className="whitespace-nowrap px-5 py-4 text-xs font-bold text-zinc-500 dark:text-white/44">
+                          {format(dateOf(transaction), "dd MMM yyyy", { locale: ptBR })}
+                        </td>
+                        <td className="max-w-[280px] px-5 py-4">
+                          <p className="truncate text-sm font-black text-zinc-950 dark:text-white">{transaction.description || "Movimentacao financeira"}</p>
+                          <p className="mt-1 text-[10px] font-bold text-zinc-400 dark:text-white/32">{income ? "Entrada" : "Saida"}</p>
+                        </td>
+                        <td className="px-5 py-4 text-xs font-bold text-zinc-500 dark:text-white/44">{transaction.category || "Sem categoria"}</td>
+                        <td className="px-5 py-4">
+                          <span className={cn(
+                            "rounded-full px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.14em]",
+                            pending ? "bg-amber-500/12 text-amber-700 dark:text-amber-300" : "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300",
+                          )}>
+                            {pending ? "Pendente" : "Confirmado"}
+                          </span>
+                        </td>
+                        <td className={cn("px-5 py-4 text-right text-sm font-black tabular-nums", income ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300")}>
+                          {income ? "+" : "-"} {currency(amount)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-6">
+              <EmptyHint title="Sem movimentos no fluxo" description="Receitas e despesas cadastradas aparecem aqui em ordem de vencimento ou realizacao." icon={LineChart} />
+            </div>
+          )}
+        </div>
+      </div>
+    </ManagementPanel>
+  );
+};
+
+const Overview = (props: ManagementProps & { metrics: Metrics; onCreateEntry: (type: EntryType) => void }) => {
+  const { metrics, setActiveView, setSelectedTransaction, onCreateEntry } = props;
 
   return (
     <div className="space-y-6">
-      <Hero metrics={metrics} setActiveView={setActiveView} />
+      <Hero metrics={metrics} setActiveView={setActiveView} onCreateEntry={onCreateEntry} />
       <Radar metrics={metrics} setActiveView={setActiveView} />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
         <CashFlowOverview metrics={metrics} setActiveView={setActiveView} />
@@ -451,11 +526,16 @@ const ReceivablesList = ({ metrics, onSelect }: { metrics: Metrics; onSelect?: (
   );
 };
 
-const RevenueExpensePanels = ({ metrics, setSelectedTransaction }: { metrics: Metrics; setSelectedTransaction: (transaction: Transaction | null) => void }) => (
+const RevenueExpensePanels = ({ metrics, setSelectedTransaction, onCreateEntry }: { metrics: Metrics; setSelectedTransaction: (transaction: Transaction | null) => void; onCreateEntry: (type: EntryType) => void }) => (
   <div className="grid gap-6 xl:grid-cols-2">
     <ManagementPanel>
       <div className="p-7 md:p-8">
         <SectionTitle eyebrow="Receitas" title="Receitas gerenciais" description="Entradas confirmadas, fontes de receita e lançamentos recentes." />
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button onClick={() => onCreateEntry("income")} className="h-11 rounded-2xl bg-zinc-950 px-4 text-[9px] font-black uppercase tracking-[0.18em] text-white hover:bg-black dark:bg-white dark:text-zinc-950">
+            Nova receita <PlusCircle className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
         <div className="mt-8 grid grid-cols-3 gap-3">
           <MiniStat label="Mês" value={currency(metrics.incomeMonth)} dark />
           <MiniStat label="Ticket" value={currency(metrics.averageTicket)} />
@@ -468,11 +548,16 @@ const RevenueExpensePanels = ({ metrics, setSelectedTransaction }: { metrics: Me
   </div>
 );
 
-const ExpensesPanels = ({ metrics, setSelectedTransaction }: { metrics: Metrics; setSelectedTransaction: (transaction: Transaction | null) => void }) => (
+const ExpensesPanels = ({ metrics, setSelectedTransaction, onCreateEntry }: { metrics: Metrics; setSelectedTransaction: (transaction: Transaction | null) => void; onCreateEntry: (type: EntryType) => void }) => (
   <div className="grid gap-6 xl:grid-cols-2">
     <ManagementPanel>
       <div className="p-7 md:p-8">
         <SectionTitle eyebrow="Despesas" title="Despesas do consultório" description="Custos fixos, variáveis e recorrências que afetam seu resultado." />
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button onClick={() => onCreateEntry("expense")} className="h-11 rounded-2xl bg-zinc-950 px-4 text-[9px] font-black uppercase tracking-[0.18em] text-white hover:bg-black dark:bg-white dark:text-zinc-950">
+            Nova despesa <PlusCircle className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
         <div className="mt-8 grid grid-cols-3 gap-3">
           <MiniStat label="Mês" value={currency(metrics.expenseMonth)} dark />
           <MiniStat label="Fixas" value={currency(metrics.fixedExpenses)} />
@@ -553,7 +638,7 @@ const ReportsPanel = ({ metrics }: { metrics: Metrics }) => {
   );
 };
 
-const RouteFrame = ({ eyebrow, title, description, children, setActiveView }: { eyebrow: string; title: string; description: string; children: ReactNode; setActiveView: (view: FinanceView) => void }) => (
+const RouteFrame = ({ eyebrow, title, description, children, setActiveView, onCreateEntry }: { eyebrow: string; title: string; description: string; children: ReactNode; setActiveView: (view: FinanceView) => void; onCreateEntry?: (type: EntryType) => void }) => (
   <div className="space-y-6">
     <ManagementPanel className="rounded-[38px]">
       <div className="flex items-center justify-between gap-6 p-8 md:p-10">
@@ -562,9 +647,21 @@ const RouteFrame = ({ eyebrow, title, description, children, setActiveView }: { 
           <h1 className="mt-7 text-5xl font-black leading-[0.9] tracking-[-0.065em] text-zinc-950 dark:text-white">{title}</h1>
           <p className="mt-5 max-w-3xl text-base font-medium leading-relaxed text-zinc-500 dark:text-white/48">{description}</p>
         </div>
-        <Button onClick={() => setActiveView("gestao-visao-geral")} variant="outline" className="h-12 shrink-0 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.04]">
-          Visão geral
-        </Button>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          {onCreateEntry ? (
+            <>
+              <Button onClick={() => onCreateEntry("income")} className="h-12 rounded-2xl bg-zinc-950 px-4 text-[9px] font-black uppercase tracking-[0.18em] text-white hover:bg-black dark:bg-white dark:text-zinc-950">
+                Receita
+              </Button>
+              <Button onClick={() => onCreateEntry("expense")} variant="outline" className="h-12 rounded-2xl border-zinc-200 bg-white/70 px-4 text-[9px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.04]">
+                Despesa
+              </Button>
+            </>
+          ) : null}
+          <Button onClick={() => setActiveView("gestao-visao-geral")} variant="outline" className="h-12 rounded-2xl border-zinc-200 bg-white/70 px-4 text-[9px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.04]">
+            Visão geral
+          </Button>
+        </div>
       </div>
     </ManagementPanel>
     {children}
@@ -572,12 +669,29 @@ const RouteFrame = ({ eyebrow, title, description, children, setActiveView }: { 
 );
 
 export const FinancialManagementDashboard = (props: ManagementProps) => {
+  const [entryModalOpen, setEntryModalOpen] = useState(false);
+  const [entryType, setEntryType] = useState<EntryType>("income");
   const metrics = useMemo(
     () => buildFinancialMetrics(props.allTransactions, props.realizedTransactions, props.futureTransactions, props.subscriptionTransactions),
     [props.allTransactions, props.futureTransactions, props.realizedTransactions, props.subscriptionTransactions],
   );
 
   const common = { metrics, setActiveView: props.setActiveView };
+  const openEntryModal = (type: EntryType) => {
+    setEntryType(type);
+    setEntryModalOpen(true);
+  };
+  const withEntryModal = (children: ReactNode) => (
+    <>
+      <NewTransactionModal
+        open={entryModalOpen}
+        onOpenChange={setEntryModalOpen}
+        showTrigger={false}
+        defaultType={entryType}
+      />
+      {children}
+    </>
+  );
 
   if (props.isLoadingTransactions) {
     return (
@@ -590,22 +704,22 @@ export const FinancialManagementDashboard = (props: ManagementProps) => {
 
   switch (props.activeView) {
     case "gestao-fluxo-caixa":
-      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Fluxo de caixa" description="Realizado, previsto, projetado e cenários para entender a previsibilidade da clínica." setActiveView={props.setActiveView}><CashFlowOverview {...common} /><ActionQueue {...common} /></RouteFrame></div>;
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Fluxo de caixa" description="Realizado, previsto, projetado e cenários para entender a previsibilidade da clínica." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><CashFlowOverview {...common} /><CashFlowTable metrics={metrics} onSelect={props.setSelectedTransaction} /><ActionQueue {...common} /></RouteFrame></div>);
     case "gestao-receitas":
-      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Receitas" description="Entradas confirmadas, ticket médio, fontes de receita e lançamentos recentes." setActiveView={props.setActiveView}><RevenueExpensePanels metrics={metrics} setSelectedTransaction={props.setSelectedTransaction} /></RouteFrame></div>;
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Receitas" description="Entradas confirmadas, ticket médio, fontes de receita e lançamentos recentes." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><RevenueExpensePanels metrics={metrics} setSelectedTransaction={props.setSelectedTransaction} onCreateEntry={openEntryModal} /></RouteFrame></div>);
     case "gestao-despesas":
-      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Despesas" description="Custos fixos, variáveis, recorrências e categorias que afetam o resultado." setActiveView={props.setActiveView}><ExpensesPanels metrics={metrics} setSelectedTransaction={props.setSelectedTransaction} /></RouteFrame></div>;
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Despesas" description="Custos fixos, variáveis, recorrências e categorias que afetam o resultado." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><ExpensesPanels metrics={metrics} setSelectedTransaction={props.setSelectedTransaction} onCreateEntry={openEntryModal} /></RouteFrame></div>);
     case "gestao-cobrancas":
-      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Cobranças" description="Acompanhe cobranças abertas, a vencer, vencidas e recorrentes de forma gerencial." setActiveView={props.setActiveView}><ManagementPanel><div className="p-7 md:p-8"><SectionTitle eyebrow="Cobranças gerenciais" title="Abertas e pendentes" description="O usuário pensa em quem deve, não no banco por trás da cobrança." /><div className="mt-7"><ReceivablesList metrics={metrics} onSelect={props.setSelectedTransaction} /></div></div></ManagementPanel><ActionQueue {...common} /></RouteFrame></div>;
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Cobranças" description="Acompanhe cobranças abertas, a vencer, vencidas e recorrentes de forma gerencial." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><ManagementPanel><div className="p-7 md:p-8"><SectionTitle eyebrow="Cobranças gerenciais" title="Abertas e pendentes" description="O usuário pensa em quem deve, não no banco por trás da cobrança." /><div className="mt-7"><ReceivablesList metrics={metrics} onSelect={props.setSelectedTransaction} /></div></div></ManagementPanel><ActionQueue {...common} /></RouteFrame></div>);
     case "gestao-inadimplencia":
-      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Pacientes & Inadimplência" description="Valores em aberto, atrasos e pacientes que precisam de abordagem financeira." setActiveView={props.setActiveView}><ManagementPanel><div className="p-7 md:p-8"><SectionTitle eyebrow="Inadimplência" title="Cobranças vencidas" description="Lista de pendências vencidas ou em risco." /><div className="mt-7"><ReceivablesList metrics={{ ...metrics, pendingIncomeTransactions: metrics.overdueIncomeTransactions } as Metrics} onSelect={props.setSelectedTransaction} /></div></div></ManagementPanel></RouteFrame></div>;
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Pacientes & Inadimplência" description="Valores em aberto, atrasos e pacientes que precisam de abordagem financeira." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><ManagementPanel><div className="p-7 md:p-8"><SectionTitle eyebrow="Inadimplência" title="Cobranças vencidas" description="Lista de pendências vencidas ou em risco." /><div className="mt-7"><ReceivablesList metrics={{ ...metrics, pendingIncomeTransactions: metrics.overdueIncomeTransactions } as Metrics} onSelect={props.setSelectedTransaction} /></div></div></ManagementPanel></RouteFrame></div>);
     case "gestao-planejamento":
-      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Planejamento" description="Metas, ponto de equilíbrio, ticket médio e cenários de crescimento." setActiveView={props.setActiveView}><PlanningPanel {...common} /><ActionQueue {...common} /></RouteFrame></div>;
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Planejamento" description="Metas, ponto de equilíbrio, ticket médio e cenários de crescimento." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><PlanningPanel {...common} /><ActionQueue {...common} /></RouteFrame></div>);
     case "gestao-relatorios":
-      return <div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Relatórios" description="DRE simplificada, fluxo, inadimplência e resumo para contador." setActiveView={props.setActiveView}><ReportsPanel metrics={metrics} /></RouteFrame></div>;
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Relatórios" description="DRE simplificada, fluxo, inadimplência e resumo para contador." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><ReportsPanel metrics={metrics} /></RouteFrame></div>);
     case "gestao-visao-geral":
     default:
-      return <div className="px-6 py-6"><Overview {...props} metrics={metrics} /></div>;
+      return withEntryModal(<div className="px-6 py-6"><Overview {...props} metrics={metrics} onCreateEntry={openEntryModal} /></div>);
   }
 };
 

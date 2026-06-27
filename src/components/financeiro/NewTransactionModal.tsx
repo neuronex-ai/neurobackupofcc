@@ -13,9 +13,10 @@ interface NewTransactionModalProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   showTrigger?: boolean;
+  defaultType?: "income" | "expense";
 }
 
-export const NewTransactionModal = ({ children, open, onOpenChange, showTrigger = true }: NewTransactionModalProps) => {
+export const NewTransactionModal = ({ children, open, onOpenChange, showTrigger = true, defaultType = "income" }: NewTransactionModalProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const isMobile = useIsMobile();
   const modalOpen = open ?? internalOpen;
@@ -54,7 +55,7 @@ export const NewTransactionModal = ({ children, open, onOpenChange, showTrigger 
           <div className="p-10 overflow-y-auto">
             <div className="mx-auto w-16 h-1.5 flex-shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 mb-10" />
             <HeaderContent />
-            <NewTransactionForm onSuccess={() => handleOpenChange(false)} />
+            <NewTransactionForm defaultType={defaultType} onSuccess={() => handleOpenChange(false)} />
           </div>
         </DrawerContent>
       </Drawer>
@@ -71,7 +72,7 @@ export const NewTransactionModal = ({ children, open, onOpenChange, showTrigger 
         
         <div className="p-12">
             <HeaderContent />
-            <NewTransactionForm onSuccess={() => handleOpenChange(false)} />
+            <NewTransactionForm defaultType={defaultType} onSuccess={() => handleOpenChange(false)} />
         </div>
       </DialogContent>
     </Dialog>
