@@ -217,28 +217,36 @@ const InviteActionButton = ({ data, isPending, isLinked, canSend, onSendInvite, 
 
 const DesktopInviteDialog = (props: InviteModalViewProps) => (
   <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-    <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[min(92vw,760px)] max-w-none grid-rows-none flex-col overflow-hidden rounded-[32px] border-border/55 bg-background p-0 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:overflow-hidden sm:rounded-[32px] sm:p-0">
-      <DialogHeader className="shrink-0 items-center border-b border-border/50 bg-muted/20 px-8 py-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-sm">
+    <DialogContent
+      style={{
+        display: "flex",
+        width: "min(640px, calc(100vw - 48px))",
+        maxWidth: "640px",
+        maxHeight: "min(760px, calc(100dvh - 48px))",
+      }}
+      className="grid-rows-none flex-col overflow-hidden rounded-[28px] border-border/55 bg-background p-0 shadow-2xl"
+    >
+      <DialogHeader className="shrink-0 items-center border-b border-border/50 bg-muted/20 px-6 py-5 text-center">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-sm">
           <MailPlus className="h-5 w-5" />
         </div>
-        <DialogTitle className="mt-3 text-2xl font-semibold tracking-tight">Convidar paciente</DialogTitle>
-        <DialogDescription className="mx-auto mt-1 max-w-[520px] text-sm leading-relaxed text-muted-foreground">
+        <DialogTitle className="mt-2 text-xl font-semibold tracking-tight">Convidar paciente</DialogTitle>
+        <DialogDescription className="mx-auto mt-1 max-w-[460px] text-sm leading-relaxed text-muted-foreground">
           Envie o acesso seguro ao Portal do Paciente para {props.patientName}.
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        <div className="mx-auto flex w-full max-w-[620px] flex-col items-center gap-5">
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="mx-auto flex w-full max-w-[560px] flex-col items-center gap-4">
           <InviteStatus canSend={props.canSend} data={props.data} isLinked={props.isLinked} expiresLabel={props.expiresLabel} />
           <ActivationCodeCard data={props.data} onCopy={props.onCopy} />
           <PatientSummary patient={props.patient} />
-          <FlowNotes />
-          <PortalFeatureGrid />
+          {props.data ? null : <FlowNotes />}
+          {props.data ? <PortalFeatureGrid /> : null}
         </div>
       </div>
 
-      <DialogFooter className="shrink-0 items-center justify-center gap-3 border-t border-border/50 bg-muted/20 px-8 py-5 sm:justify-center sm:space-x-0">
+      <DialogFooter className="shrink-0 items-center justify-center gap-3 border-t border-border/50 bg-muted/20 px-6 py-4 sm:justify-center sm:space-x-0">
         <Button variant="ghost" onClick={() => props.onOpenChange(false)} disabled={props.isPending} className="h-11 rounded-xl px-5">
           Cancelar
         </Button>

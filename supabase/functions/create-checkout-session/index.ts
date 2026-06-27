@@ -39,13 +39,35 @@ type AsaasCheckoutResponse = {
 
 const PROFESSIONAL_AMOUNT = PROFESSIONAL_AMOUNT_CENTS / 100;
 
+const FALLBACK_PUBLIC_APP_URL = "https://neuronex.ai";
+
+function isPublicHttpsUrl(value?: string | null) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return (
+      url.protocol === "https:" &&
+      hostname !== "localhost" &&
+      hostname !== "127.0.0.1" &&
+      !hostname.endsWith(".local")
+    );
+  } catch {
+    return false;
+  }
+}
+
 const resolveAppUrl = (req: Request) => {
-  const configured =
-    Deno.env.get("PUBLIC_APP_URL") ||
-    Deno.env.get("APP_URL") ||
-    Deno.env.get("SITE_URL") ||
-    req.headers.get("origin") ||
-    "https://neuronex.ai";
+  const candidates = [
+    Deno.env.get("ASAAS_CHECKOUT_CALLBACK_URL"),
+    Deno.env.get("PUBLIC_APP_URL"),
+    Deno.env.get("APP_URL"),
+    Deno.env.get("SITE_URL"),
+    req.headers.get("origin"),
+    FALLBACK_PUBLIC_APP_URL,
+  ];
+
+  const configured = candidates.find(isPublicHttpsUrl) || FALLBACK_PUBLIC_APP_URL;
   return configured.replace(/\/+$/, "");
 };
 
