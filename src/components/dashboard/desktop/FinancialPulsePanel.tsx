@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Landmark, WalletCards, ArrowRight, Lock, Rocket, PiggyBank, PlusCircle } from "lucide-react";
+import { Landmark, WalletCards, ArrowRight, Sparkles, Lock, Rocket } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ const PulseMetric = ({ label, value, color = "default" }: { label: string; value
   <div className="rounded-[22px] border border-zinc-200/70 bg-zinc-50/70 p-4 text-center dark:border-white/10 dark:bg-white/[0.035]">
     <p className="text-[8px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-white/32">{label}</p>
     <p className={cn(
-      "mt-3 text-lg font-black tracking-[-0.04em] tabular-nums lg:text-xl",
+      "mt-3 text-xl font-black tracking-[-0.04em] tabular-nums",
       color === "success" && "text-emerald-600 dark:text-emerald-400",
       color === "warning" && "text-amber-600 dark:text-amber-400",
       color === "danger" && "text-rose-600 dark:text-rose-400",
@@ -31,17 +31,12 @@ export const FinancialPulsePanel = () => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"managerial" | "neuro">("managerial");
   
-  const { data: managerial, isLoading: loadingManagerial } = useDashboardManagerialMetrics();
+  const { data: managerial } = useDashboardManagerialMetrics();
   const { data: neuroSnapshot } = useNeurofinanceSnapshot();
   const { data: subscription } = useCurrentSubscription();
   const { isConnected: nfConnected, isLoading: nfLoading } = useFinancialAccount();
 
-  // Lógica de acesso NeuroFinance:
-  // 1. Deve ser plano Professional ou Enterprise
-  // 2. O estado de acesso deve ser "paid_access" ou "admin_override" (Não pode ser Trial)
-  const hasPlanAccess = (subscription?.plan_code === "professional" || subscription?.plan_code === "enterprise" || subscription?.admin_override);
-  const isPaidUser = subscription?.effective_access_state === "paid_access" || subscription?.admin_override;
-  const canAccessNeuroFinance = hasPlanAccess && isPaidUser;
+  const isPro = subscription?.plan_code === "professional" || subscription?.plan_code === "enterprise" || subscription?.admin_override;
 
   return (
     <motion.section
@@ -70,7 +65,7 @@ export const FinancialPulsePanel = () => {
                   mode === "managerial" ? "text-zinc-950 dark:text-white" : "text-zinc-400 dark:text-white/30"
                 )}
               >
-                Gestão Financeira
+                Gestão Gerencial
               </button>
               <button
                 onClick={() => setMode("neuro")}
@@ -94,14 +89,9 @@ export const FinancialPulsePanel = () => {
                   exit={{ opacity: 0, x: 10 }}
                   className="space-y-6"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1.5">
-                      <p className="text-[9px] font-black uppercase tracking-[0.28em] text-zinc-400 dark:text-white/32">Fluxo Gerencial</p>
-                      <h2 className="text-2xl font-black tracking-[-0.045em] text-zinc-950 dark:text-white">Pulso de Caixa</h2>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5">
-                      <Landmark className="h-5 w-5 text-zinc-400" />
-                    </div>
+                  <div className="space-y-1.5">
+                    <p className="text-[9px] font-black uppercase tracking-[0.28em] text-zinc-400 dark:text-white/32">Fluxo Gerencial</p>
+                    <h2 className="text-2xl font-black tracking-[-0.045em] text-zinc-950 dark:text-white">Pulso de Caixa</h2>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -112,17 +102,10 @@ export const FinancialPulsePanel = () => {
                   </div>
 
                   <div className="flex gap-3">
-                    <Button 
-                      onClick={() => navigate("/financeiro", { state: { view: "gestao-fluxo-caixa" } })} 
-                      className="h-12 flex-1 rounded-2xl bg-zinc-950 text-[9px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950"
-                    >
+                    <Button onClick={() => navigate("/financeiro?tab=gestao")} className="h-12 flex-1 rounded-2xl bg-zinc-950 text-[9px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950">
                       Ver fluxo de caixa <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => navigate("/financeiro", { state: { view: "gestao-inadimplencia" } })} 
-                      className="h-12 flex-1 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.16em] dark:border-white/10 dark:bg-white/[0.04]"
-                    >
+                    <Button variant="outline" onClick={() => navigate("/financeiro?tab=gestao-cobrancas")} className="h-12 flex-1 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.16em] dark:border-white/10 dark:bg-white/[0.04]">
                       Cobrar
                     </Button>
                   </div>
@@ -135,16 +118,14 @@ export const FinancialPulsePanel = () => {
                   exit={{ opacity: 0, x: -10 }}
                   className="space-y-6"
                 >
-                  {!canAccessNeuroFinance ? (
+                  {!isPro ? (
                     <div className="flex flex-col items-center justify-center gap-6 rounded-[30px] border border-dashed border-indigo-500/30 bg-indigo-50/50 p-8 text-center dark:bg-indigo-500/5">
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/20">
                         <Lock className="h-6 w-6" />
                       </div>
                       <div className="space-y-2">
                         <h3 className="text-xl font-black tracking-tight text-zinc-950 dark:text-white">Recurso Exclusivo</h3>
-                        <p className="max-w-xs text-sm font-medium text-zinc-500 dark:text-white/50">
-                          O NeuroFinance está disponível apenas para assinantes pagantes dos planos Profissional e Enterprise.
-                        </p>
+                        <p className="max-w-xs text-sm font-medium text-zinc-500 dark:text-white/50">O NeuroFinance está disponível apenas nos planos Profissional e Enterprise.</p>
                       </div>
                       <Button onClick={() => navigate("/ajustes?tab=assinatura")} className="h-12 w-full rounded-2xl bg-indigo-600 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-indigo-700">
                         Fazer upgrade <Rocket className="ml-2 h-4 w-4" />
@@ -156,28 +137,18 @@ export const FinancialPulsePanel = () => {
                         <WalletCards className="h-6 w-6" />
                       </div>
                       <div className="space-y-2">
-                        <h3 className="text-xl font-black tracking-tight text-zinc-950 dark:text-white">Ative sua Conta</h3>
-                        <p className="max-w-xs text-sm font-medium text-zinc-500 dark:text-white/50">
-                          Sua assinatura permite o uso do NeuroFinance. Ative sua conta bancária agora para automatizar cobranças.
-                        </p>
+                        <h3 className="text-xl font-black tracking-tight text-zinc-950 dark:text-white">NeuroFinance Pendente</h3>
+                        <p className="max-w-xs text-sm font-medium text-zinc-500 dark:text-white/50">Ative sua conta para automatizar cobranças e receber via Pix e Cartão.</p>
                       </div>
-                      <Button 
-                        onClick={() => navigate("/financeiro", { state: { view: "conta-digital" } })} 
-                        className="h-12 w-full rounded-2xl bg-amber-600 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-amber-700"
-                      >
-                        Ativar NeuroFinance <ArrowRight className="ml-2 h-4 w-4" />
+                      <Button onClick={() => navigate("/financeiro")} className="h-12 w-full rounded-2xl bg-amber-600 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-amber-700">
+                        Ativar conta agora <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1.5">
-                          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-zinc-400 dark:text-white/32">Saldo em Tempo Real</p>
-                          <h2 className="text-2xl font-black tracking-[-0.045em] text-zinc-950 dark:text-white">Balanço Bancário</h2>
-                        </div>
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5">
-                          <PiggyBank className="h-5 w-5 text-zinc-400" />
-                        </div>
+                      <div className="space-y-1.5">
+                        <p className="text-[9px] font-black uppercase tracking-[0.28em] text-zinc-400 dark:text-white/32">Dinheiro Real</p>
+                        <h2 className="text-2xl font-black tracking-[-0.045em] text-zinc-950 dark:text-white">Balanço Bancário</h2>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -188,18 +159,11 @@ export const FinancialPulsePanel = () => {
                       </div>
 
                       <div className="flex gap-3">
-                        <Button 
-                          onClick={() => navigate("/financeiro", { state: { view: "transferencias" } })} 
-                          className="h-12 flex-1 rounded-2xl bg-zinc-950 text-[9px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950"
-                        >
+                        <Button onClick={() => navigate("/financeiro")} className="h-12 flex-1 rounded-2xl bg-zinc-950 text-[9px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950">
                           Sacar <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          onClick={() => navigate("/financeiro", { state: { view: "conta-digital", action: "new-charge" } })} 
-                          className="h-12 flex-1 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.16em] dark:border-white/10 dark:bg-white/[0.04]"
-                        >
-                          <PlusCircle className="mr-2 h-3.5 w-3.5" /> Cobrar Paciente
+                        <Button variant="outline" onClick={() => navigate("/financeiro?tab=payments")} className="h-12 flex-1 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.16em] dark:border-white/10 dark:bg-white/[0.04]">
+                          Cobrar paciente
                         </Button>
                       </div>
                     </div>
