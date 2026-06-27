@@ -1,6 +1,6 @@
 "use client";
 
-import { type ComponentProps, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ComponentProps, type ReactNode, useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { differenceInYears, format, isValid } from "date-fns";
 import { Check, CircleHelp, Loader2, Plus, Save, X } from "lucide-react";
@@ -625,6 +625,7 @@ export const NewPatientForm = ({ onSuccess, onCancel, patient = null }: NewPatie
   } = useAddressAutocomplete(addressLookupQuery, selectedAddressQuery);
 
   const isPending = addPatient.isPending || updatePatient.isPending;
+  const isFormLoading = isEditing && patientRecordDetails.isLoading;
 
   const selectedInsuranceAgreement = (insuranceAgreements.data || []).find((item) => item.id === insuranceAgreementId);
   const insuranceSessionCents = parseMoneyToCents(insuranceSessionValue);
@@ -637,6 +638,36 @@ export const NewPatientForm = ({ onSuccess, onCancel, patient = null }: NewPatie
   const ageLabel = birthDate && isValid(birthDate)
     ? `${differenceInYears(new Date(), birthDate)} anos`
     : "Digite a data de nascimento";
+
+  const applyAddressSuggestion = async () => {
+    const cepDigits = onlyDigits(postalCode);
+    const suggestion =
+      addressSuggestions.find((item) => item.source === "viacep") ||
+      (addressSuggestions.length === 1 ? addressSuggestions[0] : null);
+
+    if (!suggestion || cepDigits.length !== 8) return;
+
+    try {
+      const address = await validateSuggestion(suggestion);
+      const resolvedCep = formatCepInput(address.postalCode || postalCode);
+      if (resolvedCep) form.setValue("postal_code", resolvedCep, { shouldDirty: true, shouldValidate: true });
+      if (address.street) form.setValue("street", address.street, { shouldDirty: true });
+      if (address.neighborhood) form.setValue("neighborhood", address.neighborhood, { shouldDirty: true });
+      if (address.city) form.setValue("city", address.city, { shouldDirty: true });
+      if (address.state) form.setValue("state", address.state.toUpperCase().slice(0, 2), { shouldDirty: true });
+      setSelectedAddressQuery(onlyDigits(address.postalCode || "") || address.label);
+      setAutoAppliedCep(cepDigits);
+      clearSuggestions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Nao conseguimos validar este CEP.");
+    }
+  };
+
+  useEffect(() => {
+    const cepDigits = onlyDigits(postalCode);
+    if (cepDigits.length !== 8 || autoAppliedCep === cepDigits || addressValidating) return;
+    void applyAddressSuggestion();
+  }, [addressSuggestions, addressValidating, autoAppliedCep, postalCode]);
 
   const renderTextField = (
     name: Path<NewPatientFormValues>,
@@ -651,7 +682,20 @@ export const NewPatientForm = ({ onSuccess, onCancel, patient = null }: NewPatie
         <FormItem className={className}>
           <FormLabel className={labelClassName}>{label}</FormLabel>
           <FormControl>
-            <Input {...props} {...field} value={(field.value as string) || ""} className={cn(inputClassName, props?.className)} />
+            <Input
+              {...props}
+              {...field}
+              value={(field.value as string) || ""}
+              onChange={(event) => {
+                const formatter = fieldFormatters[name];
+                field.onChange(formatter ? formatter(event.target.value) : event.target.value);
+                if (name === "postal_code") {
+                  setSelectedAddressQuery("");
+                  setAutoAppliedCep("");
+                }
+              }}
+              className={cn(inputClassName, props?.className)}
+            />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -752,16 +796,36 @@ export const NewPatientForm = ({ onSuccess, onCancel, patient = null }: NewPatie
     </>
   );
 
+  const handleSubmitError = (error: Error, fallback: string) => {
+    const message = error.message || fallback;
+    if (message.toLowerCase().includes("e-mail") || message.toLowerCase().includes("email")) {
+      form.setError("email", { message });
+    }
+    toast.error(message);
+  };
+
   const onSubmit = (values: NewPatientFormValues) => {
-    mutate(values, {
-      onSuccess: (patient) => {
+    if (isEditing && patient?.id) {
+      updatePatient.mutate(
+        { patientId: patient.id, patientData: values },
+        {
+          onSuccess: (updatedPatient) => {
+            toast.success("Prontuario atualizado com sucesso!");
+            onSuccess(updatedPatient);
+          },
+          onError: (error) => handleSubmitError(error, "Erro ao atualizar paciente."),
+        },
+      );
+      return;
+    }
+
+    addPatient.mutate(values, {
+      onSuccess: (createdPatient) => {
         toast.success("Prontuário criado com sucesso!");
-        form.reset();
-        onSuccess(patient);
+        form.reset(buildPatientFormDefaults(null, undefined, professionalName));
+        onSuccess(createdPatient);
       },
-      onError: (error) => {
-        toast.error(`Erro ao adicionar paciente: ${error.message}`);
-      },
+      onError: (error) => handleSubmitError(error, "Erro ao adicionar paciente."),
     });
   };
 
@@ -952,7 +1016,37 @@ export const NewPatientForm = ({ onSuccess, onCancel, patient = null }: NewPatie
 
                   <Section title="Endereço" description="Endereço estruturado para documentos, cobranças e cadastro clínico.">
                     {renderSelectField("country", "País", [{ value: "Brasil", label: "Brasil" }], "Brasil")}
-                    {renderTextField("postal_code", "CEP", { placeholder: "00000-000" })}
+                    <FormField
+                      control={form.control}
+                      name="postal_code"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className={labelClassName}>CEP</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={(field.value as string) || ""}
+                              onChange={(event) => {
+                                field.onChange(formatCepInput(event.target.value));
+                                setSelectedAddressQuery("");
+                                setAutoAppliedCep("");
+                              }}
+                              placeholder="00000-000"
+                              inputMode="numeric"
+                              className={inputClassName}
+                            />
+                          </FormControl>
+                          {addressLoading || addressValidating || addressError ? (
+                            <FormDescription className="text-xs">
+                              {addressLoading || addressValidating
+                                ? "Buscando endereco pelo CEP..."
+                                : addressError}
+                            </FormDescription>
+                          ) : null}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     {renderTextField("city", "Cidade", { placeholder: "Digite aqui" })}
                     {renderSelectField("state", "Estado", STATE_OPTIONS.map((state) => ({ value: state, label: state })), "UF", undefined, undefined, true)}
                     {renderTextField("street", "Endereço", { placeholder: "Rua, avenida..." }, "sm:col-span-2")}
@@ -1020,8 +1114,10 @@ export const NewPatientForm = ({ onSuccess, onCancel, patient = null }: NewPatie
               <Button type="button" variant="ghost" className="h-11 rounded-lg px-5" onClick={onCancel}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isPending} className="h-11 rounded-lg px-5">
-                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              <Button type="submit" disabled={isPending || isFormLoading} className="h-11 rounded-lg px-5">
+                {isPending || isFormLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                <span>{isEditing ? "Salvar alteracoes" : "Salvar prontuario"}</span>
+                <span className="hidden">
                 Salvar prontuário
               </Button>
             </div>
