@@ -213,19 +213,30 @@ const AuthPageV2 = () => {
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      const result = role === 'patient' && patientAuthMode === 'signup'
-        ? await supabase.auth.signUp({
-          email: normalizedEmail,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/portal/ativar`,
-            data: {
-              role: 'patient',
-              account_role: 'patient',
-            },
+      if (role === 'patient' && patientAuthMode === 'signup') {
+        const inviteToken = window.localStorage.getItem('neuronex_patient_portal_invite_token') || undefined;
+        const { data, error } = await supabase.functions.invoke<{ message?: string }>('patient-portal-auth', {
+          body: {
+            action: 'signup',
+            email: normalizedEmail,
+            password,
+            inviteToken,
           },
-        })
-        : await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+        });
+
+        if (error) throw error;
+
+        if (remember) {
+          localStorage.setItem('neuronex_remember_me', 'true');
+          localStorage.setItem('neuronex_remembered_email', normalizedEmail);
+        }
+
+        toast.success(data?.message || 'Conta criada. Enviamos um e-mail de ativação do Portal do Paciente.');
+        setPatientAuthMode('login');
+        return;
+      }
+
+      const result = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
       if (result.error) throw result.error;
 
@@ -235,12 +246,6 @@ const AuthPageV2 = () => {
       } else {
         localStorage.removeItem('neuronex_remember_me');
         localStorage.removeItem('neuronex_remembered_email');
-      }
-
-      if (role === 'patient' && patientAuthMode === 'signup' && !result.data.session) {
-        toast.success('Conta criada. Confirme seu e-mail e depois informe o codigo do convite.');
-        setPatientAuthMode('login');
-        return;
       }
 
       await evaluateSession();

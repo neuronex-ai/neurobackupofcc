@@ -229,6 +229,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/patient-portal-invite-preview/index.ts"
 
+[functions.patient-portal-auth]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/patient-portal-auth/index.ts"
+
 [functions.patient-portal-activate]
 enabled = true
 verify_jwt = true

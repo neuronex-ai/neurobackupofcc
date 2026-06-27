@@ -41,11 +41,19 @@ export const ForgotPasswordModal = ({
         setIsLoading(true);
 
         try {
-            const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-                redirectTo: redirectTo || `${window.location.origin}/reset-password`,
-            });
+            const normalizedEmail = email.trim().toLowerCase();
+            const result = context === "patient"
+                ? await supabase.functions.invoke("patient-portal-auth", {
+                    body: {
+                        action: "reset_password",
+                        email: normalizedEmail,
+                    },
+                })
+                : await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+                    redirectTo: redirectTo || `${window.location.origin}/reset-password`,
+                });
 
-            if (error) throw error;
+            if (result.error) throw result.error;
 
             setIsSuccess(true);
             toast.success("E-mail de recuperação enviado.");
