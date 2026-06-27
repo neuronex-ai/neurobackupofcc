@@ -38,6 +38,7 @@ import { useSynapse } from "@/context/SynapseProvider";
 import { cn } from "@/lib/utils";
 import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from "@/lib/appointment-status";
 import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
+import { FinancialPulsePanel } from "./FinancialPulsePanel";
 
 type DashboardAppointment = any;
 
@@ -375,37 +376,6 @@ const ClinicalPulsePanel = ({ todayAppointments, pendingPatients, weeklyAppointm
   );
 };
 
-const FinancialPulsePanel = ({ financialConnected, financialStatus }: { financialConnected: boolean; financialStatus?: string | null }) => {
-  const navigate = useNavigate();
-
-  return (
-    <DashboardPanel className="h-full" innerClassName="p-7 md:p-8" delay={320}>
-      <SectionTitle eyebrow="Pulso financeiro" title="NeuroFinance no radar" description="Um resumo leve da camada financeira sem sair do Dashboard." />
-      <div className="mt-8 rounded-[30px] bg-zinc-950 p-6 text-white dark:bg-white dark:text-zinc-950">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 dark:bg-zinc-950/10">
-            {financialConnected ? <BadgeCheck className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-          </div>
-          <span className="rounded-full border border-white/10 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] opacity-55 dark:border-zinc-950/10">{financialConnected ? "Conectado" : "Pendente"}</span>
-        </div>
-        <h3 className="mt-9 text-3xl font-black leading-[0.92] tracking-[-0.055em]">{financialConnected ? "Conta financeira ativa no sistema." : "Ative o financeiro para ver recebíveis aqui."}</h3>
-        <p className="mt-4 text-sm font-medium leading-relaxed opacity-62">{financialConnected ? `Status atual: ${financialStatus || "em operação"}. Use o NeuroFinance para cobranças, Pix, boletos, saques e extrato.` : "Quando o NeuroFinance estiver ativo, este card exibirá cobranças pendentes, recebidos no mês e próximos repasses."}</p>
-      </div>
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        {["Recebido", "Pendente", "Previsto"].map((item) => (
-          <div key={item} className="rounded-[22px] border border-zinc-200/70 bg-zinc-50/70 p-4 text-center dark:border-white/10 dark:bg-white/[0.035]">
-            <p className="text-[8px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-white/32">{item}</p>
-            <p className="mt-3 text-xl font-black tracking-[-0.04em] text-zinc-950 dark:text-white">—</p>
-          </div>
-        ))}
-      </div>
-      <Button onClick={() => navigate("/financeiro")} className="mt-5 h-12 w-full rounded-2xl bg-zinc-950 text-[9px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950">
-        Abrir NeuroFinance <ArrowRight className="ml-2 h-4 w-4" />
-      </Button>
-    </DashboardPanel>
-  );
-};
-
 const WorkQueuePanel = ({ items }: { items: ActionItem[] }) => (
   <DashboardPanel innerClassName="p-7 md:p-8" delay={360}>
     <div className="flex items-start justify-between gap-4">
@@ -536,7 +506,7 @@ export const DesktopDashboardCommandCenter = () => {
 
   const { data: allUpcomingAppointments, isLoading: loadingApts } = useAppointmentsByDateRange(startOfDay(today), endOfDay(addDays(today, 7)));
   const { data: pendingPatientsRaw } = usePendingPatientsCount();
-  const { isConnected: financialConnected, status: financialStatus, isLoading: financialLoading } = useFinancialAccount();
+  const { isConnected: financialConnected, isLoading: financialLoading } = useFinancialAccount();
   const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
 
   const pendingPatients = Number(pendingPatientsRaw || 0);
@@ -663,7 +633,7 @@ export const DesktopDashboardCommandCenter = () => {
 
         <div className="grid gap-6 xl:grid-cols-2">
           <ClinicalPulsePanel todayAppointments={todayAppointments} pendingPatients={pendingPatients} weeklyAppointments={activeUpcomingAppointments} />
-          <FinancialPulsePanel financialConnected={financialConnected} financialStatus={financialStatus} />
+          <FinancialPulsePanel />
         </div>
 
         <WorkQueuePanel items={workQueue} />
