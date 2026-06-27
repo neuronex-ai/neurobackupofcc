@@ -40,9 +40,7 @@ export interface Patient {
   relative_name?: string | null;
   relative_relationship?: string | null;
   relative_phone?: string | null;
-  how_met_option_id?: string | null;
   referred_by_option_id?: string | null;
-  identification_color?: string | null;
   emergency_contact?: string | null;
   payer_type?: 'patient' | 'other' | null;
   payer_name?: string | null;

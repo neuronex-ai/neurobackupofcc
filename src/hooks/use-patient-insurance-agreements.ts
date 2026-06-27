@@ -32,7 +32,7 @@ export const parseMoneyToCents = (value?: string | null) => {
     ? cleaned.replace(/\./g, "").replace(",", ".")
     : cleaned;
   const amount = Number(normalized);
-  return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
+  return Number.isFinite(amount) ? Math.max(0, Math.round(amount * 100)) : 0;
 };
 
 export const formatCentsAsBRL = (cents: number) =>

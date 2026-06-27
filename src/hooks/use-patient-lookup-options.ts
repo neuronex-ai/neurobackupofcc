@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { supabase } from "@/integrations/supabase/client";
 
-export type PatientLookupKind = "how_met" | "referrer";
+export type PatientLookupKind = "referrer";
 
 export interface PatientLookupOption {
   id: string;
