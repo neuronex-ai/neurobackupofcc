@@ -93,14 +93,14 @@ const FINANCE_NAV: NavItem[] = [
             { id: 'pix-pagar', label: 'Pagar Pix', icon: QrCode, tag: 'Grátis', description: 'Cole um Pix copia e cola e pague pela conta NeuroFinance' },
             { id: 'pix-qrcode', label: 'Gerar QR Code', icon: QrCode, tag: 'Grátis', description: 'Crie um QR Code para receber na hora' },
             { id: 'pix-receber', label: 'Pix recebidos', icon: ArrowDownLeft, tag: 'Grátis', description: 'Veja o que entrou por Pix' },
-            { id: 'pix-chaves', label: 'Minhas chaves', icon: Key, description: 'Cadastre e gerencie suas chaves Pix' },
-            { id: 'pix-salarios', label: 'Pagar salários', icon: Users, tag: 'Grátis', description: 'Envie Pix em lote para sua equipe' },
-            { id: 'pix-limites', label: 'Limites do Pix', icon: ShieldCheck, tag: 'No App', description: 'Ajuste limites de segurança da conta' },
+            { id: 'pix-chaves', label: 'Minhas chaves', icon: Key, description: 'Gerencie chaves Pix' },
+            { id: 'pix-salarios', label: 'Pagar salários', icon: Users, tag: 'Grátis', description: 'Pix em lote' },
+            { id: 'pix-limites', label: 'Limites', icon: ShieldCheck, tag: 'No App', description: 'Ajuste limites de segurança' },
         ],
     },
     { id: 'statement-root', label: "Extrato da conta", icon: FileText, subItems: [{ id: 'extrato', label: 'Extrato da conta', icon: FileText }] },
     { id: 'cobrancas-root', label: "Cobranças bancárias", icon: WalletCards, subItems: [{ id: 'cobrancas-historia', label: 'Todas as cobranças', icon: History }, { id: 'cobrancas-simulador', label: 'Simulador de vendas', icon: BadgeCent }, { id: 'cobrancas-config', label: 'Regras automáticas', icon: Settings }] },
-    { id: 'pagamentos-root', label: "Pagamentos", icon: Receipt, subItems: [{ id: 'pagamentos-boletos', label: 'Pagar boletos', icon: Barcode, description: 'Digite, arraste imagem ou anexe PDF' }, { id: 'pagamentos-agendados', label: 'Pagamentos Agendados', icon: CalendarClock, description: 'Acompanhe pagamentos programados e comprovantes' }] },
+    { id: 'pagamentos-root', label: "Pagamentos", icon: Receipt, subItems: [{ id: 'pagamentos-boletos', label: 'Pagar boletos', icon: Barcode, description: 'Digite ou anexe PDF' }, { id: 'pagamentos-agendados', label: 'Agendados', icon: CalendarClock, description: 'Pagamentos programados' }] },
     { id: 'antecipacoes-root', label: "Antecipação", icon: TrendingUp, subItems: [{ id: 'antecipacoes-lista', label: 'Minhas antecipações', icon: History }, { id: 'antecipacoes-solicitar', label: 'Antecipar recebimento', icon: TrendingUp }, { id: 'antecipacoes-automatica', label: 'Antecipação automática', icon: Repeat }] },
     { id: 'transfers-root', label: "Transferências", icon: Send, subItems: [{ id: 'pix-transferir', label: 'Transferir via Pix', icon: Send, tag: 'Grátis', description: 'Envie dinheiro para uma chave Pix' }] },
     {
@@ -109,11 +109,11 @@ const FINANCE_NAV: NavItem[] = [
         icon: ArrowDownLeft,
         subItems: [
             { id: 'transferencias', label: 'Saques', icon: Send },
-            { id: 'contas-bancarias', label: 'Conta Bancária e Pix', icon: Landmark },
+            { id: 'contas-bancarias', label: 'Contas e Chaves', icon: Landmark },
         ],
     },
     { id: 'chargebacks-root', label: "Chargebacks", icon: Activity, subItems: [{ id: 'cobrancas-chargebacks', label: 'Chargebacks', icon: Activity }] },
-    { id: 'fiscal-root', label: "NFS-e", icon: FileText, subItems: [{ id: 'fiscal-dados', label: 'Dados Fiscais', icon: Landmark }, { id: 'fiscal-nova', label: 'Emitir nova nota fiscal', icon: PlusCircle, tag: 'Em breve' }, { id: 'fiscal-lista', label: 'Minhas Notas Fiscais', icon: FileCheck }] },
+    { id: 'fiscal-root', label: "NFS-e", icon: FileText, subItems: [{ id: 'fiscal-dados', label: 'Dados Fiscais', icon: Landmark }, { id: 'fiscal-nova', label: 'Emitir nota fiscal', icon: PlusCircle, tag: 'Em breve' }, { id: 'fiscal-lista', label: 'Minhas Notas Fiscais', icon: FileCheck }] },
     { id: 'tarifas-root', label: "Tarifas", icon: Receipt, subItems: [{ id: 'tarifas', label: 'Custos e prazos', icon: Receipt }] },
     { id: 'bank-settings-root', label: "Ajustes", icon: Settings, subItems: [{ id: 'saude-conta', label: 'Saúde da conta', icon: ShieldCheck }] },
 ];
@@ -129,6 +129,9 @@ const SIDEBAR_WIDTH_TRANSITION = { type: "spring", stiffness: 360, damping: 40, 
 
 const getInitialFinanceView = (pathname: string, search: string): FinanceView => {
     const searchParams = new URLSearchParams(search);
+    const viewParam = searchParams.get('view') as FinanceView;
+    if (viewParam) return viewParam;
+
     const shouldOpenNeuroFinance = pathname.includes('/neurofinance') || BANKING_QUERY_KEYS.some((key) => searchParams.has(key));
     return shouldOpenNeuroFinance ? 'conta-digital' : 'gestao-visao-geral';
 };
@@ -145,13 +148,21 @@ const DesktopFinanceiro = () => {
     const [activeView, setActiveView] = useState<FinanceView>(() => getInitialFinanceView(location.pathname, location.search));
     const [extratoTab, setExtratoTab] = useState<'realizado' | 'futuro' | 'assinaturas'>('realizado');
     const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-    const [expandedGroups, setExpandedGroups] = useState<string[]>([getInitialFinanceView(location.pathname, location.search) === 'conta-digital' ? 'account-balance-root' : 'management-root']);
+    const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
     const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
     const [showSidebarDetails, setShowSidebarDetails] = useState(false);
     const [agentTransactionModalOpen, setAgentTransactionModalOpen] = useState(false);
     const sidebarIntentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const sidebarDetailsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const sidebarWidthTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Sincronizar activeView quando a URL mudar
+    useEffect(() => {
+        const nextView = getInitialFinanceView(location.pathname, location.search);
+        if (nextView !== activeView) {
+            setActiveView(nextView);
+        }
+    }, [location.pathname, location.search]);
 
     const allTransactions = useMemo(() => {
         const merged = [...(transactions || [])];
