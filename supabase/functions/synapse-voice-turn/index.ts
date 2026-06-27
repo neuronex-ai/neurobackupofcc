@@ -1,6 +1,14 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  requireEntitlementForUser,
+  subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
+import {
+  consumeSynapseQuota,
+  synapseQuotaErrorResponse,
+} from "../_shared/synapse-quota.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -552,6 +560,16 @@ serve(async (req) => {
       sessionId = created.id;
     }
 
+    await requireEntitlementForUser(
+      {
+        id: user.id,
+        email: user.email,
+        user_metadata: user.user_metadata,
+      },
+      "ai_copilot",
+    );
+    await consumeSynapseQuota(db, user.id, 15);
+
     const { data: profile } = await db.from("profiles").select("first_name,gender_identity,ai_preferences").eq("id", user.id).maybeSingle();
     const { data: history } = await db.from("messages")
       .select("content,role")
@@ -634,6 +652,12 @@ Memória recente entre canais:\n${memory || "Sem memória adicional."}`;
       model: selectedModel,
     });
   } catch (error) {
+    const quotaResponse = synapseQuotaErrorResponse(error, corsHeaders);
+    if (quotaResponse) return quotaResponse;
+
+    const accessResponse = subscriptionAccessErrorResponse(error);
+    if (accessResponse) return accessResponse;
+
     const message = error instanceof Error ? error.message : "Erro interno";
     console.error("[synapse-voice-turn]", message);
     return jsonResponse({ error: message }, 500);

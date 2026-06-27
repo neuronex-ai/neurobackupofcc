@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getAppointmentKind } from "@/lib/appointment-metadata";
 import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
+import { useAuth } from "@/components/auth/SessionContextProvider";
 
 interface SearchResult {
     id: string;
@@ -33,6 +34,7 @@ interface SearchResult {
 }
 
 export const CommandSearch = ({ open, setOpen }: { open: boolean, setOpen: (open: boolean) => void }) => {
+    const { user } = useAuth();
     const [query, setQuery] = React.useState("");
     const [results, setResults] = React.useState<SearchResult[]>([]);
     const [loading, setLoading] = React.useState(false);
@@ -111,6 +113,11 @@ export const CommandSearch = ({ open, setOpen }: { open: boolean, setOpen: (open
         const delayDebounceFn = setTimeout(async () => {
             setLoading(true);
             try {
+                if (!user?.id) {
+                    setResults([]);
+                    return;
+                }
+
                 // Fetch basic data from multiple tables
                 const [
                     { data: patients },
@@ -120,17 +127,18 @@ export const CommandSearch = ({ open, setOpen }: { open: boolean, setOpen: (open
                     { data: personalNotes },
                     { data: aiMessages }
                 ] = await Promise.all([
-                    supabase.from('patients').select('id, name').ilike('name', `%${query}%`).limit(3),
-                    supabase.from('session_notes').select('id, patient_id, created_at, patients(name)').ilike('notes', `%${query}%`).limit(3),
+                    supabase.from('patients').select('id, name').eq('user_id', user.id).ilike('name', `%${query}%`).limit(3),
+                    supabase.from('session_notes').select('id, patient_id, created_at, patients(name)').eq('user_id', user.id).ilike('notes', `%${query}%`).limit(3),
                     supabase
                         .from('appointments')
                         .select('id, patient_id, patient_name, start_time, end_time, type, notes, location, metadata, patients(name)')
+                        .eq('user_id', user.id)
                         .or(`patient_name.ilike.%${query}%,notes.ilike.%${query}%,location.ilike.%${query}%`)
                         .order('start_time', { ascending: false })
                         .limit(5),
-                    supabase.from('reminders').select('id, title, due_date').ilike('title', `%${query}%`).limit(3),
-                    supabase.from('personal_notes').select('id, title, created_at').ilike('title', `%${query}%`).limit(3),
-                    supabase.from('messages').select('id, content, created_at').ilike('content', `%${query}%`).limit(3)
+                    supabase.from('reminders').select('id, title, due_date').eq('user_id', user.id).ilike('title', `%${query}%`).limit(3),
+                    supabase.from('personal_notes').select('id, title, created_at').eq('user_id', user.id).ilike('title', `%${query}%`).limit(3),
+                    supabase.from('messages').select('id, content, created_at').eq('user_id', user.id).ilike('content', `%${query}%`).limit(3)
                 ]);
 
                 const formattedResults: SearchResult[] = [];
@@ -211,7 +219,7 @@ export const CommandSearch = ({ open, setOpen }: { open: boolean, setOpen: (open
         }, 400);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [query]);
+    }, [query, user?.id]);
 
     const closeAndNavigate = (url: string) => {
         flushSync(() => {

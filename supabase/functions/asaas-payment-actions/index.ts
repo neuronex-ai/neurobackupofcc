@@ -9,6 +9,10 @@ import {
     supabaseAdmin,
 } from "../_shared/asaas-client.ts";
 import { syncFinancialEntryForPayment } from "../_shared/financial-management.ts";
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 function cents(value: unknown) {
     return Math.round(Number(value || 0) * 100);
@@ -79,6 +83,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            "neurofinance",
+        );
         const body = await req.json().catch(() => ({}));
         const action = String(body.action || "sync");
         const paymentId = String(body.payment_id || body.id || "");
@@ -130,6 +138,8 @@ Deno.serve(async (req: Request) => {
 
         return errorResponse("Esta ação ainda não está disponível para cobranças.", 400, { code: "UNSUPPORTED_PAYMENT_ACTION" });
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error("asaas-payment-actions error:", error);
         return errorResponse(
             "Não conseguimos atualizar esta cobrança agora. Tente novamente em instantes.",

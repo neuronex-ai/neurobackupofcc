@@ -5,7 +5,8 @@ import { ArrowRight, Landmark, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FeatureGate, LockedFeatureScreen } from "@/components/subscription";
+import { LockedFeatureScreen } from "@/components/subscription";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { FinancialDashboard, FinancialDashboardProps, FinanceView } from "./FinancialDashboard";
 import { NeuroFinanceVerificationModal } from "./NeuroFinanceVerificationModal";
@@ -106,11 +107,13 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
     syncAccount,
     refetch,
   } = useFinancialAccount();
+  const { canAccess, isDevAccount, isTrial } = useSubscription();
 
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [selectedRequirement, setSelectedRequirement] = useState<string | null>(null);
   const [showNeuroFinanceOnboarding, setShowNeuroFinanceOnboarding] = useState(false);
   const neuroFinanceView = isNeuroFinanceView(props.activeView);
+  const canUseNeuroFinance = isDevAccount || (!isTrial && canAccess("advanced_finance"));
 
   useEffect(() => {
     const redirect = LEGACY_MANAGEMENT_VIEW_REDIRECTS[props.activeView];
@@ -163,17 +166,18 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
   }
 
   if (neuroFinanceView) {
+    if (!canUseNeuroFinance) {
+      return (
+        <LockedFeatureScreen
+          feature="advanced_finance"
+          title="NeuroFinance"
+          description="Durante o teste gratis, a Gestao Financeira continua liberada para receitas, despesas e fluxo de caixa. Pix, boletos, saques, pagamentos, antecipacao e saldo real ficam disponiveis depois da assinatura ativa."
+        />
+      );
+    }
+
     return (
-      <FeatureGate
-        feature="advanced_finance"
-        fallback={
-          <LockedFeatureScreen
-            feature="advanced_finance"
-            title="NeuroFinance"
-            description="A Gestão Financeira continua liberada. Pix, boletos, saques, pagamentos, antecipação e saldo real ficam disponíveis no plano Profissional."
-          />
-        }
-      >
+      <>
         <div className="space-y-6 animate-fade-in">
           {(needsInitialOnboarding || isAccountMissing) ? (
             showNeuroFinanceOnboarding ? (
@@ -206,7 +210,7 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
           setSelectedRequirement={setSelectedRequirement}
           onSuccess={handleVerificationSuccess}
         />
-      </FeatureGate>
+      </>
     );
   }
 

@@ -260,7 +260,7 @@ export function MobileNeuroFinancePage() {
   const balance = useNeuroFinanceBalance();
   const { data: profile } = useProfile();
   const { data: patients = [] } = usePatients();
-  const { plan, isLoading: subscriptionLoading, canAccess, isDevAccount } = useSubscription();
+  const { isLoading: subscriptionLoading, canAccess, isDevAccount, isTrial } = useSubscription();
   const statementStart = useMemo(() => subMonths(new Date(), 6), []);
   const statementEnd = useMemo(() => addYears(new Date(), 2), []);
   const statement = useNeuroFinanceStatement(statementStart, statementEnd);
@@ -278,8 +278,7 @@ export function MobileNeuroFinancePage() {
 
   const routeFlow = flowFromPath(location.pathname);
   const approved = account.isApproved;
-  const canUseNeuroFinance =
-    isDevAccount || canAccess("advanced_finance") || plan === "Professional" || plan === "Enterprise";
+  const canUseNeuroFinance = isDevAccount || (!isTrial && canAccess("advanced_finance"));
   const shouldShowOnboarding = canUseNeuroFinance && (account.needsInitialOnboarding || account.isAccountMissing);
   const psychologistName =
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
@@ -394,7 +393,7 @@ export function MobileNeuroFinancePage() {
             <p className="mt-6 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/55">Plano Professional</p>
             <h1 className="mt-2 text-3xl font-black leading-[0.92] tracking-[-0.06em]">NeuroFinance libera dinheiro real.</h1>
             <p className="mt-4 text-sm font-semibold leading-relaxed text-muted-foreground/70">
-              A Gestão Financeira continua disponível no plano Essential. Para criar conta NeuroFinance, pagar Pix, boletos, sacar e receber saldo real, atualize o plano.
+              A Gestao Financeira continua disponivel durante o teste gratis. Para criar conta NeuroFinance, pagar Pix, boletos, sacar e receber saldo real, mantenha uma assinatura ativa.
             </p>
             <Button onClick={() => setUpsellOpen(true)} className="mt-6 h-14 w-full rounded-[20px] text-[10px] font-black uppercase tracking-[0.16em]">
               Ver planos

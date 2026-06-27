@@ -25,6 +25,10 @@ import {
     providerReceiptUrl,
 } from "../_shared/asaas-outgoing.ts";
 import { verifyFinancialPin } from "../_shared/financial-pin.ts";
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 type Destination = {
     type?: "saved_bank" | "pix_key";
@@ -126,6 +130,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            "neurofinance",
+        );
         const body = await req.json().catch(() => ({}));
         const action = String(body.action || "");
         const account = await getFinancialAccount(user.id);
@@ -380,6 +388,8 @@ Deno.serve(async (req: Request) => {
             code: "PAYOUT_CONSULTATION_REQUIRED",
         });
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error("asaas-payout error:", error);
         return errorResponse(error?.message || "Não foi possível processar este saque agora.", error?.status || 500, {
             code: error?.code || "PAYOUT_FAILED",

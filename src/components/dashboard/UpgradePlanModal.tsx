@@ -117,7 +117,11 @@ export const UpgradePlanModal = ({ currentPlan, children }: UpgradePlanModalProp
                     return;
                 }
 
-                if (result.requiresDocument || result.code === "customer_document_required") {
+                if (
+                    result.requiresDocument ||
+                    result.code === "customer_document_required" ||
+                    /cpf|cnpj|documento/i.test(result.error || "")
+                ) {
                     setDocumentRequired(true);
                     toast.error("Informe CPF/CNPJ para abrir o checkout.");
                     return;
@@ -131,7 +135,7 @@ export const UpgradePlanModal = ({ currentPlan, children }: UpgradePlanModalProp
                 toast.error(result.error || "Erro ao iniciar pagamento. Tente novamente.");
             } catch (error: any) {
                 console.error('Error creating checkout session:', error);
-                toast.error("Erro ao iniciar pagamento. Tente novamente.");
+                toast.error(error?.message || "Erro ao iniciar pagamento. Tente novamente.");
             } finally {
                 setIsLoading(false);
             }

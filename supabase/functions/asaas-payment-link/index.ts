@@ -25,6 +25,10 @@ import {
     getFinancialAccountAsaasApiKey,
     type AsaasBillingType,
 } from '../_shared/asaas-client.ts';
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from '../_shared/subscription-access.ts';
 
 const BILLING_TYPE_MAP: Record<string, AsaasBillingType> = {
     pix: 'PIX',
@@ -38,6 +42,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            'neurofinance',
+        );
         const body = await req.json();
 
         const { name, description, amount, billing_type, charge_type, due_date_limit_days, max_installment_count } = body;
@@ -74,6 +82,8 @@ Deno.serve(async (req: Request) => {
         });
 
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error('asaas-payment-link error:', error);
         return errorResponse(error.message || 'Internal error', 500);
     }

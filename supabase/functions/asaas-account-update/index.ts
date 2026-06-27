@@ -41,12 +41,20 @@ import {
     buildAsaasRequirementSnapshot,
     syncFinancialAccountFromAsaas,
 } from '../_shared/asaas-client.ts';
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from '../_shared/subscription-access.ts';
 
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return corsResponse();
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            'neurofinance',
+        );
         const body = await req.json();
 
         // 1. Get financial account
@@ -220,6 +228,8 @@ Deno.serve(async (req: Request) => {
         });
 
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error('asaas-account-update error:', error);
         return errorResponse(error.message || 'Internal error', 500);
     }

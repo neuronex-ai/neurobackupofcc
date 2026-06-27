@@ -13,9 +13,13 @@ function validateCrp(value: string) {
   return /^\d{2}\/\d{4,6}$/.test(value);
 }
 
-function planCanCreateNeuroFinance(plan: string, email?: string | null) {
+function planCanCreateNeuroFinance(plan: string, status?: string | null, accessState?: string | null, email?: string | null) {
   if (email && DEV_ACCOUNTS.has(email.toLowerCase())) return true;
-  return plan === "Professional" || plan === "Enterprise";
+  return (
+    (plan === "Professional" || plan === "Enterprise") &&
+    (status === "active" || status === "admin_override") &&
+    (accessState === "paid_access" || accessState === "admin_override")
+  );
 }
 
 Deno.serve(async (req) => {
@@ -72,14 +76,50 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Escolha uma opção para o NeuroFinance." }, 400);
     }
 
-    const { data: subscription } = await admin
+    let { data: subscription } = await admin
       .from("user_subscriptions")
-      .select("plan,status")
+      .select("plan,status,access_state,trial_ends_at")
       .eq("user_id", user.id)
       .maybeSingle();
 
+    if (!subscription) {
+      const trialStartedAt = new Date();
+      const trialEndsAt = new Date(trialStartedAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const { data: createdSubscription, error: trialError } = await admin
+        .from("user_subscriptions")
+        .insert({
+          user_id: user.id,
+          plan: "Professional",
+          plan_code: "professional",
+          status: "trialing",
+          access_state: "trial_access",
+          current_period_start: trialStartedAt.toISOString(),
+          current_period_end: trialEndsAt.toISOString(),
+          trial_started_at: trialStartedAt.toISOString(),
+          trial_ends_at: trialEndsAt.toISOString(),
+          metadata: {
+            source: "initial-settings-save",
+            trial_days: 7,
+          },
+          updated_at: trialStartedAt.toISOString(),
+        })
+        .select("plan,status,access_state,trial_ends_at")
+        .maybeSingle();
+
+      if (trialError) {
+        console.error("initial-settings-save:trial-error", trialError);
+      } else {
+        subscription = createdSubscription;
+      }
+    }
+
     const plan = String(subscription?.plan || "Essential");
-    const canCreateNeuroFinance = planCanCreateNeuroFinance(plan, user.email);
+    const canCreateNeuroFinance = planCanCreateNeuroFinance(
+      plan,
+      String(subscription?.status || ""),
+      String(subscription?.access_state || ""),
+      user.email,
+    );
 
     const initialPreferences: Record<string, unknown> = {
       theme,
@@ -90,7 +130,9 @@ Deno.serve(async (req) => {
 
     if (!canCreateNeuroFinance && neurofinanceIntroChoice === "create_now") {
       neurofinanceIntroChoice = "later";
-      initialPreferences.neurofinance_locked_reason = "essential_plan";
+      initialPreferences.neurofinance_locked_reason = subscription?.status === "trialing"
+        ? "trial_access"
+        : "subscription_not_paid";
     }
 
     const googleEnabled = googleChoice === "connect" && googleConnected;

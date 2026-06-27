@@ -24,6 +24,10 @@ import {
     validateBillPaymentDecision,
 } from "../_shared/asaas-bill-scheduling.ts";
 import { verifyFinancialPin } from "../_shared/financial-pin.ts";
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 const CONSULTATION_TTL_MS = 10 * 60 * 1000;
 const webhookCheckedAccounts = new Set<string>();
@@ -156,6 +160,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            "neurofinance",
+        );
         const body = await req.json().catch(() => ({}));
         const action = String(body.action || "list");
         const account = await getFinancialAccount(user.id);
@@ -579,6 +587,8 @@ Deno.serve(async (req: Request) => {
 
         return errorResponse("Esta ação de pagamento não está disponível.", 400, { code: "UNSUPPORTED_ACTION" });
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error("asaas-bill-payment error:", error);
         return errorResponse(error?.message || "Não conseguimos processar este boleto agora.", error?.status || 500, {
             code: error?.code || "BILL_PAYMENT_FAILED",

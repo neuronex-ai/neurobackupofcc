@@ -48,7 +48,7 @@ Deno.serve(async (req: Request) => {
                 email: user.email,
                 user_metadata: user.user_metadata,
             },
-            'advanced_finance',
+            'neurofinance',
         );
 
         const body = await req.json();

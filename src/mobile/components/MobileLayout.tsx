@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileRoutePill } from "./MobileRoutePill";
+import { TrialStatusIndicator } from "@/components/subscription";
 
 interface MobileLayoutProps {
   children: ReactNode;
@@ -40,6 +41,7 @@ export const MobileLayout = ({ children, className, shellClassName, showNav = tr
                 <img src={theme === "dark" ? "/favicon-S-FUNDO-BRANCA.ico" : "/favicon-S-FUNDO-PRETA.ico"} alt="NeuroNex" className="h-[17px] w-[17px] object-contain opacity-85" />
               </Link>
               <MobileRoutePill />
+              <TrialStatusIndicator compact className="hidden min-[390px]:inline-flex max-w-[7.75rem] px-2.5" />
             </div>
 
             <button type="button" onClick={() => setNotificationsOpen(true)} className="pointer-events-auto relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-foreground/[0.07] bg-background/62 shadow-[0_14px_34px_-24px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.055]" aria-label="Abrir notificações">

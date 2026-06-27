@@ -8,6 +8,10 @@ import {
     jsonResponse,
     supabaseAdmin,
 } from '../_shared/asaas-client.ts';
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from '../_shared/subscription-access.ts';
 
 function cents(value: unknown) {
     return Math.round(Number(value || 0) * 100);
@@ -64,6 +68,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            'neurofinance',
+        );
         const body = await req.json().catch(() => ({}));
         const action = body.action || 'list';
         const account = await getFinancialAccount(user.id);
@@ -135,6 +143,8 @@ Deno.serve(async (req: Request) => {
 
         return errorResponse('Esta ação de antecipação não está disponível.', 400);
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error('asaas-anticipations error:', error);
         return errorResponse(error?.message || 'Não conseguimos processar a antecipação agora.', error?.status || 500);
     }

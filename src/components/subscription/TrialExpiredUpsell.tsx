@@ -68,7 +68,11 @@ export const TrialExpiredUpsell = () => {
         window.location.href = result.url;
         return;
       }
-      if (result.requiresDocument || result.code === "customer_document_required") {
+      if (
+        result.requiresDocument ||
+        result.code === "customer_document_required" ||
+        /cpf|cnpj|documento/i.test(result.error || "")
+      ) {
         setDocumentRequired(true);
         toast.error("Informe CPF/CNPJ para abrir o checkout.");
         return;

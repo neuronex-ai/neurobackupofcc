@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
 import { Message } from '@/types';
-import { resolveGroundedSynapseQuery } from '@/lib/synapse-grounded-query';
 
 // --- Types ---
 export interface ChatSession {
@@ -111,46 +110,6 @@ export const useSessionMessages = (sessionId: string | null) => {
 // --- Send Message ---
 const sendMessageToAI = async (message: string, sessionId: string, attachments: any[], context: any, accessToken: string, userId: string) => {
   try {
-    const grounded = await resolveGroundedSynapseQuery(message, userId);
-    if (grounded) {
-      const now = new Date().toISOString();
-      const { error: messagesError } = await supabase.from('messages').insert([
-        {
-          user_id: userId,
-          content: message,
-          role: 'user',
-          session_id: sessionId,
-          attachments: attachments?.length > 0 ? attachments : [],
-        },
-        {
-          user_id: userId,
-          content: grounded.response,
-          role: 'assistant',
-          session_id: sessionId,
-          attachments: [],
-        },
-      ]);
-
-      if (messagesError) {
-        console.error("Erro ao salvar resposta aterrada do Synapse:", messagesError);
-      }
-
-      await supabase
-        .from('chat_sessions')
-        .update({ updated_at: now })
-        .eq('id', sessionId)
-        .eq('user_id', userId);
-
-      return {
-        response: grounded.response,
-        clientAction: null,
-        session_id: sessionId,
-        provider: 'local-system',
-        model: grounded.source,
-        grounded: true,
-      };
-    }
-
     const response = await fetch(GEMINI_CHAT_URL, {
       method: 'POST',
       headers: {

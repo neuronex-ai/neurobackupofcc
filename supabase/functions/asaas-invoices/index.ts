@@ -11,6 +11,10 @@ import {
     sanitizeDigits,
     supabaseAdmin,
 } from '../_shared/asaas-client.ts';
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from '../_shared/subscription-access.ts';
 
 const clamp = (value: unknown, fallback: number, min: number, max: number) => {
     const parsed = Number(value);
@@ -22,6 +26,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            'neurofinance',
+        );
         const body = await req.json().catch(() => ({}));
         const action = body.action || 'list';
         const account = await getFinancialAccount(user.id);
@@ -165,6 +173,8 @@ Deno.serve(async (req: Request) => {
 
         return errorResponse('Ação fiscal não suportada.', 400);
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error('asaas-invoices error:', error);
         return errorResponse(error?.message || 'Erro ao processar NFS-e.', error?.status || 500);
     }

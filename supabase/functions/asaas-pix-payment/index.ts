@@ -22,6 +22,10 @@ import {
     validatePixQrConsultation,
 } from "../_shared/asaas-outgoing.ts";
 import { verifyFinancialPin } from "../_shared/financial-pin.ts";
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 function consultationResponse(record: any) {
     const decoded = normalizePixQrConsultation(record?.provider_payload?.consultation || {});
@@ -70,6 +74,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            "neurofinance",
+        );
         const body = await req.json().catch(() => ({}));
         const action = String(body.action || "");
         const account = await getFinancialAccount(user.id);
@@ -308,6 +316,8 @@ Deno.serve(async (req: Request) => {
 
         return errorResponse("Esta ação de pagamento Pix não está disponível.", 400, { code: "UNSUPPORTED_PIX_PAYMENT_ACTION" });
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error("asaas-pix-payment error:", error);
         return errorResponse(error?.message || "Não foi possível processar este Pix agora.", error?.status || 500, {
             code: error?.code || "PIX_PAYMENT_FAILED",

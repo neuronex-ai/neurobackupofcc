@@ -22,15 +22,29 @@ export const isValidCpfCnpjLength = (value: string) => {
   return digits.length === 11 || digits.length === 14;
 };
 
-async function readFunctionError(error: unknown) {
-  const response = (error as { context?: Response })?.context;
-  if (!response) return null;
+async function readFunctionError(error: unknown): Promise<Record<string, any> | null> {
+  const maybeError = error as {
+    context?: Response | { json?: () => Promise<unknown>; body?: unknown };
+    details?: unknown;
+  };
+
+  const response = maybeError?.context;
+  if (!response) {
+    if (maybeError?.details && typeof maybeError.details === "object") {
+      return maybeError.details as Record<string, any>;
+    }
+    return null;
+  }
 
   try {
-    return await response.clone().json();
+    if (response instanceof Response) return await response.clone().json();
+    if (typeof response.json === "function") return (await response.json()) as Record<string, any>;
+    if (response.body && typeof response.body === "object") return response.body as Record<string, any>;
   } catch {
     return null;
   }
+
+  return null;
 }
 
 export async function startSubscriptionCheckout(payload: CheckoutPayload): Promise<CheckoutResult> {
@@ -43,11 +57,13 @@ export async function startSubscriptionCheckout(payload: CheckoutPayload): Promi
   }
 
   const details = await readFunctionError(error);
+  const fallbackMessage = (error as { message?: string })?.message || "Nao foi possivel iniciar o checkout.";
+
   return {
     error:
       details?.error ||
-      (error as { message?: string })?.message ||
-      "Nao foi possivel iniciar o checkout.",
+      details?.message ||
+      (fallbackMessage.includes("FunctionsHttpError") ? "Nao foi possivel iniciar o checkout." : fallbackMessage),
     code: details?.code,
     requiresDocument: Boolean(details?.requires_document || details?.requiresDocument),
     trialEndsAt: details?.trial_ends_at,

@@ -3,6 +3,10 @@ import {
   requireEntitlementForUser,
   subscriptionAccessErrorResponse,
 } from "../_shared/subscription-access.ts";
+import {
+  consumeSynapseQuota,
+  synapseQuotaErrorResponse,
+} from "../_shared/synapse-quota.ts";
 import { AGENT_TOOLS_V3 } from "./tools-v3.ts";
 import {
   executeAgentToolV3,
@@ -241,6 +245,7 @@ Deno.serve(async (request) => {
       },
       "ai_copilot",
     );
+    await consumeSynapseQuota(admin, user.id, 15);
 
     const { data: session, error: sessionError } = await admin
       .from("chat_sessions")
@@ -461,6 +466,9 @@ Deno.serve(async (request) => {
       recordsFound,
     });
   } catch (error) {
+    const quotaResponse = synapseQuotaErrorResponse(error, CORS);
+    if (quotaResponse) return quotaResponse;
+
     const accessResponse = subscriptionAccessErrorResponse(error);
     if (accessResponse) return accessResponse;
 

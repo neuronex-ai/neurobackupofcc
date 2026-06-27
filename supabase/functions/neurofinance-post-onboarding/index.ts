@@ -6,6 +6,10 @@ import {
   sanitizeDigits,
   supabaseAdmin,
 } from "../_shared/asaas-client.ts";
+import {
+  requireEntitlementForUser,
+  subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 type DestinationBody = {
   action?: "complete" | "get" | "save_destination";
@@ -72,6 +76,10 @@ Deno.serve(async (req: Request) => {
 
   try {
     const user = await getAuthenticatedUser(req);
+    await requireEntitlementForUser(
+      { id: user.id, email: user.email, user_metadata: user.user_metadata },
+      "neurofinance",
+    );
     const body = (await req.json().catch(() => ({}))) as DestinationBody;
 
     const { data: account, error } = await supabaseAdmin
@@ -150,6 +158,8 @@ Deno.serve(async (req: Request) => {
       postOnboarding: updated?.metadata?.neurofinance_post_onboarding || null,
     });
   } catch (error: any) {
+    const accessResponse = subscriptionAccessErrorResponse(error);
+    if (accessResponse) return accessResponse;
     console.error("[neurofinance-post-onboarding] error:", error);
     return errorResponse(error?.message || "Não foi possível salvar as configurações iniciais.", error?.status || 500);
   }

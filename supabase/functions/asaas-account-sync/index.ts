@@ -30,6 +30,10 @@ import {
     ASAAS_ENV,
     type AsaasAccountStatus,
 } from '../_shared/asaas-client.ts';
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from '../_shared/subscription-access.ts';
 
 async function findExistingSubAccount(user: any, financialAccount?: any) {
     let existingSubAccount = user.email
@@ -89,6 +93,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            'neurofinance',
+        );
 
         // 1. Get financial account from DB
         let financialAccount = await getFinancialAccount(user.id);
@@ -225,6 +233,8 @@ Deno.serve(async (req: Request) => {
         });
 
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error('asaas-account-sync error:', error);
         return errorResponse(error.message || 'Internal error', 500);
     }

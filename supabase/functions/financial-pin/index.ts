@@ -5,6 +5,10 @@ import {
     jsonResponse,
     supabaseAdmin,
 } from "../_shared/asaas-client.ts";
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 import bcrypt from "https://esm.sh/bcryptjs@2.4.3";
 
@@ -83,6 +87,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            "neurofinance",
+        );
         const body = await req.json().catch(() => ({}));
         const action = String(body.action || "verify");
 
@@ -190,6 +198,8 @@ Deno.serve(async (req: Request) => {
 
         return errorResponse("Ação de PIN não suportada.", 400, { code: "UNSUPPORTED_ACTION" });
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error("[financial-pin] error:", error);
         return errorResponse("Não conseguimos validar sua assinatura digital agora.", error?.status || 500, { code: "PIN_OPERATION_FAILED" });
     }

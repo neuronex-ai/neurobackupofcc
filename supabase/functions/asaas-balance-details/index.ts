@@ -11,6 +11,10 @@ import {
     jsonResponse,
     supabaseAdmin,
 } from "../_shared/asaas-client.ts";
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 function toTransaction(item: any) {
     return {
@@ -37,6 +41,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            "neurofinance",
+        );
         const body = await req.json().catch(() => ({}));
 
         const { data: snapshot, error: snapshotError } = await supabaseAdmin
@@ -88,6 +96,8 @@ Deno.serve(async (req: Request) => {
             snapshot: snapshot || null,
         });
     } catch (error) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error("[asaas-balance-details] Read failed:", error);
         return errorResponse(
             "Não conseguimos abrir os detalhes agora. Tente novamente em instantes.",

@@ -17,6 +17,10 @@ import {
   getFinancialAccountAsaasApiKey,
   asaasRequest,
 } from "../_shared/asaas-client.ts";
+import {
+  requireEntitlementForUser,
+  subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 type CreateStaticQrBody = {
   addressKey?: string;
@@ -105,6 +109,10 @@ Deno.serve(async (req: Request) => {
 
   try {
     const user = await getAuthenticatedUser(req);
+    await requireEntitlementForUser(
+      { id: user.id, email: user.email, user_metadata: user.user_metadata },
+      "neurofinance",
+    );
     const financialAccount = await getFinancialAccount(user.id);
     const subApiKey = getSubAccountApiKey(financialAccount);
     const url = new URL(req.url);
@@ -192,6 +200,8 @@ Deno.serve(async (req: Request) => {
 
     return errorResponse("Método não suportado.", 405);
   } catch (error: any) {
+    const accessResponse = subscriptionAccessErrorResponse(error);
+    if (accessResponse) return accessResponse;
     console.error("asaas-pix-static-qrcode error:", error);
     return errorResponse(error?.message || "Internal error", error?.status || 500);
   }

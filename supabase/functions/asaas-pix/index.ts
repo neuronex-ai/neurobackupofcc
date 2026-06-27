@@ -9,6 +9,10 @@ import {
     recordBaasOperation,
     supabaseAdmin,
 } from "../_shared/asaas-client.ts";
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 function normalizePixKey(raw: any) {
     const id = String(raw?.id || raw?.key || raw?.pixAddressKey || raw?.addressKey || "");
@@ -27,6 +31,10 @@ Deno.serve(async (req: Request) => {
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            "neurofinance",
+        );
         const body = await req.json().catch(() => ({}));
         const action = body.action || "list_keys";
         const account = await getFinancialAccount(user.id);
@@ -73,6 +81,8 @@ Deno.serve(async (req: Request) => {
 
         return errorResponse("Esta ação Pix ainda não está disponível.", 400, { code: "UNSUPPORTED_PIX_ACTION" });
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error("asaas-pix error:", error);
         return errorResponse(
             "Não conseguimos concluir a operação Pix agora. Tente novamente em instantes.",

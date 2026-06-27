@@ -418,6 +418,11 @@ export function hasEntitlementFeature(entitlement: any, featureKey: string) {
   if (!entitlement?.canUseCurrentAccess && !entitlement?.isDevAccount) return false;
   if (entitlement?.isDevAccount) return true;
   if (featureKey === "basic_access" || featureKey === "patients") return true;
+  if (featureKey === "neurofinance") {
+    if (entitlement?.accessState !== "paid_access" && entitlement?.status !== "admin_override") {
+      return false;
+    }
+  }
   if (featureKey === "unlimited_patients") {
     return entitlement?.features?.maxPatients === "unlimited";
   }

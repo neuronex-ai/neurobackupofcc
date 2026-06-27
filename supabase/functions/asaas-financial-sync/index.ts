@@ -17,6 +17,10 @@ import {
     upsertPaymentFromProvider,
 } from "../_shared/neurofinance-financial.ts";
 import { syncFinancialEntryForPayment } from "../_shared/financial-management.ts";
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from "../_shared/subscription-access.ts";
 
 const PAGE_SIZE = 100;
 const MAX_INCREMENTAL_PAGES = 20;
@@ -463,6 +467,10 @@ Deno.serve(async (req: Request) => {
         }
 
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            "neurofinance",
+        );
         const financialAccount = await getFinancialAccount(user.id);
         if (!financialAccount) {
             return errorResponse("Sua conta NeuroFinance ainda não foi ativada.", 404, {
@@ -501,6 +509,8 @@ Deno.serve(async (req: Request) => {
             throw error;
         }
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error("[asaas-financial-sync] Fatal error:", error);
         return errorResponse(
             "Não conseguimos atualizar os dados financeiros agora. Os últimos valores continuam disponíveis.",

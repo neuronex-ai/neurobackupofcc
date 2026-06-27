@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Appointment } from "@/types";
 import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
+import { useAuth } from "@/components/auth/SessionContextProvider";
 
 interface UseAppointmentsProps {
   startDate?: Date;
@@ -12,9 +13,14 @@ interface UseAppointmentsProps {
 }
 
 export const useAppointments = ({ startDate, endDate, patientId, includeCancelled = false }: UseAppointmentsProps = {}) => {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   return useQuery({
-    queryKey: ["appointments", startDate?.toISOString(), endDate?.toISOString(), patientId, includeCancelled],
+    queryKey: ["appointments", userId, startDate?.toISOString(), endDate?.toISOString(), patientId, includeCancelled],
     queryFn: async () => {
+      if (!userId) return [];
+
       let query = supabase
         .from("appointments")
         .select(`
@@ -22,7 +28,8 @@ export const useAppointments = ({ startDate, endDate, patientId, includeCancelle
           patients (
             name
           )
-        `);
+        `)
+        .eq("user_id", userId);
 
       query = query.order("start_time", { ascending: true });
 
@@ -54,5 +61,6 @@ export const useAppointments = ({ startDate, endDate, patientId, includeCancelle
         };
       }).filter((app: Appointment) => includeCancelled || !isCancelledAppointmentStatus(app.status, app.notes)) as Appointment[];
     },
+    enabled: !!userId,
   });
 };

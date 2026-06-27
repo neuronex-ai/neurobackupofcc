@@ -38,6 +38,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { CommandSearch } from "./CommandSearch";
+import { TrialStatusIndicator } from "@/components/subscription";
 
 export const Navbar = () => {
   const location = useLocation();
@@ -130,7 +131,7 @@ export const Navbar = () => {
             : "border border-black/[0.075] bg-white/[0.72] shadow-[0_30px_90px_-46px_rgba(0,0,0,0.68),inset_0_1px_0_rgba(255,255,255,0.7)] ring-1 ring-white/40 hover:bg-white/[0.78] hover:shadow-[0_42px_112px_-56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.8)]"
         )}
       >
-        <div className={cn("flex items-center pr-4 border-r", isDarkTheme ? "border-white/[0.08]" : "border-black/[0.055]")}>
+        <div className={cn("flex items-center gap-2 pr-4 border-r", isDarkTheme ? "border-white/[0.08]" : "border-black/[0.055]")}>
           <Link
             to="/dashboard"
             aria-label="Ir para o dashboard NeuroNex"
@@ -155,6 +156,7 @@ export const Navbar = () => {
             </span>
             <span className={cn("text-[10px] font-black tracking-[0.28em] uppercase hidden md:block transition-colors duration-500", isDarkTheme ? "text-white" : "text-zinc-900")}>NeuroNex AI</span>
           </Link>
+          <TrialStatusIndicator compact className="hidden xl:inline-flex" />
         </div>
 
         <div id="main-navigation" className="flex items-center gap-1">

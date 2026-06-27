@@ -23,12 +23,20 @@ import {
     getFinancialAccountAsaasApiKey,
 } from '../_shared/asaas-client.ts';
 import { syncFinancialEntryForPayment } from '../_shared/financial-management.ts';
+import {
+    requireEntitlementForUser,
+    subscriptionAccessErrorResponse,
+} from '../_shared/subscription-access.ts';
 
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return corsResponse();
 
     try {
         const user = await getAuthenticatedUser(req);
+        await requireEntitlementForUser(
+            { id: user.id, email: user.email, user_metadata: user.user_metadata },
+            'neurofinance',
+        );
         const { invoiceId } = await req.json();
 
         if (!invoiceId) {
@@ -206,6 +214,8 @@ Deno.serve(async (req: Request) => {
         });
 
     } catch (error: any) {
+        const accessResponse = subscriptionAccessErrorResponse(error);
+        if (accessResponse) return accessResponse;
         console.error('[check-invoice-status] Error:', error);
         return errorResponse(error.message || 'Internal error', 500);
     }
