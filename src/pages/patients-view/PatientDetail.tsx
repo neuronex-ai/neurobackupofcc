@@ -239,6 +239,17 @@ export default function PatientDetail() {
 
                         {/* Right Side: Actions */}
                         <div className="flex shrink-0 items-center gap-2">
+                            {canInvitePatientPortal && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setInviteModalOpen(true)}
+                                    className="h-10 rounded-xl border-border/55 bg-background px-4 text-[9px] font-black uppercase tracking-[0.17em] text-muted-foreground shadow-sm transition-colors hover:bg-foreground hover:text-background"
+                                >
+                                    <MailPlus className="mr-2 h-3.5 w-3.5" />
+                                    Convidar
+                                </Button>
+                            )}
                             <Select value={patient.status || ""} onValueChange={handleStatusChange}>
                                 <SelectTrigger className="h-10 w-auto gap-2 rounded-xl border border-border/55 bg-background px-4 text-[9px] font-black uppercase tracking-[0.17em] text-muted-foreground shadow-sm ring-0 transition-colors hover:bg-muted focus:ring-0">
                                     <div className="flex items-center gap-3">

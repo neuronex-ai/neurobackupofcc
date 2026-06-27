@@ -26,7 +26,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { Session } from '@supabase/supabase-js';
 import { motion, type MotionProps, useReducedMotion } from 'framer-motion';
-import { Eye, EyeOff, Fingerprint, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Fingerprint, Loader2, ShieldCheck, Stethoscope, UserRound } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -135,7 +135,9 @@ const AuthPageV2 = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const { theme } = useTheme();
-  const role = new URLSearchParams(location.search).get('role') || 'pro';
+  const roleParam = new URLSearchParams(location.search).get('role');
+  const role = roleParam || 'pro';
+  const showRoleChoice = !roleParam;
   const [email, setEmail] = useState(localStorage.getItem('neuronex_remembered_email') || '');
   const [password, setPassword] = useState('');
   const [patientAuthMode, setPatientAuthMode] = useState<'login' | 'signup'>('login');
@@ -423,7 +425,7 @@ const AuthPageV2 = () => {
           )}
           <button
             type="button"
-            onClick={() => navigate(role === 'patient' ? '/auth' : '/auth?role=patient')}
+            onClick={() => navigate(role === 'patient' ? '/auth?role=pro' : '/auth?role=patient')}
             className="w-full text-xs font-semibold text-current/80 transition-colors hover:text-current"
           >
             {role === 'patient' ? 'Acessar como profissional' : 'Acessar Portal do Paciente'}
@@ -458,6 +460,72 @@ const AuthPageV2 = () => {
       />
     </label>
   );
+
+  const renderRoleChoicePanel = (size: 'mobile' | 'desktop') => {
+    const isDesktopPanel = size === 'desktop';
+    const options = [
+      {
+        label: 'Sou psicologo',
+        description: 'Acesse agenda, prontuarios, Synapse, financeiro e configuracoes da clinica.',
+        icon: Stethoscope,
+        href: '/auth?role=pro',
+      },
+      {
+        label: 'Sou paciente',
+        description: 'Entre no Portal do Paciente para ativar convite, ver agenda, documentos e financeiro.',
+        icon: UserRound,
+        href: '/auth?role=patient',
+      },
+    ];
+
+    return (
+      <div className={cn(
+        'mx-0 shadow-[0_-20px_54px_-38px_rgba(0,0,0,0.72)]',
+        isDesktopPanel
+          ? 'rounded-b-[40px] rounded-t-[38px] px-10 pb-10 pt-10'
+          : 'min-h-[min(58dvh,32.5rem)] rounded-b-[36px] rounded-t-[34px] px-7 pb-7 pt-9',
+        authPanelClass,
+      )}>
+        <div className="mb-7 text-left">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-current/55">Escolha seu acesso</p>
+          <h1 className="mt-3 text-2xl font-black leading-tight tracking-normal">Como voce quer entrar?</h1>
+          <p className="mt-3 text-sm font-medium leading-relaxed text-current/62">
+            Psicologos e pacientes usam areas separadas para manter dados clinicos e convites protegidos.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {options.map((option) => (
+            <button
+              key={option.href}
+              type="button"
+              onClick={() => navigate(option.href)}
+              className={cn(
+                'group flex w-full items-center gap-4 rounded-[22px] border p-4 text-left transition-colors active:scale-[0.99]',
+                isDarkTheme
+                  ? 'border-black/10 bg-black/[0.035] hover:bg-black/[0.075]'
+                  : 'border-white/12 bg-white/[0.035] hover:bg-white/[0.075]',
+              )}
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-current/10 bg-current/[0.06]">
+                <option.icon className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-black tracking-tight">{option.label}</span>
+                <span className="mt-1 block text-xs font-semibold leading-relaxed text-current/58">{option.description}</span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-current/45 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-8 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-current/55">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Acesso protegido
+        </div>
+      </div>
+    );
+  };
 
   const authDialogs = (
     <>
@@ -494,8 +562,8 @@ const AuthPageV2 = () => {
             <h1 className="sr-only">{role === 'patient' ? 'Area do paciente' : 'Acesso profissional'}</h1>
           </div>
 
-          {renderAuthPanel('mobile')}
-          {renderRememberControl('mobile')}
+          {showRoleChoice ? renderRoleChoicePanel('mobile') : renderAuthPanel('mobile')}
+          {!showRoleChoice && renderRememberControl('mobile')}
         </section>
 
         {authDialogs}
@@ -517,8 +585,8 @@ const AuthPageV2 = () => {
           <h1 className="sr-only">{role === 'patient' ? 'Area do paciente' : 'Acesso profissional'}</h1>
         </div>
 
-        {renderAuthPanel('desktop')}
-        {renderRememberControl('desktop')}
+        {showRoleChoice ? renderRoleChoicePanel('desktop') : renderAuthPanel('desktop')}
+        {!showRoleChoice && renderRememberControl('desktop')}
       </section>
 
       {authDialogs}

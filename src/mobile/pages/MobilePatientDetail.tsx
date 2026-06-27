@@ -265,9 +265,22 @@ export const MobilePatientDetail = () => {
 
                         <h1 className="text-2xl font-black text-foreground tracking-tight leading-none mb-3 max-w-[80%]">{patient.name}</h1>
 
-                        <div className="flex items-center gap-2 mb-6 bg-foreground/5 px-3 py-1 rounded-full border border-foreground/5">
-                            <span className={cn("w-1.5 h-1.5 rounded-full", patient.status === 'active' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-zinc-500")} />
-                            <p className="text-[10px] font-bold text-foreground/70 uppercase tracking-widest">{patient.status === 'active' ? 'Em Tratamento' : 'Inativo'}</p>
+                        <div className="mb-6 flex items-center justify-center gap-2">
+                            {canInvitePatientPortal && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setInviteModalOpen(true)}
+                                    className="h-9 rounded-full border-foreground/10 bg-background/80 px-4 text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95"
+                                >
+                                    <MailPlus className="mr-2 h-3.5 w-3.5" />
+                                    Convidar
+                                </Button>
+                            )}
+                            <div className="flex items-center gap-2 rounded-full border border-foreground/5 bg-foreground/5 px-3 py-1">
+                                <span className={cn("w-1.5 h-1.5 rounded-full", patient.status === 'active' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-zinc-500")} />
+                                <p className="text-[10px] font-bold text-foreground/70 uppercase tracking-widest">{patient.status === 'active' ? 'Em Tratamento' : 'Inativo'}</p>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-3 w-full justify-center mb-8">
@@ -284,17 +297,6 @@ export const MobilePatientDetail = () => {
                                     <Edit2 className="w-4 h-4 text-foreground" />
                                 </Button>
                             </EditPatientModal>
-                            {canInvitePatientPortal && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setInviteModalOpen(true)}
-                                    className="h-11 w-11 rounded-full p-0 border-foreground/10 bg-transparent active:scale-90 hover:bg-foreground/5"
-                                    aria-label="Convidar paciente para o portal"
-                                >
-                                    <MailPlus className="w-4 h-4 text-foreground" />
-                                </Button>
-                            )}
                         </div>
 
                         {/* Info Grid */}
