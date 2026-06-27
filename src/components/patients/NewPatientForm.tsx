@@ -1,6 +1,6 @@
 "use client";
 
-import { type ComponentProps, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ComponentProps, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { differenceInYears, format, isValid } from "date-fns";
 import { Check, CircleHelp, Loader2, Plus, Save, X } from "lucide-react";
@@ -639,7 +639,7 @@ export const NewPatientForm = ({ onSuccess, onCancel, patient = null }: NewPatie
     ? `${differenceInYears(new Date(), birthDate)} anos`
     : "Digite a data de nascimento";
 
-  const applyAddressSuggestion = async () => {
+  const applyAddressSuggestion = useCallback(async () => {
     const cepDigits = onlyDigits(postalCode);
     const suggestion =
       addressSuggestions.find((item) => item.source === "viacep") ||
@@ -661,13 +661,13 @@ export const NewPatientForm = ({ onSuccess, onCancel, patient = null }: NewPatie
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Nao conseguimos validar este CEP.");
     }
-  };
+  }, [addressSuggestions, clearSuggestions, form, postalCode, validateSuggestion]);
 
   useEffect(() => {
     const cepDigits = onlyDigits(postalCode);
     if (cepDigits.length !== 8 || autoAppliedCep === cepDigits || addressValidating) return;
     void applyAddressSuggestion();
-  }, [addressSuggestions, addressValidating, autoAppliedCep, postalCode]);
+  }, [addressValidating, autoAppliedCep, applyAddressSuggestion, postalCode]);
 
   const renderTextField = (
     name: Path<NewPatientFormValues>,
