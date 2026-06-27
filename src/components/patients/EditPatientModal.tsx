@@ -1,21 +1,27 @@
-import { useEffect, useState } from "react";
-import { UserCog } from "lucide-react";
-import { Patient } from "@/types";
-import { EditPatientForm } from "./EditPatientForm";
-import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { type ReactNode, useEffect, useState } from "react";
+import { X, UserCog } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import type { Patient } from "@/types";
 import { cn } from "@/lib/utils";
+import { NewPatientForm } from "./NewPatientForm";
 
 interface EditPatientModalProps {
   patient: Patient;
-  children: React.ReactNode;
+  children: ReactNode;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
 export const EditPatientModal = ({ patient, children, defaultOpen = false, onOpenChange }: EditPatientModalProps) => {
   const [open, setOpen] = useState(defaultOpen);
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (defaultOpen) setOpen(true);
@@ -27,47 +33,47 @@ export const EditPatientModal = ({ patient, children, defaultOpen = false, onOpe
   };
 
   return (
-    <ResponsiveModal
-      open={open}
-      onOpenChange={handleOpenChange}
-      trigger={children}
-      className="sm:max-w-[550px] border border-border/20 bg-popover/80 dark:bg-popover/40 backdrop-blur-[40px] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)] dark:shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9)] rounded-[48px] overflow-hidden p-0"
-      drawerClassName="bg-white dark:bg-[#080809]"
-    >
-      <div className={cn(
-        "relative overflow-hidden flex-1 flex flex-col",
-        isMobile ? "p-6 pt-1 pb-10" : "p-8 md:p-10"
-      )}>
-        {/* Gradiente mantido apenas para desktop ou ajustado para não conflitar no mobile */}
-        {!isMobile && <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent pointer-events-none opacity-50" />}
-        <div className="relative z-10 flex flex-col flex-1">
-          <div className={cn("space-y-4 text-center", isMobile ? "mb-6" : "mb-8")}>
-            <div className="flex flex-col items-center justify-center gap-3">
-              <div className={cn(
-                "bg-secondary/30 rounded-full border border-border/20 shadow-inner flex items-center justify-center",
-                isMobile ? "p-3" : "p-4"
-              )}>
-                <UserCog className={cn("text-foreground/80", isMobile ? "h-5 w-5" : "h-6 w-6")} strokeWidth={1.5} />
-              </div>
-              <h2 className={cn("font-bold tracking-tight text-foreground", isMobile ? "text-xl" : "text-2xl")}>
-                Editar Prontuário
-              </h2>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent
+        className={cn(
+          "left-0 top-0 z-[180] flex h-dvh max-h-dvh w-dvw max-w-none translate-x-0 translate-y-0 grid-cols-1 flex-col gap-0 overflow-hidden rounded-none border-0 bg-background p-0 shadow-none",
+          "data-[state=open]:zoom-in-100 data-[state=closed]:zoom-out-100",
+        )}
+      >
+        <header className="shrink-0 border-b border-border/45 bg-background/94 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-xl sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-border/50 bg-card">
+              <UserCog className="h-5 w-5" />
             </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <span className="text-[9px] text-zinc-500 uppercase tracking-[0.3em] font-black opacity-60">
-                Identificação do Paciente
-              </span>
-              <span className="text-[11px] text-primary font-black uppercase tracking-widest bg-primary/5 px-4 py-1.5 rounded-full border border-primary/10 shadow-sm">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-lg font-black leading-tight tracking-tight text-foreground sm:text-xl">
+                Editar Prontuario
+              </DialogTitle>
+              <DialogDescription className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
                 {patient.name}
-              </span>
+              </DialogDescription>
             </div>
+            <DialogClose asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-full"
+                aria-label="Fechar edicao de prontuario"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </DialogClose>
           </div>
-          
-          <div className={cn("flex-1", isMobile ? "px-1" : "")}>
-            <EditPatientForm patient={patient} onSuccess={() => handleOpenChange(false)} />
-          </div>
-        </div>
-      </div>
-    </ResponsiveModal>
+        </header>
+
+        <NewPatientForm
+          patient={patient}
+          onCancel={() => handleOpenChange(false)}
+          onSuccess={() => handleOpenChange(false)}
+        />
+      </DialogContent>
+    </Dialog>
   );
 };

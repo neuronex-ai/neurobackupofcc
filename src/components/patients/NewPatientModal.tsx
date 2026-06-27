@@ -11,12 +11,13 @@ import {
 } from "@/components/ui/dialog";
 import { NewPatientForm } from "./NewPatientForm";
 import { cn } from "@/lib/utils";
+import type { Patient } from "@/types";
 
 interface NewPatientModalProps {
   children?: ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onCreated?: (patient: any) => void;
+  onCreated?: (patient?: Patient) => void;
   showTrigger?: boolean;
 }
 

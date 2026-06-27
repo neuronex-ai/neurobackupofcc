@@ -1116,9 +1116,7 @@ export const NewPatientForm = ({ onSuccess, onCancel, patient = null }: NewPatie
               </Button>
               <Button type="submit" disabled={isPending || isFormLoading} className="h-11 rounded-lg px-5">
                 {isPending || isFormLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                <span>{isEditing ? "Salvar alteracoes" : "Salvar prontuario"}</span>
-                <span className="hidden">
-                Salvar prontuário
+                {isEditing ? "Salvar alteracoes" : "Salvar prontuario"}
               </Button>
             </div>
           </footer>
