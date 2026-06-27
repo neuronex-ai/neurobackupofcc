@@ -39,8 +39,11 @@ export const NewPatientSchema = z.object({
   financial_plan: PatientFinancialPlanSchema.default("per_session"),
   session_value: optionalText(32),
   monthly_value: optionalText(32),
-  convenio_name: optionalText(120),
   billing_day: optionalText(2),
+  insurance_agreement_id: optionalText(64),
+  insurance_session_value: optionalText(32),
+  insurance_card_number: optionalText(80),
+  insurance_card_expires_at: z.date().optional(),
 
   country: z.string().default("Brasil"),
   postal_code: optionalText(20),
@@ -59,10 +62,7 @@ export const NewPatientSchema = z.object({
   relative_name: optionalText(120),
   relative_relationship: optionalText(50),
   relative_phone: optionalText(40),
-  source_option_id: optionalText(64),
   referrer_option_id: optionalText(64),
-  tag_ids: z.array(z.string().uuid()).optional().default([]),
-  identification_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Informe uma cor válida.").default("#685094"),
 
   responsible_name: optionalText(120),
   responsible_email: z.string().email({ message: "Email inválido." }).optional().or(z.literal("")),
@@ -101,6 +101,31 @@ export const NewPatientSchema = z.object({
     });
   }
 
+  if (data.financial_plan === "monthly" && !data.monthly_value?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Informe o valor da mensalidade.",
+      path: ["monthly_value"],
+    });
+  }
+
+  if (data.financial_plan === "insurance") {
+    if (!data.insurance_agreement_id || data.insurance_agreement_id === "__none") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Selecione um convênio.",
+        path: ["insurance_agreement_id"],
+      });
+    }
+    if (!data.insurance_session_value?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Informe o valor da sessão sem convênio.",
+        path: ["insurance_session_value"],
+      });
+    }
+  }
+
   if (data.payer_type === "other") {
     if (!data.payer_name) {
       ctx.addIssue({
@@ -126,7 +151,7 @@ const BaseAppointmentSchema = z.object({
   date: z.date({ required_error: "A data da consulta é obrigatória." }),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, { message: "Formato de hora inválido (HH:mm)." }),
   duration: z.string().min(1, { message: "Duração é obrigatória." }),
-  type: z.enum(["presencial", "online"], { required_error: "O tipo de consulta é obrigatório." }),
+  type: z.enum(["presencial", "online"], { required_error: "O tipo é obrigatório." }),
   notes: z.string().optional(),
   location: z.string().optional().or(z.literal("")),
 });

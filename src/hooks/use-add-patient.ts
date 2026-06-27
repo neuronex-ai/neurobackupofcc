@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { NewPatientFormValues } from "@/lib/validation";
+import { parseMoneyToCents } from "./use-patient-insurance-agreements";
 
 const cleanText = (value?: string | null) => {
   const normalized = value?.trim();
@@ -20,17 +21,6 @@ const cleanUuid = (value?: string | null) => {
 };
 
 const toDateString = (date?: Date) => (date ? format(date, "yyyy-MM-dd") : null);
-
-const parseMoneyToCents = (value?: string | null) => {
-  const cleaned = value?.replace(/[^\d,.-]/g, "").trim();
-  if (!cleaned) return 0;
-
-  const normalized = cleaned.includes(",")
-    ? cleaned.replace(/\./g, "").replace(",", ".")
-    : cleaned;
-  const amount = Number(normalized);
-  return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
-};
 
 const parseBillingDay = (value?: string | null) => {
   const day = Number(value);
@@ -108,9 +98,7 @@ const addPatient = async (patientData: NewPatientFormValues, userId: string) => 
       relative_name: cleanText(patientData.relative_name),
       relative_relationship: cleanText(patientData.relative_relationship),
       relative_phone: cleanText(patientData.relative_phone),
-      how_met_option_id: cleanUuid(patientData.source_option_id),
       referred_by_option_id: cleanUuid(patientData.referrer_option_id),
-      identification_color: patientData.identification_color || "#685094",
     })
     .select()
     .single();
@@ -121,7 +109,15 @@ const addPatient = async (patientData: NewPatientFormValues, userId: string) => 
   }
 
   try {
-    const sessionValueCents = parseMoneyToCents(patientData.session_value);
+    const sessionValueCents =
+      patientData.financial_plan === "insurance"
+        ? parseMoneyToCents(patientData.insurance_session_value)
+        : patientData.financial_plan === "per_session"
+          ? parseMoneyToCents(patientData.session_value)
+          : 0;
+    const monthlyValueCents = patientData.financial_plan === "monthly"
+      ? parseMoneyToCents(patientData.monthly_value)
+      : null;
 
     const { error: financialError } = await supabase
       .from("patient_financial_settings")
@@ -131,9 +127,11 @@ const addPatient = async (patientData: NewPatientFormValues, userId: string) => 
         professional_name: cleanText(patientData.professional_name),
         plan_type: patientData.financial_plan,
         session_value_cents: sessionValueCents,
-        monthly_value_cents: parseMoneyToCents(patientData.monthly_value) || null,
-        convenio_name: cleanText(patientData.convenio_name),
-        billing_day: parseBillingDay(patientData.billing_day),
+        monthly_value_cents: monthlyValueCents,
+        billing_day: patientData.financial_plan === "monthly" ? parseBillingDay(patientData.billing_day) : null,
+        insurance_agreement_id: cleanUuid(patientData.insurance_agreement_id),
+        insurance_card_number: cleanText(patientData.insurance_card_number),
+        insurance_card_expires_at: toDateString(patientData.insurance_card_expires_at),
       });
 
     if (financialError) throw new Error(financialError.message);
@@ -165,20 +163,6 @@ const addPatient = async (patientData: NewPatientFormValues, userId: string) => 
       if (responsibleError) throw new Error(responsibleError.message);
     }
 
-    if (patientData.tag_ids?.length) {
-      const { error: tagsError } = await supabase
-        .from("patient_tag_assignments")
-        .insert(
-          patientData.tag_ids.map((tagId) => ({
-            user_id: userId,
-            patient_id: patient.id,
-            tag_id: tagId,
-          })),
-        );
-
-      if (tagsError) throw new Error(tagsError.message);
-    }
-
     await supabase
       .from("psychologist_patient_preferences")
       .upsert({
@@ -186,9 +170,8 @@ const addPatient = async (patientData: NewPatientFormValues, userId: string) => 
         default_quick_registration: patientData.quick_registration,
         default_group_type: patientData.group_type,
         default_country: cleanText(patientData.country) || "Brasil",
-        default_identification_color: patientData.identification_color || "#685094",
         default_financial_plan: patientData.financial_plan,
-        default_session_value_cents: sessionValueCents,
+        default_session_value_cents: patientData.financial_plan === "per_session" ? sessionValueCents : 0,
       }, { onConflict: "user_id" });
   } catch (companionError) {
     await rollbackPatient(patient.id, userId, companionError);
