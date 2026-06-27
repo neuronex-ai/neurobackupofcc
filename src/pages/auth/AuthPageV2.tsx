@@ -423,6 +423,13 @@ const AuthPageV2 = () => {
           )}
           <button
             type="button"
+            onClick={() => navigate(role === 'patient' ? '/auth' : '/auth?role=patient')}
+            className="w-full text-xs font-semibold text-current/80 transition-colors hover:text-current"
+          >
+            {role === 'patient' ? 'Acessar como profissional' : 'Acessar Portal do Paciente'}
+          </button>
+          <button
+            type="button"
             onClick={() => setForgotOpen(true)}
             className="w-full text-xs font-semibold text-current/72 transition-colors hover:text-current"
           >

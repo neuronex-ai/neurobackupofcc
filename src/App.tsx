@@ -122,6 +122,8 @@ const SharedRoutes = () => {
 
         {/* ─── Auth Routes ────────────────────────────────── */}
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/portal/acesso" element={<Navigate to="/auth?role=patient" replace />} />
+        <Route path="/portal/login" element={<Navigate to="/auth?role=patient" replace />} />
         <Route path="/email-confirmed" element={<EmailConfirmedPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/create-account" element={<CreateAccount />} />

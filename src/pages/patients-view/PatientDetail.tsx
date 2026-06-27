@@ -184,7 +184,7 @@ export default function PatientDetail() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: "circOut" }}
-                className="sticky top-3 z-40 rounded-[26px] border border-zinc-200/70 bg-background/88 px-4 py-3 shadow-sm backdrop-blur-xl dark:border-white/[0.085] dark:bg-background/88"
+                className="sticky top-3 z-40 rounded-[26px] border border-border/60 bg-background/88 px-4 py-3 shadow-sm backdrop-blur-xl"
             >
                 <div className="flex w-full items-center gap-4">
 
@@ -284,16 +284,16 @@ export default function PatientDetail() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-3 rounded-xl border border-zinc-200/60 bg-white/70 p-3 transition-colors hover:bg-white dark:border-white/[0.075] dark:bg-[#141415] dark:hover:bg-[#18181a]">
-                                        <Phone className="h-3.5 w-3.5 text-zinc-400" />
+                                    <div className="flex items-center gap-3 rounded-xl border border-border/55 bg-muted/35 p-3 transition-colors hover:bg-muted/55">
+                                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                                         <span className="text-[11px] font-bold tracking-tight text-zinc-700 dark:text-zinc-300">{patient.phone || "Não informado"}</span>
                                     </div>
-                                    <div className="flex items-center gap-3 rounded-xl border border-zinc-200/60 bg-white/70 p-3 transition-colors hover:bg-white dark:border-white/[0.075] dark:bg-[#141415] dark:hover:bg-[#18181a]">
-                                        <MapPin className="h-3.5 w-3.5 text-zinc-400" />
+                                    <div className="flex items-center gap-3 rounded-xl border border-border/55 bg-muted/35 p-3 transition-colors hover:bg-muted/55">
+                                        <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                                         <span className="truncate text-[11px] font-bold tracking-tight text-zinc-700 dark:text-zinc-300">{patient.address || "Endereço ausente"}</span>
                                     </div>
-                                    <div className="flex items-center gap-3 rounded-xl border border-zinc-200/60 bg-white/70 p-3 transition-colors hover:bg-white dark:border-white/[0.075] dark:bg-[#141415] dark:hover:bg-[#18181a]">
-                                        <Cake className="h-3.5 w-3.5 text-zinc-400" />
+                                    <div className="flex items-center gap-3 rounded-xl border border-border/55 bg-muted/35 p-3 transition-colors hover:bg-muted/55">
+                                        <Cake className="h-3.5 w-3.5 text-muted-foreground" />
                                         <span className="text-[11px] font-bold tracking-tight text-zinc-700 dark:text-zinc-300">
                                             {patient.birth_date ? format(new Date(patient.birth_date), 'dd/MM/yyyy') : "Nascimento ausente"}
                                         </span>
@@ -301,11 +301,11 @@ export default function PatientDetail() {
                                 </div>
 
                                 <div className={cn(
-                                    "mt-6 grid gap-2 border-t border-zinc-200/60 pt-5 dark:border-white/[0.075]",
+                                    "mt-6 grid gap-2 border-t border-border/55 pt-5",
                                     canInvitePatientPortal ? "grid-cols-3" : "grid-cols-2"
                                 )}>
                                     <EditPatientModal patient={patient}>
-                                        <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-[#141415] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
+                                        <Button variant="ghost" className="h-11 w-full rounded-xl bg-muted text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground shadow-sm transition-colors hover:bg-foreground hover:text-background">
                                             <Edit className="h-4 w-4 mr-2" /> Editar
                                         </Button>
                                     </EditPatientModal>
@@ -314,13 +314,13 @@ export default function PatientDetail() {
                                             type="button"
                                             variant="ghost"
                                             onClick={() => setInviteModalOpen(true)}
-                                            className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-[#141415] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black"
+                                            className="h-11 w-full rounded-xl bg-muted text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground shadow-sm transition-colors hover:bg-foreground hover:text-background"
                                         >
-                                            <MailPlus className="h-4 w-4 mr-2" /> Portal
+                                            <MailPlus className="h-4 w-4 mr-2" /> Convidar
                                         </Button>
                                     )}
                                     <DocumentGeneratorModal patient={patient}>
-                                        <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-[#141415] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
+                                        <Button variant="ghost" className="h-11 w-full rounded-xl bg-muted text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground shadow-sm transition-colors hover:bg-foreground hover:text-background">
                                             <FileOutput className="h-4 w-4 mr-2" /> Docs
                                         </Button>
                                     </DocumentGeneratorModal>
@@ -333,11 +333,11 @@ export default function PatientDetail() {
                                 />
 
                                 {/* Medications Block in Sidebar */}
-                                <div className="mt-6 border-t border-zinc-200/60 pt-5 dark:border-white/[0.075]">
+                                <div className="mt-6 border-t border-border/55 pt-5">
                                     <div className="mb-4 flex items-center justify-between">
                                         <h4 className="text-[9px] font-black uppercase tracking-[0.25em] text-zinc-400 dark:text-zinc-500">Medicações</h4>
                                         <MedicationUpdateModal patient={patient}>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-xl transition-all hover:bg-zinc-100 dark:hover:bg-[#18181a]">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                                                 <Edit2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </MedicationUpdateModal>
@@ -346,11 +346,11 @@ export default function PatientDetail() {
                                     <div className="space-y-3">
                                         {patient.medications && patient.medications.length > 0 ? (
                                             patient.medications.map((med, idx) => (
-                                                <div key={idx} className="group relative overflow-hidden rounded-2xl bg-zinc-50 dark:bg-[#141415] border border-zinc-100 dark:border-white/[0.075] p-4 hover:bg-zinc-100 dark:hover:bg-[#18181a] transition-all">
+                                                <div key={idx} className="group relative overflow-hidden rounded-2xl border border-border/55 bg-muted/35 p-4 transition-colors hover:bg-muted/55">
                                                     <div className="flex items-start justify-between gap-3">
                                                         <span className="text-sm font-bold text-zinc-700 dark:text-zinc-200">{med.name}</span>
                                                         {med.dosage && (
-                                                            <span className="text-[10px] font-black text-zinc-500 bg-white dark:bg-[#080809] px-2 py-0.5 rounded-lg border border-zinc-200 dark:border-white/[0.065] shadow-sm">
+                                                            <span className="rounded-lg border border-border/55 bg-background px-2 py-0.5 text-[10px] font-black text-muted-foreground shadow-sm">
                                                                 {med.dosage}
                                                             </span>
                                                         )}
@@ -379,7 +379,7 @@ export default function PatientDetail() {
                                 <div className="hidden">
                                     <div
                                         className={cn(
-                                            "flex w-full select-none items-center overflow-x-auto rounded-2xl border border-zinc-200/75 bg-white/88 p-1.5 shadow-[0_18px_50px_-36px_rgba(24,24,27,0.3)] backdrop-blur-2xl transition-colors dark:border-white/[0.07] dark:bg-[#0b0c0e]/92 dark:shadow-[0_18px_50px_-36px_rgba(0,0,0,0.86)]",
+                                            "flex w-full select-none items-center overflow-x-auto rounded-2xl border border-border/60 bg-background/88 p-1.5 shadow-sm backdrop-blur-xl transition-colors",
                                             isDragging ? "cursor-grabbing" : "cursor-grab",
                                             "custom-premium-scrollbar"
                                         )}
@@ -399,9 +399,9 @@ export default function PatientDetail() {
                                                     key={tab.val}
                                                     value={tab.val}
                                                     className={cn(
-                                                        "relative flex h-10 items-center gap-2 whitespace-nowrap rounded-xl px-4 text-[9px] font-black uppercase tracking-[0.16em] transition-all duration-200 active:scale-95",
+                                                        "relative flex h-10 items-center gap-2 whitespace-nowrap rounded-xl px-4 text-[9px] font-black uppercase tracking-[0.16em] transition-colors duration-200 active:scale-95",
                                                         "data-[state=active]:bg-zinc-950 data-[state=active]:text-white data-[state=active]:shadow-lg dark:data-[state=active]:bg-white dark:data-[state=active]:text-black",
-                                                        "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-500 dark:hover:bg-white/[0.045] dark:hover:text-white"
+                                                        "text-muted-foreground hover:bg-muted hover:text-foreground"
                                                     )}
                                                 >
                                                     <tab.icon className="h-3.5 w-3.5" />
@@ -440,37 +440,37 @@ export default function PatientDetail() {
                                 <div className="h-full">
                                     <TabsContent value="history" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden">
                                         <motion.div
-                                            initial={{ opacity: 0, y: 14, filter: "blur(8px)" }}
-                                            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                                            transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ duration: 0.22, ease: "easeOut" }}
                                             className="space-y-7"
                                         >
                                             <ClinicalSummaryCard latestNote={latestNote} patient={patient} />
                                             <PatientHistoryTab patientId={id!} />
                                         </motion.div>
                                     </TabsContent>
-                                    <TabsContent value="pending_reviews" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
+                                    <TabsContent value="pending_reviews" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden">
                                         <PatientPendingSessionReviewsTab patientId={id!} />
                                     </TabsContent>
-                                    <TabsContent value="anamnesis" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
+                                    <TabsContent value="anamnesis" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden">
                                         <AnamnesisTab />
                                     </TabsContent>
-                                    <TabsContent value="mood" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
+                                    <TabsContent value="mood" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden">
                                         <PatientMoodTab patientId={id!} />
                                     </TabsContent>
-                                    <TabsContent value="biofeedback" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
+                                    <TabsContent value="biofeedback" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden">
                                         <BiofeedbackWidget patientId={id!} />
                                     </TabsContent>
-                                    <TabsContent value="goals" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
+                                    <TabsContent value="goals" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden">
                                         <PatientGoalsTab patientId={id!} />
                                     </TabsContent>
-                                    <TabsContent value="packages" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
+                                    <TabsContent value="packages" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden">
                                         <PatientPackagesTab patientId={id!} />
                                     </TabsContent>
-                                    <TabsContent value="finance" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
+                                    <TabsContent value="finance" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden">
                                         <PatientFinanceTab patientId={id!} />
                                     </TabsContent>
-                                    <TabsContent value="documents" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden animate-fade-in">
+                                    <TabsContent value="documents" className="mt-0 h-full focus-visible:outline-none data-[state=inactive]:hidden">
                                         <PatientDocumentsTab patientId={id!} />
                                     </TabsContent>
                                 </div>
