@@ -219,6 +219,26 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/get-current-entitlement/index.ts"
 
+[functions.create-patient-portal-invite]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/create-patient-portal-invite/index.ts"
+
+[functions.patient-portal-invite-preview]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/patient-portal-invite-preview/index.ts"
+
+[functions.patient-portal-activate]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/patient-portal-activate/index.ts"
+
+[functions.patient-portal-current]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/patient-portal-current/index.ts"
+
 [functions.verify-checkout-session]
 enabled = true
 verify_jwt = false

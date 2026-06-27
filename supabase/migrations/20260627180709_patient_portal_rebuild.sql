@@ -115,6 +115,7 @@ create table if not exists public.patient_mood_logs (
 );
 
 alter table public.patient_mood_logs
+  add column if not exists user_id uuid references auth.users(id) on delete cascade,
   add column if not exists source text not null default 'professional',
   add column if not exists created_by_user_id uuid references auth.users(id) on delete set null;
 
@@ -128,7 +129,7 @@ begin
   ) then
     alter table public.patient_mood_logs
       add constraint patient_mood_logs_source_check
-      check (source in ('professional', 'patient_portal'));
+      check (source in ('professional', 'patient_portal')) not valid;
   end if;
 end $$;
 

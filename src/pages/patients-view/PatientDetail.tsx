@@ -3,6 +3,7 @@
 import { AnamnesisTab } from "@/components/patients/anamnesis/AnamnesisTab";
 import { DocumentGeneratorModal } from "@/components/patients/DocumentGeneratorModal";
 import { EditPatientModal } from "@/components/patients/EditPatientModal";
+import { InvitePatientModal } from "@/components/patients/InvitePatientModal";
 import { PatientDocumentsTab } from "@/components/patients/PatientDocumentsTab";
 import { PatientFinanceTab } from "@/components/patients/PatientFinanceTab";
 import { PatientGoalsTab } from "@/components/patients/PatientGoalsTab";
@@ -19,7 +20,7 @@ import { useSessionNotes } from "@/hooks/use-session-notes";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
-    ArrowLeft, Cake, ClipboardList, Clock3, Edit, Edit2, FileOutput, FileText, MapPin, Package, Phone, Pill, Shield,
+    ArrowLeft, Cake, ClipboardList, Clock3, Edit, Edit2, FileOutput, FileText, MailPlus, MapPin, Package, Phone, Pill, Shield,
     Smile, Target,
     Wallet
 } from "lucide-react";
@@ -43,6 +44,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 
 import { GlassCard } from "@/components/ui/GlassCard";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobilePatientDetail } from "@/mobile/pages/MobilePatientDetail";
 
@@ -56,6 +58,9 @@ export default function PatientDetail() {
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
     const [scrollLeft, setScrollLeft] = useState(0);
+    const [inviteModalOpen, setInviteModalOpen] = useState(false);
+    const { features, hasPaidAccess, accessState, isDevAccount } = useSubscription();
+    const canInvitePatientPortal = Boolean(features.hasPatientPortal && (hasPaidAccess || accessState === "admin_override" || isDevAccount));
 
     useEffect(() => {
         const tab = searchParams.get('tab');
@@ -171,16 +176,15 @@ export default function PatientDetail() {
     ];
 
     return (
-        <div className="relative min-h-screen w-full bg-white pb-28 pt-5 font-sans text-foreground selection:bg-zinc-900/10 selection:text-zinc-900 dark:bg-[#050506] dark:selection:bg-white/10 dark:selection:text-white">
+        <div className="relative min-h-screen w-full pb-28 pt-4 font-sans text-foreground selection:bg-zinc-900/10 selection:text-zinc-900 dark:selection:bg-white/10 dark:selection:text-white">
             <div className="relative z-10 mx-auto w-full max-w-[2200px] px-5">
-                <section className="relative isolate overflow-visible rounded-[34px] border border-zinc-200/72 bg-zinc-50/88 shadow-[0_24px_70px_-48px_rgba(24,24,27,0.24),inset_0_1px_0_rgba(255,255,255,0.92)] dark:border-white/[0.095] dark:bg-[#09090b] dark:shadow-[0_28px_80px_-58px_rgba(0,0,0,0.98),inset_0_1px_0_rgba(255,255,255,0.028)]">
 
             {/* ─── Header Top Bar ─── */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: "circOut" }}
-                className="sticky top-3 z-40 mx-4 mt-4 rounded-[28px] border border-zinc-200/72 bg-white/86 px-4 py-3 shadow-[0_18px_52px_-38px_rgba(24,24,27,0.34),inset_0_1px_0_rgba(255,255,255,0.88)] backdrop-blur-3xl dark:border-white/[0.095] dark:bg-[#0d0d0f]/96 dark:shadow-[0_18px_52px_-42px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.035)]"
+                className="sticky top-3 z-40 rounded-[26px] border border-zinc-200/70 bg-background/88 px-4 py-3 shadow-sm backdrop-blur-xl dark:border-white/[0.085] dark:bg-background/88"
             >
                 <div className="flex w-full items-center gap-4">
 
@@ -190,7 +194,7 @@ export default function PatientDetail() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => navigate('/pacientes')}
-                                className="h-10 w-10 shrink-0 rounded-full border border-zinc-200/70 bg-white text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:border-white/[0.095] dark:bg-[#141415] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black"
+                                className="h-10 w-10 shrink-0 rounded-full border border-border/55 bg-background text-muted-foreground shadow-sm transition-colors hover:bg-foreground hover:text-background"
                             >
                                 <ArrowLeft className="h-4 w-4" />
                             </Button>
@@ -208,7 +212,7 @@ export default function PatientDetail() {
                         onMouseUp={handleMouseLeaveOrUp}
                         onMouseMove={handleMouseMove}
                         className={cn(
-                            "flex min-w-0 flex-1 select-none items-center overflow-x-auto rounded-[22px] border border-zinc-200/65 bg-zinc-50/80 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:border-white/[0.085] dark:bg-[#080809] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]",
+                            "flex min-w-0 flex-1 select-none items-center overflow-x-auto rounded-[20px] border border-border/55 bg-muted/30 p-1.5 backdrop-blur-xl",
                             isDragging ? "cursor-grabbing" : "cursor-grab",
                             "custom-premium-scrollbar"
                         )}
@@ -220,10 +224,10 @@ export default function PatientDetail() {
                                     type="button"
                                     onClick={() => setActiveTab(tab.val)}
                                     className={cn(
-                                        "relative flex h-10 items-center gap-2 whitespace-nowrap rounded-[16px] px-4 text-[9px] font-black uppercase tracking-[0.16em] transition-all duration-300 active:scale-95",
+                                        "relative flex h-10 items-center gap-2 whitespace-nowrap rounded-[15px] px-4 text-[9px] font-black uppercase tracking-[0.16em] transition-colors active:scale-95",
                                         activeTab === tab.val
-                                            ? "bg-zinc-950 text-white shadow-[0_14px_34px_-22px_rgba(0,0,0,0.72)] dark:bg-white dark:text-black"
-                                            : "text-zinc-400 hover:bg-white hover:text-zinc-950 dark:text-zinc-500 dark:hover:bg-[#141415] dark:hover:text-white"
+                                            ? "bg-foreground text-background"
+                                            : "text-muted-foreground hover:bg-background hover:text-foreground"
                                     )}
                                 >
                                     <tab.icon className="h-3.5 w-3.5" />
@@ -236,7 +240,7 @@ export default function PatientDetail() {
                         {/* Right Side: Actions */}
                         <div className="flex shrink-0 items-center gap-2">
                             <Select value={patient.status || ""} onValueChange={handleStatusChange}>
-                                <SelectTrigger className="h-10 w-auto gap-2 rounded-xl border border-zinc-200/70 bg-white px-4 text-[9px] font-black uppercase tracking-[0.17em] text-zinc-600 shadow-sm ring-0 transition-all hover:bg-zinc-100 focus:ring-0 dark:border-white/[0.095] dark:bg-[#141415] dark:text-zinc-300 dark:hover:bg-[#18181a]">
+                                <SelectTrigger className="h-10 w-auto gap-2 rounded-xl border border-border/55 bg-background px-4 text-[9px] font-black uppercase tracking-[0.17em] text-muted-foreground shadow-sm ring-0 transition-colors hover:bg-muted focus:ring-0">
                                     <div className="flex items-center gap-3">
                                         <span className={cn("h-1.5 w-1.5 rounded-full shadow-lg",
                                             patient.status === 'active' ? "bg-emerald-500 shadow-emerald-500/20" :
@@ -245,7 +249,7 @@ export default function PatientDetail() {
                                         <SelectValue placeholder="Status" />
                                     </div>
                                 </SelectTrigger>
-                                <SelectContent align="end" className="w-[200px] rounded-3xl border-zinc-200 dark:border-white/10 bg-white/95 dark:bg-[#080809]/95 backdrop-blur-2xl shadow-2xl p-2">
+                                <SelectContent align="end" className="w-[200px] rounded-3xl border-border bg-popover/95 p-2 shadow-2xl backdrop-blur-xl">
                                     <SelectItem value="active" className="rounded-2xl font-black text-[10px] uppercase tracking-widest py-3">Paciente Ativo</SelectItem>
                                     <SelectItem value="inactive" className="rounded-2xl font-black text-[10px] uppercase tracking-widest py-3">Inativo</SelectItem>
                                     <SelectItem value="archived" className="rounded-2xl font-black text-[10px] uppercase tracking-widest py-3 text-orange-500">Arquivado</SelectItem>
@@ -261,17 +265,16 @@ export default function PatientDetail() {
                 <div className="grid grid-cols-1 items-start xl:grid-cols-[310px_minmax(0,1fr)]">
 
                     {/* LEFT COLUMN: Patient Info */}
-                    <aside className="z-20 w-full space-y-5 border-b border-zinc-200/65 p-5 dark:border-white/[0.085] xl:sticky xl:top-[86px] xl:border-b-0 xl:border-r">
+                    <aside className="z-20 w-full space-y-5 border-b border-border/55 py-5 pr-5 dark:border-white/[0.085] xl:sticky xl:top-[86px] xl:border-b-0 xl:border-r">
                         <GlassCard
-                            className="w-full !rounded-[24px] !border-zinc-200/75 !bg-white/72 !shadow-none !backdrop-blur-none dark:!border-white/[0.085] dark:!bg-[#0b0b0d]"
+                            className="w-full !rounded-[24px] !border-border/60 !bg-card/70 !shadow-sm !backdrop-blur-xl dark:!border-white/[0.085] dark:!bg-card/55"
                             innerClassName="p-0"
                         >
-                            <div className="group relative overflow-hidden p-5">
+                            <div className="relative overflow-hidden p-5">
                                 <div className="relative z-10 mb-6 flex flex-col items-center text-center">
                                     <div className="relative mb-4">
-                                        <div className="absolute inset-0 bg-zinc-500/10 dark:bg-white/5 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                                        <Avatar className="relative z-10 h-24 w-24 rounded-[24px] border-4 border-white shadow-xl dark:border-[#0C0C0E]">
-                                            <AvatarFallback className="bg-zinc-100 text-3xl font-black text-zinc-900 dark:bg-zinc-800 dark:text-white">
+                                        <Avatar className="relative z-10 h-24 w-24 rounded-[24px] border border-border/60 shadow-sm">
+                                            <AvatarFallback className="bg-muted text-3xl font-black text-foreground">
                                                 {patient.name.substring(0, 2).toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
@@ -297,18 +300,37 @@ export default function PatientDetail() {
                                     </div>
                                 </div>
 
-                                <div className="mt-6 grid grid-cols-2 gap-2 border-t border-zinc-200/60 pt-5 dark:border-white/[0.075]">
+                                <div className={cn(
+                                    "mt-6 grid gap-2 border-t border-zinc-200/60 pt-5 dark:border-white/[0.075]",
+                                    canInvitePatientPortal ? "grid-cols-3" : "grid-cols-2"
+                                )}>
                                     <EditPatientModal patient={patient}>
                                         <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-[#141415] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
                                             <Edit className="h-4 w-4 mr-2" /> Editar
                                         </Button>
                                     </EditPatientModal>
+                                    {canInvitePatientPortal && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            onClick={() => setInviteModalOpen(true)}
+                                            className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-[#141415] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black"
+                                        >
+                                            <MailPlus className="h-4 w-4 mr-2" /> Portal
+                                        </Button>
+                                    )}
                                     <DocumentGeneratorModal patient={patient}>
                                         <Button variant="ghost" className="h-11 w-full rounded-xl bg-zinc-100 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 shadow-sm transition-all hover:bg-zinc-950 hover:text-white dark:bg-[#141415] dark:text-zinc-400 dark:hover:bg-white dark:hover:text-black">
                                             <FileOutput className="h-4 w-4 mr-2" /> Docs
                                         </Button>
                                     </DocumentGeneratorModal>
                                 </div>
+
+                                <InvitePatientModal
+                                    isOpen={inviteModalOpen}
+                                    onClose={() => setInviteModalOpen(false)}
+                                    patient={patient}
+                                />
 
                                 {/* Medications Block in Sidebar */}
                                 <div className="mt-6 border-t border-zinc-200/60 pt-5 dark:border-white/[0.075]">
@@ -456,8 +478,6 @@ export default function PatientDetail() {
                         </div>
                     </main>
                 </div>
-            </div>
-                </section>
             </div>
         </div>
     );

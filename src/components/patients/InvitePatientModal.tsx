@@ -1,135 +1,229 @@
-import { useState } from "react";
-import { DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Mail, Send, Coins, AlertCircle, ExternalLink, Loader2 } from "lucide-react";
-import { useInvitePatient } from "@/hooks/use-invite-patient";
+import { useMemo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useNavigate } from "react-router-dom";
-import { useFinancialAccount } from "@/hooks/use-financial-account";
+import { Button } from "@/components/ui/button";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
+import { useInvitePatient } from "@/hooks/use-invite-patient";
+import {
+  CheckCircle2,
+  Clock3,
+  Copy,
+  ExternalLink,
+  KeyRound,
+  Loader2,
+  Lock,
+  Mail,
+  MailPlus,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { toast } from "sonner";
 
 interface InvitePatientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  patient?: any;
+  patient?: {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+  } | null;
 }
 
-export const InvitePatientModal = ({ isOpen, onClose, patient }: InvitePatientModalProps) => {
-  const [paymentType, setPaymentType] = useState("manual");
-  const [price, setPrice] = useState("150");
-  const { mutate: invitePatient, isPending: loading } = useInvitePatient();
-  // NeuroFinance: check payment readiness via Asaas BaaS
-  const { isConnected, isApproved } = useFinancialAccount();
-  const paymentStatus = { connected: isConnected, chargesEnabled: isApproved };
-  const navigate = useNavigate();
+const portalFeatures = [
+  "Agenda compartilhada e historico simples de sessoes",
+  "Diario de humor e anotacoes do paciente",
+  "Documentos liberados explicitamente pelo psicologo",
+  "Financeiro do paciente com links de pagamento",
+];
 
-  const isPaymentRestricted = paymentType === 'charge' && (!paymentStatus?.connected || !paymentStatus?.chargesEnabled);
+const firstName = (name?: string | null) => name?.trim().split(/\s+/)[0] || "paciente";
+
+export const InvitePatientModal = ({ isOpen, onClose, patient }: InvitePatientModalProps) => {
+  const { mutate: invitePatient, isPending, data, reset } = useInvitePatient();
+
+  const patientName = firstName(patient?.name);
+  const canSend = Boolean(patient?.id && patient?.email);
+  const isLinked = data?.status === "linked";
+  const sentAtLabel = useMemo(() => {
+    if (!data?.expiresAt) return null;
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(data.expiresAt));
+  }, [data?.expiresAt]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      reset();
+      onClose();
+    }
+  };
 
   const handleSendInvite = () => {
-    if (!patient) return;
+    if (!patient?.id) return;
+    invitePatient({ patientId: patient.id });
+  };
 
-    invitePatient({
-      patientId: patient.id,
-      options: {
-        paymentType,
-        price: paymentType === 'charge' ? parseFloat(price) : undefined,
-        channel: 'email'
-      }
-    }, {
-      onSuccess: () => {
-        onClose();
-      }
-    });
+  const copyToClipboard = async (value: string, label: string) => {
+    await navigator.clipboard.writeText(value);
+    toast.success(`${label} copiado.`);
   };
 
   return (
     <ResponsiveModal
       open={isOpen}
-      onOpenChange={onClose}
-      className="sm:max-w-[425px] p-0 overflow-hidden rounded-[32px]"
-      drawerClassName="bg-background border-t border-border/10"
+      onOpenChange={handleOpenChange}
+      className="overflow-hidden rounded-[28px] border-border/50 p-0 sm:max-w-[560px]"
+      drawerClassName="border-t border-border/20 bg-background"
     >
-      <div className="p-6 md:p-8 space-y-6">
-        <DialogHeader className="p-0 border-none bg-transparent space-y-2">
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <Mail className="w-5 h-5 text-primary" />
-            Convidar {patient?.name?.split(' ')[0]}
-          </DialogTitle>
-          <DialogDescription className="text-xs uppercase tracking-widest font-black text-muted-foreground">
-            Acesso ao Portal do Paciente
-          </DialogDescription>
-        </DialogHeader>
+      <div className="bg-background">
+        <div className="border-b border-border/50 bg-muted/25 px-6 py-5 sm:px-7">
+          <DialogHeader className="space-y-3 text-left">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-sm">
+                <MailPlus className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-xl font-semibold tracking-tight">
+                  Convidar paciente
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  Envie o acesso seguro ao Portal do Paciente para {patientName}.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+        </div>
 
-        <div className="grid gap-4 py-4">
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Enviaremos um link de agendamento e um código de segurança para o e-mail <span className="text-foreground font-bold">{patient?.email}</span>.
-          </p>
+        <div className="space-y-5 px-6 py-6 sm:px-7">
+          {!canSend && (
+            <Alert className="rounded-2xl border-amber-500/25 bg-amber-500/10">
+              <Lock className="h-4 w-4 text-amber-500" />
+              <AlertTitle className="text-sm font-semibold">E-mail obrigatorio</AlertTitle>
+              <AlertDescription className="text-sm text-muted-foreground">
+                Cadastre um e-mail no prontuario antes de enviar o convite do portal.
+              </AlertDescription>
+            </Alert>
+          )}
 
-          <div className="grid gap-2 mt-2">
-            <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Valor da consulta?</Label>
-            <Select value={paymentType} onValueChange={setPaymentType}>
-              <SelectTrigger className="h-11 bg-secondary/20 border-border/10 rounded-xl">
-                <SelectValue placeholder="Selecione o método" />
-              </SelectTrigger>
-              <SelectContent className="bg-background border-border/10">
-                <SelectItem value="manual">Passar Cartão / Dinheiro / PIX</SelectItem>
-                <SelectItem value="received">Já recebido / Convênio</SelectItem>
-                <SelectItem value="charge">Gerar cobrança no convite</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {data && (
+            <Alert className="rounded-2xl border-emerald-500/25 bg-emerald-500/10">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <AlertTitle className="text-sm font-semibold">
+                {isLinked ? "Paciente conectado" : "Convite enviado"}
+              </AlertTitle>
+              <AlertDescription className="text-sm text-muted-foreground">
+                {isLinked
+                  ? "Este paciente ja possui vinculo ativo com seu portal."
+                  : `O codigo expira junto do convite${sentAtLabel ? ` em ${sentAtLabel}` : ""}.`}
+              </AlertDescription>
+            </Alert>
+          )}
 
-          {paymentType === 'charge' && (
-            <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-              {isPaymentRestricted ? (
-                <Alert variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-500 rounded-2xl">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle className="font-bold uppercase text-[10px] tracking-widest">Conta Restrita</AlertTitle>
-                  <AlertDescription className="text-xs opacity-90 leading-relaxed mt-1">
-                    Sua conta ainda não processa cobranças automáticas. regularize no menu financeiro.
-                  </AlertDescription>
+          {data?.activationCode && (
+            <section className="rounded-3xl border border-emerald-500/25 bg-emerald-500/[0.08] p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Codigo de ativacao</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Mostrado apenas neste envio. O paciente tambem recebe este codigo por e-mail.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="rounded-2xl bg-background px-4 py-3 text-2xl font-semibold tracking-[0.24em] text-foreground">
+                    {data.activationCode}
+                  </code>
                   <Button
-                    variant="link"
-                    className="p-0 h-auto text-red-500 font-black mt-2 flex items-center gap-1 text-[10px] uppercase tracking-widest"
-                    onClick={() => {
-                      onClose();
-                      navigate('/financeiro/neurofinance');
-                    }}
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-11 w-11 rounded-2xl"
+                    onClick={() => copyToClipboard(data.activationCode!, "Codigo")}
+                    aria-label="Copiar codigo de ativacao"
                   >
-                    Ir para Financeiro <ExternalLink className="w-3 h-3" />
+                    <Copy className="h-4 w-4" />
                   </Button>
-                </Alert>
-              ) : (
-                <div className="grid gap-2">
-                  <Label htmlFor="price" className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Valor (R$)</Label>
-                  <div className="relative">
-                    <Coins className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="price"
-                      type="number"
-                      className="pl-9 h-11 bg-secondary/20 border-border/10 rounded-xl"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                    />
+                </div>
+              </div>
+              {data.portalUrl && (
+                <div className="mt-4 flex flex-col gap-2 rounded-2xl bg-background/80 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="truncate text-sm text-muted-foreground">{data.portalUrl}</span>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={() => copyToClipboard(data.portalUrl!, "Link")}
+                    >
+                      <Copy className="mr-2 h-3.5 w-3.5" />
+                      Copiar
+                    </Button>
+                    <Button asChild type="button" variant="outline" size="sm" className="rounded-xl">
+                      <a href={data.portalUrl} target="_blank" rel="noreferrer">
+                        <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                        Abrir
+                      </a>
+                    </Button>
                   </div>
                 </div>
               )}
-            </div>
+            </section>
           )}
+
+          <section className="rounded-3xl border border-border/60 bg-card/70 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">{patient?.name || "Paciente sem nome"}</p>
+                <p className="mt-1 truncate text-sm text-muted-foreground">{patient?.email || "E-mail nao cadastrado"}</p>
+              </div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+                <Mail className="h-4 w-4" />
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              <div className="flex gap-3 rounded-2xl bg-muted/45 p-3">
+                <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  O e-mail inclui um link publico e um codigo numerico de ativacao com validade de 7 dias.
+                </p>
+              </div>
+              <div className="flex gap-3 rounded-2xl bg-muted/45 p-3">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  O paciente so acessa dados apos login, codigo correto e vinculo ativo com este prontuario.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="grid gap-2 sm:grid-cols-2">
+            {portalFeatures.map((feature) => (
+              <div key={feature} className="flex min-h-14 items-start gap-3 rounded-2xl border border-border/40 bg-background p-3">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="text-sm leading-snug text-muted-foreground">{feature}</span>
+              </div>
+            ))}
+          </section>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-3 pt-4 border-t border-border/10">
-          <Button variant="ghost" onClick={onClose} disabled={loading} className="h-11 rounded-xl uppercase text-[10px] font-black tracking-widest">Cancelar</Button>
-          <Button onClick={handleSendInvite} disabled={loading || isPaymentRestricted} className="flex-1 h-11 rounded-xl uppercase text-[10px] font-black tracking-widest gap-2 bg-foreground text-background hover:bg-foreground/90 transition-all">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-              <>
-                <Send className="w-4 h-4" />
-                Enviar Convite
-              </>
+        <DialogFooter className="gap-3 border-t border-border/50 bg-muted/20 px-6 py-5 sm:px-7">
+          <Button variant="ghost" onClick={() => handleOpenChange(false)} disabled={isPending} className="h-11 rounded-xl">
+            Cancelar
+          </Button>
+          <Button onClick={handleSendInvite} disabled={!canSend || isPending || isLinked} className="h-11 rounded-xl">
+            {isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : data ? (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            ) : (
+              <Clock3 className="mr-2 h-4 w-4" />
             )}
+            {data ? "Reenviar codigo" : "Convidar"}
           </Button>
         </DialogFooter>
       </div>

@@ -53,6 +53,8 @@ import Ajustes from "./pages/Ajustes";
 const AIChat = lazy(() => import("./pages/AIChat"));
 const Teleconsulta = lazy(() => import("./pages/Teleconsulta"));
 const PatientPortal = lazy(() => import("./pages/PatientPortal"));
+const PatientPortalInvite = lazy(() => import("./pages/PatientPortalInvite"));
+const PatientPortalActivate = lazy(() => import("./pages/PatientPortalActivate"));
 const PwaIntent = lazy(() => import("./pages/PwaIntent"));
 
 // Lazy Loaded Public Pages (web only - excluded from main bundle) - REMOVED FOR LEAN MVP
@@ -161,7 +163,11 @@ const SharedRoutes = () => {
 
         {/* ─── Patient Portal Routes (Web Only) ──────────────────────── */}
         {!electronMode && (
-          <Route path="/portal" element={<PatientProtectedRoute><PatientPortal /></PatientProtectedRoute>} />
+          <>
+            <Route path="/portal/convite/:token" element={<PatientPortalInvite />} />
+            <Route path="/portal/ativar" element={<PatientProtectedRoute><PatientPortalActivate /></PatientProtectedRoute>} />
+            <Route path="/portal/*" element={<PatientProtectedRoute><PatientPortal /></PatientProtectedRoute>} />
+          </>
         )}
 
         {/* ─── Fallback ───────────────────────────────────── */}

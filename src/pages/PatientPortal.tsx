@@ -1,51 +1,508 @@
-import { GlassCard } from "@/components/ui/GlassCard";
-import { Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/components/auth/SessionContextProvider";
+import {
+  usePatientPortalAppointments,
+  usePatientPortalBilling,
+  usePatientPortalCurrent,
+  usePatientPortalDocuments,
+  usePatientPortalGoals,
+  usePatientPortalMood,
+} from "@/hooks/use-patient-portal";
+import { cn } from "@/lib/utils";
+import {
+  CalendarDays,
+  CheckCircle2,
+  CreditCard,
+  Download,
+  FileText,
+  HeartPulse,
+  Home,
+  Loader2,
+  Lock,
+  LogOut,
+  ShieldAlert,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
+import { type ReactNode, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
-const PatientPortal = () => {
+const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const dateTime = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+const navItems = [
+  { value: "home", label: "Inicio", path: "/portal", icon: Home },
+  { value: "agenda", label: "Agenda", path: "/portal/agenda", icon: CalendarDays },
+  { value: "diario", label: "Diario", path: "/portal/diario", icon: HeartPulse },
+  { value: "documentos", label: "Docs", path: "/portal/documentos", icon: FileText },
+  { value: "financeiro", label: "Financeiro", path: "/portal/financeiro", icon: CreditCard },
+  { value: "perfil", label: "Perfil", path: "/portal/perfil", icon: UserRound },
+] as const;
+
+type PortalView = (typeof navItems)[number]["value"];
+
+const viewFromPath = (pathname: string): PortalView => {
+  const match = navItems.find((item) => item.path !== "/portal" && pathname.startsWith(item.path));
+  return match?.value || "home";
+};
+
+const EmptyState = ({ title, description }: { title: string; description: string }) => (
+  <div className="rounded-3xl border border-dashed border-border/65 bg-muted/25 p-6 text-center">
+    <p className="text-sm font-semibold text-foreground">{title}</p>
+    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{description}</p>
+  </div>
+);
+
+const MetricCard = ({
+  title,
+  value,
+  icon: Icon,
+  tone = "default",
+}: {
+  title: string;
+  value: string;
+  icon: typeof Home;
+  tone?: "default" | "success" | "warning";
+}) => (
+  <div className="rounded-3xl border border-border/50 bg-card/76 p-4 shadow-sm">
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      <div
+        className={cn(
+          "flex h-9 w-9 items-center justify-center rounded-2xl",
+          tone === "success" && "bg-emerald-500/10 text-emerald-500",
+          tone === "warning" && "bg-amber-500/10 text-amber-500",
+          tone === "default" && "bg-foreground/8 text-foreground",
+        )}
+      >
+        <Icon className="h-4 w-4" />
+      </div>
+    </div>
+    <p className="mt-4 text-2xl font-semibold tracking-tight text-foreground">{value}</p>
+  </div>
+);
+
+const LockedPortalState = ({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) => (
+  <div className="flex min-h-screen items-center justify-center bg-background px-5 py-12">
+    <section className="w-full max-w-[560px] rounded-[32px] border border-border/55 bg-card/80 p-6 shadow-2xl shadow-black/5 sm:p-8">
+      <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-foreground text-background">
+        <Lock className="h-6 w-6" />
+      </div>
+      <h1 className="mt-6 text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{description}</p>
+      {action && <div className="mt-6">{action}</div>}
+    </section>
+  </div>
+);
+
+const AppointmentsView = ({ appointments }: { appointments: ReturnType<typeof usePatientPortalAppointments>["data"] }) => {
+  const rows = appointments?.appointments || [];
+
+  if (!rows.length) {
+    return <EmptyState title="Nenhuma sessao agendada" description="Quando seu psicologo confirmar novos horarios, eles aparecem aqui." />;
+  }
+
   return (
-    <div className="min-h-screen bg-background p-6 md:p-12 space-y-8">
-      <header className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight">Portal do Paciente</h1>
-          <p className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest mt-1">Acesso Seguro & Histórico</p>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-        <GlassCard className="md:col-span-2">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 bg-primary/10 rounded-2xl">
-              <Calendar className="h-5 w-5 text-primary" />
+    <div className="space-y-3">
+      {rows.map((appointment) => (
+        <article key={appointment.id} className="rounded-3xl border border-border/50 bg-card/76 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-base font-semibold text-foreground">{dateTime.format(new Date(appointment.start_time))}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {appointment.type || "Sessao"} - {appointment.status || "agendada"}
+              </p>
+              {appointment.location && <p className="mt-2 text-sm text-muted-foreground">{appointment.location}</p>}
             </div>
-            <h3 className="font-bold">Próximas Sessões</h3>
+            {appointment.google_meet_link && (
+              <Button asChild size="sm" className="rounded-xl">
+                <a href={appointment.google_meet_link} target="_blank" rel="noreferrer">
+                  Entrar
+                </a>
+              </Button>
+            )}
           </div>
-          <div className="p-8 border border-dashed border-border rounded-3xl text-center text-muted-foreground">
-            <p className="text-sm">Nenhum agendamento futuro encontrado.</p>
-          </div>
-        </GlassCard>
-
-        {/* Linha 100: Ajustando o valor de 'premium' para 'default' ou outro tipo válido conforme a tipagem do componente */}
-        <GlassCard className="h-fit">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-emerald-500/10 rounded-2xl">
-              <Shield className="h-5 w-5 text-emerald-500" />
-            </div>
-            <h3 className="font-bold">Dados de Saúde</h3>
-          </div>
-          <div className="space-y-4">
-             <div className="p-4 rounded-2xl bg-secondary/50 border border-border/50">
-                <p className="text-[10px] font-black uppercase text-muted-foreground mb-1">Status</p>
-                <p className="text-sm font-bold">Tratamento em Curso</p>
-             </div>
-          </div>
-        </GlassCard>
-      </main>
+        </article>
+      ))}
     </div>
   );
 };
 
-const Shield = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
-);
+const DocumentsView = ({ documents }: { documents: ReturnType<typeof usePatientPortalDocuments>["data"] }) => {
+  const rows = documents?.documents || [];
+
+  if (!rows.length) {
+    return <EmptyState title="Nenhum documento compartilhado" description="Apenas arquivos liberados pelo seu psicologo ficam disponiveis aqui." />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((document) => (
+        <article key={document.id} className="rounded-3xl border border-border/50 bg-card/76 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-foreground">{document.name}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {document.sharedAt ? `Compartilhado em ${dateTime.format(new Date(document.sharedAt))}` : "Compartilhado"}
+              </p>
+            </div>
+            <Button asChild disabled={!document.signedUrl} size="icon" variant="outline" className="h-10 w-10 shrink-0 rounded-xl">
+              <a href={document.signedUrl || "#"} target="_blank" rel="noreferrer" aria-label={`Baixar ${document.name}`}>
+                <Download className="h-4 w-4" />
+              </a>
+            </Button>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+};
+
+const BillingView = ({ billing }: { billing: ReturnType<typeof usePatientPortalBilling>["data"] }) => {
+  const entries = billing?.entries || [];
+  const invoices = billing?.invoices || [];
+
+  if (!entries.length && !invoices.length) {
+    return <EmptyState title="Nenhuma pendencia financeira" description="Cobrancas e comprovantes compartilhados aparecem nesta area." />;
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-3">
+        {entries.map((entry) => (
+          <article key={entry.id} className="rounded-3xl border border-border/50 bg-card/76 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-base font-semibold text-foreground">{entry.title || entry.description || "Cobranca"}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {entry.due_date ? `Vence em ${new Intl.DateTimeFormat("pt-BR").format(new Date(entry.due_date))}` : "Sem vencimento"}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-base font-semibold">{money.format(Number(entry.amount || 0))}</p>
+                <p className="mt-1 text-xs font-medium text-muted-foreground">{entry.status}</p>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {invoices.length > 0 && (
+        <section className="space-y-3">
+          <p className="px-1 text-sm font-semibold text-muted-foreground">Faturas</p>
+          {invoices.map((invoice) => (
+            <article key={invoice.id} className="rounded-3xl border border-border/50 bg-card/76 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-base font-semibold text-foreground">{invoice.invoice_number || "Fatura"}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{invoice.status}</p>
+                </div>
+                <Button asChild size="sm" variant="outline" className="rounded-xl">
+                  <a href={invoice.invoice_url || invoice.bank_slip_url || invoice.receipt_url || "#"} target="_blank" rel="noreferrer">
+                    Abrir
+                  </a>
+                </Button>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+    </div>
+  );
+};
+
+const DiaryView = ({ mood }: { mood: ReturnType<typeof usePatientPortalMood> }) => {
+  const [moodScore, setMoodScore] = useState(mood.data?.today?.mood_score || 4);
+  const [notes, setNotes] = useState(mood.data?.today?.notes || "");
+  const logs = mood.data?.logs || [];
+
+  const saveMood = () => {
+    mood.saveMood.mutate(
+      { moodScore, notes },
+      { onSuccess: () => toast.success("Registro salvo no diario.") },
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      <section className="rounded-3xl border border-border/50 bg-card/76 p-5">
+        <p className="text-lg font-semibold text-foreground">Como voce esta hoje?</p>
+        <div className="mt-5 grid grid-cols-5 gap-2">
+          {[1, 2, 3, 4, 5].map((score) => (
+            <Button
+              key={score}
+              variant={moodScore === score ? "default" : "outline"}
+              onClick={() => setMoodScore(score)}
+              className="h-12 rounded-2xl text-base font-semibold"
+            >
+              {score}
+            </Button>
+          ))}
+        </div>
+        <Textarea
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Escreva uma nota breve para acompanhar seu processo."
+          className="mt-4 min-h-28 rounded-2xl"
+          maxLength={1200}
+        />
+        <Button onClick={saveMood} disabled={mood.saveMood.isPending} className="mt-4 h-11 rounded-xl">
+          {mood.saveMood.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Salvar diario
+        </Button>
+      </section>
+
+      <section className="space-y-3">
+        <p className="px-1 text-sm font-semibold text-muted-foreground">Registros recentes</p>
+        {logs.length ? (
+          logs.map((log) => (
+            <article key={log.id} className="rounded-3xl border border-border/50 bg-card/76 p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{dateTime.format(new Date(log.created_at))}</p>
+                  {log.notes && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{log.notes}</p>}
+                </div>
+                <span className="rounded-full bg-foreground px-3 py-1 text-sm font-semibold text-background">{log.mood_score}</span>
+              </div>
+            </article>
+          ))
+        ) : (
+          <EmptyState title="Nenhum registro ainda" description="Use o diario para acompanhar pequenas mudancas entre as sessoes." />
+        )}
+      </section>
+    </div>
+  );
+};
+
+const PatientPortal = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { signOut } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const activeView = viewFromPath(location.pathname);
+  const current = usePatientPortalCurrent();
+  const isActive = current.data?.status === "active";
+  const appointments = usePatientPortalAppointments(isActive);
+  const documents = usePatientPortalDocuments(isActive);
+  const billing = usePatientPortalBilling(isActive);
+  const mood = usePatientPortalMood(isActive);
+  const goals = usePatientPortalGoals(isActive);
+
+  const nextAppointment = useMemo(() => {
+    const rows = appointments.data?.appointments || [];
+    return rows
+      .filter((appointment) => new Date(appointment.start_time).getTime() >= Date.now())
+      .sort((left, right) => new Date(left.start_time).getTime() - new Date(right.start_time).getTime())[0];
+  }, [appointments.data?.appointments]);
+
+  const pendingAmount = useMemo(() => {
+    const rows = billing.data?.entries || [];
+    return rows
+      .filter((entry) => !["paid", "received", "confirmed"].includes(String(entry.status || "").toLowerCase()))
+      .reduce((total, entry) => total + Number(entry.amount || 0), 0);
+  }, [billing.data?.entries]);
+
+  const handleSignOut = async () => {
+    setLoggingOut(true);
+    await signOut();
+    navigate("/auth", { replace: true });
+  };
+
+  if (current.isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!current.data || current.data.status === "needs_activation") {
+    return (
+      <LockedPortalState
+        title="Ative seu Portal do Paciente"
+        description="Entre pelo link do convite enviado por e-mail e informe o codigo de ativacao para liberar seu acesso."
+        action={(
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button onClick={() => navigate("/portal/ativar")} className="h-11 rounded-xl">Inserir codigo</Button>
+            <Button onClick={handleSignOut} variant="outline" className="h-11 rounded-xl">Sair</Button>
+          </div>
+        )}
+      />
+    );
+  }
+
+  if (current.data.status === "suspended") {
+    return (
+      <LockedPortalState
+        title="Portal temporariamente indisponivel"
+        description={current.data.message || "O acesso ao portal depende da assinatura ativa do profissional."}
+        action={<Button onClick={handleSignOut} variant="outline" className="h-11 rounded-xl">Sair</Button>}
+      />
+    );
+  }
+
+  if (current.data.status === "revoked") {
+    return (
+      <LockedPortalState
+        title="Vinculo revogado"
+        description="Solicite um novo convite ao profissional para voltar a acessar o portal."
+        action={<Button onClick={handleSignOut} variant="outline" className="h-11 rounded-xl">Sair</Button>}
+      />
+    );
+  }
+
+  const patientName = current.data.patient?.name || "Paciente";
+  const professionalName = current.data.professional?.name || "Seu psicologo";
+  const activeNav = navItems.find((item) => item.value === activeView) || navItems[0];
+
+  const renderView = () => {
+    if (appointments.isLoading || billing.isLoading || documents.isLoading || mood.isLoading || goals.isLoading) {
+      return (
+        <div className="flex min-h-60 items-center justify-center rounded-3xl border border-border/50 bg-card/60">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+
+    switch (activeView) {
+      case "agenda":
+        return <AppointmentsView appointments={appointments.data} />;
+      case "diario":
+        return <DiaryView mood={mood} />;
+      case "documentos":
+        return <DocumentsView documents={documents.data} />;
+      case "financeiro":
+        return <BillingView billing={billing.data} />;
+      case "perfil":
+        return (
+          <div className="space-y-4">
+            <section className="rounded-3xl border border-border/50 bg-card/76 p-5">
+              <p className="text-lg font-semibold text-foreground">{patientName}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{current.data.patient?.email}</p>
+              <div className="mt-5 rounded-2xl bg-muted/45 p-4">
+                <p className="text-sm font-semibold text-foreground">Profissional vinculado</p>
+                <p className="mt-1 text-sm text-muted-foreground">{professionalName}</p>
+              </div>
+            </section>
+            <Button onClick={handleSignOut} disabled={loggingOut} variant="outline" className="h-12 w-full rounded-2xl">
+              {loggingOut ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOut className="mr-2 h-4 w-4" />}
+              Sair
+            </Button>
+          </div>
+        );
+      case "home":
+      default:
+        return (
+          <div className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricCard title="Proxima sessao" value={nextAppointment ? dateTime.format(new Date(nextAppointment.start_time)) : "Sem horario"} icon={CalendarDays} />
+              <MetricCard title="Pendencias" value={pendingAmount ? money.format(pendingAmount) : "Em dia"} icon={CreditCard} tone={pendingAmount ? "warning" : "success"} />
+              <MetricCard title="Documentos" value={String(documents.data?.documents?.length || 0)} icon={FileText} />
+              <MetricCard title="Metas ativas" value={String(goals.data?.goals?.filter((goal) => !goal.is_completed).length || 0)} icon={CheckCircle2} />
+            </div>
+
+            <section className="rounded-3xl border border-border/50 bg-card/76 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-lg font-semibold text-foreground">Continuidade do cuidado</p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    Use o portal para acompanhar sessoes, pendencias e registros que voce decidiu compartilhar.
+                  </p>
+                </div>
+                <Sparkles className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </section>
+
+            <div className="grid gap-5 lg:grid-cols-[1fr_0.85fr]">
+              <AppointmentsView appointments={{ appointments: nextAppointment ? [nextAppointment] : [] }} />
+              <DiaryView mood={mood} />
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col lg:flex-row">
+        <aside className="hidden w-[280px] shrink-0 border-r border-border/50 px-5 py-6 lg:block">
+          <div className="sticky top-6 space-y-6">
+            <div className="rounded-[28px] border border-border/55 bg-card/80 p-5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-foreground text-background">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <p className="mt-4 text-lg font-semibold tracking-tight">{patientName}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{professionalName}</p>
+            </div>
+            <nav className="space-y-1">
+              {navItems.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => navigate(item.path)}
+                  className={cn(
+                    "flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-sm font-semibold transition-colors",
+                    activeView === item.value ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </aside>
+
+        <main className="min-w-0 flex-1 px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
+          <header className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Portal do Paciente</p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{activeNav.label}</h1>
+            </div>
+            <Button onClick={handleSignOut} variant="outline" size="icon" className="h-11 w-11 rounded-2xl lg:hidden">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </header>
+
+          {renderView()}
+        </main>
+      </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/50 bg-background/94 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur-xl lg:hidden">
+        <div className="mx-auto grid max-w-[560px] grid-cols-6 gap-1">
+          {navItems.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => navigate(item.path)}
+              className={cn(
+                "flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-semibold transition-colors",
+                activeView === item.value ? "bg-foreground text-background" : "text-muted-foreground",
+              )}
+            >
+              <item.icon className="mb-1 h-4 w-4" />
+              <span className="max-w-full truncate">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+};
 
 export default PatientPortal;

@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { addWeeks, format } from "date-fns";
 import { motion } from "framer-motion";
 import {
-    ArrowLeft, Bell, Cake, Calendar, DollarSign, Edit2, FileOutput, FileText, LayoutDashboard, Loader2, LogOut, Menu, NotebookPen, Phone, RotateCw, Settings, Smile, Sparkles, Target, Users,
+    ArrowLeft, Bell, Cake, Calendar, DollarSign, Edit2, FileOutput, FileText, LayoutDashboard, Loader2, LogOut, MailPlus, Menu, NotebookPen, Phone, RotateCw, Settings, Smile, Sparkles, Target, Users,
     Video, Zap
 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import { toast } from "sonner";
 // Components
 import { ClinicalSummaryCard } from "@/components/patients/ClinicalSummaryCard";
 import { EditPatientModal } from "@/components/patients/EditPatientModal";
+import { InvitePatientModal } from "@/components/patients/InvitePatientModal";
 import { PatientDocumentsTab } from "@/components/patients/PatientDocumentsTab";
 import { PatientFinanceTab } from "@/components/patients/PatientFinanceTab";
 import { PatientGoalsTab } from "@/components/patients/PatientGoalsTab";
@@ -32,6 +33,7 @@ import { PatientHistoryTab } from "@/components/patients/PatientHistoryTab";
 import { PatientMoodTab } from "@/components/patients/PatientMoodTab"; // Verify import
 import { useAddAppointment } from "@/hooks/use-add-appointment";
 import { usePatientAppointments } from "@/hooks/use-patient-appointments";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 
 export const MobilePatientDetail = () => {
@@ -47,12 +49,15 @@ export const MobilePatientDetail = () => {
     // Global Nav State
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [notificationsOpen, setNotificationsOpen] = useState(false);
+    const [inviteModalOpen, setInviteModalOpen] = useState(false);
     const location = useLocation();
     const { user } = useAuth();
     const { theme } = useTheme();
     const { data: profile } = useProfile();
     const { data: alerts } = useDashboardAlerts();
+    const { features, hasPaidAccess, accessState, isDevAccount } = useSubscription();
     const hasAlerts = alerts && alerts.length > 0;
+    const canInvitePatientPortal = Boolean(features.hasPatientPortal && (hasPaidAccess || accessState === "admin_override" || isDevAccount));
 
     const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Usuário';
     const initials = fullName.substring(0, 2).toUpperCase();
@@ -279,6 +284,17 @@ export const MobilePatientDetail = () => {
                                     <Edit2 className="w-4 h-4 text-foreground" />
                                 </Button>
                             </EditPatientModal>
+                            {canInvitePatientPortal && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setInviteModalOpen(true)}
+                                    className="h-11 w-11 rounded-full p-0 border-foreground/10 bg-transparent active:scale-90 hover:bg-foreground/5"
+                                    aria-label="Convidar paciente para o portal"
+                                >
+                                    <MailPlus className="w-4 h-4 text-foreground" />
+                                </Button>
+                            )}
                         </div>
 
                         {/* Info Grid */}
@@ -350,6 +366,12 @@ export const MobilePatientDetail = () => {
                     </Tabs>
                 </div>
             </div >
+
+            <InvitePatientModal
+                isOpen={inviteModalOpen}
+                onClose={() => setInviteModalOpen(false)}
+                patient={patient}
+            />
         </div >
     );
 };

@@ -179,6 +179,7 @@ Deno.serve(async (req: Request) => {
       expiresAt,
       patientEmail: patient.email,
       portalUrl: actionUrl,
+      activationCode,
       message: "Convite enviado com sucesso.",
     });
   } catch (error) {

@@ -138,6 +138,7 @@ const AuthPageV2 = () => {
   const role = new URLSearchParams(location.search).get('role') || 'pro';
   const [email, setEmail] = useState(localStorage.getItem('neuronex_remembered_email') || '');
   const [password, setPassword] = useState('');
+  const [patientAuthMode, setPatientAuthMode] = useState<'login' | 'signup'>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(localStorage.getItem('neuronex_remember_me') === 'true');
   const [loading, setLoading] = useState(false);
@@ -154,7 +155,10 @@ const AuthPageV2 = () => {
     const session = await supabase.auth.getSession();
     const user = session.data.session?.user;
     if (!user) return;
-    if (role === 'patient') return navigate('/portal', { replace: true });
+    if (role === 'patient') {
+      const inviteToken = window.localStorage.getItem('neuronex_patient_portal_invite_token');
+      return navigate(inviteToken ? `/portal/ativar?token=${encodeURIComponent(inviteToken)}` : '/portal', { replace: true });
+    }
     const profile = await supabase.from('profiles').select('setup_completed').eq('id', user.id).maybeSingle();
     navigate(profile.data?.setup_completed ? '/dashboard' : '/initial-settings', { replace: true });
   };
@@ -206,15 +210,37 @@ const AuthPageV2 = () => {
     if (!email || !password) return toast.error('Preencha e-mail e senha.');
     setLoading(true);
     try {
-      const result = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      const normalizedEmail = email.trim().toLowerCase();
+      const result = role === 'patient' && patientAuthMode === 'signup'
+        ? await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/portal/ativar`,
+            data: {
+              role: 'patient',
+              account_role: 'patient',
+            },
+          },
+        })
+        : await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+
       if (result.error) throw result.error;
+
       if (remember) {
         localStorage.setItem('neuronex_remember_me', 'true');
-        localStorage.setItem('neuronex_remembered_email', email.trim().toLowerCase());
+        localStorage.setItem('neuronex_remembered_email', normalizedEmail);
       } else {
         localStorage.removeItem('neuronex_remember_me');
         localStorage.removeItem('neuronex_remembered_email');
       }
+
+      if (role === 'patient' && patientAuthMode === 'signup' && !result.data.session) {
+        toast.success('Conta criada. Confirme seu e-mail e depois informe o codigo do convite.');
+        setPatientAuthMode('login');
+        return;
+      }
+
       await evaluateSession();
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : 'Nao foi possivel entrar.');
@@ -364,7 +390,7 @@ const AuthPageV2 = () => {
               authPrimaryButtonClass,
             )}
           >
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Login'}
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : role === 'patient' && patientAuthMode === 'signup' ? 'Criar conta' : 'Login'}
           </Button>
         </form>
 
@@ -385,12 +411,24 @@ const AuthPageV2 = () => {
           </Button>
         ) : null}
 
-        <button
-          onClick={() => setForgotOpen(true)}
-          className="mt-7 w-full text-center text-xs font-semibold text-current/72 transition-colors hover:text-current"
-        >
-          Esqueci minha senha
-        </button>
+        <div className="mt-7 space-y-3 text-center">
+          {role === 'patient' && (
+            <button
+              type="button"
+              onClick={() => setPatientAuthMode((mode) => mode === 'login' ? 'signup' : 'login')}
+              className="w-full text-xs font-semibold text-current/80 transition-colors hover:text-current"
+            >
+              {patientAuthMode === 'login' ? 'Criar conta de paciente' : 'Ja tenho conta'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setForgotOpen(true)}
+            className="w-full text-xs font-semibold text-current/72 transition-colors hover:text-current"
+          >
+            Esqueci minha senha
+          </button>
+        </div>
         <div className="mt-8 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-current/55">
           <ShieldCheck className="h-3.5 w-3.5" />
           Sessao protegida
