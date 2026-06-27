@@ -22,6 +22,7 @@ import {
     Crown,
     ChevronRight,
     Check,
+    CreditCard,
     Lock,
     Loader2
 } from "lucide-react";
@@ -229,6 +230,13 @@ export const UpsellModal = ({ feature, open, onOpenChange }: UpsellModalProps) =
                                     </p>
                                 </div>
                             )}
+
+                            <div className="mb-5 flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3">
+                                <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-white/50" />
+                                <p className="text-[11px] font-medium leading-relaxed text-white/45">
+                                    A assinatura recorrente mensal e concluida no checkout da Asaas por cartao de credito.
+                                </p>
+                            </div>
 
                             {/* CTA Button */}
                             <Button

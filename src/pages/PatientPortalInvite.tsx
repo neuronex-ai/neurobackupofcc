@@ -34,8 +34,8 @@ const PatientPortalInvite = () => {
             <LockKeyhole className="h-6 w-6" />
           </div>
           <h1 className="mt-6 text-3xl font-semibold tracking-tight">Convite para o Portal NeuroNex</h1>
-          <p className="mt-3 max-w-[560px] text-sm leading-relaxed text-muted-foreground">
-            Acesse sua area segura para acompanhar agenda, documentos compartilhados, diario e financeiro.
+            <p className="mt-3 max-w-[560px] text-sm leading-relaxed text-muted-foreground">
+            Acesse sua área segura para acompanhar agenda, documentos compartilhados, diário e financeiro.
           </p>
         </div>
 
@@ -48,10 +48,14 @@ const PatientPortalInvite = () => {
 
           {preview.isError && (
             <div className="rounded-3xl border border-amber-500/25 bg-amber-500/10 p-5">
-              <p className="text-base font-semibold">Convite indisponivel</p>
+              <p className="text-base font-semibold">Convite indisponível</p>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                O link pode ter expirado ou sido substituido por um convite mais recente. Solicite um novo envio ao profissional.
+                O link pode ter expirado, ter sido copiado incompleto ou ter sido substituído por um convite mais recente.
+                Se você ainda tem o código recebido por e-mail, entre pelo portal e tente a ativação por código.
               </p>
+              <Button onClick={() => navigate("/auth?role=patient")} className="mt-4 h-11 rounded-2xl">
+                Entrar no Portal do Paciente
+              </Button>
             </div>
           )}
 
@@ -78,8 +82,8 @@ const PatientPortalInvite = () => {
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-3xl border border-border/50 bg-background p-4">
                   <KeyRound className="h-5 w-5 text-muted-foreground" />
-                  <p className="mt-3 text-sm font-semibold">Codigo por e-mail</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Informe o codigo de 6 digitos para ativar.</p>
+                  <p className="mt-3 text-sm font-semibold">Código por e-mail</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Informe o código de 6 dígitos para ativar.</p>
                 </div>
                 <div className="rounded-3xl border border-border/50 bg-background p-4">
                   <CalendarClock className="h-5 w-5 text-muted-foreground" />
@@ -89,12 +93,12 @@ const PatientPortalInvite = () => {
                 <div className="rounded-3xl border border-border/50 bg-background p-4">
                   <ShieldCheck className="h-5 w-5 text-muted-foreground" />
                   <p className="mt-3 text-sm font-semibold">Privacidade</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Notas clinicas internas nao sao exibidas.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Notas clínicas internas não são exibidas.</p>
                 </div>
               </div>
 
               <Button onClick={goToActivation} className="h-12 w-full rounded-2xl">
-                {user ? "Inserir codigo de ativacao" : "Entrar ou criar conta de paciente"}
+                {user ? "Inserir código de ativação" : "Entrar ou criar conta de paciente"}
               </Button>
             </>
           )}

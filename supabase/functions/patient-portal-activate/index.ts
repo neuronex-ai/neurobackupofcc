@@ -20,19 +20,47 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const token = String(body.token || "").trim();
     const code = String(body.code || "").replace(/\D/g, "").slice(0, 6);
-    if (!token || code.length !== 6) {
-      return errorResponse("Informe o token e o codigo de 6 digitos.", 400);
+    if (code.length !== 6) {
+      return errorResponse("Informe o codigo de 6 digitos.", 400);
     }
     if (!user.email) return errorResponse("Sua conta precisa ter e-mail confirmado.", 400);
 
-    const tokenHash = await hmacHex(token);
-    const inviteResult = await supabaseAdmin
-      .from("patient_portal_invites")
-      .select("*")
-      .eq("token_hash", tokenHash)
-      .maybeSingle();
-    if (inviteResult.error) throw inviteResult.error;
-    const invite = inviteResult.data;
+    const normalizedEmail = String(user.email).trim().toLowerCase();
+    const codeHash = await hmacHex(code);
+    let tokenInvite: Record<string, any> | null = null;
+
+    if (token) {
+      const tokenHash = await hmacHex(token);
+      const inviteResult = await supabaseAdmin
+        .from("patient_portal_invites")
+        .select("*")
+        .eq("token_hash", tokenHash)
+        .maybeSingle();
+      if (inviteResult.error) throw inviteResult.error;
+      tokenInvite = inviteResult.data;
+    }
+
+    let invite = tokenInvite;
+    const tokenInviteIsUsable =
+      invite &&
+      ["pending", "sent"].includes(invite.status) &&
+      new Date(invite.expires_at).getTime() > Date.now();
+
+    if (!tokenInviteIsUsable) {
+      const fallbackResult = await supabaseAdmin
+        .from("patient_portal_invites")
+        .select("*")
+        .eq("patient_email", normalizedEmail)
+        .eq("activation_code_hash", codeHash)
+        .in("status", ["pending", "sent"])
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (fallbackResult.error) throw fallbackResult.error;
+      invite = fallbackResult.data || tokenInvite;
+    }
+
     if (!invite) return errorResponse("Convite invalido ou expirado.", 404, { code: "invalid_invite" });
 
     if (new Date(invite.expires_at).getTime() <= Date.now() && ["pending", "sent"].includes(invite.status)) {
@@ -47,7 +75,7 @@ Deno.serve(async (req: Request) => {
       return errorResponse("Convite indisponivel.", 409, { code: `invite_${invite.status}` });
     }
 
-    if (String(user.email).trim().toLowerCase() !== String(invite.patient_email).trim().toLowerCase()) {
+    if (normalizedEmail !== String(invite.patient_email).trim().toLowerCase()) {
       await auditPortal({
         actor_type: "patient",
         actor_user_id: user.id,
@@ -71,7 +99,6 @@ Deno.serve(async (req: Request) => {
       return errorResponse("Codigo bloqueado por excesso de tentativas.", 423, { code: "activation_blocked" });
     }
 
-    const codeHash = await hmacHex(code);
     if (codeHash !== invite.activation_code_hash) {
       const nextAttempts = attempts + 1;
       await supabaseAdmin

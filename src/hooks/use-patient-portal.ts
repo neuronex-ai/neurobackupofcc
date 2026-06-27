@@ -172,7 +172,7 @@ export const useActivatePatientPortal = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ token, code }: { token: string; code: string }) =>
+    mutationFn: ({ token, code }: { token?: string; code: string }) =>
       invokePortalFunction<PatientPortalContext>(
         "patient-portal-activate",
         { token, code },

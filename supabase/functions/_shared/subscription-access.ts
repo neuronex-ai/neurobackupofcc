@@ -383,8 +383,9 @@ export function asaasCheckoutUrl(checkoutId: string) {
 }
 
 export function asaasBillingTypesForCheckout() {
-  // Asaas Checkout currently documents CREDIT_CARD and PIX for checkout billingTypes.
-  return ["CREDIT_CARD", "PIX"];
+  // Asaas Checkout RECURRENT currently allows only CREDIT_CARD.
+  // Pix/boleto recurring must use a separate subscription/payment flow, not Checkout RECURRENT.
+  return ["CREDIT_CARD"];
 }
 
 export function subscriptionMetadata(extra?: Record<string, unknown>) {

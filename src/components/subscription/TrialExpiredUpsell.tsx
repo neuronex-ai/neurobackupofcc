@@ -167,6 +167,10 @@ export const TrialExpiredUpsell = () => {
             </div>
           )}
 
+          <p className="rounded-2xl border border-border/60 bg-muted/35 p-3 text-[11px] font-medium leading-relaxed text-muted-foreground">
+            A assinatura recorrente mensal e concluida no checkout da Asaas por cartao de credito.
+          </p>
+
           <div className="grid gap-3">
             <Button
               type="button"

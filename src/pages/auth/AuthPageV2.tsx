@@ -529,7 +529,12 @@ const AuthPageV2 = () => {
 
   const authDialogs = (
     <>
-      <ForgotPasswordModal open={forgotOpen} onOpenChange={setForgotOpen} />
+      <ForgotPasswordModal
+        open={forgotOpen}
+        onOpenChange={setForgotOpen}
+        context={role === 'patient' ? 'patient' : 'professional'}
+        redirectTo={role === 'patient' ? `${window.location.origin}/reset-password?next=portal` : undefined}
+      />
       <TotpMfaDialog open={mfaOpen} mode="challenge" onOpenChange={setMfaOpen} onSuccess={finishAuthenticatedSession} onCancel={cancelMfa} />
       <BiometricPromptDialog
         open={biometricPromptOpen}

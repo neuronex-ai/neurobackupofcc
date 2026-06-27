@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useActivatePatientPortal, usePatientPortalInvitePreview } from "@/hooks/use-patient-portal";
-import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
+import { KeyRound, Loader2, MailCheck, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -29,25 +29,21 @@ const PatientPortalActivate = () => {
   };
 
   const handleActivate = () => {
-    if (!token) {
-      toast.error("Abra o link do convite antes de ativar o portal.");
-      return;
-    }
     if (code.length !== 6) {
-      toast.error("Informe o codigo de 6 digitos.");
+      toast.error("Informe o código de 6 dígitos.");
       return;
     }
 
     activate.mutate(
-      { token, code },
+      { token: token || undefined, code },
       {
         onSuccess: () => {
           window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-          toast.success("Portal ativado com seguranca.");
+          toast.success("Portal ativado com segurança.");
           navigate("/portal", { replace: true });
         },
         onError: (error) => {
-          toast.error(error instanceof Error ? error.message : "Nao foi possivel ativar o portal.");
+          toast.error(error instanceof Error ? error.message : "Não foi possível ativar o portal.");
         },
       },
     );
@@ -61,7 +57,7 @@ const PatientPortalActivate = () => {
         </div>
         <h1 className="mt-6 text-3xl font-semibold tracking-tight">Ativar Portal</h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Digite o codigo de 6 digitos enviado por e-mail. O e-mail da conta precisa ser o mesmo do convite.
+          Digite o código de 6 dígitos enviado por e-mail. O e-mail da conta precisa ser o mesmo do convite.
         </p>
 
         {preview.data && (
@@ -74,15 +70,29 @@ const PatientPortalActivate = () => {
 
         {preview.isError && (
           <div className="mt-6 rounded-3xl border border-amber-500/25 bg-amber-500/10 p-4">
-            <p className="text-sm font-semibold">Nao encontramos um convite valido.</p>
+            <p className="text-sm font-semibold">Não conseguimos validar este link.</p>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Abra novamente o link recebido por e-mail ou solicite um novo envio.
+              Você ainda pode ativar o portal com o código recebido por e-mail, desde que esteja logado com o mesmo e-mail do convite.
             </p>
           </div>
         )}
 
+        {!token && (
+          <div className="mt-6 rounded-3xl border border-border/50 bg-background p-4">
+            <div className="flex gap-3">
+              <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-semibold">Ativação por código</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  Use este caminho quando o link do convite não abrir ou quando você já tinha conta por outro profissional.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <label className="mt-6 block">
-          <span className="text-sm font-semibold text-foreground">Codigo de ativacao</span>
+          <span className="text-sm font-semibold text-foreground">Código de ativação</span>
           <Input
             value={code}
             onChange={(event) => handleCodeChange(event.target.value)}

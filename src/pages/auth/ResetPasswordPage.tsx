@@ -14,6 +14,7 @@ const ResetPasswordPage = () => {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const next = new URLSearchParams(window.location.search).get("next");
 
     // Ensure we have a session (handled by Supabase auto-login on link click)
     useEffect(() => {
@@ -64,6 +65,13 @@ const ResetPasswordPage = () => {
             if (error) throw error;
 
             toast.success("Senha redefinida com sucesso!");
+
+            if (next === "portal") {
+                const inviteToken = window.localStorage.getItem("neuronex_patient_portal_invite_token");
+                navigate(inviteToken ? `/portal/ativar?token=${encodeURIComponent(inviteToken)}` : "/portal/ativar", { replace: true });
+                return;
+            }
+
             const { data: authData } = await supabase.auth.getUser();
             const userId = authData.user?.id;
 
