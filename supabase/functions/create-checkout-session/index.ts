@@ -60,6 +60,7 @@ function isPublicHttpsUrl(value?: string | null) {
 const resolveAppUrl = (req: Request) => {
   const candidates = [
     Deno.env.get("ASAAS_CHECKOUT_CALLBACK_URL"),
+    Deno.env.get("FRONTEND_URL"),
     Deno.env.get("PUBLIC_APP_URL"),
     Deno.env.get("APP_URL"),
     Deno.env.get("SITE_URL"),
