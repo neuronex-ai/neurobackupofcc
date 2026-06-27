@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { ArrowRight, Check, ChevronRight, CreditCard, Loader2, Lock, Sparkles } from "lucide-react";
+import { Check, ChevronRight, CreditCard, Loader2, Lock, Sparkles } from "lucide-react";
 
 type SubscriptionUpsellDialogProps = {
   open: boolean;

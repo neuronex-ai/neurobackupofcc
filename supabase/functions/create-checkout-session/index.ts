@@ -113,7 +113,7 @@ function assertCheckoutAllowed(subscription: any) {
     subscription.access_state === "paid_access" &&
     subscription.asaas_subscription_id
   ) {
-    const err: any = new Error("Sua assinatura paga ja esta ativa.");
+    const err: any = new Error("Sua assinatura paga já está ativa.");
     err.status = 409;
     throw err;
   }
@@ -123,7 +123,7 @@ function assertCheckoutAllowed(subscription: any) {
     subscription.trial_ends_at &&
     new Date(subscription.trial_ends_at).getTime() > Date.now()
   ) {
-    const err: any = new Error("Seu teste gratis ainda esta ativo.");
+    const err: any = new Error("Seu teste grátis ainda está ativo.");
     err.status = 409;
     err.trial_ends_at = subscription.trial_ends_at;
     throw err;
@@ -134,7 +134,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return corsResponse();
 
   if (req.method !== "POST") {
-    return errorResponse("Metodo nao permitido.", 405);
+    return errorResponse("Método não permitido.", 405);
   }
 
   let sessionId = "";
@@ -145,7 +145,7 @@ Deno.serve(async (req: Request) => {
     const planCode = normalizePlanCode(body.planId);
 
     if (planCode !== PROFESSIONAL_PLAN_CODE) {
-      return errorResponse("Plano invalido para checkout.", 400);
+      return errorResponse("Plano inválido para checkout.", 400);
     }
 
     const existingCheckout = await getOpenCheckoutSession(user.id, planCode);
@@ -180,7 +180,7 @@ Deno.serve(async (req: Request) => {
     const customerEmail = String(body.email || user.email || "").trim();
     const cpfCnpj = sanitizeDigits(body.cpfCnpj || financialAccount?.cpf_cnpj);
     if (!subscription?.asaas_customer_id && !hasValidCpfCnpj(cpfCnpj)) {
-      const err: any = new Error("Informe um CPF ou CNPJ valido para iniciar o checkout.");
+      const err: any = new Error("Informe um CPF ou CNPJ válido para iniciar o checkout.");
       err.status = 422;
       err.code = "customer_document_required";
       err.requires_document = true;
@@ -196,7 +196,7 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!customerId) {
-      const err: any = new Error("Nao foi possivel criar o cliente Asaas com o CPF/CNPJ informado.");
+      const err: any = new Error("Não foi possível criar o cliente Asaas com o CPF/CNPJ informado.");
       err.status = 422;
       err.code = "customer_document_required";
       err.requires_document = true;
@@ -280,7 +280,7 @@ Deno.serve(async (req: Request) => {
     const checkoutId = String(checkout.id || "");
 
     if (!checkoutId) {
-      throw new Error("Asaas nao retornou o identificador do checkout.");
+      throw new Error("Asaas não retornou o identificador do checkout.");
     }
 
     const checkoutUrl = asaasCheckoutUrl(checkoutId);
@@ -372,7 +372,7 @@ Deno.serve(async (req: Request) => {
 
     const status = Number((error as { status?: number })?.status || 500);
     return errorResponse(
-      String((error as { message?: string })?.message || "Nao foi possivel iniciar o checkout Asaas."),
+      String((error as { message?: string })?.message || "Não foi possível iniciar o checkout Asaas."),
       status,
       {
         code: (error as any)?.code,
