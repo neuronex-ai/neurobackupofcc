@@ -50,14 +50,14 @@ export const useInvitePatient = () => {
       });
 
       if (error) {
-        throw new Error(await readFunctionError(error, "Nao foi possivel enviar o convite do portal."));
+        throw new Error(await readFunctionError(error, "Não foi possível enviar o convite do portal."));
       }
 
       return data as PatientPortalInviteResult;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["patient-portal-invite-status"] });
-      toast.success(data.message || "Convite enviado com seguranca.");
+      toast.success(data.message || "Convite enviado com segurança.");
     },
     onError: (error) => {
       console.error(error);

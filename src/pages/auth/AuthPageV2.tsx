@@ -23,6 +23,7 @@ import {
   type BiometricStatus,
   type StoredBiometricAccount,
 } from '@/lib/native-mobile-security';
+import { readSupabaseFunctionError } from '@/lib/read-supabase-function-error';
 import { cn } from '@/lib/utils';
 import type { Session } from '@supabase/supabase-js';
 import { motion, type MotionProps, useReducedMotion } from 'framer-motion';
@@ -144,6 +145,7 @@ const AuthPageV2 = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(localStorage.getItem('neuronex_remember_me') === 'true');
   const [loading, setLoading] = useState(false);
+  const [accessLinkLoading, setAccessLinkLoading] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [biometricStatus, setBiometricStatus] = useState<BiometricStatus | null>(null);
   const [biometricAccount, setBiometricAccount] = useState<StoredBiometricAccount | null>(null);
@@ -215,7 +217,10 @@ const AuthPageV2 = () => {
       const normalizedEmail = email.trim().toLowerCase();
       if (role === 'patient' && patientAuthMode === 'signup') {
         const inviteToken = window.localStorage.getItem('neuronex_patient_portal_invite_token') || undefined;
-        const { data, error } = await supabase.functions.invoke<{ message?: string }>('patient-portal-auth', {
+        const { data, error } = await supabase.functions.invoke<{
+          status?: 'created' | 'existing_user' | 'access_link_sent';
+          message?: string;
+        }>('patient-portal-auth', {
           body: {
             action: 'signup',
             email: normalizedEmail,
@@ -224,14 +229,20 @@ const AuthPageV2 = () => {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          throw new Error(await readSupabaseFunctionError(error, 'Não foi possível criar o acesso do paciente.'));
+        }
 
         if (remember) {
           localStorage.setItem('neuronex_remember_me', 'true');
           localStorage.setItem('neuronex_remembered_email', normalizedEmail);
         }
 
-        toast.success(data?.message || 'Conta criada. Enviamos um e-mail de ativação do Portal do Paciente.');
+        if (data?.status === 'existing_user') {
+          toast.info(data.message || 'Essa conta já existe. Enviamos um novo link de acesso ao Portal.');
+        } else {
+          toast.success(data?.message || 'Conta criada. Enviamos um e-mail de ativação do Portal do Paciente.');
+        }
         setPatientAuthMode('login');
         return;
       }
@@ -250,9 +261,40 @@ const AuthPageV2 = () => {
 
       await evaluateSession();
     } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : 'Nao foi possivel entrar.');
+      toast.error(cause instanceof Error ? cause.message : 'Não foi possível entrar.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const requestPortalAccessLink = async () => {
+    if (role !== 'patient') return;
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      toast.error('Digite seu e-mail para receber o link de acesso.');
+      return;
+    }
+
+    setAccessLinkLoading(true);
+    try {
+      const inviteToken = window.localStorage.getItem('neuronex_patient_portal_invite_token') || undefined;
+      const { data, error } = await supabase.functions.invoke<{ message?: string }>('patient-portal-auth', {
+        body: {
+          action: 'send_access_link',
+          email: normalizedEmail,
+          inviteToken,
+        },
+      });
+
+      if (error) {
+        throw new Error(await readSupabaseFunctionError(error, 'Não foi possível enviar o link de acesso.'));
+      }
+
+      toast.success(data?.message || 'Se houver uma conta de paciente com este e-mail, enviaremos um link de acesso.');
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'Não foi possível enviar o link de acesso.');
+    } finally {
+      setAccessLinkLoading(false);
     }
   };
 
@@ -265,7 +307,7 @@ const AuthPageV2 = () => {
         refresh_token: restored.session.refresh_token,
       });
       if (error) throw error;
-      toast.success('Sessao desbloqueada com biometria.');
+      toast.success('Sessão desbloqueada com biometria.');
       await evaluateSession();
     } catch (cause) {
       toast.error(
@@ -296,7 +338,7 @@ const AuthPageV2 = () => {
       toast.error(
         cause instanceof Error
           ? cause.message
-          : 'Nao foi possivel ativar biometria agora.',
+          : 'Não foi possível ativar biometria agora.',
       );
     } finally {
       setBiometricLoading(false);
@@ -367,7 +409,7 @@ const AuthPageV2 = () => {
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder={isDesktopPanel ? 'E-mail' : 'Email'}
+            placeholder="E-mail"
             className={authInputClass}
           />
           <div className="relative">
@@ -375,7 +417,7 @@ const AuthPageV2 = () => {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder={isDesktopPanel ? 'Senha' : 'Password'}
+              placeholder="Senha"
               className={cn(authInputClass, 'pr-10')}
             />
             <button
@@ -397,7 +439,7 @@ const AuthPageV2 = () => {
               authPrimaryButtonClass,
             )}
           >
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : role === 'patient' && patientAuthMode === 'signup' ? 'Criar conta' : 'Login'}
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : role === 'patient' && patientAuthMode === 'signup' ? 'Criar conta de paciente' : role === 'patient' ? 'Entrar no Portal' : 'Login'}
           </Button>
         </form>
 
@@ -425,7 +467,18 @@ const AuthPageV2 = () => {
               onClick={() => setPatientAuthMode((mode) => mode === 'login' ? 'signup' : 'login')}
               className="w-full text-xs font-semibold text-current/80 transition-colors hover:text-current"
             >
-              {patientAuthMode === 'login' ? 'Criar conta de paciente' : 'Ja tenho conta'}
+              {patientAuthMode === 'login' ? 'Criar conta de paciente' : 'Já tenho conta'}
+            </button>
+          )}
+          {role === 'patient' && (
+            <button
+              type="button"
+              onClick={() => void requestPortalAccessLink()}
+              disabled={accessLinkLoading || loading}
+              className="inline-flex w-full items-center justify-center gap-2 text-xs font-semibold text-current/80 transition-colors hover:text-current disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {accessLinkLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Receber novo link de acesso
             </button>
           )}
           <button
@@ -440,12 +493,12 @@ const AuthPageV2 = () => {
             onClick={() => setForgotOpen(true)}
             className="w-full text-xs font-semibold text-current/72 transition-colors hover:text-current"
           >
-            Esqueci minha senha
+            {role === 'patient' ? 'Redefinir senha do Portal' : 'Esqueci minha senha'}
           </button>
         </div>
         <div className="mt-8 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[.18em] text-current/55">
           <ShieldCheck className="h-3.5 w-3.5" />
-          Sessao protegida
+          Sessão protegida
         </div>
       </div>
     );
@@ -470,8 +523,8 @@ const AuthPageV2 = () => {
     const isDesktopPanel = size === 'desktop';
     const options = [
       {
-        label: 'Sou psicologo',
-        description: 'Acesse agenda, prontuarios, Synapse, financeiro e configuracoes da clinica.',
+        label: 'Sou psicólogo',
+        description: 'Acesse agenda, prontuários, Synapse, financeiro e configurações da clínica.',
         icon: Stethoscope,
         href: '/auth?role=pro',
       },
@@ -493,9 +546,9 @@ const AuthPageV2 = () => {
       )}>
         <div className="mb-7 text-left">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-current/55">Escolha seu acesso</p>
-          <h1 className="mt-3 text-2xl font-black leading-tight tracking-normal">Como voce quer entrar?</h1>
+          <h1 className="mt-3 text-2xl font-black leading-tight tracking-normal">Como você quer entrar?</h1>
           <p className="mt-3 text-sm font-medium leading-relaxed text-current/62">
-            Psicologos e pacientes usam areas separadas para manter dados clinicos e convites protegidos.
+            Psicólogos e pacientes usam áreas separadas para manter dados clínicos e convites protegidos.
           </p>
         </div>
 
@@ -569,7 +622,7 @@ const AuthPageV2 = () => {
         )}>
           <div className="flex min-h-[7.25rem] items-start justify-center pt-1 text-center">
             <img src={logoSrc} alt="NeuroNex" className="h-14 w-14 object-contain" />
-            <h1 className="sr-only">{role === 'patient' ? 'Area do paciente' : 'Acesso profissional'}</h1>
+            <h1 className="sr-only">{role === 'patient' ? 'Área do paciente' : 'Acesso profissional'}</h1>
           </div>
 
           {showRoleChoice ? renderRoleChoicePanel('mobile') : renderAuthPanel('mobile')}
@@ -592,7 +645,7 @@ const AuthPageV2 = () => {
       )}>
         <div className="flex min-h-[9.25rem] items-start justify-center pt-2 text-center">
           <img src={logoSrc} alt="NeuroNex" className="h-16 w-16 object-contain" />
-          <h1 className="sr-only">{role === 'patient' ? 'Area do paciente' : 'Acesso profissional'}</h1>
+          <h1 className="sr-only">{role === 'patient' ? 'Área do paciente' : 'Acesso profissional'}</h1>
         </div>
 
         {showRoleChoice ? renderRoleChoicePanel('desktop') : renderAuthPanel('desktop')}

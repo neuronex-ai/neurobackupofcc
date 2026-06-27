@@ -203,7 +203,7 @@ const PortalFeatureGrid = ({ compact = false }: { compact?: boolean }) => (
 );
 
 const InviteActionButton = ({ data, isPending, isLinked, canSend, onSendInvite, className }: Pick<InviteModalViewProps, "data" | "isPending" | "isLinked" | "canSend" | "onSendInvite"> & { className?: string }) => (
-  <Button onClick={onSendInvite} disabled={!canSend || isPending || isLinked} className={cn("h-11 rounded-xl", className)}>
+  <Button onClick={onSendInvite} disabled={!canSend || isPending} className={cn("h-11 rounded-xl", className)}>
     {isPending ? (
       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
     ) : data ? (
@@ -211,7 +211,7 @@ const InviteActionButton = ({ data, isPending, isLinked, canSend, onSendInvite, 
     ) : (
       <MailPlus className="mr-2 h-4 w-4" />
     )}
-    {data ? "Reenviar código" : "Convidar paciente"}
+    {isLinked ? "Reenviar acesso" : data ? "Reenviar código" : "Convidar paciente"}
   </Button>
 );
 

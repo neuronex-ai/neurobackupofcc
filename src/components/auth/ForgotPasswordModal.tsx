@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { readSupabaseFunctionError } from "@/lib/read-supabase-function-error";
 import { toast } from "sonner";
 import { ArrowRight, Check, Loader2, Mail } from "lucide-react";
 
@@ -53,13 +54,20 @@ export const ForgotPasswordModal = ({
                     redirectTo: redirectTo || `${window.location.origin}/reset-password`,
                 });
 
-            if (result.error) throw result.error;
+            if (result.error) {
+                throw new Error(await readSupabaseFunctionError(
+                    result.error,
+                    context === "patient"
+                        ? "Não foi possível enviar o e-mail do Portal."
+                        : "Não foi possível enviar o e-mail de recuperação.",
+                ));
+            }
 
             setIsSuccess(true);
-            toast.success("E-mail de recuperação enviado.");
+            toast.success(context === "patient" ? "E-mail do Portal enviado." : "E-mail de recuperação enviado.");
         } catch (error) {
             console.error("Reset password error:", error);
-            toast.error("Erro ao enviar e-mail. Verifique o endereço e tente novamente.");
+            toast.error(error instanceof Error ? error.message : "Erro ao enviar e-mail. Verifique o endereço e tente novamente.");
         } finally {
             setIsLoading(false);
         }
@@ -113,7 +121,7 @@ export const ForgotPasswordModal = ({
                                         <Loader2 className="h-5 w-5 animate-spin" />
                                     ) : (
                                         <span className="flex items-center gap-2">
-                                            Enviar link <ArrowRight className="h-4 w-4" />
+                                            {context === "patient" ? "Enviar link do Portal" : "Enviar link"} <ArrowRight className="h-4 w-4" />
                                         </span>
                                     )}
                                 </Button>
