@@ -473,16 +473,20 @@ const AppointmentScheduleArtifact = ({
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
         {...scheduleCardMotion}
+        whileHover={
+          !prefersReducedMotion && nextAppointment && !summaryOpen
+            ? { y: -3, rotateX: 0.9, rotateY: -0.45, transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } }
+            : undefined
+        }
+        whileTap={!prefersReducedMotion && nextAppointment ? { scale: 0.992 } : undefined}
         className={cn(
-          "dashboard-schedule-card group/appointment absolute inset-x-4 z-20 overflow-hidden rounded-[28px] p-4 text-foreground outline-none transition-[top,height,transform,box-shadow,border-color,background-color] duration-slow ease-apple [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.992] motion-reduce:transform-none motion-reduce:transition-none",
+          "dashboard-schedule-card group/appointment absolute inset-x-4 z-20 overflow-hidden rounded-[28px] p-4 text-foreground outline-none transition-[top,height,box-shadow,border-color,background-color] duration-slow ease-apple [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transform-none motion-reduce:transition-none",
           nextAppointment && "cursor-pointer",
-          summaryOpen
-            ? "top-4 h-[124px] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)]"
-            : "top-5 h-[222px] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)] hover:[transform:translateY(-3px)_rotateX(0.9deg)_rotateY(-0.45deg)]",
+          summaryOpen ? "top-4 h-[124px]" : "top-5 h-[222px]",
         )}
       >
         <div className="pointer-events-none absolute inset-0 rounded-[32px] bg-[linear-gradient(180deg,hsl(var(--background)/0.24),transparent_42%),linear-gradient(135deg,hsl(var(--foreground)/0.018),transparent_48%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.018),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.012),transparent_48%)]" />
-        <div className="dashboard-schedule-art pointer-events-none absolute inset-0 overflow-hidden rounded-[28px]">
+        <div className="dashboard-schedule-art pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[28px]">
           <motion.span
             className="dashboard-schedule-orbit dashboard-schedule-orbit-primary"
             animate={prefersReducedMotion ? undefined : { rotate: 360 }}
@@ -506,9 +510,9 @@ const AppointmentScheduleArtifact = ({
           />
         </div>
 
-        <div className="relative z-10">
+        <div className="relative z-10 flex h-full min-h-0 flex-col">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2 [&>span:last-child]:hidden">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 pr-2 [&>span:last-child]:hidden">
               {minutesUntil ? (
                 <span className="dashboard-soft-fill rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                   {minutesUntil}
@@ -533,10 +537,10 @@ const AppointmentScheduleArtifact = ({
             </div>
           ) : nextAppointment ? (
             <>
-              <div className={cn("transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-2" : "mt-4")}>
+              <div className={cn("min-h-0 transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-2" : "mt-4")}>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{formatAppointmentDay(nextAppointment)}</p>
                 <div className="mt-2 flex items-end justify-between gap-4">
-                  <p className={cn("font-black leading-none tracking-[-0.075em] tabular-nums transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "text-4xl" : "text-5xl lg:text-6xl")}>
+                  <p className={cn("min-w-0 font-black leading-none tracking-[-0.075em] tabular-nums transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "text-4xl" : "text-5xl lg:text-6xl")}>
                     {formatAppointmentTime(nextAppointment)}
                   </p>
                   <ChevronDown className={cn("mb-1 h-5 w-5 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none", summaryOpen && "rotate-180")} />
@@ -548,7 +552,7 @@ const AppointmentScheduleArtifact = ({
                 </p>
               </div>
 
-              <div className={cn("grid gap-2 transition-all duration-300 sm:grid-cols-3 motion-reduce:transition-none", summaryOpen ? "pointer-events-none mt-0 max-h-0 opacity-0" : "mt-3 max-h-10 opacity-100")} onClick={(event) => event.stopPropagation()}>
+              <div className={cn("mt-auto grid gap-2 pt-3 transition-all duration-300 sm:grid-cols-3 motion-reduce:transition-none", summaryOpen ? "pointer-events-none max-h-0 overflow-hidden py-0 opacity-0" : "max-h-12 opacity-100")} onClick={(event) => event.stopPropagation()}>
                 {online ? (
                   <Button
                     className="h-9 rounded-[14px] bg-foreground px-3 text-[8px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950"
