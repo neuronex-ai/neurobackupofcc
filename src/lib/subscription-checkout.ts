@@ -5,6 +5,7 @@ type CheckoutPayload = {
   name?: string;
   email?: string;
   cpfCnpj?: string;
+  phone?: string;
 };
 
 export type CheckoutResult = {
@@ -12,14 +13,28 @@ export type CheckoutResult = {
   error?: string;
   code?: string;
   requiresDocument?: boolean;
+  requiresPhone?: boolean;
   trialEndsAt?: string;
 };
 
 export const normalizeCpfCnpj = (value: string) => value.replace(/\D/g, "");
 
+export const normalizePhone = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  if ((digits.length === 12 || digits.length === 13) && digits.startsWith("55")) {
+    return digits.slice(2);
+  }
+  return digits;
+};
+
 export const isValidCpfCnpjLength = (value: string) => {
   const digits = normalizeCpfCnpj(value);
   return digits.length === 11 || digits.length === 14;
+};
+
+export const isValidBrazilianPhoneLength = (value: string) => {
+  const digits = normalizePhone(value);
+  return (digits.length === 10 || digits.length === 11) && !/^0+$/.test(digits);
 };
 
 async function readFunctionError(error: unknown): Promise<Record<string, any> | null> {
@@ -57,15 +72,16 @@ export async function startSubscriptionCheckout(payload: CheckoutPayload): Promi
   }
 
   const details = await readFunctionError(error);
-  const fallbackMessage = (error as { message?: string })?.message || "Nao foi possivel iniciar o checkout.";
+  const fallbackMessage = (error as { message?: string })?.message || "Não foi possível iniciar o checkout.";
 
   return {
     error:
       details?.error ||
       details?.message ||
-      (fallbackMessage.includes("FunctionsHttpError") ? "Nao foi possivel iniciar o checkout." : fallbackMessage),
+      (fallbackMessage.includes("FunctionsHttpError") ? "Não foi possível iniciar o checkout." : fallbackMessage),
     code: details?.code,
     requiresDocument: Boolean(details?.requires_document || details?.requiresDocument),
+    requiresPhone: Boolean(details?.requires_phone || details?.requiresPhone),
     trialEndsAt: details?.trial_ends_at,
   };
 }

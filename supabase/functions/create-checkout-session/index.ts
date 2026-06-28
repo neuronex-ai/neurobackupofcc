@@ -28,6 +28,7 @@ type CheckoutRequest = {
   name?: string;
   email?: string;
   cpfCnpj?: string;
+  phone?: string;
 };
 
 type AsaasCheckoutResponse = {
@@ -38,7 +39,6 @@ type AsaasCheckoutResponse = {
 };
 
 const PROFESSIONAL_AMOUNT = PROFESSIONAL_AMOUNT_CENTS / 100;
-
 const FALLBACK_PUBLIC_APP_URL = "https://neuronex.ai";
 
 function isPublicHttpsUrl(value?: string | null) {
@@ -104,6 +104,12 @@ function profileName(profile: any, fallbackEmail: string) {
 function hasValidCpfCnpj(value?: string | null) {
   const digits = sanitizeDigits(value);
   return Boolean(digits && !/^0+$/.test(digits) && [11, 14].includes(digits.length));
+}
+
+function hasValidBrazilianPhone(value?: string | null) {
+  const digits = sanitizeDigits(value);
+  const localDigits = digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
+  return Boolean(localDigits && !/^0+$/.test(localDigits) && [10, 11].includes(localDigits.length));
 }
 
 function assertCheckoutAllowed(subscription: any) {
@@ -180,11 +186,21 @@ Deno.serve(async (req: Request) => {
     const customerName = String(body.name || profileName(profile, user.email || "")).trim();
     const customerEmail = String(body.email || user.email || "").trim();
     const cpfCnpj = sanitizeDigits(body.cpfCnpj || financialAccount?.cpf_cnpj);
-    if (!subscription?.asaas_customer_id && !hasValidCpfCnpj(cpfCnpj)) {
+    const phone = sanitizeDigits(body.phone || profile?.phone || financialAccount?.mobile_phone);
+
+    if (!hasValidCpfCnpj(cpfCnpj)) {
       const err: any = new Error("Informe um CPF ou CNPJ válido para iniciar o checkout.");
       err.status = 422;
       err.code = "customer_document_required";
       err.requires_document = true;
+      throw err;
+    }
+
+    if (!hasValidBrazilianPhone(phone)) {
+      const err: any = new Error("Informe um telefone com DDD para iniciar o checkout.");
+      err.status = 422;
+      err.code = "customer_phone_required";
+      err.requires_phone = true;
       throw err;
     }
 
@@ -194,6 +210,7 @@ Deno.serve(async (req: Request) => {
       name: customerName,
       email: customerEmail,
       cpfCnpj,
+      phone,
     });
 
     if (!customerId) {
@@ -221,6 +238,7 @@ Deno.serve(async (req: Request) => {
         previous_status: subscription?.status || null,
         previous_access_state: subscription?.access_state || null,
         has_customer_id: Boolean(customerId),
+        has_customer_phone: Boolean(phone),
       }),
       updated_at: now.toISOString(),
     };
@@ -273,9 +291,7 @@ Deno.serve(async (req: Request) => {
       },
     };
 
-    if (customerId) {
-      checkoutPayload.customer = customerId;
-    }
+    checkoutPayload.customer = customerId;
 
     const checkout = await asaasRequest<AsaasCheckoutResponse>("/checkouts", "POST", checkoutPayload);
     const checkoutId = String(checkout.id || "");
@@ -295,6 +311,7 @@ Deno.serve(async (req: Request) => {
           source: "create-checkout-session",
           asaas_checkout: checkout,
           has_customer_id: Boolean(customerId),
+          has_customer_phone: Boolean(phone),
         }),
         updated_at: new Date().toISOString(),
       })
@@ -314,7 +331,7 @@ Deno.serve(async (req: Request) => {
           plan_code: shouldPreserveFreeAccess ? "essential" : planCode,
           status: shouldPreserveFreeAccess ? "active" : "checkout_pending",
           access_state: shouldPreserveFreeAccess ? "limited_access" : "blocked",
-          asaas_customer_id: customerId || subscription?.asaas_customer_id || null,
+          asaas_customer_id: customerId,
           asaas_checkout_id: checkoutId,
           external_reference: externalReference,
           metadata: {
@@ -322,6 +339,7 @@ Deno.serve(async (req: Request) => {
             checkout_external_reference: externalReference,
             checkout_session_id: sessionId,
             checkout_started_at: new Date().toISOString(),
+            checkout_customer_phone_present: Boolean(phone),
           },
           status_version: Number(subscription?.status_version || 0) + 1,
           updated_at: new Date().toISOString(),
@@ -378,6 +396,7 @@ Deno.serve(async (req: Request) => {
       {
         code: (error as any)?.code,
         requires_document: Boolean((error as any)?.requires_document),
+        requires_phone: Boolean((error as any)?.requires_phone),
         trial_ends_at: (error as any)?.trial_ends_at,
       },
     );

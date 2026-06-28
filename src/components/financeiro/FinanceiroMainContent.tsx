@@ -38,7 +38,7 @@ const FINANCE_ROUTE_LABELS: Partial<Record<FinanceView, { groupLabel: string; vi
   "contas-bancarias": { groupLabel: "NeuroFinance", viewLabel: "Conta Bancária e Pix" },
   "pagamentos": { groupLabel: "NeuroFinance", viewLabel: "Pagamentos" },
   "pagamentos-boletos": { groupLabel: "NeuroFinance", viewLabel: "Pagar boletos" },
-  "pagamentos-agendados": { groupLabel: "NeuroFinance", viewLabel: "Pagamentos Agendados" },
+  "pagamentos-agendados": { groupLabel: "NeuroFinance", viewLabel: "Pagamentos agendados" },
   "pagamentos-agendar": { groupLabel: "NeuroFinance", viewLabel: "Agendar pagamento" },
   "pagamentos-grupos": { groupLabel: "NeuroFinance", viewLabel: "Grupos de pagamento" },
   "saude-conta": { groupLabel: "NeuroFinance", viewLabel: "Saúde da conta" },
@@ -53,9 +53,9 @@ const FINANCE_ROUTE_LABELS: Partial<Record<FinanceView, { groupLabel: string; vi
   "antecipacoes-automatica": { groupLabel: "NeuroFinance", viewLabel: "Antecipação automática" },
   "antecipacoes-simulador": { groupLabel: "NeuroFinance", viewLabel: "Simulador" },
   "antecipacoes-historico": { groupLabel: "NeuroFinance", viewLabel: "Histórico" },
-  "fiscal-dados": { groupLabel: "NeuroFinance", viewLabel: "Dados Fiscais" },
+  "fiscal-dados": { groupLabel: "NeuroFinance", viewLabel: "Dados fiscais" },
   "fiscal-nova": { groupLabel: "NeuroFinance", viewLabel: "Emitir nova nota fiscal" },
-  "fiscal-lista": { groupLabel: "NeuroFinance", viewLabel: "Minhas Notas Fiscais" },
+  "fiscal-lista": { groupLabel: "NeuroFinance", viewLabel: "Minhas notas fiscais" },
   "repasses-convenio": { groupLabel: "NeuroFinance", viewLabel: "Convênios" },
   "repasses-profissional": { groupLabel: "NeuroFinance", viewLabel: "Profissionais" },
   "repasses-salas": { groupLabel: "NeuroFinance", viewLabel: "Salas" },
@@ -64,32 +64,37 @@ const FINANCE_ROUTE_LABELS: Partial<Record<FinanceView, { groupLabel: string; vi
 
 const NeuroFinanceActivationScreen = ({ onStart }: { onStart: () => void }) => (
   <div className="px-6 py-6">
-    <div className="relative overflow-hidden rounded-[42px] border border-zinc-200/70 bg-zinc-950 p-8 text-white shadow-[0_34px_110px_-76px_rgba(0,0,0,0.9)] dark:border-white/[0.075] dark:bg-white dark:text-zinc-950 md:p-12">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_12%,rgba(255,255,255,.12),transparent_34%),radial-gradient(circle_at_90%_86%,rgba(255,255,255,.055),transparent_36%)] dark:bg-[radial-gradient(circle_at_22%_12%,rgba(0,0,0,.06),transparent_34%),radial-gradient(circle_at_90%_86%,rgba(0,0,0,.035),transparent_36%)]" />
+    <div className="relative overflow-hidden rounded-[34px] border border-border/65 bg-card/78 p-8 text-card-foreground shadow-[0_28px_90px_-70px_hsl(var(--foreground)/0.7)] backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.04] md:p-12">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_22%_12%,hsl(var(--foreground)/0.045),transparent_34%),radial-gradient(circle_at_90%_86%,hsl(var(--foreground)/0.035),transparent_36%)]" />
       <div className="relative z-10 grid gap-10 xl:grid-cols-[minmax(0,1fr)_390px] xl:items-end">
         <div>
-          <div className="inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.055] px-4 py-2 text-[9px] font-black uppercase tracking-[0.24em] opacity-68 dark:border-zinc-950/10 dark:bg-zinc-950/[0.045]">
+          <div className="inline-flex items-center gap-2.5 rounded-full border border-border/65 bg-background/55 px-4 py-2 text-[9px] font-black uppercase tracking-[0.24em] text-muted-foreground">
             <Landmark className="h-4 w-4" /> NeuroFinance
           </div>
-          <h1 className="mt-9 max-w-4xl text-[clamp(3rem,5.5vw,6rem)] font-black leading-[0.88] tracking-[-0.075em]">
+          <h1 className="mt-9 max-w-4xl text-[clamp(2.75rem,5.5vw,5.75rem)] font-black leading-[0.9] tracking-tight">
             Ative sua conta financeira.
           </h1>
-          <p className="mt-6 max-w-2xl text-base font-medium leading-relaxed opacity-62 md:text-lg">
+          <p className="mt-6 max-w-2xl text-base font-medium leading-relaxed text-muted-foreground md:text-lg">
             A Gestão Financeira já funciona sem conta bancária. Para usar Pix, boletos, saques, pagamentos, antecipação e saldo real, conclua a criação do NeuroFinance.
           </p>
           <div className="mt-8 grid max-w-3xl gap-3 md:grid-cols-3">
             {["Pix, boleto e cartão", "Saques e transferências", "Pagamentos e antecipação"].map((item) => (
-              <div key={item} className="rounded-[22px] border border-white/10 bg-white/[0.055] p-4 text-[10px] font-black uppercase leading-relaxed tracking-[0.16em] opacity-62 dark:border-zinc-950/10 dark:bg-zinc-950/[0.045]">
+              <div
+                key={item}
+                className="rounded-[20px] border border-border/65 bg-background/55 p-4 text-[10px] font-black uppercase leading-relaxed tracking-[0.14em] text-muted-foreground"
+              >
                 {item}
               </div>
             ))}
           </div>
         </div>
-        <div className="rounded-[32px] border border-white/10 bg-white/[0.06] p-6 dark:border-zinc-950/10 dark:bg-zinc-950/[0.045]">
-          <ShieldCheck className="h-7 w-7 opacity-62" />
-          <h3 className="mt-8 text-3xl font-black leading-[0.92] tracking-[-0.06em]">Onboarding seguro e guiado.</h3>
-          <p className="mt-4 text-sm font-medium leading-relaxed opacity-58">Você poderá acompanhar pendências e análise em Saúde da Conta após enviar os dados.</p>
-          <Button onClick={onStart} className="mt-8 h-14 w-full rounded-2xl bg-white text-[10px] font-black uppercase tracking-[0.2em] text-zinc-950 hover:bg-white/90 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900">
+        <div className="rounded-[28px] border border-border/65 bg-background/62 p-6 shadow-sm">
+          <ShieldCheck className="h-7 w-7 text-muted-foreground" />
+          <h3 className="mt-8 text-3xl font-black leading-tight tracking-tight">Onboarding seguro e guiado.</h3>
+          <p className="mt-4 text-sm font-medium leading-relaxed text-muted-foreground">
+            Você poderá acompanhar pendências e análise em Saúde da Conta após enviar os dados.
+          </p>
+          <Button onClick={onStart} className="mt-8 h-14 w-full rounded-2xl bg-foreground text-[10px] font-black uppercase tracking-[0.18em] text-background hover:bg-foreground/90">
             Começar agora <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
@@ -171,7 +176,7 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
         <LockedFeatureScreen
           feature="advanced_finance"
           title="NeuroFinance"
-          description="Durante o teste gratis, a Gestao Financeira continua liberada para receitas, despesas e fluxo de caixa. Pix, boletos, saques, pagamentos, antecipacao e saldo real ficam disponiveis depois da assinatura ativa."
+          description="Durante o teste grátis, a Gestão Financeira continua liberada para receitas, despesas e fluxo de caixa. Pix, boletos, saques, pagamentos, antecipação e saldo real ficam disponíveis depois da assinatura ativa."
         />
       );
     }
@@ -179,7 +184,7 @@ export const FinanceiroMainContent = (props: FinancialDashboardProps) => {
     return (
       <>
         <div className="space-y-6 animate-fade-in">
-          {(needsInitialOnboarding || isAccountMissing) ? (
+          {needsInitialOnboarding || isAccountMissing ? (
             showNeuroFinanceOnboarding ? (
               <div className="h-[calc(100dvh-112px)] min-h-[620px] overflow-hidden rounded-[40px] pb-1">
                 <CustomOnboardingFlow

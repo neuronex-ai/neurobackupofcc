@@ -96,32 +96,32 @@ export function canUseCurrentAccess(status: string, accessState: string) {
 export function subscriptionMessage(status: string, plan: string) {
   switch (status) {
     case "trialing":
-      return "Seu teste gratis esta ativo.";
+      return "Seu teste grátis está ativo.";
     case "trial_expired":
-      return "Seu teste gratis terminou. Assine para continuar usando os recursos pagos.";
+      return "Seu teste grátis terminou. Assine para continuar usando os recursos pagos.";
     case "checkout_pending":
-      return "Seu checkout esta em andamento. Conclua o pagamento para liberar o plano.";
+      return "Seu checkout está em andamento. Conclua o pagamento para liberar o plano.";
     case "payment_pending":
-      return "Estamos aguardando a confirmacao do pagamento.";
+      return "Estamos aguardando a confirmação do pagamento.";
     case "past_due":
     case "grace_period":
-      return "Existe uma cobranca pendente. Regularize para manter o acesso.";
+      return "Existe uma cobrança pendente. Regularize para manter o acesso.";
     case "blocked":
-      return "Seu acesso aos recursos pagos esta bloqueado.";
+      return "Seu acesso aos recursos pagos está bloqueado.";
     case "canceled":
       return "Sua assinatura foi cancelada.";
     case "refunded":
       return "O pagamento da assinatura foi estornado.";
     case "chargeback":
-      return "Ha uma contestacao de pagamento em aberto.";
+      return "Há uma contestação de pagamento em aberto.";
     case "internal_error":
-      return "Nao conseguimos sincronizar sua assinatura agora.";
+      return "Não conseguimos sincronizar sua assinatura agora.";
     case "admin_override":
       return "Seu acesso foi liberado manualmente pela equipe NeuroNex.";
     case "active":
-      return plan === "Essential" ? "Voce esta no plano Essential." : "Sua assinatura esta ativa.";
+      return plan === "Essential" ? "Você está no plano Essential." : "Sua assinatura está ativa.";
     default:
-      return "Assinatura pendente de regularizacao.";
+      return "Assinatura pendente de regularização.";
   }
 }
 
@@ -345,16 +345,31 @@ export async function findOrCreateAsaasCustomer(input: {
   name: string;
   email: string;
   cpfCnpj?: string | null;
+  phone?: string | null;
 }) {
   const existingCustomerId = String(input.existingCustomerId || "").trim();
-  if (existingCustomerId) return existingCustomerId;
-
   const cpfCnpj = sanitizeDigits(input.cpfCnpj);
   if (!cpfCnpj || /^0+$/.test(cpfCnpj) || ![11, 14].includes(cpfCnpj.length)) {
     return null;
   }
-
+  const phone = sanitizeDigits(input.phone);
   const externalReference = `neuronex_user_${input.userId}`;
+  const customerPayload = {
+    name: input.name,
+    cpfCnpj,
+    email: input.email || undefined,
+    phone: phone || undefined,
+    mobilePhone: phone || undefined,
+    externalReference,
+    groupName: "NeuroNex SaaS",
+    notificationDisabled: false,
+  };
+
+  if (existingCustomerId) {
+    await asaasRequest<any>(`/customers/${encodeURIComponent(existingCustomerId)}`, "PUT", customerPayload);
+    return existingCustomerId;
+  }
+
   const listResult = await asaasRequest<any>(
     `/customers?cpfCnpj=${encodeURIComponent(cpfCnpj)}&limit=1`,
     "GET",
@@ -363,17 +378,11 @@ export async function findOrCreateAsaasCustomer(input: {
   const customerId = String(found?.id || "");
 
   if (customerId) {
+    await asaasRequest<any>(`/customers/${encodeURIComponent(customerId)}`, "PUT", customerPayload);
     return customerId;
   }
 
-  const created = await asaasRequest<any>("/customers", "POST", {
-    name: input.name,
-    cpfCnpj,
-    email: input.email || undefined,
-    externalReference,
-    groupName: "NeuroNex SaaS",
-    notificationDisabled: false,
-  });
+  const created = await asaasRequest<any>("/customers", "POST", customerPayload);
 
   return String(created?.id || "") || null;
 }
@@ -439,7 +448,7 @@ export async function requireEntitlementForUser(user: SupabaseUser, featureKey: 
 
   if (!entitlement.canUseCurrentAccess && !entitlement.isDevAccount) {
     throw new SubscriptionAccessError(
-      entitlement.message || "Seu acesso esta bloqueado. Regularize sua assinatura para continuar.",
+      entitlement.message || "Seu acesso está bloqueado. Regularize sua assinatura para continuar.",
       "subscription_access_blocked",
       entitlement,
     );
@@ -447,7 +456,7 @@ export async function requireEntitlementForUser(user: SupabaseUser, featureKey: 
 
   if (!hasEntitlementFeature(entitlement, featureKey)) {
     throw new SubscriptionAccessError(
-      "Seu plano atual nao inclui este recurso.",
+      "Seu plano atual não inclui este recurso.",
       "feature_not_in_plan",
       entitlement,
     );

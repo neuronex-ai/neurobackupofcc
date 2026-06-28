@@ -6,8 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { PROFESSIONAL_PLAN_PRICE_LABEL } from "@/lib/subscription-plans";
 import {
+  isValidBrazilianPhoneLength,
   isValidCpfCnpjLength,
   normalizeCpfCnpj,
+  normalizePhone,
   startSubscriptionCheckout,
 } from "@/lib/subscription-checkout";
 import { SubscriptionUpsellDialog } from "@/components/subscription/SubscriptionUpsellDialog";
@@ -32,8 +34,8 @@ export const TrialExpiredUpsell = () => {
   const [open, setOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [freeLoading, setFreeLoading] = useState(false);
-  const [documentRequired, setDocumentRequired] = useState(false);
   const [cpfCnpj, setCpfCnpj] = useState("");
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     if (!isLoading && !isDevAccount && requiresUpsell) {
@@ -56,8 +58,13 @@ export const TrialExpiredUpsell = () => {
       return;
     }
 
-    if (documentRequired && !isValidCpfCnpjLength(cpfCnpj)) {
+    if (!isValidCpfCnpjLength(cpfCnpj)) {
       toast.error("Informe um CPF ou CNPJ válido para continuar.");
+      return;
+    }
+
+    if (!isValidBrazilianPhoneLength(phone)) {
+      toast.error("Informe um telefone com DDD para continuar.");
       return;
     }
 
@@ -65,25 +72,38 @@ export const TrialExpiredUpsell = () => {
     try {
       const result = await startSubscriptionCheckout({
         planId: "Professional",
-        cpfCnpj: cpfCnpj ? normalizeCpfCnpj(cpfCnpj) : undefined,
+        cpfCnpj: normalizeCpfCnpj(cpfCnpj),
+        phone: normalizePhone(phone),
       });
+
       if (result.url) {
         window.location.href = result.url;
         return;
       }
+
       if (
         result.requiresDocument ||
         result.code === "customer_document_required" ||
         /cpf|cnpj|documento/i.test(result.error || "")
       ) {
-        setDocumentRequired(true);
-        toast.error("Informe CPF/CNPJ para abrir o checkout.");
+        toast.error("Informe um CPF ou CNPJ válido para abrir o checkout.");
         return;
       }
+
+      if (
+        result.requiresPhone ||
+        result.code === "customer_phone_required" ||
+        /telefone|phone|celular/i.test(result.error || "")
+      ) {
+        toast.error("Informe um telefone válido para abrir o checkout.");
+        return;
+      }
+
       if (result.trialEndsAt) {
         toast.info("Seu teste grátis ainda está ativo.");
         return;
       }
+
       toast.error(result.error || "Não conseguimos abrir o checkout agora.");
     } catch (error) {
       console.error("trial-expired-checkout:error", error);
@@ -124,9 +144,10 @@ export const TrialExpiredUpsell = () => {
       planDescription="Para consultórios em crescimento"
       priceLabel={PROFESSIONAL_PLAN_PRICE_LABEL}
       features={PROFESSIONAL_FEATURES}
-      documentRequired={documentRequired}
       cpfCnpj={cpfCnpj}
       onCpfCnpjChange={setCpfCnpj}
+      phone={phone}
+      onPhoneChange={setPhone}
       checkoutUrl={checkoutUrl}
       checkoutLoading={checkoutLoading}
       freeLoading={freeLoading}
