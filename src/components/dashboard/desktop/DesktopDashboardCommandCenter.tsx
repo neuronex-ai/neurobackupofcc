@@ -259,18 +259,18 @@ const SessionSummaryLayer = ({
   <div
     id={id}
     className={cn(
-      "absolute inset-x-4 bottom-4 top-[148px] z-10 rounded-[24px] border border-zinc-200/70 bg-white/90 p-3 text-foreground shadow-[0_20px_58px_-44px_rgba(0,0,0,0.68)] backdrop-blur-xl transition-all duration-500 motion-reduce:transition-none dark:border-white/[0.08] dark:bg-zinc-950/94",
+      "absolute inset-x-4 bottom-4 top-[148px] z-10 rounded-[24px] border border-zinc-200/70 bg-white/92 p-3 text-zinc-950 shadow-[0_20px_58px_-44px_rgba(0,0,0,0.68)] backdrop-blur-xl transition-all duration-500 motion-reduce:transition-none dark:border-white/[0.09] dark:bg-zinc-950/94 dark:text-white",
       open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
     )}
   >
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">Última sessão</p>
+          <FileText className="h-3.5 w-3.5 text-zinc-400 dark:text-white/42" />
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-white/42">Última sessão</p>
         </div>
         {latestSessionNote?.created_at ? (
-          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground/70">
+          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400 dark:text-white/38">
             {format(new Date(latestSessionNote.created_at), "dd/MM", { locale: ptBR })}
           </span>
         ) : null}
@@ -284,15 +284,15 @@ const SessionSummaryLayer = ({
             <div className="h-4 w-10/12 animate-pulse rounded-full bg-muted/25" />
           </div>
         ) : latestSummaryText ? (
-          <p className="text-xs font-semibold leading-relaxed text-foreground/88">{latestSummaryText}</p>
+          <p className="text-xs font-semibold leading-relaxed text-zinc-800 dark:text-white/82">{latestSummaryText}</p>
         ) : (
-          <p className="text-xs font-medium leading-relaxed text-muted-foreground">Sem resumo confirmado para este paciente ainda.</p>
+          <p className="text-xs font-medium leading-relaxed text-zinc-500 dark:text-white/52">Sem resumo confirmado para este paciente ainda.</p>
         )}
 
         {!isLoading && latestSummaryText ? (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {[...latestTopics, ...latestNextSteps].slice(0, 4).map((item) => (
-              <span key={item} className="rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+              <span key={item} className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.045] dark:text-white/52">
                 {item}
               </span>
             ))}
@@ -346,7 +346,7 @@ const AppointmentScheduleArtifact = ({
   };
 
   return (
-    <div className="relative h-full min-h-[264px] overflow-hidden border-t border-background/10 bg-background/[0.07] p-4 [perspective:1600px] dark:bg-zinc-950/[0.035] lg:border-l lg:border-t-0">
+    <div className="relative h-full min-h-[264px] overflow-hidden border-t border-background/10 bg-background/[0.07] p-4 [perspective:1600px] dark:border-zinc-950/10 dark:bg-zinc-950/[0.035] lg:border-l lg:border-t-0">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_62%_10%,hsl(var(--background)/0.08),transparent_30%),linear-gradient(180deg,hsl(var(--background)/0.035),transparent_48%)] opacity-75 dark:bg-[radial-gradient(circle_at_62%_10%,rgba(0,0,0,0.06),transparent_30%),linear-gradient(180deg,rgba(0,0,0,0.035),transparent_48%)]" />
 
       <SessionSummaryLayer
@@ -367,7 +367,7 @@ const AppointmentScheduleArtifact = ({
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
         className={cn(
-          "group/appointment absolute inset-x-4 z-20 overflow-hidden rounded-[28px] border border-zinc-200 bg-background p-4 text-foreground shadow-[0_22px_62px_-42px_rgba(0,0,0,0.78)] outline-none transition-[top,height,transform,box-shadow] duration-500 [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.992] motion-reduce:transform-none motion-reduce:transition-none dark:border-white/[0.09] dark:bg-zinc-950 dark:text-white",
+          "group/appointment absolute inset-x-4 z-20 overflow-hidden rounded-[28px] border border-zinc-200 bg-white p-4 text-zinc-950 shadow-[0_22px_62px_-42px_rgba(0,0,0,0.78)] outline-none transition-[top,height,transform,box-shadow] duration-500 [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.992] motion-reduce:transform-none motion-reduce:transition-none dark:border-white/[0.09] dark:bg-zinc-950 dark:text-white",
           nextAppointment && "cursor-pointer",
           summaryOpen
             ? "top-4 h-[124px] shadow-[0_18px_54px_-42px_rgba(0,0,0,0.74)] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)]"
@@ -381,15 +381,15 @@ const AppointmentScheduleArtifact = ({
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-wrap items-center gap-2">
               {minutesUntil ? (
-                <span className="rounded-full border border-border/45 bg-card/70 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white/52">
                   {minutesUntil}
                 </span>
               ) : null}
-              <span className="rounded-full border border-border/45 bg-card/70 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white/52">
                 {nextAppointment ? (online ? "Online" : "Consultório") : "Novo agendamento"}
               </span>
             </div>
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-border/55 bg-card text-muted-foreground shadow-sm">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-zinc-200 bg-white text-zinc-500 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white/52">
               <CalendarIcon className="h-4 w-4" />
             </span>
           </div>
@@ -773,27 +773,54 @@ const PlanningWidget = ({
   const receivable = Number(managerial?.receivable || 0);
   const payable = Number(managerial?.payable || 0);
   const suggestedGoal = Math.max(income + receivable, income, 10000);
-  const [revenueGoal, setRevenueGoal] = useState(formatMoneyInputValue(suggestedGoal));
+  const storageKey = `dashboard-planning-goal:${planning.monthKey}`;
+  const [cachedGoal, setCachedGoal] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const value = window.localStorage.getItem(storageKey);
+    const parsed = value ? Number(value) : null;
+    return Number.isFinite(parsed) ? parsed : null;
+  });
+  const [goalTouched, setGoalTouched] = useState(false);
+  const persistedGoal = planning.goal ? fromPlanningCents(planning.goal.revenue_goal_cents) : null;
+  const visibleGoal = persistedGoal ?? cachedGoal ?? suggestedGoal;
+  const [revenueGoal, setRevenueGoal] = useState(formatMoneyInputValue(visibleGoal));
   const [sessionPrice, setSessionPrice] = useState("250,00");
   const [sessionsPerWeek, setSessionsPerWeek] = useState("8");
 
   useEffect(() => {
-    const nextGoal = planning.goal ? fromPlanningCents(planning.goal.revenue_goal_cents) : suggestedGoal;
-    setRevenueGoal(formatMoneyInputValue(nextGoal));
-    if (planning.goal?.target_sessions) {
-      setSessionsPerWeek(String(Math.max(1, Math.ceil(planning.goal.target_sessions / 4))));
+    if (typeof window === "undefined") return;
+    const value = window.localStorage.getItem(storageKey);
+    const parsed = value ? Number(value) : null;
+    setCachedGoal(Number.isFinite(parsed) ? parsed : null);
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (persistedGoal === null) return;
+    setCachedGoal(persistedGoal);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(storageKey, String(persistedGoal));
     }
-  }, [planning.goal, suggestedGoal]);
+  }, [persistedGoal, storageKey]);
+
+  useEffect(() => {
+    if (!goalTouched) {
+      setRevenueGoal(formatMoneyInputValue(visibleGoal));
+    }
+  }, [goalTouched, visibleGoal]);
 
   const goal = parseMoneyInput(revenueGoal);
   const price = parseMoneyInput(sessionPrice);
   const weekly = Math.max(0, Number(sessionsPerWeek || 0));
   const progress = goal > 0 ? Math.min(100, Math.round((income / goal) * 100)) : 0;
   const remaining = Math.max(0, goal - income);
-  const sessionsNeeded = price > 0 ? Math.ceil(remaining / price) : 0;
   const monthlyCapacity = Math.round(weekly * 4);
   const realisticMonthly = monthlyCapacity * price;
-  const requiredWeekly = sessionsNeeded > 0 ? Math.ceil(sessionsNeeded / 4) : 0;
+  const isRefreshing = isLoading || planning.isLoading;
+
+  const handleCalculateGoal = () => {
+    setRevenueGoal(formatMoneyInputValue(realisticMonthly || suggestedGoal));
+    setGoalTouched(true);
+  };
 
   const handleSave = async () => {
     try {
@@ -801,9 +828,14 @@ const PlanningWidget = ({
         revenueGoal: goal,
         expenseLimit: payable,
         desiredProfit: Math.max(0, goal - payable),
-        targetSessions: sessionsNeeded,
-        notes: `Dashboard: preço médio ${formatCurrency(price)}; ${weekly} consultas/semana.`,
+        targetSessions: 0,
+        notes: `Dashboard: meta editada. Calculadora atual: ${weekly} consultas/semana a ${formatCurrency(price)}.`,
       });
+      setCachedGoal(goal);
+      setGoalTouched(false);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(storageKey, String(goal));
+      }
       toast.success("Meta financeira atualizada.");
     } catch (error) {
       console.error("Falha ao salvar meta financeira:", error);
@@ -811,35 +843,30 @@ const PlanningWidget = ({
     }
   };
 
-  if (isLoading || planning.isLoading) {
-    return <div className="h-[296px] animate-pulse rounded-[30px] bg-muted/35" />;
-  }
-
   return (
-    <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
       <div className="relative overflow-hidden rounded-[30px] border border-foreground bg-foreground p-5 text-background shadow-sm dark:border-white dark:bg-white dark:text-zinc-950">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,hsl(var(--background)/0.04),transparent_34%)]" />
-        <div className="relative z-10">
-          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-background/55 dark:text-zinc-950/55">{planning.goal ? "Meta definida" : "Meta sugerida"}</p>
+        <div className="relative z-10 flex h-full min-h-[160px] flex-col justify-between">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-background/55 dark:text-zinc-950/55">{planning.goal ? "Meta definida" : "Meta sugerida"}</p>
+            {isRefreshing ? <span className="text-[8px] font-black uppercase tracking-[0.16em] text-background/45 dark:text-zinc-950/45">Atualizando</span> : null}
+          </div>
           <p className="mt-3 text-4xl font-black leading-none tracking-[-0.06em] tabular-nums">{formatCurrency(goal)}</p>
           <div className="mt-6 h-3 overflow-hidden rounded-full bg-background/12 dark:bg-zinc-950/12">
-            <div className="h-full rounded-full bg-background dark:bg-zinc-950" style={{ width: `${progress}%` }} />
+            <div className="h-full rounded-full bg-background transition-[width] duration-500 dark:bg-zinc-950 motion-reduce:transition-none" style={{ width: `${progress}%` }} />
           </div>
           <p className="mt-4 text-sm font-semibold leading-relaxed text-background/62 dark:text-zinc-950/62">{progress}% atingido no mês.</p>
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <FinanceMetricCard label="Falta bater" value={formatCurrency(remaining)} />
-        <FinanceMetricCard label="Consultas necessárias" value={sessionsNeeded ? String(sessionsNeeded) : "0"} />
-        <FinanceMetricCard label="Por semana" value={requiredWeekly ? String(requiredWeekly) : "0"} />
-      </div>
+      <FinanceMetricCard label="Falta bater" value={formatCurrency(remaining)} />
 
-      <div className="xl:col-span-2 rounded-[30px] border border-zinc-200/70 bg-zinc-50/72 p-4 dark:border-white/[0.08] dark:bg-white/[0.035]">
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+      <div className="xl:col-span-2 rounded-[30px] border border-zinc-200/70 bg-zinc-50/72 p-4 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.035]">
+        <div className="grid gap-3 md:grid-cols-[1fr_0.85fr_0.85fr_auto_auto] md:items-end">
           <div>
             <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Meta do mês</p>
-            <Input value={revenueGoal} onChange={(event) => setRevenueGoal(event.target.value)} inputMode="decimal" className="h-11 rounded-[16px] border-zinc-200 bg-white text-sm font-bold dark:border-white/10 dark:bg-zinc-950" />
+            <Input value={revenueGoal} onChange={(event) => { setRevenueGoal(event.target.value); setGoalTouched(true); }} inputMode="decimal" className="h-11 rounded-[16px] border-zinc-200 bg-white text-sm font-bold dark:border-white/10 dark:bg-zinc-950" />
           </div>
           <div>
             <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Preço médio</p>
@@ -849,6 +876,10 @@ const PlanningWidget = ({
             <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Consultas/semana</p>
             <Input value={sessionsPerWeek} onChange={(event) => setSessionsPerWeek(event.target.value)} inputMode="numeric" className="h-11 rounded-[16px] border-zinc-200 bg-white text-sm font-bold dark:border-white/10 dark:bg-zinc-950" />
           </div>
+          <Button type="button" variant="outline" onClick={handleCalculateGoal} className="h-11 rounded-[16px] px-4 text-[9px] font-black uppercase tracking-[0.16em]">
+            <Calculator className="mr-2 h-4 w-4" />
+            Calcular
+          </Button>
           <Button onClick={handleSave} disabled={planning.saveGoal.isPending} className="h-11 rounded-[16px] bg-foreground px-4 text-[9px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950">
             {planning.saveGoal.isPending ? <Calculator className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Salvar
@@ -1056,11 +1087,6 @@ export const DesktopDashboardCommandCenter = () => {
     [activeAppointments, financialConnected, financialLoading, notifications, pendingPatients],
   );
 
-  const openSynapseText = () => {
-    setShellState("compact");
-    setActiveTab("chat");
-  };
-
   const openSynapseVoice = () => {
     setShellState("compact");
     setActiveTab("voice");
@@ -1073,7 +1099,7 @@ export const DesktopDashboardCommandCenter = () => {
       <main className="page-spacing relative z-10 flex w-full max-w-[2200px] flex-col gap-4 px-6 md:px-8 lg:px-12 xl:px-16">
         <DesktopWorkspaceShell>
           <div className="grid items-start gap-4 xl:grid-cols-[104px_minmax(0,1fr)]">
-            <ActionSidebar today={today} openSynapseText={openSynapseText} openSynapseVoice={openSynapseVoice} />
+            <ActionSidebar today={today} openSynapseVoice={openSynapseVoice} />
             <MorningCommandPanel
               today={today}
               firstName={getFirstName(profile)}

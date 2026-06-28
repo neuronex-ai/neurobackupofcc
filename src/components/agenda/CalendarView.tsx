@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     DndContext,
     DragEndEvent,
+    DragOverEvent,
     useSensor,
     useSensors,
     PointerSensor,
@@ -59,6 +60,8 @@ interface CalendarViewProps {
 interface WorkingHoursConfig {
     [key: string]: { enabled: boolean; start: string; end: string };
 }
+
+type AppointmentWithGhost = Appointment & { isGhost?: boolean };
 
 export const CalendarView = ({ date, onDateChange, appointments, isLoading, view, onViewChange, sidebarOpen, setSidebarOpen }: CalendarViewProps) => {
     const { user } = useAuth();
@@ -113,7 +116,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
         setActiveId(event.active.id as string);
     };
 
-    const handleDragOver = (event: any) => {
+    const handleDragOver = (event: DragOverEvent) => {
         setOverId(event.over?.id ?? null);
     };
 
@@ -215,7 +218,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
 
     if (isLoading) {
         return (
-            <div className="h-full flex items-center justify-center">
+            <div className="flex h-full items-center justify-center bg-zinc-50/70 dark:bg-white/[0.015]">
                 <Loader2 className="h-10 w-10 text-zinc-300 dark:text-white/20 animate-spin" />
             </div>
         );
@@ -229,7 +232,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
         return (
             <div className="flex flex-col flex-1 min-h-[600px] h-full">
                 {/* Day Headers */}
-                <div className="flex shrink-0 border-b border-zinc-200 dark:border-white/[0.04]">
+                <div className="flex shrink-0 border-b border-zinc-200/70 bg-white/55 backdrop-blur-xl dark:border-white/[0.055] dark:bg-white/[0.018]">
                     {/* Time gutter header */}
                     <div className="w-16 shrink-0" />
                     {/* Day columns headers */}
@@ -239,18 +242,18 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                             <div
                                 key={day.toISOString()}
                                 className={cn(
-                                    "flex-1 min-w-0 text-center py-4 border-l border-zinc-100 dark:border-white/[0.03]",
-                                    isToday && "bg-zinc-50/50 dark:bg-white/[0.02]"
+                                    "min-w-0 flex-1 border-l border-zinc-100/80 py-4 text-center dark:border-white/[0.035]",
+                                    isToday && "bg-zinc-100/55 dark:bg-white/[0.025]"
                                 )}
                             >
                                 <span className={cn(
-                                    "text-[9px] font-bold uppercase tracking-[0.25em] block mb-1",
+                                    "mb-1 block text-[9px] font-black uppercase tracking-[0.22em]",
                                     isToday ? "text-zinc-900 dark:text-white" : "text-zinc-400 dark:text-zinc-500"
                                 )}>
                                     {format(day, "EEE", { locale: ptBR })}
                                 </span>
                                 <span className={cn(
-                                    "text-xl font-semibold tracking-tight",
+                                    "text-xl font-black tracking-[-0.045em]",
                                     isToday ? "text-zinc-900 dark:text-white" : "text-zinc-400 dark:text-zinc-400"
                                 )}>
                                     {format(day, "dd")}
@@ -264,14 +267,14 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                 <div className="flex-1 overflow-y-auto custom-scrollbar relative h-full">
                     <div className="flex" style={{ minHeight: HOUR_LABELS.length * HOUR_HEIGHT }}>
                         {/* Time gutter */}
-                        <div className="w-16 shrink-0 relative">
+                        <div className="relative w-16 shrink-0 bg-white/32 dark:bg-black/[0.04]">
                             {HOUR_LABELS.map((label, i) => (
                                 <div
                                     key={label}
                                     className="absolute w-full flex items-start justify-end pr-3"
                                     style={{ top: i * HOUR_HEIGHT, height: HOUR_HEIGHT }}
                                 >
-                                    <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-600 tabular-nums -mt-[6px]">
+                                    <span className="-mt-[6px] text-[10px] font-bold tabular-nums text-zinc-400 dark:text-white/24">
                                         {label}
                                     </span>
                                 </div>
@@ -337,8 +340,8 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                 },
             }}
         >
-            <div id="agenda-main-calendar" className="px-6 pt-6 pb-6 h-full flex flex-col bg-zinc-50/50 dark:bg-transparent overflow-hidden">
-                <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 pb-6 border-b border-zinc-200 dark:border-white/[0.03] shrink-0 mb-6">
+            <div id="agenda-main-calendar" className="relative z-10 flex h-full flex-col overflow-hidden bg-zinc-50/62 px-5 pb-5 pt-5 dark:bg-transparent">
+                <header className="mb-5 flex shrink-0 flex-col justify-between gap-5 rounded-[30px] border border-zinc-200/70 bg-white/78 p-4 shadow-sm backdrop-blur-xl dark:border-white/[0.075] dark:bg-white/[0.035] xl:flex-row xl:items-center">
                     {/* Left side: Sidebar Toggle, Title/Date, Google Status */}
                     <div className="flex flex-wrap items-center gap-4">
                         {setSidebarOpen && (
@@ -346,7 +349,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                                className="hidden xl:flex h-10 w-10 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/[0.05] border border-transparent hover:border-zinc-200 dark:hover:border-white/[0.05] transition-all active:scale-95"
+                                className="hidden h-10 w-10 rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-950 active:scale-95 dark:border-white/[0.08] dark:bg-white/[0.045] dark:hover:border-white/14 dark:hover:bg-white/[0.07] dark:hover:text-white xl:flex motion-reduce:transition-none motion-reduce:active:scale-100"
                             >
                                 {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
                             </Button>
@@ -359,8 +362,8 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ duration: 0.3, ease: "easeOut" }}
                             >
-                                <span className="text-4xl xl:text-5xl font-light text-zinc-900 dark:text-white tracking-tighter leading-none">
-                                    {format(date, "dd")} <span className="text-zinc-400 dark:text-zinc-500 font-thin lowercase">{format(date, "MMMM", { locale: ptBR })}</span> <span className="text-zinc-300 dark:text-zinc-600 font-thin text-3xl ml-1">{format(date, "yyyy")}</span>
+                                <span className="text-4xl font-black leading-none tracking-[-0.065em] text-zinc-950 dark:text-white xl:text-5xl">
+                                    {format(date, "dd")} <span className="font-black lowercase text-zinc-400 dark:text-white/38">{format(date, "MMMM", { locale: ptBR })}</span> <span className="ml-1 text-3xl font-black text-zinc-300 dark:text-white/18">{format(date, "yyyy")}</span>
                                 </span>
                             </motion.div>
                         </div>
@@ -368,18 +371,18 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                         {/* Google Connected Badge Moved Here */}
                         <div className="ml-2 hidden sm:block">
                             {isLoadingGoogle ? (
-                                <div className="h-6 w-20 bg-zinc-100 dark:bg-white/[0.02] rounded-full animate-pulse" />
+                                <div className="h-6 w-20 animate-pulse rounded-full bg-zinc-100 dark:bg-white/[0.035]" />
                             ) : isGoogleConnected ? (
-                                <div className="flex items-center gap-2 px-2.5 py-1 bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/[0.05] rounded-full cursor-default group/status">
+                                <div className="flex cursor-default items-center gap-2 rounded-full border border-zinc-200 bg-white px-2.5 py-1 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.045]">
                                     <div className="relative flex h-1.5 w-1.5">
                                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
                                     </div>
-                                    <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Conectado</span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-white/52">Conectado</span>
                                 </div>
                             ) : (
                                 <Button
                                     onClick={() => navigate('/ajustes?tab=integrations')}
-                                    className="h-6 px-3 bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 border border-zinc-900 dark:border-white rounded-full text-[9px] font-bold uppercase tracking-widest transition-all"
+                                    className="h-6 rounded-full border border-zinc-950 bg-zinc-950 px-3 text-[9px] font-black uppercase tracking-widest text-white transition-all hover:bg-zinc-800 dark:border-white dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                                 >
                                     Conectar
                                 </Button>
@@ -392,24 +395,24 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
 
                         {/* View Switcher Controls */}
                         {onViewChange && (
-                            <div className="flex bg-zinc-100 dark:bg-black/40 rounded-full p-1 border border-zinc-200 dark:border-white/[0.05]">
-                                {[
+                            <div className="flex rounded-full border border-zinc-200 bg-zinc-100 p-1 dark:border-white/[0.08] dark:bg-black/35">
+                                {([
                                     { id: 'daily', label: 'Dia' },
                                     { id: 'weekly', label: 'Sem' },
                                     { id: 'monthly', label: 'Mês' }
-                                ].map((tab) => (
+                                ] satisfies Array<{ id: CalendarViewProps["view"]; label: string }>).map((tab) => (
                                     <button
                                         key={tab.id}
-                                        onClick={() => onViewChange(tab.id as any)}
+                                        onClick={() => onViewChange(tab.id)}
                                         className={cn(
-                                            "relative px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors z-10",
-                                            view === tab.id ? "text-zinc-900" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                            "relative z-10 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors",
+                                            view === tab.id ? "text-zinc-950" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
                                         )}
                                     >
                                         {view === tab.id && (
                                             <motion.div
                                                 layoutId="activeViewTabCompact"
-                                                className="absolute inset-0 bg-white dark:bg-zinc-200 rounded-full shadow-sm"
+                                                className="absolute inset-0 rounded-full bg-white shadow-sm dark:bg-white"
                                                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                             />
                                         )}
@@ -419,7 +422,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                             </div>
                         )}
 
-                        <div className="w-px h-6 bg-zinc-200 dark:bg-white/[0.06] hidden sm:block" />
+                        <div className="hidden h-6 w-px bg-zinc-200 dark:bg-white/[0.08] sm:block" />
 
                         {/* Navigation Controls */}
                         <div className="flex items-center gap-1.5">
@@ -427,14 +430,14 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => onDateChange(view === 'monthly' ? subMonths(date, 1) : addDays(date, view === 'daily' ? -1 : -7))}
-                                className="h-10 w-10 rounded-full bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/[0.05] shadow-sm hover:shadow transition-all hover:bg-zinc-100 dark:hover:bg-white/[0.05]"
+                                className="h-10 w-10 rounded-full border border-zinc-200 bg-white shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-md active:scale-95 dark:border-white/[0.08] dark:bg-white/[0.045] dark:hover:border-white/14 dark:hover:bg-white/[0.07] motion-reduce:transition-none motion-reduce:active:scale-100"
                             >
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
                             <Button
                                 variant="ghost"
                                 onClick={() => onDateChange(new Date())}
-                                className="h-10 px-5 rounded-full bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/[0.05] text-[10px] font-bold uppercase tracking-widest shadow-sm hover:shadow transition-all hover:bg-zinc-100 dark:hover:bg-white/[0.05]"
+                                className="h-10 rounded-full border border-zinc-200 bg-white px-5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-md active:scale-[0.98] dark:border-white/[0.08] dark:bg-white/[0.045] dark:hover:border-white/14 dark:hover:bg-white/[0.07] motion-reduce:transition-none motion-reduce:active:scale-100"
                             >
                                 Hoje
                             </Button>
@@ -442,13 +445,13 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => onDateChange(view === 'monthly' ? addMonths(date, 1) : addDays(date, view === 'daily' ? 1 : 7))}
-                                className="h-10 w-10 rounded-full bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/[0.05] shadow-sm hover:shadow transition-all hover:bg-zinc-100 dark:hover:bg-white/[0.05]"
+                                className="h-10 w-10 rounded-full border border-zinc-200 bg-white shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-md active:scale-95 dark:border-white/[0.08] dark:bg-white/[0.045] dark:hover:border-white/14 dark:hover:bg-white/[0.07] motion-reduce:transition-none motion-reduce:active:scale-100"
                             >
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
 
-                        <div className="w-px h-6 bg-zinc-200 dark:bg-white/[0.06] hidden sm:block mx-1" />
+                        <div className="mx-1 hidden h-6 w-px bg-zinc-200 dark:bg-white/[0.08] sm:block" />
 
                         {/* Settings Button */}
                         <AgendaSettingsModal />
@@ -457,7 +460,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                         <Button
                             size="icon"
                             onClick={() => { setNewAppointmentDate(new Date()); setSelectedTimeSlot(undefined); }}
-                            className="h-10 w-10 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 font-bold uppercase tracking-[0.1em] shadow-sm transition-colors flex items-center justify-center shrink-0"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-950 font-bold uppercase tracking-[0.1em] text-white shadow-sm transition-all hover:bg-zinc-800 active:scale-95 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 motion-reduce:transition-none motion-reduce:active:scale-100"
                         >
                             <Plus className="h-4 w-4" />
                         </Button>
@@ -465,7 +468,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                 </header>
 
                 {/* Main content area */}
-                <div className="flex-1 min-h-[500px] flex flex-col overflow-y-auto">
+                <div className="flex min-h-[500px] flex-1 flex-col overflow-y-auto rounded-[26px] border border-zinc-200/55 bg-white/52 dark:border-white/[0.055] dark:bg-black/[0.08]">
                     {view === 'monthly' ? renderMonthlyView() : renderTimeGridView()}
                 </div>
 
@@ -526,26 +529,26 @@ const HourDroppableSlot = ({
             ref={setNodeRef}
             onClick={() => !blocked && onSlotClick(hourIndex)}
             className={cn(
-                "absolute w-full border-t border-zinc-100 dark:border-white/[0.03] group transition-colors",
-                blocked ? "bg-zinc-100/70 dark:bg-white/[0.02] cursor-not-allowed" : "cursor-pointer hover:bg-zinc-100/30 dark:hover:bg-white/[0.02]",
-                isOver && !blocked && "bg-primary/20 dark:bg-primary/30 z-[5]"
+                "group absolute w-full border-t border-zinc-100/80 transition-colors dark:border-white/[0.028]",
+                blocked ? "cursor-not-allowed bg-zinc-100/70 dark:bg-white/[0.018]" : "cursor-pointer hover:bg-zinc-100/45 dark:hover:bg-white/[0.025]",
+                isOver && !blocked && "z-[5] bg-zinc-950/[0.08] dark:bg-white/[0.08]"
             )}
             style={{ top: hourIndex * HOUR_HEIGHT, height: HOUR_HEIGHT }}
         >
             {blocked ? (
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-zinc-200/80 dark:bg-white/[0.06]">
+                    <div className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white/90 px-2 py-1 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.055]">
                         <Lock className="w-2.5 h-2.5 text-zinc-400 dark:text-zinc-500" />
                         <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Bloqueado</span>
                     </div>
                 </div>
             ) : (
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-zinc-300 dark:text-zinc-600">
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-white/22">
                     <Plus className="w-4 h-4" />
                 </div>
             )}
             {/* Half-hour dashed line */}
-            <div className="absolute w-full border-t border-dashed border-zinc-100/70 dark:border-white/[0.02] pointer-events-none" style={{ top: HOUR_HEIGHT / 2 }} />
+            <div className="pointer-events-none absolute w-full border-t border-dashed border-zinc-100/70 dark:border-white/[0.018]" style={{ top: HOUR_HEIGHT / 2 }} />
         </div>
     );
 };
@@ -572,8 +575,8 @@ const GridDroppableColumn = ({
     return (
         <div
             className={cn(
-                "flex-1 min-w-0 relative border-l border-zinc-100 dark:border-white/[0.03] transition-colors",
-                isToday && "bg-zinc-50/30 dark:bg-white/[0.01]"
+                "relative min-w-0 flex-1 border-l border-zinc-100/80 transition-colors dark:border-white/[0.032]",
+                isToday && "bg-zinc-50/55 dark:bg-white/[0.018]"
             )}
         >
             {/* Interactive Grid Slots */}
@@ -648,12 +651,11 @@ const DraggableGridItem = ({ app }: { app: Appointment }) => {
                     }}
                 >
                     <div className={cn(
-                        "w-full h-full rounded-xl text-left overflow-hidden transition-all duration-200 group/card",
-                        "hover:shadow-lg hover:z-30 border",
+                        "group/card h-full w-full overflow-hidden rounded-[14px] border text-left shadow-sm transition-all duration-200 hover:z-30 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.995] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100",
                         getAppointmentStatusMeta(app.status, app.notes).bgClass,
                         getAppointmentStatusMeta(app.status, app.notes).borderClass
                     )}>
-                        <div className="px-2.5 py-1.5 flex flex-col gap-0.5 pointer-events-none">
+                        <div className="pointer-events-none flex flex-col gap-0.5 px-2.5 py-1.5">
                             <div className="flex items-center gap-1.5">
                                 {app.type === 'online'
                                     ? <Video className="h-3 w-3 shrink-0 text-zinc-500 dark:text-zinc-400" />
@@ -706,7 +708,7 @@ const MonthDroppableColumn = ({
 
     const isToday = isSameDay(day, new Date());
 
-    const itemsWithGhost = useMemo(() => {
+    const itemsWithGhost = useMemo<AppointmentWithGhost[]>(() => {
         if (!isTarget || !activeAppointment) return dayApps;
 
         const appsExceptActive = dayApps.filter(a => a.id !== activeAppointment.id);
@@ -714,8 +716,8 @@ const MonthDroppableColumn = ({
 
         const insertIndex = appsExceptActive.findIndex(a => new Date(a.start_time) > activeStartTime);
 
-        const result = [...appsExceptActive];
-        const ghostApp = { ...activeAppointment, isGhost: true } as any;
+        const result: AppointmentWithGhost[] = [...appsExceptActive];
+        const ghostApp: AppointmentWithGhost = { ...activeAppointment, isGhost: true };
 
         if (insertIndex === -1) result.push(ghostApp);
         else result.splice(insertIndex, 0, ghostApp);
@@ -725,15 +727,15 @@ const MonthDroppableColumn = ({
 
     return (
         <div ref={setNodeRef} onClick={onAddAppointment} className={cn(
-            "flex flex-col min-w-0 transition-all duration-300 relative group/col cursor-pointer",
-            "gap-1 bg-white dark:bg-[#121214]/40 hover:bg-zinc-50 dark:hover:bg-white/[0.02] border border-zinc-200 dark:border-white/[0.05] rounded-xl p-1 shadow-sm",
+            "group/col relative flex min-w-0 cursor-pointer flex-col transition-all duration-300",
+            "gap-1 rounded-[18px] border border-zinc-200/70 bg-white p-1.5 shadow-sm hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-md dark:border-white/[0.07] dark:bg-white/[0.035] dark:hover:border-white/14 dark:hover:bg-white/[0.055] motion-reduce:transition-none motion-reduce:hover:translate-y-0",
             isDraggingAny && "bg-zinc-500/[0.02] dark:bg-white/[0.01]",
-            isTarget && "bg-white/[0.8] dark:bg-white/[0.04] ring-1 ring-zinc-200 dark:ring-white/10 z-10"
+            isTarget && "z-10 bg-white/[0.9] ring-1 ring-zinc-300 dark:bg-white/[0.065] dark:ring-white/14"
         )}>
             <div className="flex-row justify-between w-full px-2 py-1 flex items-center">
                 <span className={cn(
                     "text-[10px] font-medium",
-                    isToday ? "text-zinc-900 dark:text-white bg-zinc-200 dark:bg-white/10 px-1.5 py-0.5 rounded-md" : "text-zinc-500"
+                    isToday ? "rounded-md bg-zinc-950 px-1.5 py-0.5 text-white dark:bg-white dark:text-zinc-950" : "text-zinc-500 dark:text-white/36"
                 )}>
                     {format(day, "dd")}
                 </span>
@@ -742,7 +744,7 @@ const MonthDroppableColumn = ({
 
             <div className="flex flex-col flex-1 relative gap-1 min-h-[80px]">
                 <AnimatePresence mode="popLayout">
-                    {itemsWithGhost.slice(0, 2).map((app: any) => (
+                    {itemsWithGhost.slice(0, 2).map((app) => (
                         app.isGhost ? (
                             <div key="ghost" className="opacity-40 scale-[0.98]">
                                 <AppointmentCard app={app} isGhost />
@@ -758,18 +760,18 @@ const MonthDroppableColumn = ({
                 {dayApps.length > 2 && (
                     <Popover>
                         <PopoverTrigger asChild>
-                            <button onClick={e => e.stopPropagation()} className="w-full text-center text-[9px] font-bold text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 bg-zinc-200/50 dark:bg-white/[0.04] hover:bg-zinc-300/50 dark:hover:bg-white/[0.08] rounded-lg py-1 transition-all cursor-pointer">
+                            <button onClick={e => e.stopPropagation()} className="w-full cursor-pointer rounded-lg border border-zinc-200/70 bg-zinc-100/80 py-1 text-center text-[9px] font-bold text-zinc-400 transition-all hover:bg-zinc-200 hover:text-zinc-700 dark:border-white/[0.06] dark:bg-white/[0.045] dark:text-white/38 dark:hover:bg-white/[0.08] dark:hover:text-white/72">
                                 +{dayApps.length - 2} mais
                             </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[260px] p-3 bg-white dark:bg-[#0A0A0D] border border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl backdrop-blur-3xl" align="center" side="bottom">
+                        <PopoverContent className="w-[260px] rounded-[24px] border border-zinc-200 bg-white p-3 shadow-2xl backdrop-blur-3xl dark:border-white/10 dark:bg-zinc-950" align="center" side="bottom">
                             <p className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500 mb-3 px-1">
                                 {format(day, "dd MMM", { locale: ptBR })} &mdash; {dayApps.length} agendamentos
                             </p>
                             <div className="space-y-1.5 max-h-[240px] overflow-y-auto custom-scrollbar">
                                 {dayApps.map(app => (
                                     <AppointmentDetailModal key={app.id} appointment={app}>
-                                        <button className="w-full text-left p-2.5 rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/[0.06] hover:border-zinc-300 dark:hover:border-white/10 transition-all group">
+                                        <button className="group w-full rounded-xl border border-zinc-200 bg-zinc-50 p-2.5 text-left transition-all hover:border-zinc-300 hover:bg-zinc-100 dark:border-white/[0.07] dark:bg-white/[0.035] dark:hover:border-white/14 dark:hover:bg-white/[0.06]">
                                             <div className="flex items-center gap-2">
                                                 <div className={cn(
                                                     "w-1.5 h-1.5 rounded-full shrink-0",
@@ -825,11 +827,11 @@ const DraggableItem = ({ app, isMonthly }: { app: Appointment, isMonthly?: boole
 const AppointmentCard = ({ app, isOverlay, isMonthly, isGhost }: { app: Appointment, isOverlay?: boolean, isMonthly?: boolean, isGhost?: boolean }) => (
     <div
         className={cn(
-            "rounded-[20px] border border-zinc-200 dark:border-white/[0.04] bg-white dark:bg-[#161619] group relative overflow-hidden",
-            !isOverlay && !isGhost && "transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:border-zinc-300 dark:hover:border-white/10",
+            "group relative overflow-hidden rounded-[20px] border border-zinc-200 bg-white shadow-sm dark:border-white/[0.07] dark:bg-white/[0.04]",
+            !isOverlay && !isGhost && "transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-lg active:scale-[0.99] dark:hover:border-white/14 motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100",
             isOverlay && "border-none shadow-none z-50 pointer-events-none",
             isGhost && "border-dashed border-zinc-300 dark:border-white/20 bg-zinc-100/50 dark:bg-white/[0.03] shadow-none",
-            isMonthly ? "p-1.5 rounded-xl border-none bg-zinc-100 dark:bg-white/[0.03]" : "p-4"
+            isMonthly ? "rounded-xl border-none bg-zinc-100/90 p-1.5 dark:bg-white/[0.045]" : "p-4"
         )}
     >
         {!isMonthly && (
@@ -841,7 +843,7 @@ const AppointmentCard = ({ app, isOverlay, isMonthly, isGhost }: { app: Appointm
 
         <div className="flex flex-col gap-2">
             {!isMonthly && (
-                <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/[0.03] flex items-center justify-center mb-1 group-hover:bg-zinc-200 dark:group-hover:bg-white/10 transition-colors">
+                <div className="mb-1 flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 transition-colors group-hover:bg-zinc-200 dark:border-white/[0.07] dark:bg-white/[0.035] dark:group-hover:bg-white/[0.08]">
                     {app.type === 'online' ? <Video className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors" /> : <MapPin className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors" />}
                 </div>
             )}
@@ -858,7 +860,7 @@ const AppointmentCard = ({ app, isOverlay, isMonthly, isGhost }: { app: Appointm
         </div>
 
         {!isOverlay && !isGhost && (
-            <div className="absolute inset-0 bg-gradient-to-br from-black/[0.02] dark:from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/[0.025] to-transparent opacity-0 transition-opacity group-hover:opacity-100 dark:from-white/[0.018]" />
         )}
     </div>
 );
