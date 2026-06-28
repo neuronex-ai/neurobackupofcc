@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -156,7 +157,9 @@ export const SubscriptionUpsellDialog = ({
   onContinueFree,
 }: SubscriptionUpsellDialogProps) => {
   const isMobile = useIsMobile();
+  const shouldReduceMotion = useReducedMotion();
   const [step, setStep] = useState(1);
+  const [stepDirection, setStepDirection] = useState(1);
   const [detailsTouched, setDetailsTouched] = useState(false);
   const [autoAppliedCep, setAutoAppliedCep] = useState("");
   const [addressLookupLoading, setAddressLookupLoading] = useState(false);
@@ -165,6 +168,7 @@ export const SubscriptionUpsellDialog = ({
   useEffect(() => {
     if (open) {
       setStep(1);
+      setStepDirection(1);
       setDetailsTouched(false);
       setAutoAppliedCep("");
     }
@@ -218,7 +222,13 @@ export const SubscriptionUpsellDialog = ({
       setDetailsTouched(true);
       return;
     }
+    setStepDirection(1);
     setStep((current) => Math.min(TOTAL_STEPS, current + 1));
+  };
+
+  const handleBack = () => {
+    setStepDirection(-1);
+    setStep((current) => Math.max(1, current - 1));
   };
 
   const handleCheckout = () => {
@@ -234,7 +244,7 @@ export const SubscriptionUpsellDialog = ({
     <Button
       type="button"
       variant="ghost"
-      onClick={() => setStep((current) => Math.max(1, current - 1))}
+      onClick={handleBack}
       disabled={checkoutLoading || freeLoading}
       className="h-12 w-full rounded-2xl text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground hover:bg-muted hover:text-foreground"
     >
@@ -530,6 +540,43 @@ export const SubscriptionUpsellDialog = ({
     </div>
   );
 
+  const stepMotion = {
+    enter: (direction: number) => ({
+      x: shouldReduceMotion ? 0 : direction > 0 ? 96 : -96,
+      opacity: shouldReduceMotion ? 1 : 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      x: shouldReduceMotion ? 0 : direction > 0 ? -96 : 96,
+      opacity: shouldReduceMotion ? 1 : 0,
+    }),
+  };
+
+  const stepTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: 0.26, ease: [0.22, 1, 0.36, 1] as const };
+
+  const wizardPage = (
+    <AnimatePresence initial={false} custom={stepDirection} mode="popLayout">
+      <motion.div
+        key={step}
+        custom={stepDirection}
+        variants={stepMotion}
+        initial="enter"
+        animate="center"
+        exit="exit"
+        transition={stepTransition}
+        className="absolute inset-0 overflow-y-auto custom-scrollbar"
+      >
+        {header}
+        <div className={cn("w-full py-5", isMobile ? "px-5" : "px-8 md:py-6")}>{stepContent}</div>
+      </motion.div>
+    </AnimatePresence>
+  );
+
   const footer = (
     <div className="w-full shrink-0 border-t border-border/55 bg-background/95 px-5 py-4 backdrop-blur-xl dark:border-white/[0.08] md:bg-muted/20 md:px-8 md:py-5">
       <div className={cn("mx-auto grid gap-3", bodyMaxWidth, isMobile ? "grid-cols-1" : "grid-cols-[1fr_1.25fr]")}>
@@ -547,10 +594,7 @@ export const SubscriptionUpsellDialog = ({
         drawerClassName="h-[min(94dvh,48rem)] border-t border-border/60 bg-background text-foreground"
       >
         <div className="flex min-h-0 flex-1 flex-col items-center">
-          {header}
-          <div className="min-h-0 w-full flex-1 overflow-y-auto px-5 py-5 custom-scrollbar">
-            {stepContent}
-          </div>
+          <div className="relative min-h-0 w-full flex-1 overflow-hidden">{wizardPage}</div>
           {footer}
         </div>
       </ResponsiveModal>
@@ -563,11 +607,8 @@ export const SubscriptionUpsellDialog = ({
       onOpenChange={onOpenChange}
       className="w-[min(94vw,44rem)] max-h-[min(92dvh,48rem)] overflow-hidden rounded-[30px] border border-border/65 bg-background/96 p-0 text-foreground shadow-2xl backdrop-blur-2xl dark:border-white/[0.08] dark:bg-[#09090b]/96"
     >
-      <div className="flex max-h-[min(92dvh,48rem)] min-h-0 flex-col items-center">
-        {header}
-        <div className="min-h-0 w-full flex-1 overflow-y-auto px-8 py-6 custom-scrollbar">
-          {stepContent}
-        </div>
+      <div className="flex h-[min(92dvh,48rem)] min-h-0 flex-col items-center">
+        <div className="relative min-h-0 w-full flex-1 overflow-hidden">{wizardPage}</div>
         {footer}
       </div>
     </ResponsiveModal>
