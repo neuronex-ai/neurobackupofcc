@@ -1824,8 +1824,54 @@ async function auditPlatformAccessChange(context: any, eventId: string | null, a
     if (error) console.warn('[asaas-webhook] subscription audit failed:', error);
 }
 
-function subscriptionTransitionForEvent(event: string, providerStatus: string, currentStatus?: string, currentAccessState?: string) {
+const PAYMENT_PROOF_STATUSES = new Set([
+    'CONFIRMED',
+    'RECEIVED',
+    'RECEIVED_IN_CASH',
+    'CHECKOUT_PAID',
+    'PAYMENT_CONFIRMED',
+    'PAYMENT_RECEIVED',
+]);
+
+const PAYMENT_PROOF_EVENTS = new Set([
+    'CHECKOUT_PAID',
+    'PAYMENT_CONFIRMED',
+    'PAYMENT_RECEIVED',
+]);
+
+function upper(value?: unknown) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function hasConfirmedPaymentMarker(subscription: any) {
+    if (!subscription) return false;
+    if (subscription.status === 'admin_override') return true;
+    return (
+        subscription.status === 'active' &&
+        subscription.access_state === 'paid_access' &&
+        (
+            PAYMENT_PROOF_STATUSES.has(upper(subscription.last_payment_status)) ||
+            PAYMENT_PROOF_EVENTS.has(upper(subscription.metadata?.last_asaas_event))
+        )
+    );
+}
+
+function storedPaymentStatusForEvent(event: string, resource: any) {
+    const normalizedEvent = upper(event);
+    if (normalizedEvent === 'CHECKOUT_PAID') return 'CHECKOUT_PAID';
+    if (normalizedEvent.startsWith('CHECKOUT_') || normalizedEvent.startsWith('SUBSCRIPTION_')) {
+        return normalizedEvent;
+    }
+    return String(resource?.status || normalizedEvent || event);
+}
+
+function subscriptionTransitionForEvent(event: string, providerStatus: string, currentStatus?: string, currentAccessState?: string, currentSubscription?: any) {
+    const alreadyPaymentBacked = hasConfirmedPaymentMarker(currentSubscription);
+
     if (event === 'CHECKOUT_CREATED') {
+        if (alreadyPaymentBacked) {
+            return { status: 'active', accessState: 'paid_access', checkoutStatus: 'created', effect: 'history_only' as const };
+        }
         return { status: 'active', accessState: 'limited_access', checkoutStatus: 'created', effect: 'checkout_update' as const };
     }
     if (event === 'CHECKOUT_PAID') return { status: 'active', accessState: 'paid_access', checkoutStatus: 'paid', effect: 'access_granted' as const };
@@ -1841,17 +1887,19 @@ function subscriptionTransitionForEvent(event: string, providerStatus: string, c
         return { status: 'canceled', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const };
     }
     if (event === 'SUBSCRIPTION_CREATED' || event === 'SUBSCRIPTION_UPDATED') {
-        if (currentStatus === 'active' && currentAccessState === 'paid_access') {
+        if (alreadyPaymentBacked) {
             return { status: 'active', accessState: 'paid_access', checkoutStatus: 'updated', effect: 'history_only' as const };
         }
         return { status: 'active', accessState: 'limited_access', checkoutStatus: 'payment_pending', effect: 'checkout_update' as const };
     }
-    return currentStatus === 'active' && currentAccessState === 'paid_access'
+    return alreadyPaymentBacked
         ? { status: 'active', accessState: 'paid_access', checkoutStatus: 'updated', effect: 'history_only' as const }
         : { status: 'active', accessState: 'limited_access', checkoutStatus: 'updated', effect: 'history_only' as const };
 }
 
-function paymentTransitionForEvent(event: string, currentStatus?: string, currentAccessState?: string) {
+function paymentTransitionForEvent(event: string, currentStatus?: string, currentAccessState?: string, currentSubscription?: any) {
+    const alreadyPaymentBacked = hasConfirmedPaymentMarker(currentSubscription);
+
     if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') {
         return { status: 'active', accessState: 'paid_access', checkoutStatus: 'paid', effect: 'access_granted' as const };
     }
@@ -1880,12 +1928,12 @@ function paymentTransitionForEvent(event: string, currentStatus?: string, curren
         event === 'PAYMENT_ANTICIPATED' ||
         event === 'PAYMENT_APPROVED_BY_RISK_ANALYSIS'
     ) {
-        if (currentStatus === 'active' && currentAccessState === 'paid_access') {
+        if (alreadyPaymentBacked) {
             return { status: 'active', accessState: 'paid_access', checkoutStatus: 'payment_pending', effect: 'history_only' as const };
         }
         return { status: 'active', accessState: 'limited_access', checkoutStatus: 'payment_pending', effect: 'checkout_update' as const };
     }
-    return currentStatus === 'active' && currentAccessState === 'paid_access'
+    return alreadyPaymentBacked
         ? {
             status: 'active',
             accessState: 'paid_access',
@@ -1960,7 +2008,7 @@ async function applyPlatformTransition(args: {
         asaas_subscription_id: providerSubscriptionId || current?.asaas_subscription_id || null,
         asaas_checkout_id: providerCheckoutId || current?.asaas_checkout_id || null,
         last_payment_id: providerPaymentId || current?.last_payment_id || null,
-        last_payment_status: String(resource?.status || event),
+        last_payment_status: storedPaymentStatusForEvent(event, resource),
         last_payment_event_at: eventAt,
         external_reference: context.externalReference || current?.external_reference || null,
         metadata: subscriptionMetadata({
@@ -2014,7 +2062,12 @@ async function handlePlatformPaymentEvent(body: any, payment: any, event: string
     const context = await resolvePlatformContext(body, payment);
     if (!context) return false;
 
-    const transition = paymentTransitionForEvent(event, context.userSubscription?.status, context.userSubscription?.access_state);
+    const transition = paymentTransitionForEvent(
+        event,
+        context.userSubscription?.status,
+        context.userSubscription?.access_state,
+        context.userSubscription,
+    );
     await applyPlatformTransition({
         body,
         resource: payment,
@@ -2039,6 +2092,7 @@ async function handlePlatformSubscriptionEvent(body: any, resource: any, event: 
         providerStatus,
         context.userSubscription?.status,
         context.userSubscription?.access_state,
+        context.userSubscription,
     );
     await applyPlatformTransition({
         body,

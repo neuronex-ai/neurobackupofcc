@@ -79,7 +79,89 @@ const passwordRules = [
   { key: "special", label: "1 caractere especial: @ # < ! $ % & * ; / ?" },
 ] as const;
 
+const ACCOUNT_CREATION_PAUSED = true;
+
 export default function CreateAccount() {
+  if (ACCOUNT_CREATION_PAUSED) return <CreateAccountPausedPage />;
+  return <CreateAccountFlow />;
+}
+
+function CreateAccountPausedPage() {
+  const isMobile = useIsMobile();
+  const { theme } = useTheme();
+  const isDarkTheme = theme === "dark";
+  const logoSrc = isDarkTheme ? "/favicon-light.png" : "/favicon-dark.png";
+  const shellClass = isDarkTheme ? "bg-[#020202] text-white" : "bg-[#f8f8f6] text-[#171514]";
+  const frameClass = isDarkTheme
+    ? "border-black/80 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.13),transparent_30%),linear-gradient(145deg,#020202_0%,#141414_48%,#030303_100%)] shadow-[0_28px_82px_-48px_rgba(255,255,255,0.2)]"
+    : "border-black/[0.055] bg-[#f8f8f6] shadow-[0_28px_82px_-50px_rgba(0,0,0,0.42)]";
+  const panelClass = isDarkTheme
+    ? "bg-[linear-gradient(160deg,#ffffff_0%,#f4f3ef_48%,#e7e6e0_100%)] text-[#171514]"
+    : "bg-[linear-gradient(160deg,#292626_0%,#201e1e_48%,#171515_100%)] text-white";
+  const mutedPanelClass = isDarkTheme ? "border-black/10 bg-black/[0.035] text-[#171514]" : "border-white/15 bg-white/[0.035] text-white";
+  const primaryButtonClass = isDarkTheme ? "bg-[#201e1e] text-white hover:bg-black" : "bg-[#fff1f4] text-[#171514] hover:bg-white";
+
+  return (
+    <main className={cn("relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-[calc(1rem+env(safe-area-inset-top))]", shellClass)}>
+      <section
+        className={cn(
+          "relative grid w-full max-w-[54rem] overflow-hidden border",
+          isMobile ? "min-h-[min(78dvh,38rem)] max-w-[24rem] rounded-[40px] pb-5 pt-8" : "min-h-[34rem] grid-cols-[0.85fr_1.15fr] rounded-[44px] p-0",
+          frameClass,
+        )}
+      >
+        {!isMobile ? (
+          <aside className={cn("flex flex-col justify-between p-10", isDarkTheme ? "border-r-0" : "border-r border-current/5")}>
+            <div className="inline-flex w-fit items-center gap-3">
+              <img src={logoSrc} alt="NeuroNex AI" className="h-10 w-10 object-contain" />
+              <span className="text-xs font-black uppercase tracking-[0.24em]">NeuroNex AI</span>
+            </div>
+            <div className="max-w-[22rem]">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-current/35">Novas contas pausadas</p>
+              <h1 className="mt-6 text-5xl font-black leading-[0.92] tracking-[-0.06em]">Estamos aprimorando o NeuroNex.</h1>
+              <p className="mt-7 text-base font-semibold leading-relaxed text-current/50">
+                A criação pública de contas está temporariamente indisponível durante esta etapa de desenvolvimento.
+              </p>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-current/10">
+              <div className="h-full w-1/2 rounded-full bg-current" />
+            </div>
+          </aside>
+        ) : (
+          <div className="flex min-h-[7.2rem] items-start justify-center pt-1">
+            <img src={logoSrc} alt="NeuroNex AI" className="h-14 w-14 object-contain" />
+          </div>
+        )}
+
+        <div className={cn("flex min-h-full flex-col", isMobile ? "" : "justify-center p-8 lg:p-10")}>
+          <div className={cn("mx-0 shadow-[0_-20px_54px_-38px_rgba(0,0,0,0.72)]", isMobile ? "min-h-[min(52dvh,29rem)] rounded-b-[36px] rounded-t-[34px] px-7 pb-7 pt-9" : "rounded-[40px] px-10 py-10", panelClass)}>
+            <div className={cn("mb-6 inline-flex h-12 w-12 items-center justify-center rounded-[18px] border", mutedPanelClass)}>
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-current/42">Pausa temporária</p>
+            <h2 className="mt-3 text-[2.25rem] font-black leading-[0.95] tracking-[-0.06em]">
+              Cadastro fechado para novos acessos.
+            </h2>
+            <p className="mt-5 text-sm font-semibold leading-relaxed text-current/58">
+              Faremos uma pausa temporária para aprimorar funcionalidades. Quem já tem conta de acesso pode entrar normalmente pelo login.
+            </p>
+            <div className={cn("mt-7 rounded-[18px] border p-4 text-xs font-semibold leading-relaxed", mutedPanelClass)}>
+              Não movimente dados reais durante este período. O ambiente atual é exclusivo para desenvolvimento.
+            </div>
+            <Button asChild className={cn("mt-7 h-14 w-full rounded-[12px] text-[11px] font-black uppercase tracking-[0.18em]", primaryButtonClass)}>
+              <Link to="/auth">
+                Entrar com conta existente
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function CreateAccountFlow() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { theme } = useTheme();

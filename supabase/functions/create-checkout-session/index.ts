@@ -312,6 +312,8 @@ Deno.serve(async (req: Request) => {
       throw err;
     }
 
+    await assertCustomerAvailableForUser(customerId, user.id);
+
     const essentialFallback = {
       plan: "Essential",
       plan_code: "essential",

@@ -32,6 +32,9 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+const PUBLIC_SIGNUP_PAUSED_MESSAGE =
+  'Novas contas estão temporariamente pausadas enquanto aprimoramos funcionalidades. Quem já tem conta pode entrar normalmente.';
+
 type BiometricPromptDialogProps = {
   open: boolean;
   isMobile: boolean;
@@ -215,6 +218,12 @@ const AuthPageV2 = () => {
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
+      if (role === 'patient' && patientAuthMode === 'signup') {
+        toast.info(PUBLIC_SIGNUP_PAUSED_MESSAGE);
+        setPatientAuthMode('login');
+        return;
+      }
+
       if (role === 'patient' && patientAuthMode === 'signup') {
         const inviteToken = window.localStorage.getItem('neuronex_patient_portal_invite_token') || undefined;
         const { data, error } = await supabase.functions.invoke<{
