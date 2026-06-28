@@ -39,7 +39,7 @@ drop policy if exists "Users can delete own notion token" on public.user_notion_
 revoke select, insert, update, delete on public.user_notion_tokens from anon, authenticated;
 grant select (user_id, workspace_id, bot_id, created_at, updated_at) on public.user_notion_tokens to authenticated;
 grant delete on public.user_notion_tokens to authenticated;
-revoke truncate, references, trigger on public.user_notion_tokens from authenticated;
+revoke truncate, references, trigger on public.user_notion_tokens from anon, authenticated;
 
 drop trigger if exists set_updated_at on public.user_notion_tokens;
 create trigger set_updated_at
