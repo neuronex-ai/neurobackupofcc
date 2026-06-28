@@ -287,9 +287,10 @@ const ClinicalPrepMetric = ({
   </div>
 );
 
-const SessionSummaryLayer = ({
+const ScheduleDetailsLayer = ({
   id,
   open,
+  appointment,
   latestSessionNote,
   latestSummaryText,
   latestTopics,
@@ -298,6 +299,7 @@ const SessionSummaryLayer = ({
 }: {
   id: string;
   open: boolean;
+  appointment?: Appointment;
   latestSessionNote?: SessionNote;
   latestSummaryText: string | null;
   latestTopics: string[];
