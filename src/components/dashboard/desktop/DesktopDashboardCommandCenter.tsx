@@ -48,7 +48,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { usePendingPatientsCount } from "@/hooks/use-pending-patients-count";
 import { useProfile } from "@/hooks/use-profile";
 import { useSessionNotes } from "@/hooks/use-session-notes";
-import { getAppointmentKind } from "@/lib/appointment-metadata";
+import { getAppointmentKind, getAppointmentMetadata, type AppointmentKind } from "@/lib/appointment-metadata";
 import { getAppointmentStatusMeta } from "@/lib/appointment-status";
 import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 import { cn } from "@/lib/utils";
@@ -58,6 +58,7 @@ import {
   buildAttentionQueue,
   buildFinancialSignal,
   getActiveAppointments,
+  getNextScheduleItem,
   getNextSession,
   getTodayAppointments,
   isOnlineAppointment,
@@ -123,6 +124,53 @@ const getAppointmentLabel = (appointment: Appointment) => {
   if (kind === "block") return "Bloqueio";
   if (kind === "event") return "Evento";
   return isOnlineAppointment(appointment) ? "Online" : "Consultório";
+};
+
+const scheduleKindLabels: Record<AppointmentKind, string> = {
+  session: "Atendimento",
+  event: "Evento",
+  block: "Bloqueio",
+};
+
+const getScheduleTitle = (appointment?: Appointment | null) => {
+  if (!appointment) return "Agenda livre";
+  return getAppointmentDisplayTitle(appointment) || appointment.patient_name || scheduleKindLabels[getAppointmentKind(appointment)];
+};
+
+const getScheduleFocusLabel = (appointment?: Appointment | null) => {
+  if (!appointment) return "Próximo foco";
+  const kind = getAppointmentKind(appointment);
+  if (kind === "event") return "Próximo evento";
+  if (kind === "block") return "Próximo bloqueio";
+  return "Próximo atendimento";
+};
+
+const getScheduleModeLabel = (appointment?: Appointment | null) => {
+  if (!appointment) return "Novo agendamento";
+  const kind = getAppointmentKind(appointment);
+  const metadata = getAppointmentMetadata(appointment);
+  if (kind === "event") return metadata.eventCategoryLabel || "Evento";
+  if (kind === "block") return "Bloqueio";
+  return isOnlineAppointment(appointment) ? "Online" : "Consultório";
+};
+
+const getSchedulePrompt = (appointment: Appointment, expanded: boolean) => {
+  const kind = getAppointmentKind(appointment);
+  const metadata = getAppointmentMetadata(appointment);
+
+  if (expanded) {
+    return kind === "session" ? "Resumo clínico aberto abaixo." : "Detalhes do compromisso abertos abaixo.";
+  }
+
+  if (kind === "event") {
+    return metadata.eventLocation ? `Local: ${metadata.eventLocation}` : "Clique para revisar detalhes do evento.";
+  }
+
+  if (kind === "block") {
+    return "Período reservado na agenda.";
+  }
+
+  return isOnlineAppointment(appointment) ? "Teleconsulta pronta para entrada direta." : "Clique para preparar a sessão.";
 };
 
 const getSessionSummaryText = (note?: SessionNote | null) => {

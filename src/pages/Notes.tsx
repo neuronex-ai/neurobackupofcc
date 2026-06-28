@@ -197,7 +197,7 @@ export default function Notes() {
                                 initial={false}
                                 animate={{ width: isListCollapsed ? 52 : 330 }}
                                 transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
-                                className="notes-retina-rail relative flex shrink-0 flex-col overflow-hidden border-r"
+                                className="notes-retina-rail relative z-20 flex shrink-0 flex-col overflow-hidden border-r"
                             >
                                 <div className={cn("h-full relative z-10", isListCollapsed ? "w-[52px]" : "w-[330px]")}>
                                     <NotesListPanel
@@ -261,8 +261,7 @@ export default function Notes() {
     return (
         <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-transparent font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
             <div className="relative isolate z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 items-stretch px-5 pb-5 pt-28 [contain:layout_paint]">
-                {/* Master Clipping Stage - O "quadrado" solicitado para acoplar os canvas */}
-                <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[30px] [clip-path:inset(0_round_30px)] [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
+                <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[30px] ring-1 ring-zinc-950/[0.025] dark:ring-white/[0.025] [clip-path:inset(0_round_30px)] [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -274,7 +273,7 @@ export default function Notes() {
                                 initial={false}
                                 animate={{ width: isSidebarCollapsed ? 66 : 226 }}
                                 transition={{ type: "spring", stiffness: 320, damping: 34, mass: 0.78 }}
-                                className="notes-retina-rail relative hidden shrink-0 overflow-hidden border-r lg:flex"
+                                className="notes-retina-rail relative z-20 hidden shrink-0 overflow-hidden border-r lg:flex"
                             >
                                 <div className={cn("h-full relative z-10", isSidebarCollapsed ? "w-[66px]" : "w-[226px]")}>
                                     <NotesSidebar
