@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Transaction } from "@/types";
 import { Button } from "@/components/ui/button";
+import { ReceiptModal } from "@/components/financeiro/ReceiptModal";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -47,8 +48,8 @@ const TransactionDetailView = ({ transaction, onBack }: TransactionDetailViewPro
     const isIncome = transaction.type === "income";
     const isNeuro = Boolean(transaction.external_reference || transaction.origin === "gateway_auto");
     const patientName = (transaction as any).patient_name || (transaction as any).patients?.name;
-    const receiptUrl = getDocumentUrl(transaction, "receipt");
     const invoiceUrl = getDocumentUrl(transaction, "invoice");
+    const patientEmail = (transaction as any).patient_email || (transaction as any).patients?.email;
 
     const InfoRow = ({ icon: Icon, label, value, subValue }: any) => (
         <div className="flex items-start gap-4 rounded-[24px] border border-zinc-100 bg-white p-5 dark:border-white/5 dark:bg-white/[0.02]">
@@ -74,9 +75,11 @@ const TransactionDetailView = ({ transaction, onBack }: TransactionDetailViewPro
                     <ChevronLeft className="mr-2 h-4 w-4" /> Voltar
                 </Button>
                 <div className="flex items-center gap-2">
-                    <Button onClick={() => openDocument(receiptUrl, "Recibo ainda não disponível para esta movimentação.")} variant="outline" size="sm" className="h-10 rounded-full border-zinc-200 px-6 text-[10px] font-black uppercase tracking-widest dark:border-white/10">
-                        <Receipt className="mr-2 h-3.5 w-3.5" /> Recibo
-                    </Button>
+                    <ReceiptModal transaction={transaction} patientEmail={patientEmail}>
+                        <Button variant="outline" size="sm" className="h-10 rounded-full border-zinc-200 px-6 text-[10px] font-black uppercase tracking-widest dark:border-white/10">
+                            <Receipt className="mr-2 h-3.5 w-3.5" /> Recibo
+                        </Button>
+                    </ReceiptModal>
                     {isNeuro && (
                         <Button onClick={() => openDocument(invoiceUrl, "Fatura ainda não disponível para esta movimentação.")} variant="outline" size="sm" className="h-10 rounded-full border-zinc-200 px-6 text-[10px] font-black uppercase tracking-widest dark:border-white/10">
                             <FileText className="mr-2 h-3.5 w-3.5" /> Fatura

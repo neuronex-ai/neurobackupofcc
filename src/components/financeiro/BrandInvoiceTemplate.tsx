@@ -29,7 +29,7 @@ export const BrandInvoiceTemplate = ({
         <div className="grid grid-cols-2 gap-x-40 gap-y-32">
           {Array.from({ length: 6 }).map((_, i) => (
             <span key={i} className="whitespace-nowrap text-3xl font-black uppercase tracking-[0.6em]">
-              NeuroNex Protocol
+              NeuroFinance
             </span>
           ))}
         </div>
@@ -39,7 +39,7 @@ export const BrandInvoiceTemplate = ({
         <div className="space-y-6">
           <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-black text-4xl font-bold text-white shadow-2xl">N</div>
           <div>
-            <h1 className="text-[11px] font-black uppercase tracking-[0.6em] text-zinc-400/80">Documento oficial</h1>
+            <h1 className="text-[11px] font-black uppercase tracking-[0.6em] text-zinc-400/80">Comprovante NeuroFinance</h1>
             <p className="mt-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-zinc-300">
               REF: <span className="font-mono text-zinc-400">{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
             </p>
@@ -49,7 +49,7 @@ export const BrandInvoiceTemplate = ({
           <h2 className="mb-4 text-7xl font-extralight italic tracking-[-0.08em] text-black">Recibo</h2>
           <div className="flex items-center justify-end gap-2.5 rounded-full border border-emerald-100/50 bg-emerald-50/50 px-4 py-1.5 text-emerald-600">
             <ShieldCheck className="h-4 w-4" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Autenticidade validada</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Emitido pelo NeuroFinance</span>
           </div>
         </div>
       </div>
@@ -118,7 +118,7 @@ export const BrandInvoiceTemplate = ({
       <div className="flex items-center justify-between border-t border-zinc-50 pt-12 font-sans text-[8px] font-bold uppercase tracking-[0.4em] text-zinc-300">
         <div className="flex items-center gap-3">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-500/30" />
-          NeuroNex Bank Infrastructure - Protected Document
+          NeuroFinance - Documento protegido
         </div>
         <span className="italic tracking-widest opacity-40">Page 01 / 01</span>
       </div>

@@ -15,6 +15,7 @@ import {
     EyeOff,
     Landmark,
     Loader2,
+    Printer,
     RefreshCw,
     Search,
     Wallet,
@@ -38,6 +39,7 @@ import {
     type StatementSortOrder,
     type StatementTransferMethodFilter,
 } from "@/components/financeiro/statement/statement-utils";
+import { StatementPrintModal } from "@/components/financeiro/statement/StatementPrintModal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -187,6 +189,16 @@ export function DetailedStatementPanel({
         () => sortStatementTransactions(filteredTransactions, sortOrder),
         [filteredTransactions, sortOrder],
     );
+    const printSummary = useMemo(() => {
+        const income = sortedTransactions
+            .filter((transaction) => transaction.type === "income")
+            .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+        const expense = sortedTransactions
+            .filter((transaction) => transaction.type === "expense")
+            .reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
+
+        return { income, expense, balance: income - expense };
+    }, [sortedTransactions]);
     const pageCount = Math.max(1, Math.ceil(sortedTransactions.length / STATEMENT_PAGE_SIZE));
     const paginatedTransactions = useMemo(
         () => sortedTransactions.slice((page - 1) * STATEMENT_PAGE_SIZE, page * STATEMENT_PAGE_SIZE),
@@ -391,6 +403,20 @@ export function DetailedStatementPanel({
                     >
                         {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                     </Button>
+                    <StatementPrintModal
+                        transactions={sortedTransactions}
+                        dateRange={{ from: queryStart, to: queryEnd }}
+                        summary={printSummary}
+                    >
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            title="Imprimir extrato"
+                            className="h-11 w-11 rounded-[16px] border-zinc-200 bg-white/70 dark:border-white/10 dark:bg-white/[0.035]"
+                        >
+                            <Printer className="h-4 w-4" />
+                        </Button>
+                    </StatementPrintModal>
                 </div>
             </div>
 

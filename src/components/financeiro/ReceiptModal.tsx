@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer, FileCheck, Mail, Loader2 } from "lucide-react";
+import { Printer, FileCheck, Mail, Loader2, ShieldCheck } from "lucide-react";
 import { Transaction } from "@/types";
 import { useProfile } from "@/hooks/use-profile";
 import { format } from "date-fns";
@@ -67,18 +67,18 @@ export const ReceiptModal = ({ transaction, children, patientEmail }: ReceiptMod
             const { error } = await supabase.functions.invoke('send-document-email', {
                 body: {
                     to: patientEmail,
-                    subject: `Recibo - ${patientName}`,
+                    subject: `Recibo NeuroFinance - ${patientName}`,
                     htmlBody: `
                     <div style="font-family: sans-serif; color: #333;">
                         <h2>Olá, ${patientName}.</h2>
-                        <p>Segue em anexo o seu recibo referente à ${transaction.description}.</p>
+                        <p>Segue em anexo o seu recibo NeuroFinance referente à ${transaction.description}.</p>
                         <p><strong>Valor:</strong> ${formatCurrency(transaction.amount)}</p>
                         <p><strong>Data:</strong> ${dateStr}</p>
                         <br/>
                         <p>Atenciosamente,<br/>${professionalName}</p>
                     </div>
                 `,
-                    documentType: "Recibo",
+                    documentType: "Recibo NeuroFinance",
                     pdfAttachment: {
                         filename: `recibo_${patientName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.pdf`,
                         content: pdfBase64,
@@ -101,7 +101,7 @@ export const ReceiptModal = ({ transaction, children, patientEmail }: ReceiptMod
     const professionalRegistry = profile?.crp ? `CRP: ${profile.crp}` : "";
     const dateStr = format(new Date(transaction.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
     const locationCity = (profile?.address ? profile.address.split('-').pop()?.trim() : "São Paulo, SP") || "São Paulo, SP";
-    const patientName = transaction.description.replace('Sessão - ', '') || "Paciente";
+    const patientName = (transaction as any).patient_name || (transaction as any).patients?.name || transaction.description.replace('Sessão - ', '') || "Paciente";
 
     return (
         <Dialog>
@@ -115,9 +115,13 @@ export const ReceiptModal = ({ transaction, children, patientEmail }: ReceiptMod
                     <div className="h-16 border-b border-border/10 dark:border-white/5 bg-card dark:bg-[#0A0A0B] flex items-center justify-between px-8 shrink-0">
                         <div className="flex items-center gap-2 text-foreground dark:text-white">
                             <FileCheck className="h-5 w-5 text-primary" />
-                            <span className="font-bold text-sm tracking-wide">Pré-visualização do Recibo</span>
+                            <span className="font-bold text-sm tracking-wide">Recibo NeuroFinance</span>
                         </div>
                         <div className="flex gap-2">
+                            <div className="hidden items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground md:flex dark:border-white/10 dark:bg-white/[0.035]">
+                                <ShieldCheck className="h-3.5 w-3.5" />
+                                White-label
+                            </div>
                             <Button
                                 size="sm"
                                 variant="ghost"
