@@ -104,11 +104,11 @@ export default function DesktopAgenda() {
     }, [appointments, searchQuery, selectedTag]);
 
     return (
-        <div className="relative min-h-screen overflow-hidden bg-background pb-12 pt-28 font-sans text-foreground selection:bg-primary/10 selection:text-primary">
+        <div className="relative min-h-screen overflow-hidden bg-background pb-4 pt-24 font-sans text-foreground selection:bg-primary/10 selection:text-primary lg:pt-28">
             <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_50%_10%,hsl(var(--foreground)/0.008),transparent_34%)] dark:bg-[radial-gradient(circle_at_50%_10%,rgba(255,255,255,0.003),transparent_34%)]" />
             <div className="premium-noise pointer-events-none fixed inset-0 z-0 opacity-[0.012] mix-blend-overlay dark:opacity-[0.025]" />
 
-            <div className="page-spacing relative z-10 mx-auto flex h-[calc(100vh-164px)] max-w-[2200px] gap-4 overflow-hidden rounded-[40px] border border-border/45 bg-card/42 p-3 shadow-[0_22px_90px_-76px_hsl(var(--foreground)/0.42)] dark:border-white/[0.04] dark:bg-white/[0.02] dark:shadow-[0_22px_70px_-60px_rgba(0,0,0,0.86)] md:p-4">
+            <div className="page-spacing relative z-10 mx-auto flex h-[calc(100dvh-7rem)] max-w-[2200px] gap-4 overflow-hidden rounded-[40px] border border-border/45 bg-card/42 p-3 shadow-[0_22px_90px_-76px_hsl(var(--foreground)/0.42)] dark:border-white/[0.04] dark:bg-white/[0.02] dark:shadow-[0_22px_70px_-60px_rgba(0,0,0,0.86)] md:p-4 lg:h-[calc(100dvh-8rem)]">
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,hsl(var(--foreground)/0.01),transparent_30%),linear-gradient(180deg,hsl(var(--background)/0.05),transparent_42%)] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.004),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.006),transparent_42%)]" />
                 <AnimatePresence mode="wait">
                     {sidebarOpen && (

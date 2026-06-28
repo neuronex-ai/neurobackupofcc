@@ -43,14 +43,14 @@ const CustomCaption = () => {
       <button
         onClick={() => previousMonth && goToMonth(previousMonth)}
         disabled={!previousMonth}
-        className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-400 shadow-sm transition-all hover:border-zinc-300 hover:text-zinc-950 active:scale-95 disabled:opacity-20 dark:border-white/[0.08] dark:bg-white/[0.045] dark:hover:border-white/15 dark:hover:text-white motion-reduce:transition-none motion-reduce:active:scale-100"
+        className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.08] text-white/52 shadow-sm transition-all hover:bg-white/[0.12] hover:text-white active:scale-95 disabled:opacity-20 dark:border-zinc-950/10 dark:bg-zinc-950/[0.055] dark:text-zinc-950/52 dark:hover:bg-zinc-950/[0.08] dark:hover:text-zinc-950 motion-reduce:transition-none motion-reduce:active:scale-100"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
 
       <Popover>
         <PopoverTrigger asChild>
-          <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900 transition-all hover:opacity-70 dark:text-zinc-100 motion-reduce:transition-none">
+          <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-white transition-all hover:opacity-70 dark:text-zinc-950 motion-reduce:transition-none">
             {format(displayMonth, "MMMM yyyy", { locale: ptBR })}
           </button>
         </PopoverTrigger>
@@ -97,7 +97,7 @@ const CustomCaption = () => {
       <button
         onClick={() => nextMonth && goToMonth(nextMonth)}
         disabled={!nextMonth}
-        className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-400 shadow-sm transition-all hover:border-zinc-300 hover:text-zinc-950 active:scale-95 disabled:opacity-20 dark:border-white/[0.08] dark:bg-white/[0.045] dark:hover:border-white/15 dark:hover:text-white motion-reduce:transition-none motion-reduce:active:scale-100"
+        className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.08] text-white/52 shadow-sm transition-all hover:bg-white/[0.12] hover:text-white active:scale-95 disabled:opacity-20 dark:border-zinc-950/10 dark:bg-zinc-950/[0.055] dark:text-zinc-950/52 dark:hover:bg-zinc-950/[0.08] dark:hover:text-zinc-950 motion-reduce:transition-none motion-reduce:active:scale-100"
       >
         <ChevronRight className="h-4 w-4" />
       </button>
@@ -125,22 +125,22 @@ export const Sidebar = ({
     <div className="custom-scrollbar flex h-full flex-col space-y-4 overflow-y-auto pr-1">
       
       {/* 1. Calendar Section - High Fidelity Monochrome */}
-      <div className="relative shrink-0 overflow-hidden rounded-[34px] border border-border/65 bg-card/78 p-6 shadow-[0_24px_74px_-56px_hsl(var(--foreground)/0.44)] ring-1 ring-foreground/[0.025] transition-all duration-500 hover:border-zinc-300 dark:border-white/[0.08] dark:bg-white/[0.04] dark:shadow-[0_24px_68px_-54px_rgba(0,0,0,0.9)] dark:ring-white/[0.018] dark:hover:border-white/14 motion-reduce:transition-none">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,hsl(var(--foreground)/0.012),transparent_34%)] dark:bg-[radial-gradient(circle_at_16%_0%,rgba(255,255,255,0.004),transparent_34%)]" />
+      <div className="relative shrink-0 overflow-hidden rounded-[34px] border border-zinc-950 bg-zinc-950 p-6 text-white shadow-[0_24px_74px_-56px_rgba(0,0,0,0.72)] ring-1 ring-white/[0.025] transition-all duration-500 dark:border-white dark:bg-white dark:text-zinc-950 dark:shadow-[0_24px_68px_-58px_rgba(255,255,255,0.32)] motion-reduce:transition-none">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,rgba(255,255,255,0.025),transparent_34%)] dark:bg-[radial-gradient(circle_at_16%_0%,rgba(0,0,0,0.035),transparent_34%)]" />
         
         <div className="relative z-10 mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-white/[0.08] dark:bg-white/[0.045]">
-              <CalendarIcon className="h-3.5 w-3.5 text-zinc-500" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.08] shadow-sm dark:border-zinc-950/10 dark:bg-zinc-950/[0.055]">
+              <CalendarIcon className="h-3.5 w-3.5 text-white/58 dark:text-zinc-950/56" />
             </div>
             <div className="flex flex-col">
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-900 dark:text-white">Calendário</span>
-              <span className="text-[7px] font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-widest">Agenda</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white dark:text-zinc-950">Calendário</span>
+              <span className="text-[7px] font-bold uppercase tracking-widest text-white/38 dark:text-zinc-950/38">Agenda</span>
             </div>
           </div>
           <button
             onClick={() => onDateChange(new Date())}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-400 shadow-sm transition-all hover:border-zinc-300 hover:text-zinc-950 dark:border-white/[0.08] dark:bg-white/[0.045] dark:hover:border-white/14 dark:hover:text-white motion-reduce:transition-none"
+            className="rounded-lg border border-white/10 bg-white/[0.08] px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-white/52 shadow-sm transition-all hover:bg-white/[0.12] hover:text-white dark:border-zinc-950/10 dark:bg-zinc-950/[0.055] dark:text-zinc-950/52 dark:hover:bg-zinc-950/[0.08] dark:hover:text-zinc-950 motion-reduce:transition-none"
           >
             Hoje
           </button>
@@ -161,13 +161,13 @@ export const Sidebar = ({
             nav: "hidden",
             table: "w-full border-collapse",
             head_row: "flex w-full justify-between mb-4",
-            head_cell: "text-zinc-300 dark:text-zinc-700 w-8 font-black text-[8px] uppercase text-center",
+            head_cell: "text-white/24 dark:text-zinc-950/28 w-8 font-black text-[8px] uppercase text-center",
             row: "flex w-full mt-1.5 justify-between px-0.5",
             cell: "h-8 w-8 text-center text-[10px] p-0 relative flex items-center justify-center",
-            day: "h-7 w-7 p-0 font-bold text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.04] rounded-lg transition-all flex items-center justify-center",
-            day_selected: "!bg-zinc-900 dark:!bg-white !text-white dark:!text-black font-black shadow-lg rounded-lg scale-105",
-            day_today: "text-zinc-900 dark:text-white font-black ring-1 ring-zinc-200 dark:ring-white/20",
-            day_outside: "text-zinc-200 dark:text-zinc-900 opacity-20",
+            day: "h-7 w-7 p-0 font-bold text-white/45 dark:text-zinc-950/45 hover:text-white dark:hover:text-zinc-950 hover:bg-white/[0.08] dark:hover:bg-zinc-950/[0.055] rounded-lg transition-all flex items-center justify-center",
+            day_selected: "!bg-white dark:!bg-zinc-950 !text-zinc-950 dark:!text-white font-black shadow-lg rounded-lg scale-105",
+            day_today: "text-white dark:text-zinc-950 font-black ring-1 ring-white/20 dark:ring-zinc-950/20",
+            day_outside: "text-white/12 dark:text-zinc-950/12 opacity-50",
             day_disabled: "opacity-10",
           }}
         />
