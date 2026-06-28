@@ -71,22 +71,11 @@ export function useFinancialPlanning(month: Date) {
         updated_at: new Date().toISOString(),
       };
 
-      const { data: existing, error: existingError } = await supabase
+      const { data, error } = await supabase
         .from("financial_planning_goals")
-        .select("id")
-        .eq("professional_id", userId)
-        .eq("month", monthKey)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (existingError) throw existingError;
-
-      const query = existing?.id
-        ? supabase.from("financial_planning_goals").update(payload).eq("id", existing.id)
-        : supabase.from("financial_planning_goals").insert(payload);
-
-      const { data, error } = await query.select("*").single();
+        .upsert(payload, { onConflict: "professional_id,month" })
+        .select("*")
+        .single();
 
       if (error) throw error;
       return data as FinancialPlanningGoal;

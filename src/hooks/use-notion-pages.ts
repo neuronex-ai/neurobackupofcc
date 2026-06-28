@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotionAuth } from "./use-notion-auth";
 
 export interface NotionPage {
@@ -19,8 +19,25 @@ export interface NotionBlock {
     [key: string]: any;
 }
 
+export interface NotionImportResult {
+    note: {
+        id: string;
+        title: string;
+        content: string;
+        updated_at: string;
+    };
+    created: boolean;
+    source: {
+        page_id: string;
+        title: string;
+        url?: string | null;
+        last_edited_time?: string | null;
+    };
+}
+
 export const useNotionPages = () => {
     const { isConnected } = useNotionAuth();
+    const queryClient = useQueryClient();
 
     const {
         data: pages,
@@ -101,6 +118,35 @@ export const useNotionPages = () => {
         return true;
     };
 
+    const importPageMutation = useMutation({
+        mutationFn: async (pageId: string): Promise<NotionImportResult> => {
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
+            if (!session) throw new Error("Usuário não autenticado");
+
+            const { data, error } = await supabase.functions.invoke(
+                "notion-pages?action=import-page",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                    body: { page_id: pageId },
+                }
+            );
+
+            if (error) throw error;
+            if (data?.error) throw new Error(data.error);
+
+            return data as NotionImportResult;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["personalNotes"] });
+            queryClient.invalidateQueries({ queryKey: ["notion-pages"] });
+        },
+    });
+
     return {
         pages: pages || [],
         isLoading,
@@ -109,5 +155,7 @@ export const useNotionPages = () => {
         refetch,
         fetchPageContent,
         updateBlock,
+        importPage: importPageMutation.mutateAsync,
+        isImportingPage: importPageMutation.isPending,
     };
 };

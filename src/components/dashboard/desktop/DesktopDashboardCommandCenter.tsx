@@ -778,7 +778,7 @@ const FinanceMetricCard = ({
         interactive && "hover:shadow-lg",
         accent
           ? "border-foreground bg-foreground text-background dark:border-white dark:bg-white dark:text-zinc-950"
-          : "dashboard-retina-card text-foreground",
+          : "dashboard-retina-card dashboard-finance-metric text-foreground",
       )}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(0,0,0,0.035),transparent_34%)] opacity-70 dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.006),transparent_34%)]" />

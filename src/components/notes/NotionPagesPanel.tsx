@@ -6,10 +6,11 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    ArrowLeft, BookOpen, ChevronRight, Clock, ExternalLink, FileText, Loader2, RefreshCw
+    ArrowLeft, BookOpen, CheckCircle2, ChevronRight, Clock, Download, ExternalLink, FileText, Loader2, RefreshCw
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 // ─── Notion Block Renderer ─────────────────────────────────────
 
@@ -321,13 +322,15 @@ function NotionBlockRenderer({
 interface NotionPagesPanelProps {
     onSelectNotionPage?: (pageId: string) => void;
     selectedPageId?: string | null;
+    onImportedNote?: (noteId: string) => void;
 }
 
 export const NotionPagesPanel = ({
     onSelectNotionPage,
     selectedPageId,
+    onImportedNote,
 }: NotionPagesPanelProps) => {
-    const { pages, isLoading, isConnected, refetch, fetchPageContent, updateBlock } = useNotionPages();
+    const { pages, isLoading, isConnected, refetch, fetchPageContent, updateBlock, importPage, isImportingPage } = useNotionPages();
     const [viewingPage, setViewingPage] = useState<{
         id: string;
         title: string;
@@ -338,6 +341,7 @@ export const NotionPagesPanel = ({
     const [isLoadingContent, setIsLoadingContent] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [importingPageId, setImportingPageId] = useState<string | null>(null);
 
     const handleOpenPage = useCallback(
         async (page: any) => {
@@ -392,6 +396,23 @@ export const NotionPagesPanel = ({
         await refetch();
         setIsRefreshing(false);
     };
+
+    const handleImportPage = useCallback(
+        async (page: { id: string; title?: string }) => {
+            setImportingPageId(page.id);
+            try {
+                const result = await importPage(page.id);
+                toast.success(result.created ? "Página importada como nota." : "Nota do Notion atualizada.");
+                onImportedNote?.(result.note.id);
+            } catch (error) {
+                console.error("Falha ao importar página do Notion:", error);
+                toast.error("Não foi possível importar esta página.");
+            } finally {
+                setImportingPageId(null);
+            }
+        },
+        [importPage, onImportedNote]
+    );
 
     const filteredPages = pages.filter((p) =>
         p.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -464,15 +485,31 @@ export const NotionPagesPanel = ({
                                 </h2>
                             </div>
                         </div>
-                        <a
-                            href={viewingPage.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors uppercase tracking-wider"
-                        >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                            Abrir no Notion
-                        </a>
+                        <div className="flex items-center gap-2">
+                            <a
+                                href={viewingPage.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground hover:text-primary transition-colors uppercase tracking-wider"
+                            >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                Abrir no Notion
+                            </a>
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => void handleImportPage(viewingPage)}
+                                disabled={isImportingPage && importingPageId === viewingPage.id}
+                                className="h-9 rounded-xl bg-foreground px-3 text-[10px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950"
+                            >
+                                {isImportingPage && importingPageId === viewingPage.id ? (
+                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <Download className="mr-2 h-3.5 w-3.5" />
+                                )}
+                                Importar
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
