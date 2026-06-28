@@ -2,6 +2,7 @@
 
 import { addDays, differenceInMinutes, endOfDay, format, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { motion, useReducedMotion } from "framer-motion";
 import type { ElementType, KeyboardEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -205,7 +206,7 @@ const SectionHeader = ({
 );
 
 const GreetingChip = ({ label, value }: { label: string; value: string | number }) => (
-  <span className="inline-flex items-center gap-2 rounded-full border border-background/14 bg-background/10 px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-background/62">
+  <span className="dashboard-inverted-chip inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-background/62">
     {label}
     <strong className="text-sm font-black text-background tabular-nums">{value}</strong>
   </span>
@@ -279,7 +280,7 @@ const ClinicalPrepMetric = ({
   value: string | number;
   detail: string;
 }) => (
-  <div className="rounded-[22px] border border-background/16 bg-background/10 p-3 shadow-[inset_0_1px_0_hsl(var(--background)/0.14)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+  <div className="dashboard-inverted-metric rounded-[22px] p-3 transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
     <p className="text-[9px] font-black uppercase tracking-[0.16em] text-background/48">{label}</p>
     <p className="mt-1.5 truncate text-lg font-black tracking-[-0.04em] text-background">{value}</p>
     <p className="mt-1 truncate text-xs font-semibold text-background/58">{detail}</p>
@@ -317,19 +318,19 @@ const ScheduleDetailsLayer = ({
     <div
     id={id}
     className={cn(
-      "dashboard-retina-card absolute inset-x-4 bottom-4 top-[148px] z-10 rounded-[24px] p-3 text-foreground transition-[transform,opacity] duration-slow ease-apple motion-reduce:transition-none",
+      "dashboard-schedule-detail-layer absolute inset-x-4 bottom-4 top-[148px] z-10 rounded-[24px] p-3 text-white transition-[transform,opacity] duration-slow ease-apple motion-reduce:transition-none",
       open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
     )}
   >
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 [&>p:last-child]:hidden">
-          <DetailIcon className="h-3.5 w-3.5 text-muted-foreground" />
-          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">{detailTitle}</p>
-          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-white/42">Última sessão</p>
+          <DetailIcon className="h-3.5 w-3.5 text-white/50" />
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/48">{detailTitle}</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/42">Última sessão</p>
         </div>
         {latestSessionNote?.created_at ? (
-          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground/80">
+          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-white/42">
             {format(new Date(latestSessionNote.created_at), "dd/MM", { locale: ptBR })}
           </span>
         ) : null}
@@ -345,15 +346,15 @@ const ScheduleDetailsLayer = ({
             <div className="h-4 w-10/12 animate-pulse rounded-full bg-muted/25" />
           </div>
         ) : latestSummaryText ? (
-          <p className="text-xs font-semibold leading-relaxed text-foreground/82">{latestSummaryText}</p>
+          <p className="text-xs font-semibold leading-relaxed text-white/78">{latestSummaryText}</p>
         ) : (
-          <p className="text-xs font-medium leading-relaxed text-muted-foreground">Sem resumo confirmado para este paciente ainda.</p>
+          <p className="text-xs font-medium leading-relaxed text-white/50">Sem resumo confirmado para este paciente ainda.</p>
         )}
 
         {!isLoading && latestSummaryText ? (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {[...latestTopics, ...latestNextSteps].slice(0, 4).map((item) => (
-              <span key={item} className="dashboard-soft-fill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+              <span key={item} className="dashboard-schedule-detail-pill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-white/58">
                 {item}
               </span>
             ))}
@@ -364,22 +365,22 @@ const ScheduleDetailsLayer = ({
           <div className="space-y-3">
             <div className="flex flex-wrap gap-1.5">
               {appointment ? (
-                <span className="dashboard-soft-fill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="dashboard-schedule-detail-pill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-white/58">
                   {format(new Date(appointment.start_time), "HH:mm")} - {format(new Date(appointment.end_time), "HH:mm")}
                 </span>
               ) : null}
               {metadata?.eventCategoryLabel ? (
-                <span className="dashboard-soft-fill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="dashboard-schedule-detail-pill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-white/58">
                   {metadata.eventCategoryLabel}
                 </span>
               ) : null}
               {eventLocation ? (
-                <span className="dashboard-soft-fill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+                <span className="dashboard-schedule-detail-pill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-white/58">
                   {eventLocation}
                 </span>
               ) : null}
             </div>
-            <p className="text-xs font-semibold leading-relaxed text-foreground/82">
+            <p className="text-xs font-semibold leading-relaxed text-white/78">
               {eventNotes || "Sem observações adicionais para este compromisso."}
             </p>
           </div>
@@ -414,6 +415,7 @@ const AppointmentScheduleArtifact = ({
   loadingSessionNotes: boolean;
 }) => {
   const navigate = useNavigate();
+  const prefersReducedMotion = useReducedMotion();
   const summaryPanelId = "dashboard-next-schedule-details";
   const minutesUntil = getMinutesUntil(nextAppointment);
   const scheduleKind = nextAppointment ? getAppointmentKind(nextAppointment) : null;
@@ -435,6 +437,19 @@ const AppointmentScheduleArtifact = ({
     }
   };
 
+  const scheduleCardMotion = prefersReducedMotion
+    ? {}
+    : {
+        animate: {
+          y: summaryOpen ? 0 : [0, -1.4, 0],
+          rotateX: summaryOpen ? 0 : [0, 0.25, 0],
+        },
+        transition: {
+          y: { duration: 6.4, repeat: Infinity, ease: "easeInOut" },
+          rotateX: { duration: 7.2, repeat: Infinity, ease: "easeInOut" },
+        },
+      };
+
   return (
     <div className="relative h-full min-h-[264px] overflow-hidden border-t border-background/10 bg-background/[0.07] p-4 [perspective:1600px] dark:border-zinc-950/10 dark:bg-zinc-950/[0.035] lg:border-l lg:border-t-0">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_62%_10%,hsl(var(--background)/0.08),transparent_30%),linear-gradient(180deg,hsl(var(--background)/0.035),transparent_48%)] opacity-75 dark:bg-[radial-gradient(circle_at_62%_10%,rgba(0,0,0,0.06),transparent_30%),linear-gradient(180deg,rgba(0,0,0,0.035),transparent_48%)]" />
@@ -450,13 +465,14 @@ const AppointmentScheduleArtifact = ({
         isLoading={loadingSessionNotes}
       />
 
-      <div
+      <motion.div
         role={nextAppointment ? "button" : undefined}
         tabIndex={nextAppointment ? 0 : undefined}
         aria-expanded={nextAppointment ? summaryOpen : undefined}
         aria-controls={nextAppointment ? summaryPanelId : undefined}
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
+        {...scheduleCardMotion}
         className={cn(
           "dashboard-schedule-card group/appointment absolute inset-x-4 z-20 overflow-hidden rounded-[28px] p-4 text-foreground outline-none transition-[top,height,transform,box-shadow,border-color,background-color] duration-slow ease-apple [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.992] motion-reduce:transform-none motion-reduce:transition-none",
           nextAppointment && "cursor-pointer",
@@ -466,6 +482,29 @@ const AppointmentScheduleArtifact = ({
         )}
       >
         <div className="pointer-events-none absolute inset-0 rounded-[32px] bg-[linear-gradient(180deg,hsl(var(--background)/0.24),transparent_42%),linear-gradient(135deg,hsl(var(--foreground)/0.018),transparent_48%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.018),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.012),transparent_48%)]" />
+        <div className="dashboard-schedule-art pointer-events-none absolute inset-0 overflow-hidden rounded-[28px]">
+          <motion.span
+            className="dashboard-schedule-orbit dashboard-schedule-orbit-primary"
+            animate={prefersReducedMotion ? undefined : { rotate: 360 }}
+            transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+          />
+          <motion.span
+            className="dashboard-schedule-orbit dashboard-schedule-orbit-secondary"
+            animate={prefersReducedMotion ? undefined : { rotate: -360 }}
+            transition={{ duration: 26, repeat: Infinity, ease: "linear" }}
+          />
+          <motion.span
+            className="dashboard-schedule-scan"
+            animate={prefersReducedMotion ? undefined : { x: ["-24%", "132%"], opacity: [0, 0.7, 0] }}
+            transition={{ duration: 5.8, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.2 }}
+          />
+          <span className="dashboard-schedule-time-rail" />
+          <motion.span
+            className="dashboard-schedule-now-marker"
+            animate={prefersReducedMotion ? undefined : { scale: [1, 1.18, 1], opacity: [0.72, 1, 0.72] }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
 
         <div className="relative z-10">
           <div className="flex items-start justify-between gap-4">
@@ -548,7 +587,7 @@ const AppointmentScheduleArtifact = ({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
@@ -590,7 +629,7 @@ const MorningCommandPanel = ({
   }, [nextAppointment?.id]);
 
   return (
-    <DesktopWorkspacePanel highContrast className="min-h-[264px] p-0">
+    <DesktopWorkspacePanel highContrast className="dashboard-morning-panel min-h-[264px] p-0">
       <div className="grid min-h-[264px] lg:grid-cols-[minmax(0,1.22fr)_minmax(390px,0.78fr)]">
         <div className="flex min-h-[264px] flex-col justify-between gap-5 p-6 lg:px-8 lg:py-6">
           <div>

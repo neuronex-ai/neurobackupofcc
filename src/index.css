@@ -570,6 +570,56 @@
     border-color: rgba(255, 255, 255, 0.078);
   }
 
+  .dashboard-morning-panel {
+    box-shadow:
+      0 26px 70px -48px rgba(0, 0, 0, 0.62),
+      inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  }
+
+  .dark .dashboard-morning-panel {
+    box-shadow:
+      0 26px 74px -52px rgba(0, 0, 0, 0.92),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  .dashboard-inverted-metric {
+    border: 1px solid rgba(0, 0, 0, 0.72);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.066)),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.035), transparent 54%);
+    box-shadow:
+      0 18px 42px -32px rgba(0, 0, 0, 0.72),
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.72);
+  }
+
+  .dark .dashboard-inverted-metric {
+    border-color: rgba(9, 9, 11, 0.24);
+    background:
+      linear-gradient(180deg, rgba(9, 9, 11, 0.092), rgba(9, 9, 11, 0.052)),
+      linear-gradient(135deg, rgba(9, 9, 11, 0.035), transparent 54%);
+    box-shadow:
+      0 18px 42px -32px rgba(0, 0, 0, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(9, 9, 11, 0.14);
+  }
+
+  .dashboard-inverted-chip {
+    border: 1px solid rgba(0, 0, 0, 0.74);
+    background: rgba(255, 255, 255, 0.092);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.055),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.68);
+  }
+
+  .dark .dashboard-inverted-chip {
+    border-color: rgba(9, 9, 11, 0.2);
+    background: rgba(9, 9, 11, 0.068);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(9, 9, 11, 0.12);
+  }
+
   .dashboard-soft-fill {
     border: 1px solid hsl(var(--foreground) / 0.095);
     background: hsl(var(--background) / 0.58);
@@ -659,6 +709,113 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.042);
   }
 
+  .dashboard-schedule-detail-layer {
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    background:
+      linear-gradient(180deg, rgba(15, 15, 17, 0.94), rgba(7, 7, 8, 0.92)),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.036), transparent 56%);
+    box-shadow:
+      0 26px 56px -42px rgba(0, 0, 0, 0.84),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(18px) saturate(1.08);
+    -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  }
+
+  .dashboard-schedule-detail-pill {
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.042);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  }
+
+  .dashboard-schedule-art {
+    opacity: 0.82;
+    mix-blend-mode: multiply;
+  }
+
+  .dark .dashboard-schedule-art {
+    mix-blend-mode: normal;
+    opacity: 0.72;
+  }
+
+  .dashboard-schedule-orbit {
+    position: absolute;
+    display: block;
+    border-radius: 999px;
+    border: 1px solid rgba(9, 9, 11, 0.075);
+    background:
+      radial-gradient(circle at 50% 50%, transparent 58%, rgba(9, 9, 11, 0.048) 59%, transparent 63%),
+      conic-gradient(from 120deg, transparent 0deg, rgba(9, 9, 11, 0.1) 28deg, transparent 72deg, transparent 360deg);
+    mask-image: radial-gradient(circle, transparent 54%, #000 56%, #000 63%, transparent 65%);
+    -webkit-mask-image: radial-gradient(circle, transparent 54%, #000 56%, #000 63%, transparent 65%);
+  }
+
+  .dark .dashboard-schedule-orbit {
+    border-color: rgba(255, 255, 255, 0.045);
+    background:
+      radial-gradient(circle at 50% 50%, transparent 58%, rgba(255, 255, 255, 0.04) 59%, transparent 63%),
+      conic-gradient(from 120deg, transparent 0deg, rgba(255, 255, 255, 0.09) 28deg, transparent 72deg, transparent 360deg);
+  }
+
+  .dashboard-schedule-orbit-primary {
+    right: -42px;
+    top: -68px;
+    width: 214px;
+    height: 214px;
+  }
+
+  .dashboard-schedule-orbit-secondary {
+    right: 54px;
+    bottom: -122px;
+    width: 252px;
+    height: 252px;
+    opacity: 0.6;
+  }
+
+  .dashboard-schedule-scan {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 42%;
+    transform: skewX(-16deg);
+    background: linear-gradient(90deg, transparent, rgba(9, 9, 11, 0.06), transparent);
+  }
+
+  .dark .dashboard-schedule-scan {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.045), transparent);
+  }
+
+  .dashboard-schedule-time-rail {
+    position: absolute;
+    left: 20px;
+    right: 22px;
+    bottom: 18px;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(9, 9, 11, 0.12), rgba(9, 9, 11, 0.02));
+  }
+
+  .dark .dashboard-schedule-time-rail {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02));
+  }
+
+  .dashboard-schedule-now-marker {
+    position: absolute;
+    left: 20px;
+    bottom: 12px;
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: hsl(var(--foreground));
+    box-shadow:
+      0 0 0 7px hsl(var(--foreground) / 0.065),
+      0 14px 32px -14px hsl(var(--foreground) / 0.7);
+  }
+
+  .dark .dashboard-schedule-now-marker {
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow:
+      0 0 0 7px rgba(255, 255, 255, 0.055),
+      0 14px 32px -14px rgba(255, 255, 255, 0.48);
+  }
+
   @media (hover: hover) {
     .desktop-tactile:hover:not(:disabled) {
       transform: translateY(-1px);
@@ -687,7 +844,10 @@
     }
 
     .notes-retina-texture,
-    .notes-neuroview-backdrop {
+    .notes-neuroview-backdrop,
+    .dashboard-schedule-orbit,
+    .dashboard-schedule-scan,
+    .dashboard-schedule-now-marker {
       animation: none !important;
       transition: none !important;
     }
