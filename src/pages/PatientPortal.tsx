@@ -393,7 +393,7 @@ const BillingView = ({ billing }: { billing: ReturnType<typeof usePatientPortalB
               <div>
                 <p className="text-base font-semibold text-foreground">{entry.title || entry.description || "Cobranca"}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {entry.due_date ? `Vence em ${dateOnly.format(new Date(entry.due_date))}` : "Sem vencimento"}
+                  {entry.due_date ? `Vence em ${dateOnly.format(new Date(`${entry.due_date}T00:00:00`))}` : "Sem vencimento"}
                 </p>
               </div>
               <div className="text-right">
@@ -416,7 +416,7 @@ const BillingView = ({ billing }: { billing: ReturnType<typeof usePatientPortalB
                   <div>
                     <p className="text-base font-semibold text-foreground">{invoice.invoice_number || "Documento"}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {invoice.status} {invoice.due_date ? `- ${dateOnly.format(new Date(invoice.due_date))}` : ""}
+                      {invoice.status} {invoice.due_date ? `- ${dateOnly.format(new Date(`${invoice.due_date}T00:00:00`))}` : ""}
                     </p>
                   </div>
                   <Button
