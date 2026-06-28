@@ -3,20 +3,25 @@
 import { addDays, differenceInMinutes, endOfDay, format, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { ElementType, ReactNode } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   ArrowRight,
   Bell,
+  Calculator,
   Calendar as CalendarIcon,
   CheckCircle2,
   Clock,
   Landmark,
+  LineChart,
   MessageSquare,
   Mic,
   Plus,
+  ReceiptText,
+  Save,
   Stethoscope,
+  Target,
   TrendingUp,
   UserPlus,
   Users,
@@ -28,9 +33,9 @@ import { AppointmentDetailModal } from "@/components/agenda/AppointmentDetailMod
 import { NewAppointmentModal } from "@/components/agenda/NewAppointmentModal";
 import { NewPatientModal } from "@/components/patients/NewPatientModal";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   DesktopActionTile,
-  DesktopMiniStat,
   DesktopWorkspaceIcon,
   DesktopWorkspacePanel,
   DesktopWorkspaceShell,
@@ -41,16 +46,19 @@ import { useSynapse } from "@/context/SynapseProvider";
 import { useAppointmentsByDateRange } from "@/hooks/use-appointments-by-date-range";
 import { useDashboardManagerialMetrics } from "@/hooks/use-dashboard-managerial-metrics";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
+import { fromPlanningCents, useFinancialPlanning } from "@/hooks/use-financial-planning";
 import { useGoogleCalendarSync } from "@/hooks/use-google-calendar-sync";
 import { useNeurofinanceSnapshot } from "@/hooks/use-neurofinance-snapshot";
 import { useNotifications } from "@/hooks/use-notifications";
 import { usePendingPatientsCount } from "@/hooks/use-pending-patients-count";
 import { useProfile } from "@/hooks/use-profile";
+import { useSessionNotes } from "@/hooks/use-session-notes";
 import { getAppointmentKind } from "@/lib/appointment-metadata";
 import { getAppointmentStatusMeta } from "@/lib/appointment-status";
 import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 import { cn } from "@/lib/utils";
-import type { Appointment } from "@/types";
+import type { AISummary, Appointment, SessionNote } from "@/types";
+import { toast } from "sonner";
 import {
   buildAttentionQueue,
   buildFinancialSignal,
@@ -64,9 +72,17 @@ import {
 
 type PendingFilter = "all" | AttentionQueueCategory;
 
+type ManagerialDashboardMetrics = {
+  income?: number | null;
+  expense?: number | null;
+  result?: number | null;
+  receivable?: number | null;
+  payable?: number | null;
+};
+
 const pendingFilters: Array<{ value: PendingFilter; label: string }> = [
   { value: "all", label: "Todas" },
-  { value: "sessions", label: "Sessoes" },
+  { value: "sessions", label: "Sessões" },
   { value: "appointments", label: "Agenda" },
   { value: "registrations", label: "Cadastros" },
   { value: "neurofinance", label: "NeuroFinance" },
@@ -75,8 +91,19 @@ const pendingFilters: Array<{ value: PendingFilter; label: string }> = [
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
+const formatCompactCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 }).format(value);
+
 const formatCentsCurrency = (value: number | null) =>
   value === null ? "-" : formatCurrency(value / 100);
+
+const parseMoneyInput = (value: string) => {
+  const normalized = value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? Math.max(0, amount) : 0;
+};
+
+const formatMoneyInputValue = (value: number) => value.toFixed(2).replace(".", ",");
 
 const formatAppointmentTime = (appointment?: Appointment | null) =>
   appointment?.start_time ? format(new Date(appointment.start_time), "HH:mm") : "-";
@@ -103,8 +130,18 @@ const getAppointmentLabel = (appointment: Appointment) => {
   const kind = getAppointmentKind(appointment);
   if (kind === "block") return "Bloqueio";
   if (kind === "event") return "Evento";
-  return isOnlineAppointment(appointment) ? "Online" : "Consultorio";
+  return isOnlineAppointment(appointment) ? "Online" : "Consultório";
 };
+
+const getSessionSummaryText = (note?: SessionNote | null) => {
+  const summary = note?.ai_summary;
+  if (summary?.summary) return summary.summary;
+  if (note?.notes) return note.notes;
+  return null;
+};
+
+const getSummaryTopics = (summary?: AISummary | null) => summary?.topics?.filter(Boolean).slice(0, 3) || [];
+const getSummaryNextSteps = (summary?: AISummary | null) => summary?.next_steps?.filter(Boolean).slice(0, 2) || [];
 
 const SectionHeader = ({
   eyebrow,
@@ -201,19 +238,27 @@ const GreetingPanel = ({
   firstName,
   todayAppointments,
   weekAppointmentsCount,
-  pendingCount,
+  attentionItems,
+  nextAppointment,
 }: {
   today: Date;
   firstName: string;
   todayAppointments: Appointment[];
   weekAppointmentsCount: number;
-  pendingCount: number;
+  attentionItems: AttentionQueueItem[];
+  nextAppointment?: Appointment;
 }) => {
   const remainingToday = todayAppointments.filter((appointment) => new Date(appointment.end_time) > new Date()).length;
+  const sessionsToday = todayAppointments.filter((appointment) => getAppointmentKind(appointment) === "session").length;
+  const onlineToday = todayAppointments.filter((appointment) => isOnlineAppointment(appointment)).length;
+  const clinicalSignals = attentionItems.filter((item) => item.category === "sessions").length;
+  const appointmentSignals = attentionItems.filter((item) => item.category === "appointments").length;
+  const nextPatient = nextAppointment ? getAppointmentDisplayTitle(nextAppointment) || nextAppointment.patient_name || "Paciente" : "Sem sessão futura";
+  const nextTime = nextAppointment ? formatAppointmentTime(nextAppointment) : "Livre";
 
   return (
-    <DesktopWorkspacePanel highContrast className="min-h-[340px] p-6 lg:p-8">
-      <div className="flex h-full min-h-[276px] flex-col justify-between gap-8">
+    <DesktopWorkspacePanel highContrast className="min-h-[376px] p-6 lg:p-8">
+      <div className="flex h-full min-h-[312px] flex-col justify-between gap-8">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-background/52">
             {format(today, "EEEE, dd 'de' MMMM", { locale: ptBR })}
@@ -223,10 +268,28 @@ const GreetingPanel = ({
           </h1>
         </div>
 
+        <div className="grid gap-2 lg:grid-cols-3">
+          <div className="rounded-[24px] border border-background/12 bg-background/10 p-4 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-background/48">Próximo foco</p>
+            <p className="mt-2 truncate text-xl font-black tracking-[-0.04em] text-background">{nextPatient}</p>
+            <p className="mt-1 text-xs font-semibold text-background/58">{nextTime}</p>
+          </div>
+          <div className="rounded-[24px] border border-background/12 bg-background/10 p-4 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-background/48">Revisar antes</p>
+            <p className="mt-2 text-xl font-black tracking-[-0.04em] text-background">{clinicalSignals + appointmentSignals}</p>
+            <p className="mt-1 text-xs font-semibold text-background/58">sinais clínicos e agenda</p>
+          </div>
+          <div className="rounded-[24px] border border-background/12 bg-background/10 p-4 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-background/48">Operação do dia</p>
+            <p className="mt-2 text-xl font-black tracking-[-0.04em] text-background">{sessionsToday}</p>
+            <p className="mt-1 text-xs font-semibold text-background/58">{onlineToday} online</p>
+          </div>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           <GreetingChip label="Hoje" value={remainingToday} />
           <GreetingChip label="Semana" value={weekAppointmentsCount} />
-          <GreetingChip label="Pendencias" value={pendingCount} />
+          <GreetingChip label="Pendências" value={attentionItems.length} />
         </div>
       </div>
     </DesktopWorkspacePanel>

@@ -239,7 +239,7 @@ export const buildFinancialSignal = ({
   managerial?: ManagerialMetrics | null;
   neuroSnapshot?: NeurofinanceSnapshot | null;
 }): FinancialSignal => ({
-  statusLabel: financialLoading ? "Verificando" : financialConnected ? "NeuroFinance conectado" : "Ativacao pendente",
+  statusLabel: financialLoading ? "Verificando" : financialConnected ? "NeuroFinance conectado" : "Ativação pendente",
   statusTone: financialLoading ? "default" : financialConnected ? "success" : "warning",
   ctaLabel: financialConnected ? "Abrir conta" : "Ativar",
   ctaPath: "/financeiro/neurofinance",
