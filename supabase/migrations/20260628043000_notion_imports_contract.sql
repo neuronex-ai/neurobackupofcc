@@ -103,7 +103,7 @@ create policy "Notion imports delete own"
   using ((select auth.uid()) = user_id);
 
 grant select, delete on public.notion_imports to authenticated;
-revoke truncate, references, trigger on public.notion_imports from authenticated;
+revoke truncate, references, trigger on public.notion_imports from anon, authenticated;
 
 drop trigger if exists set_updated_at on public.notion_imports;
 create trigger set_updated_at

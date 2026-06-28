@@ -43,7 +43,7 @@ create policy "Financial planning goals delete own"
   using ((select auth.uid()) = professional_id);
 
 grant select, insert, update, delete on public.financial_planning_goals to authenticated;
-revoke truncate, references, trigger on public.financial_planning_goals from authenticated;
+revoke truncate, references, trigger on public.financial_planning_goals from anon, authenticated;
 
 drop trigger if exists set_updated_at on public.financial_planning_goals;
 create trigger set_updated_at

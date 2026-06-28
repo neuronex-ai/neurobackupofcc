@@ -365,7 +365,7 @@ export const NotionPagesPanel = ({
         // Optimistic update
         const updatedBlocks = JSON.parse(JSON.stringify(blocks));
         const updateInList = (list: NotionBlock[]) => {
-            for (let b of list) {
+            for (const b of list) {
                 if (b.id === blockId) {
                     Object.assign(b, payload);
                     return true;

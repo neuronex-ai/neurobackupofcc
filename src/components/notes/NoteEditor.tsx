@@ -301,7 +301,7 @@ export const NoteEditor = ({
   return (
     <div className={cn(
       "flex flex-col h-full w-full bg-transparent font-sans relative transition-all duration-700",
-      isFocusMode ? "z-[60] fixed inset-0 overflow-hidden bg-background" : ""
+      isFocusMode ? "z-[60] fixed inset-0 overflow-hidden bg-transparent" : ""
     )}>
       {/* Editor Toolbar */}
       <AnimatePresence>
@@ -550,26 +550,6 @@ export const NoteEditor = ({
               </Button>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Glass Masks for Immersive Scrolling */}
-      <AnimatePresence>
-        {isFocusMode && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed top-0 left-0 right-0 h-40 bg-gradient-to-b from-zinc-50/90 via-zinc-50/40 to-transparent z-[20] pointer-events-none dark:from-black dark:via-black/40 backdrop-blur-[2px]"
-            />
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-zinc-50/90 via-zinc-50/40 to-transparent z-[20] pointer-events-none dark:from-black dark:via-black/40 backdrop-blur-[2px]"
-            />
-          </>
         )}
       </AnimatePresence>
 
