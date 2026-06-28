@@ -196,6 +196,7 @@ const CommandPanel = ({
   today,
   firstName,
   todayAppointments,
+  weekAppointmentsCount,
   nextAppointment,
   pendingPatients,
   financialConnected,
@@ -204,6 +205,7 @@ const CommandPanel = ({
   today: Date;
   firstName: string;
   todayAppointments: Appointment[];
+  weekAppointmentsCount: number;
   nextAppointment?: Appointment;
   pendingPatients: number;
   financialConnected: boolean;
@@ -215,8 +217,8 @@ const CommandPanel = ({
   const online = isOnlineAppointment(nextAppointment);
 
   return (
-    <DesktopWorkspacePanel highContrast className="min-h-[520px] p-6 lg:p-8">
-      <div className="flex h-full min-h-[456px] flex-col justify-between gap-8">
+    <DesktopWorkspacePanel highContrast className="min-h-[500px] p-6 lg:p-8">
+      <div className="flex h-full min-h-[436px] flex-col justify-between gap-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-background/52">
@@ -310,7 +312,7 @@ const CommandPanel = ({
             detail={nextAppointment ? getAppointmentDisplayTitle(nextAppointment) || "Paciente" : "Sem sessao"}
           />
           <ContrastStat label="Financeiro" value={financialConnected ? "ON" : "OFF"} detail={financialConnected ? "Conta ativa" : "Ativacao pendente"} />
-          <ContrastStat label="Semana" value={todayAppointments.length} detail="Atendimentos hoje" />
+          <ContrastStat label="Semana" value={weekAppointmentsCount} detail="Proximos 7 dias" />
         </div>
       </div>
     </DesktopWorkspacePanel>
@@ -346,7 +348,7 @@ const AttentionQueue = ({
               type="button"
               onClick={() => navigate(item.actionUrl)}
               className={cn(
-                "flex w-full items-start gap-3 rounded-[20px] border border-zinc-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] dark:border-white/[0.08] dark:bg-zinc-950",
+                "flex w-full items-start gap-3 rounded-[20px] border border-zinc-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.08] dark:bg-zinc-950",
                 item.tone === "warning" && "border-amber-500/25 bg-amber-500/[0.06]",
                 item.tone === "destructive" && "border-rose-500/25 bg-rose-500/[0.055]",
               )}
@@ -425,7 +427,7 @@ const AppointmentRow = ({ appointment }: { appointment: Appointment }) => {
     <button
       type="button"
       onClick={() => navigate("/agenda", { state: { openAppointmentId: appointment.id } })}
-      className="group flex w-full items-center gap-3 rounded-[20px] border border-zinc-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] dark:border-white/[0.08] dark:bg-zinc-950"
+      className="group flex w-full items-center gap-3 rounded-[20px] border border-zinc-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.08] dark:bg-zinc-950"
     >
       <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-[16px] bg-foreground text-sm font-bold text-background tabular-nums">
         {formatAppointmentTime(appointment)}
@@ -566,7 +568,7 @@ const FinancialSignalPanel = ({
           <button
             type="button"
             onClick={() => navigate(signal.ctaPath)}
-            className="group relative min-h-[214px] overflow-hidden rounded-[34px] border border-zinc-200 bg-zinc-50 p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#1A1A1C] dark:to-[#0D0D0F] dark:shadow-xl"
+            className="group relative min-h-[214px] overflow-hidden rounded-[34px] border border-zinc-200 bg-zinc-50 p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#1A1A1C] dark:to-[#0D0D0F] dark:shadow-xl"
           >
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(255,255,255,0.34),transparent_30%),radial-gradient(circle_at_92%_88%,rgba(0,0,0,0.025),transparent_36%)] dark:bg-[radial-gradient(circle_at_16%_12%,rgba(255,255,255,0.045),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.026),transparent_48%)]" />
             <div className="relative z-10 flex h-full flex-col justify-between gap-8">
@@ -604,7 +606,7 @@ const FinancialSignalPanel = ({
           </button>
 
           <div className="flex flex-col justify-center gap-2 rounded-[30px] border border-zinc-200/50 bg-zinc-100/50 p-3 dark:border-white/[0.055] dark:bg-white/[0.045]">
-            <DesktopMiniStat label="A receber" value={formatCurrency(signal.receivable)} />
+            <DesktopMiniStat label="A receber" value={formatCurrency(signal.receivable)} accent />
             <DesktopMiniStat label="Saldo NF" value={formatCentsCurrency(signal.bankBalanceCents)} />
             <DesktopMiniStat label="Vai cair" value={formatCentsCurrency(signal.bankPendingCents)} />
           </div>
@@ -664,6 +666,7 @@ export const DesktopDashboardCommandCenter = () => {
               today={today}
               firstName={getFirstName(profile)}
               todayAppointments={todayAppointments}
+              weekAppointmentsCount={activeAppointments.length}
               nextAppointment={nextAppointment}
               pendingPatients={pendingPatients}
               financialConnected={financialConnected}

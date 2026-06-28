@@ -190,6 +190,47 @@ const modalEnter = {
 - Title: `text-2xl font-bold text-foreground`
 - Subtitle: `text-sm text-muted-foreground`
 
+### 6.6 Desktop Workspace Pattern
+
+Use this pattern for dense desktop surfaces such as Dashboard, Gestao Financeira, NeuroFinance, Agenda, Pacientes and operational command centers.
+
+**Composition**
+- One dominant high-contrast panel owns the primary job of the screen.
+- One operational rail groups quick actions and pending work.
+- Secondary panels show lists, summaries and follow-up signals without duplicating full tabs.
+- Prefer lists, rows, segmented controls, toolbars and native buttons over decorative hero cards.
+- The first fold must answer: what is happening now, what needs action, and where the user can go next.
+
+**Reusable primitives**
+- `DesktopWorkspaceShell`: outer desktop canvas, `rounded-[40px]`, low-light radial overlays, subtle border and restrained shadow.
+- `DesktopWorkspacePanel`: standard panel, `rounded-[34px]`, tokenized surface, optional `highContrast` variant.
+- `DesktopActionTile`: compact icon-first action, primary action in foreground/background contrast.
+- `DesktopMiniStat`: compact metric block; use `accent` for the one stat that deserves high contrast.
+- `DesktopWorkspaceIcon`: icon capsule for headers, rows and compact status blocks.
+
+**Contrast rule**
+- Light mode: active buttons, selected mini-cards and primary icon capsules use near-black foreground surfaces.
+- Dark mode: active buttons, selected mini-cards and primary icon capsules use white foreground surfaces.
+- Neutral surfaces stay quiet: `bg-card/78`, `bg-white`, `dark:bg-white/[0.04]`, or equivalent tokens.
+- Semantic colors are reserved for success, warning and destructive states.
+
+**Light, texture and shadow**
+- Desktop workspace light must be restrained. Prefer radial opacity near `0.006` to `0.018`.
+- Avoid large glow clouds. When migrating older dashboard surfaces, reduce ornamental light by about 60%.
+- Texture/noise should be barely visible: `opacity-[0.015]` to `opacity-[0.03]`.
+- Shadows communicate hierarchy, not decoration. Use heavier shadow only on the dominant panel or active surface.
+
+**Density and hierarchy**
+- Keep primary panels at `p-6` to `p-8`; compact rails at `p-5` to `p-6`.
+- Lists should use rows around `rounded-[20px]`, direct labels, status pills and one clear destination.
+- Mini action blocks should be icon-first, roughly `w-20` to `w-[86px]`, with labels limited to one or two words.
+- Avoid explanatory copy when a status, metric or action already makes the state clear.
+
+**Motion**
+- Use hover lift no stronger than `translateY(-0.5)` and active scale between `0.96` and `0.99`.
+- Add `motion-reduce` fallbacks to remove hover lift and press scaling.
+- Do not animate decorative light, blur, or background effects unless they clarify state change.
+
 ---
 
 ## 7. Background System
