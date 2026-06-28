@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
 import { supabase } from "@/integrations/supabase/client";
 import { Settings, Clock, Loader2, Save } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/SessionContextProvider";
@@ -21,7 +21,10 @@ const DAYS_OF_WEEK = [
     { id: "6", label: "Sábado", short: "Sáb" },
 ];
 
-const DEFAULT_WORKING_HOURS: Record<string, { enabled: boolean; start: string; end: string }> = {
+type WorkingDayHours = { enabled: boolean; start: string; end: string };
+type WorkingHours = Record<string, WorkingDayHours>;
+
+const DEFAULT_WORKING_HOURS: WorkingHours = {
     "0": { enabled: false, start: "08:00", end: "12:00" },
     "1": { enabled: true, start: "08:00", end: "19:00" },
     "2": { enabled: true, start: "08:00", end: "19:00" },
@@ -38,21 +41,18 @@ export const AgendaSettingsModal = () => {
     const [isSaving, setIsSaving] = useState(false);
 
     // Configurações padrão
-    const [workingHours, setWorkingHours] = useState<any>({});
+    const [workingHours, setWorkingHours] = useState<WorkingHours>({ ...DEFAULT_WORKING_HOURS });
 
-    useEffect(() => {
-        if (open && user?.id) loadSettings();
-    }, [open, user]);
-
-    const loadSettings = async () => {
+    const loadSettings = useCallback(async () => {
+        if (!user?.id) return;
         setIsLoading(true);
         try {
-            const { data, error } = await supabase.from('profiles').select('working_hours').eq('id', user!.id).single();
+            const { data, error } = await supabase.from('profiles').select('working_hours').eq('id', user.id).single();
             if (error) {
                 console.error("Error loading settings:", error);
                 setWorkingHours({ ...DEFAULT_WORKING_HOURS });
             } else if (data?.working_hours && typeof data.working_hours === 'object') {
-                setWorkingHours(data.working_hours);
+                setWorkingHours(data.working_hours as WorkingHours);
             } else {
                 setWorkingHours({ ...DEFAULT_WORKING_HOURS });
             }
@@ -62,18 +62,22 @@ export const AgendaSettingsModal = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (open) loadSettings();
+    }, [open, loadSettings]);
 
     const handleSave = async () => {
         if (!user) return;
         setIsSaving(true);
         try {
             // Ensure working_hours is a clean JSON object
-            const cleanHours = JSON.parse(JSON.stringify(workingHours));
+            const cleanHours = JSON.parse(JSON.stringify(workingHours)) as WorkingHours;
 
             const { error } = await supabase
                 .from('profiles')
-                .update({ working_hours: cleanHours } as any)
+                .update({ working_hours: cleanHours })
                 .eq('id', user.id);
 
             if (error) {
