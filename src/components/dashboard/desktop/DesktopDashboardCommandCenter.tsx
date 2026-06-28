@@ -188,42 +188,40 @@ const AppointmentModePill = ({ appointment }: { appointment: Appointment }) => {
 
 const ActionSidebar = ({
   today,
-  openSynapseText,
   openSynapseVoice,
 }: {
   today: Date;
-  openSynapseText: () => void;
   openSynapseVoice: () => void;
-}) => {
-  const navigate = useNavigate();
-
-  return (
-    <DesktopWorkspacePanel className="p-2.5">
-      <nav aria-label="Atalhos do dashboard" className="flex gap-1.5 overflow-x-auto xl:min-h-[318px] xl:flex-col xl:items-center xl:overflow-visible">
-        <NewAppointmentModal selectedDate={today}>
-          <DesktopActionTile icon={Plus} label="Agendar" active />
-        </NewAppointmentModal>
-        <NewPatientModal>
-          <DesktopActionTile icon={UserPlus} label="Paciente" />
-        </NewPatientModal>
-        <DesktopActionTile icon={CalendarIcon} label="Agenda" onClick={() => navigate("/agenda")} />
-        <DesktopActionTile icon={WalletCards} label="Financeiro" onClick={() => navigate("/financeiro")} />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DesktopActionTile icon={MessageSquare} label="Synapse" onClick={openSynapseText} />
-          </TooltipTrigger>
-          <TooltipContent>Synapse texto</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DesktopActionTile icon={Mic} label="Voz" onClick={openSynapseVoice} />
-          </TooltipTrigger>
-          <TooltipContent>Synapse voz</TooltipContent>
-        </Tooltip>
-      </nav>
-    </DesktopWorkspacePanel>
-  );
-};
+}) => (
+  <DesktopWorkspacePanel className="p-2.5">
+    <nav aria-label="Atalhos do dashboard" className="flex gap-1.5 overflow-x-auto xl:min-h-[264px] xl:flex-col xl:items-center xl:justify-start xl:overflow-visible">
+      <NewAppointmentModal selectedDate={today}>
+        <DesktopActionTile icon={Plus} label="Agendar" active />
+      </NewAppointmentModal>
+      <NewPatientModal>
+        <DesktopActionTile icon={UserPlus} label="Paciente" />
+      </NewPatientModal>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={openSynapseVoice}
+            aria-label="Abrir Synapse voz"
+            className="group flex w-[86px] shrink-0 flex-col items-center gap-1.5 rounded-[18px] px-2 py-2 transition-all duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+          >
+            <span className="relative flex h-12 w-12 items-center justify-center rounded-[20px] border border-border/60 bg-card text-muted-foreground shadow-sm transition-all duration-300 group-hover:border-foreground/20 group-hover:shadow-md dark:border-white/[0.08] dark:bg-white/[0.045] dark:group-hover:border-white/18">
+              <SynapseOrbAvatar active className="h-10 w-10 border-0 bg-transparent shadow-none" />
+            </span>
+            <span className="w-full text-center text-[8px] font-black uppercase leading-tight tracking-[0.1em] text-muted-foreground transition-colors group-hover:text-foreground">
+              Voz
+            </span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Synapse voz</TooltipContent>
+      </Tooltip>
+    </nav>
+  </DesktopWorkspacePanel>
+);
 
 const ClinicalPrepMetric = ({
   label,

@@ -47,6 +47,8 @@ export function useFinancialPlanning(month: Date) {
         .select("*")
         .eq("professional_id", userId)
         .eq("month", monthKey)
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (error) throw error;
@@ -69,16 +71,28 @@ export function useFinancialPlanning(month: Date) {
         updated_at: new Date().toISOString(),
       };
 
-      const { data, error } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from("financial_planning_goals")
-        .upsert(payload, { onConflict: "professional_id,month" })
-        .select("*")
-        .single();
+        .select("id")
+        .eq("professional_id", userId)
+        .eq("month", monthKey)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingError) throw existingError;
+
+      const query = existing?.id
+        ? supabase.from("financial_planning_goals").update(payload).eq("id", existing.id)
+        : supabase.from("financial_planning_goals").insert(payload);
+
+      const { data, error } = await query.select("*").single();
 
       if (error) throw error;
       return data as FinancialPlanningGoal;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      queryClient.setQueryData(["financial-planning-goal", userId, monthKey], data);
       queryClient.invalidateQueries({ queryKey: ["financial-planning-goal", userId, monthKey] });
     },
   });
