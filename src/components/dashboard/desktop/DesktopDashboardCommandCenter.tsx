@@ -12,11 +12,12 @@ import {
   Calendar as CalendarIcon,
   CheckCircle2,
   Clock,
-  FileText,
+  Landmark,
   MessageSquare,
   Mic,
   Plus,
   Stethoscope,
+  TrendingUp,
   UserPlus,
   Users,
   Video,
@@ -25,7 +26,6 @@ import {
 
 import { AppointmentDetailModal } from "@/components/agenda/AppointmentDetailModal";
 import { NewAppointmentModal } from "@/components/agenda/NewAppointmentModal";
-import { NewProntuarioModal } from "@/components/notes/NewProntuarioModal";
 import { NewPatientModal } from "@/components/patients/NewPatientModal";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,8 +58,19 @@ import {
   getNextSession,
   getTodayAppointments,
   isOnlineAppointment,
+  type AttentionQueueCategory,
   type AttentionQueueItem,
 } from "./dashboard-command-center-model";
+
+type PendingFilter = "all" | AttentionQueueCategory;
+
+const pendingFilters: Array<{ value: PendingFilter; label: string }> = [
+  { value: "all", label: "Todas" },
+  { value: "sessions", label: "Sessoes" },
+  { value: "appointments", label: "Agenda" },
+  { value: "registrations", label: "Cadastros" },
+  { value: "neurofinance", label: "NeuroFinance" },
+];
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -117,20 +128,11 @@ const SectionHeader = ({
   </div>
 );
 
-const ContrastStat = ({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string | number;
-  detail: string;
-}) => (
-  <div className="min-w-0 rounded-[24px] border border-background/12 bg-background/10 p-4 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)]">
-    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-background/52">{label}</p>
-    <p className="mt-2 truncate text-3xl font-black leading-none tracking-[-0.06em] text-background tabular-nums">{value}</p>
-    <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-background/62">{detail}</p>
-  </div>
+const GreetingChip = ({ label, value }: { label: string; value: string | number }) => (
+  <span className="inline-flex items-center gap-2 rounded-full border border-background/14 bg-background/10 px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-background/62">
+    {label}
+    <strong className="text-sm font-black text-background tabular-nums">{value}</strong>
+  </span>
 );
 
 const AppointmentStatusPill = ({ appointment }: { appointment: Appointment }) => {
@@ -155,7 +157,7 @@ const AppointmentModePill = ({ appointment }: { appointment: Appointment }) => {
   );
 };
 
-const QuickActions = ({
+const ActionSidebar = ({
   today,
   openSynapseText,
   openSynapseVoice,
@@ -163,246 +165,164 @@ const QuickActions = ({
   today: Date;
   openSynapseText: () => void;
   openSynapseVoice: () => void;
-}) => (
-  <div>
-    <SectionHeader eyebrow="Atalhos" title="Acoes rapidas" />
-    <div className="mt-4 grid grid-cols-3 gap-2">
-      <NewAppointmentModal selectedDate={today}>
-        <DesktopActionTile icon={Plus} label="Agendar" active />
-      </NewAppointmentModal>
-      <NewPatientModal>
-        <DesktopActionTile icon={UserPlus} label="Paciente" />
-      </NewPatientModal>
-      <NewProntuarioModal>
-        <DesktopActionTile icon={FileText} label="Prontuario" />
-      </NewProntuarioModal>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DesktopActionTile icon={MessageSquare} label="Synapse" onClick={openSynapseText} />
-        </TooltipTrigger>
-        <TooltipContent>Synapse texto</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DesktopActionTile icon={Mic} label="Voz" onClick={openSynapseVoice} />
-        </TooltipTrigger>
-        <TooltipContent>Synapse voz</TooltipContent>
-      </Tooltip>
-    </div>
-  </div>
-);
+}) => {
+  const navigate = useNavigate();
 
-const CommandPanel = ({
+  return (
+    <DesktopWorkspacePanel className="p-2.5">
+      <nav aria-label="Atalhos do dashboard" className="flex gap-1.5 overflow-x-auto xl:min-h-[318px] xl:flex-col xl:items-center xl:overflow-visible">
+        <NewAppointmentModal selectedDate={today}>
+          <DesktopActionTile icon={Plus} label="Agendar" active />
+        </NewAppointmentModal>
+        <NewPatientModal>
+          <DesktopActionTile icon={UserPlus} label="Paciente" />
+        </NewPatientModal>
+        <DesktopActionTile icon={CalendarIcon} label="Agenda" onClick={() => navigate("/agenda")} />
+        <DesktopActionTile icon={WalletCards} label="Financeiro" onClick={() => navigate("/financeiro")} />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DesktopActionTile icon={MessageSquare} label="Synapse" onClick={openSynapseText} />
+          </TooltipTrigger>
+          <TooltipContent>Synapse texto</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DesktopActionTile icon={Mic} label="Voz" onClick={openSynapseVoice} />
+          </TooltipTrigger>
+          <TooltipContent>Synapse voz</TooltipContent>
+        </Tooltip>
+      </nav>
+    </DesktopWorkspacePanel>
+  );
+};
+
+const GreetingPanel = ({
   today,
   firstName,
   todayAppointments,
   weekAppointmentsCount,
-  nextAppointment,
-  pendingPatients,
-  financialConnected,
-  isLoading,
+  pendingCount,
 }: {
   today: Date;
   firstName: string;
   todayAppointments: Appointment[];
   weekAppointmentsCount: number;
-  nextAppointment?: Appointment;
-  pendingPatients: number;
-  financialConnected: boolean;
-  isLoading: boolean;
+  pendingCount: number;
 }) => {
-  const navigate = useNavigate();
   const remainingToday = todayAppointments.filter((appointment) => new Date(appointment.end_time) > new Date()).length;
-  const minutesUntil = getMinutesUntil(nextAppointment);
-  const online = isOnlineAppointment(nextAppointment);
 
   return (
-    <DesktopWorkspacePanel highContrast className="min-h-[500px] p-6 lg:p-8">
-      <div className="flex h-full min-h-[436px] flex-col justify-between gap-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-background/52">
-              {format(today, "EEEE, dd 'de' MMMM", { locale: ptBR })}
-            </p>
-            <h1 className="mt-3 max-w-2xl text-4xl font-black leading-[0.92] tracking-[-0.065em] text-background lg:text-6xl">
-              Bom dia, {firstName}.
-            </h1>
-          </div>
-          <div className="grid min-w-[220px] grid-cols-2 gap-2 rounded-[28px] border border-background/12 bg-background/10 p-3">
-            <ContrastStat label="Hoje" value={remainingToday} detail="Restantes" />
-            <ContrastStat label="Atencao" value={pendingPatients} detail="Pacientes" />
-          </div>
+    <DesktopWorkspacePanel highContrast className="min-h-[340px] p-6 lg:p-8">
+      <div className="flex h-full min-h-[276px] flex-col justify-between gap-8">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-background/52">
+            {format(today, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+          </p>
+          <h1 className="mt-4 max-w-2xl text-4xl font-black leading-[0.92] tracking-[-0.065em] text-background lg:text-6xl">
+            Bom dia, {firstName}.
+          </h1>
         </div>
 
-        {isLoading ? (
-          <div className="h-56 animate-pulse rounded-[30px] bg-background/10" />
-        ) : nextAppointment ? (
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_260px] xl:items-end">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-background/14 bg-background/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-background/65">
-                  Proxima sessao
-                </span>
-                {minutesUntil ? (
-                  <span className="rounded-full border border-background/14 bg-background/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-background/65">
-                    {minutesUntil}
-                  </span>
-                ) : null}
-                <span className="rounded-full border border-background/14 bg-background/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-background/65">
-                  {online ? "Online" : "Consultorio"}
-                </span>
-              </div>
-
-              <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-end">
-                <div className="shrink-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-background/52">{formatAppointmentDay(nextAppointment)}</p>
-                  <p className="mt-2 text-7xl font-black leading-none tracking-[-0.075em] text-background tabular-nums">
-                    {formatAppointmentTime(nextAppointment)}
-                  </p>
-                </div>
-                <div className="min-w-0 pb-2">
-                  <h2 className="truncate text-3xl font-black leading-none tracking-[-0.055em] text-background">
-                    {getAppointmentDisplayTitle(nextAppointment) || nextAppointment.patient_name || "Paciente"}
-                  </h2>
-                  <p className="mt-3 line-clamp-2 max-w-2xl text-sm font-semibold leading-relaxed text-background/62">
-                    {online ? "Entrar pela Teleconsulta e iniciar o atendimento." : "Abrir ficha, revisar contexto e seguir para a agenda."}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-              {online ? (
-                <Button
-                  className="h-12 rounded-[18px] bg-background px-5 text-[10px] font-black uppercase tracking-[0.18em] text-foreground hover:bg-background/90"
-                  onClick={() => navigate("/teleconsulta", { state: { activeAppointmentId: nextAppointment.id } })}
-                >
-                  Entrar
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              ) : null}
-              <AppointmentDetailModal appointment={nextAppointment}>
-                <Button className="h-12 rounded-[18px] bg-background px-5 text-[10px] font-black uppercase tracking-[0.18em] text-foreground hover:bg-background/90">
-                  Ficha
-                </Button>
-              </AppointmentDetailModal>
-              <Button
-                variant="outline"
-                className="h-12 rounded-[18px] border-background/16 bg-background/8 px-5 text-[10px] font-black uppercase tracking-[0.18em] text-background hover:bg-background/14 hover:text-background"
-                onClick={() => navigate("/agenda", { state: { openAppointmentId: nextAppointment.id } })}
-              >
-                Agenda
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex min-h-[240px] flex-col justify-center rounded-[30px] border border-background/12 bg-background/10 p-8">
-            <Clock className="h-9 w-9 text-background/48" />
-            <h2 className="mt-5 text-3xl font-black tracking-[-0.055em] text-background">Sem sessao futura.</h2>
-            <p className="mt-2 max-w-xl text-sm font-semibold leading-relaxed text-background/62">
-              Use os atalhos para agendar, revisar prontuarios ou organizar a semana.
-            </p>
-          </div>
-        )}
-
-        <div className="grid gap-3 md:grid-cols-3">
-          <ContrastStat
-            label="Proxima"
-            value={nextAppointment ? formatAppointmentTime(nextAppointment) : "-"}
-            detail={nextAppointment ? getAppointmentDisplayTitle(nextAppointment) || "Paciente" : "Sem sessao"}
-          />
-          <ContrastStat label="Financeiro" value={financialConnected ? "ON" : "OFF"} detail={financialConnected ? "Conta ativa" : "Ativacao pendente"} />
-          <ContrastStat label="Semana" value={weekAppointmentsCount} detail="Proximos 7 dias" />
+        <div className="flex flex-wrap gap-2">
+          <GreetingChip label="Hoje" value={remainingToday} />
+          <GreetingChip label="Semana" value={weekAppointmentsCount} />
+          <GreetingChip label="Pendencias" value={pendingCount} />
         </div>
       </div>
     </DesktopWorkspacePanel>
   );
 };
 
-const QueueIcon = ({ item }: { item: AttentionQueueItem }) => {
-  if (item.source === "patients") return <Users className="h-4 w-4" />;
-  if (item.source === "finance") return <WalletCards className="h-4 w-4" />;
-  if (item.tone === "destructive") return <AlertCircle className="h-4 w-4" />;
-  return <Bell className="h-4 w-4" />;
-};
-
-const AttentionQueue = ({
-  items,
+const NextSessionPanel = ({
+  nextAppointment,
   isLoading,
 }: {
-  items: AttentionQueueItem[];
+  nextAppointment?: Appointment;
   isLoading: boolean;
 }) => {
   const navigate = useNavigate();
+  const minutesUntil = getMinutesUntil(nextAppointment);
+  const online = isOnlineAppointment(nextAppointment);
 
   return (
-    <div>
-      <SectionHeader eyebrow="Fila" title="O que exige acao" />
-      <div className="mt-4 space-y-2">
+    <DesktopWorkspacePanel className="min-h-[340px] p-5 lg:p-6">
+      <div className="flex h-full min-h-[292px] flex-col justify-between gap-6">
+        <SectionHeader
+          eyebrow="Agora"
+          title="Proxima sessao"
+          action={
+            <Button variant="outline" className="h-9 rounded-[14px] px-3 text-xs font-bold" onClick={() => navigate("/agenda")}>
+              Agenda
+            </Button>
+          }
+        />
+
         {isLoading ? (
-          [1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-[20px] bg-muted/35" />)
-        ) : items.length ? (
-          items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => navigate(item.actionUrl)}
-              className={cn(
-                "flex w-full items-start gap-3 rounded-[20px] border border-zinc-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.08] dark:bg-zinc-950",
-                item.tone === "warning" && "border-amber-500/25 bg-amber-500/[0.06]",
-                item.tone === "destructive" && "border-rose-500/25 bg-rose-500/[0.055]",
-              )}
-            >
-              <span
-                className={cn(
-                  "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] border border-border/45 bg-card text-muted-foreground",
-                  item.tone === "warning" && "border-amber-500/25 text-amber-600",
-                  item.tone === "destructive" && "border-rose-500/25 text-rose-600",
-                )}
-              >
-                <QueueIcon item={item} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">{item.label}</span>
-                <span className="mt-1 block truncate text-sm font-bold text-foreground">{item.title}</span>
-                <span className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-muted-foreground">{item.description}</span>
-              </span>
-              <ArrowRight className="mt-3 h-4 w-4 shrink-0 text-muted-foreground/45" />
-            </button>
-          ))
+          <div className="h-48 animate-pulse rounded-[28px] bg-muted/35" />
+        ) : nextAppointment ? (
+          <div className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-zinc-50 p-5 shadow-sm dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#171719] dark:to-[#0C0C0E]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_0%,rgba(0,0,0,0.035),transparent_32%)] dark:bg-[radial-gradient(circle_at_14%_0%,rgba(255,255,255,0.012),transparent_34%)]" />
+            <div className="relative z-10">
+              <div className="flex flex-wrap items-center gap-2">
+                {minutesUntil ? (
+                  <span className="rounded-full border border-border/45 bg-background/65 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                    {minutesUntil}
+                  </span>
+                ) : null}
+                <span className="rounded-full border border-border/45 bg-background/65 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                  {online ? "Online" : "Consultorio"}
+                </span>
+              </div>
+
+              <div className="mt-6">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{formatAppointmentDay(nextAppointment)}</p>
+                <p className="mt-2 text-6xl font-black leading-none tracking-[-0.075em] text-foreground tabular-nums">
+                  {formatAppointmentTime(nextAppointment)}
+                </p>
+                <h3 className="mt-5 truncate text-2xl font-black leading-none tracking-[-0.055em] text-foreground">
+                  {getAppointmentDisplayTitle(nextAppointment) || nextAppointment.patient_name || "Paciente"}
+                </h3>
+                <p className="mt-3 line-clamp-2 text-sm font-medium leading-relaxed text-muted-foreground">
+                  {online ? "Teleconsulta pronta para entrada direta." : "Abra a ficha ou siga para a agenda."}
+                </p>
+              </div>
+
+              <div className="mt-6 grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
+                {online ? (
+                  <Button
+                    className="h-11 rounded-[16px] bg-foreground px-4 text-[10px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950"
+                    onClick={() => navigate("/teleconsulta", { state: { activeAppointmentId: nextAppointment.id } })}
+                  >
+                    Entrar
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                ) : null}
+                <AppointmentDetailModal appointment={nextAppointment}>
+                  <Button variant="outline" className="h-11 rounded-[16px] px-4 text-[10px] font-black uppercase tracking-[0.16em]">
+                    Ficha
+                  </Button>
+                </AppointmentDetailModal>
+                <Button
+                  variant="outline"
+                  className="h-11 rounded-[16px] px-4 text-[10px] font-black uppercase tracking-[0.16em]"
+                  onClick={() => navigate("/agenda", { state: { openAppointmentId: nextAppointment.id } })}
+                >
+                  Abrir
+                </Button>
+              </div>
+            </div>
+          </div>
         ) : (
-          <div className="flex min-h-[170px] flex-col items-center justify-center rounded-[24px] border border-dashed border-border/60 bg-muted/18 p-6 text-center">
-            <CheckCircle2 className="h-8 w-8 text-emerald-500/70" />
-            <h3 className="mt-4 text-base font-bold text-foreground">Tudo em dia</h3>
-            <p className="mt-2 max-w-sm text-sm font-medium text-muted-foreground">Sem pendencias acionaveis.</p>
+          <div className="flex min-h-[210px] flex-col justify-center rounded-[28px] border border-dashed border-border/60 bg-muted/18 p-6">
+            <Clock className="h-8 w-8 text-muted-foreground/45" />
+            <h3 className="mt-5 text-2xl font-black tracking-[-0.055em] text-foreground">Sem sessao futura.</h3>
+            <p className="mt-2 text-sm font-medium leading-relaxed text-muted-foreground">Use Agenda para organizar o proximo horario.</p>
           </div>
         )}
       </div>
-    </div>
+    </DesktopWorkspacePanel>
   );
 };
-
-const UtilityRail = ({
-  today,
-  openSynapseText,
-  openSynapseVoice,
-  attentionItems,
-  notificationsLoading,
-}: {
-  today: Date;
-  openSynapseText: () => void;
-  openSynapseVoice: () => void;
-  attentionItems: AttentionQueueItem[];
-  notificationsLoading: boolean;
-}) => (
-  <DesktopWorkspacePanel className="p-5 lg:p-6">
-    <div className="flex h-full min-h-[480px] flex-col gap-7">
-      <QuickActions today={today} openSynapseText={openSynapseText} openSynapseVoice={openSynapseVoice} />
-      <div className="h-px bg-border/55 dark:bg-white/[0.07]" />
-      <AttentionQueue items={attentionItems} isLoading={notificationsLoading} />
-    </div>
-  </DesktopWorkspacePanel>
-);
 
 const EmptyState = ({
   icon: Icon,
@@ -446,7 +366,7 @@ const AppointmentRow = ({ appointment }: { appointment: Appointment }) => {
           </span>
         </div>
       </div>
-      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/45 transition-transform group-hover:translate-x-0.5" />
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/45 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
     </button>
   );
 };
@@ -526,7 +446,141 @@ const AgendaPanel = ({
   );
 };
 
-const FinancialSignalPanel = ({
+const ManagementWidget = ({
+  managerial,
+  isLoading,
+}: {
+  managerial?: { result?: number | null; receivable?: number | null } | null;
+  isLoading: boolean;
+}) => {
+  const navigate = useNavigate();
+  const result = Number(managerial?.result || 0);
+  const receivable = Number(managerial?.receivable || 0);
+  const healthy = result >= 0;
+
+  if (isLoading) {
+    return <div className="h-[270px] animate-pulse rounded-[30px] bg-muted/35" />;
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_150px]">
+      <button
+        type="button"
+        onClick={() => navigate("/financeiro")}
+        className="group relative min-h-[236px] overflow-hidden rounded-[34px] border border-zinc-200 bg-zinc-50 p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#171719] dark:to-[#0C0C0E] dark:shadow-[0_24px_58px_-50px_rgba(0,0,0,0.9)]"
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(0,0,0,0.035),transparent_30%)] dark:bg-[radial-gradient(circle_at_16%_12%,rgba(255,255,255,0.012),transparent_34%)]" />
+        <div className="relative z-10 flex h-full flex-col justify-between gap-8">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <DesktopWorkspaceIcon icon={TrendingUp} className="bg-foreground text-background dark:bg-white dark:text-zinc-950" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">Gestao Financeira</p>
+                <p className={cn("mt-1 text-xs font-black uppercase tracking-[0.12em]", healthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
+                  {healthy ? "Resultado positivo" : "Revisar operacao"}
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground/45 transition-transform group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
+          </div>
+
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Resultado do mes</p>
+            <div className="mt-3 flex min-w-0 items-baseline gap-2">
+              <span className="text-2xl font-light italic text-muted-foreground/70">R$</span>
+              <p className="truncate text-5xl font-black leading-none tracking-[-0.065em] text-foreground tabular-nums">
+                {result.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <p className="mt-3 text-xs font-medium text-muted-foreground">Resumo gerencial. Detalhes continuam na Gestao Financeira.</p>
+          </div>
+        </div>
+      </button>
+
+      <div className="flex flex-col justify-center gap-2 rounded-[30px] border border-zinc-200/50 bg-zinc-100/50 p-3 dark:border-white/[0.055] dark:bg-white/[0.035]">
+        <DesktopMiniStat label="Resultado" value={formatCurrency(result)} accent />
+        <DesktopMiniStat label="A receber" value={formatCurrency(receivable)} />
+        <DesktopMiniStat label="Status" value={healthy ? "OK" : "Atencao"} tone={healthy ? "success" : "warning"} />
+      </div>
+    </div>
+  );
+};
+
+const NeuroFinanceWidget = ({
+  financialConnected,
+  financialLoading,
+  neuroSnapshot,
+  snapshotLoading,
+  managerial,
+}: {
+  financialConnected: boolean;
+  financialLoading: boolean;
+  neuroSnapshot?: { available_balance?: number | null; pending_receivables?: number | null } | null;
+  snapshotLoading: boolean;
+  managerial?: { result?: number | null; receivable?: number | null } | null;
+}) => {
+  const navigate = useNavigate();
+  const signal = buildFinancialSignal({ financialConnected, financialLoading, managerial, neuroSnapshot });
+  const loading = financialLoading || (financialConnected && snapshotLoading);
+
+  if (loading) {
+    return <div className="h-[270px] animate-pulse rounded-[30px] bg-muted/35" />;
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_150px]">
+      <button
+        type="button"
+        onClick={() => navigate(signal.ctaPath)}
+        className="group relative min-h-[236px] overflow-hidden rounded-[34px] border border-zinc-200 bg-zinc-50 p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#171719] dark:to-[#0C0C0E] dark:shadow-[0_24px_58px_-50px_rgba(0,0,0,0.9)]"
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(0,0,0,0.035),transparent_30%)] dark:bg-[radial-gradient(circle_at_16%_12%,rgba(255,255,255,0.012),transparent_34%)]" />
+        <div className="relative z-10 flex h-full flex-col justify-between gap-8">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <DesktopWorkspaceIcon icon={Landmark} className="bg-foreground text-background dark:bg-white dark:text-zinc-950" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">NeuroFinance</p>
+                <p
+                  className={cn(
+                    "mt-1 text-xs font-black uppercase tracking-[0.12em]",
+                    signal.statusTone === "success" && "text-emerald-600 dark:text-emerald-400",
+                    signal.statusTone === "warning" && "text-amber-600 dark:text-amber-400",
+                    signal.statusTone === "default" && "text-muted-foreground",
+                  )}
+                >
+                  {signal.statusLabel}
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground/45 transition-transform group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
+          </div>
+
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{financialConnected ? "Saldo disponivel" : "Conta digital"}</p>
+            <div className="mt-3 flex min-w-0 items-baseline gap-2">
+              {financialConnected ? <span className="text-2xl font-light italic text-muted-foreground/70">R$</span> : null}
+              <p className="truncate text-5xl font-black leading-none tracking-[-0.065em] text-foreground tabular-nums">
+                {financialConnected ? formatCentsCurrency(signal.bankBalanceCents).replace("R$", "").trim() : "Ativar"}
+              </p>
+            </div>
+            <p className="mt-3 text-xs font-medium text-muted-foreground">
+              {financialConnected ? "Conta, recebiveis e movimentos reais ficam no NeuroFinance." : "Ative para operar conta, Pix, cobrancas e saldo real."}
+            </p>
+          </div>
+        </div>
+      </button>
+
+      <div className="flex flex-col justify-center gap-2 rounded-[30px] border border-zinc-200/50 bg-zinc-100/50 p-3 dark:border-white/[0.055] dark:bg-white/[0.035]">
+        <DesktopMiniStat label="Disponivel" value={formatCentsCurrency(signal.bankBalanceCents)} accent={financialConnected} />
+        <DesktopMiniStat label="Vai cair" value={formatCentsCurrency(signal.bankPendingCents)} />
+        <DesktopMiniStat label="Status" value={financialConnected ? "ON" : "OFF"} tone={financialConnected ? "success" : "warning"} />
+      </div>
+    </div>
+  );
+};
+
+const FinancialOverviewPanel = ({
   financialConnected,
   financialLoading,
   managerial,
@@ -540,78 +594,139 @@ const FinancialSignalPanel = ({
   neuroSnapshot?: { available_balance?: number | null; pending_receivables?: number | null } | null;
   managerLoading: boolean;
   snapshotLoading: boolean;
-}) => {
-  const navigate = useNavigate();
-  const signal = buildFinancialSignal({ financialConnected, financialLoading, managerial, neuroSnapshot });
-  const loading = managerLoading || financialLoading || (financialConnected && snapshotLoading);
-
-  return (
-    <DesktopWorkspacePanel className="p-5 lg:p-6">
+}) => (
+  <DesktopWorkspacePanel className="p-5 lg:p-6">
+    <Tabs defaultValue="management">
       <SectionHeader
         eyebrow="Financeiro"
-        title="Sinal do consultorio"
+        title="Resumo util"
         action={
-          <Button variant="outline" className="h-9 rounded-[14px] px-3 text-xs font-bold" onClick={() => navigate(signal.ctaPath)}>
-            {signal.ctaLabel}
-          </Button>
+          <TabsList className="h-10 rounded-[16px]">
+            <TabsTrigger value="management" className="h-8 rounded-[12px] px-3 text-xs">
+              Gestao
+            </TabsTrigger>
+            <TabsTrigger value="neurofinance" className="h-8 rounded-[12px] px-3 text-xs">
+              NeuroFinance
+            </TabsTrigger>
+          </TabsList>
         }
       />
 
-      {loading ? (
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          {[1, 2, 3, 4].map((item) => (
-            <div key={item} className="h-20 animate-pulse rounded-[20px] bg-muted/35" />
-          ))}
-        </div>
-      ) : (
-        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_138px]">
-          <button
-            type="button"
-            onClick={() => navigate(signal.ctaPath)}
-            className="group relative min-h-[214px] overflow-hidden rounded-[34px] border border-zinc-200 bg-zinc-50 p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#1A1A1C] dark:to-[#0D0D0F] dark:shadow-xl"
+      <TabsContent value="management" className="mt-5">
+        <ManagementWidget managerial={managerial} isLoading={managerLoading} />
+      </TabsContent>
+
+      <TabsContent value="neurofinance" className="mt-5">
+        <NeuroFinanceWidget
+          financialConnected={financialConnected}
+          financialLoading={financialLoading}
+          neuroSnapshot={neuroSnapshot}
+          snapshotLoading={snapshotLoading}
+          managerial={managerial}
+        />
+      </TabsContent>
+    </Tabs>
+  </DesktopWorkspacePanel>
+);
+
+const PendingIcon = ({ item }: { item: AttentionQueueItem }) => {
+  if (item.category === "sessions") return <Users className="h-4 w-4" />;
+  if (item.category === "appointments") return <CalendarIcon className="h-4 w-4" />;
+  if (item.category === "registrations") return <UserPlus className="h-4 w-4" />;
+  if (item.category === "neurofinance") return <WalletCards className="h-4 w-4" />;
+  if (item.tone === "destructive") return <AlertCircle className="h-4 w-4" />;
+  return <Bell className="h-4 w-4" />;
+};
+
+const PendingRows = ({ items }: { items: AttentionQueueItem[] }) => {
+  const navigate = useNavigate();
+
+  if (!items.length) {
+    return (
+      <div className="flex min-h-[190px] flex-col items-center justify-center rounded-[24px] border border-dashed border-border/60 bg-muted/18 p-6 text-center">
+        <CheckCircle2 className="h-8 w-8 text-emerald-500/70" />
+        <h3 className="mt-4 text-base font-bold text-foreground">Tudo em dia</h3>
+        <p className="mt-2 max-w-sm text-sm font-medium text-muted-foreground">Sem pendencias acionaveis nesta categoria.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2 md:grid-cols-2">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => navigate(item.actionUrl)}
+          className={cn(
+            "group flex w-full items-start gap-3 rounded-[20px] border border-zinc-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.08] dark:bg-zinc-950",
+            item.tone === "warning" && "border-amber-500/25 bg-amber-500/[0.06]",
+            item.tone === "destructive" && "border-rose-500/25 bg-rose-500/[0.055]",
+          )}
+        >
+          <span
+            className={cn(
+              "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] border border-border/45 bg-card text-muted-foreground",
+              item.tone === "warning" && "border-amber-500/25 text-amber-600",
+              item.tone === "destructive" && "border-rose-500/25 text-rose-600",
+            )}
           >
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(255,255,255,0.34),transparent_30%),radial-gradient(circle_at_92%_88%,rgba(0,0,0,0.025),transparent_36%)] dark:bg-[radial-gradient(circle_at_16%_12%,rgba(255,255,255,0.045),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.026),transparent_48%)]" />
-            <div className="relative z-10 flex h-full flex-col justify-between gap-8">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <DesktopWorkspaceIcon icon={WalletCards} />
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">Resultado</p>
-                    <p
-                      className={cn(
-                        "mt-1 text-xs font-black uppercase tracking-[0.12em]",
-                        signal.statusTone === "success" && "text-emerald-600 dark:text-emerald-400",
-                        signal.statusTone === "warning" && "text-amber-600 dark:text-amber-400",
-                        signal.statusTone === "default" && "text-muted-foreground",
-                      )}
-                    >
-                      {signal.statusLabel}
-                    </p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground/45 transition-transform group-hover:translate-x-1" />
-              </div>
+            <PendingIcon item={item} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">{item.label}</span>
+            <span className="mt-1 block truncate text-sm font-bold text-foreground">{item.title}</span>
+            <span className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-muted-foreground">{item.description}</span>
+          </span>
+          <ArrowRight className="mt-3 h-4 w-4 shrink-0 text-muted-foreground/45 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
+        </button>
+      ))}
+    </div>
+  );
+};
 
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Gestao do mes</p>
-                <div className="mt-3 flex min-w-0 items-baseline gap-2">
-                  <span className="text-2xl font-light italic text-muted-foreground/70">R$</span>
-                  <p className="truncate text-5xl font-black leading-none tracking-[-0.065em] text-foreground tabular-nums">
-                    {signal.result.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-                <p className="mt-3 text-xs font-medium text-muted-foreground">Resumo executivo. Operacao detalhada no Financeiro.</p>
-              </div>
-            </div>
-          </button>
+const PendingWorkPanel = ({
+  items,
+  isLoading,
+}: {
+  items: AttentionQueueItem[];
+  isLoading: boolean;
+}) => {
+  const countForFilter = (filter: PendingFilter) => (filter === "all" ? items.length : items.filter((item) => item.category === filter).length);
+  const itemsForFilter = (filter: PendingFilter) => (filter === "all" ? items : items.filter((item) => item.category === filter));
 
-          <div className="flex flex-col justify-center gap-2 rounded-[30px] border border-zinc-200/50 bg-zinc-100/50 p-3 dark:border-white/[0.055] dark:bg-white/[0.045]">
-            <DesktopMiniStat label="A receber" value={formatCurrency(signal.receivable)} accent />
-            <DesktopMiniStat label="Saldo NF" value={formatCentsCurrency(signal.bankBalanceCents)} />
-            <DesktopMiniStat label="Vai cair" value={formatCentsCurrency(signal.bankPendingCents)} />
-          </div>
-        </div>
-      )}
+  return (
+    <DesktopWorkspacePanel className="p-5 lg:p-6">
+      <Tabs defaultValue="all">
+        <SectionHeader
+          eyebrow="Pendencias"
+          title="Lista operacional"
+          action={
+            <TabsList className="h-auto flex-wrap justify-end rounded-[16px] p-1">
+              {pendingFilters.map((filter) => (
+                <TabsTrigger key={filter.value} value={filter.value} className="h-8 gap-2 rounded-[12px] px-3 text-xs">
+                  {filter.label}
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-black text-muted-foreground">{countForFilter(filter.value)}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          }
+        />
+
+        {pendingFilters.map((filter) => (
+          <TabsContent key={filter.value} value={filter.value} className="mt-5">
+            {isLoading ? (
+              <div className="grid gap-2 md:grid-cols-2">
+                {[1, 2, 3, 4].map((item) => (
+                  <div key={item} className="h-20 animate-pulse rounded-[20px] bg-muted/35" />
+                ))}
+              </div>
+            ) : (
+              <PendingRows items={itemsForFilter(filter.value)} />
+            )}
+          </TabsContent>
+        ))}
+      </Tabs>
     </DesktopWorkspacePanel>
   );
 };
@@ -638,11 +753,13 @@ export const DesktopDashboardCommandCenter = () => {
     () =>
       buildAttentionQueue({
         notifications,
+        appointments: activeAppointments,
         pendingPatients,
         financialConnected,
         financialLoading,
+        limit: 8,
       }),
-    [financialConnected, financialLoading, notifications, pendingPatients],
+    [activeAppointments, financialConnected, financialLoading, notifications, pendingPatients],
   );
 
   const openSynapseText = () => {
@@ -658,36 +775,24 @@ export const DesktopDashboardCommandCenter = () => {
 
   return (
     <div className="relative min-h-screen w-full bg-background pb-24 pt-28 font-sans text-foreground selection:bg-primary/10 selection:text-primary">
-      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_50%_10%,hsl(var(--foreground)/0.014),transparent_34%)] dark:bg-[radial-gradient(circle_at_50%_10%,hsl(var(--foreground)/0.018),transparent_34%)]" />
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_50%_10%,hsl(var(--foreground)/0.008),transparent_34%)] dark:bg-[radial-gradient(circle_at_50%_10%,rgba(255,255,255,0.003),transparent_34%)]" />
       <main className="page-spacing relative z-10 flex w-full max-w-[2200px] flex-col gap-4 px-6 md:px-8 lg:px-12 xl:px-16">
         <DesktopWorkspaceShell>
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.48fr)_minmax(360px,0.72fr)]">
-            <CommandPanel
+          <div className="grid gap-4 xl:grid-cols-[104px_minmax(0,1fr)_minmax(420px,0.78fr)]">
+            <ActionSidebar today={today} openSynapseText={openSynapseText} openSynapseVoice={openSynapseVoice} />
+            <GreetingPanel
               today={today}
               firstName={getFirstName(profile)}
               todayAppointments={todayAppointments}
               weekAppointmentsCount={activeAppointments.length}
-              nextAppointment={nextAppointment}
-              pendingPatients={pendingPatients}
-              financialConnected={financialConnected}
-              isLoading={loadingAppointments}
+              pendingCount={attentionItems.length}
             />
-            <UtilityRail
-              today={today}
-              openSynapseText={openSynapseText}
-              openSynapseVoice={openSynapseVoice}
-              attentionItems={attentionItems}
-              notificationsLoading={notificationsLoading}
-            />
+            <NextSessionPanel nextAppointment={nextAppointment} isLoading={loadingAppointments} />
           </div>
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(460px,0.95fr)]">
-            <AgendaPanel
-              todayAppointments={todayAppointments}
-              weekAppointments={activeAppointments}
-              isLoading={loadingAppointments}
-            />
-            <FinancialSignalPanel
+          <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.02fr)_minmax(500px,0.98fr)]">
+            <AgendaPanel todayAppointments={todayAppointments} weekAppointments={activeAppointments} isLoading={loadingAppointments} />
+            <FinancialOverviewPanel
               financialConnected={financialConnected}
               financialLoading={financialLoading}
               managerial={managerial}
@@ -695,6 +800,10 @@ export const DesktopDashboardCommandCenter = () => {
               managerLoading={managerLoading}
               snapshotLoading={snapshotLoading}
             />
+          </div>
+
+          <div className="mt-4">
+            <PendingWorkPanel items={attentionItems} isLoading={notificationsLoading} />
           </div>
         </DesktopWorkspaceShell>
       </main>

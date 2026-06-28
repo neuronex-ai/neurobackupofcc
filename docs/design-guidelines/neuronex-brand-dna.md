@@ -196,8 +196,10 @@ Use this pattern for dense desktop surfaces such as Dashboard, Gestao Financeira
 
 **Composition**
 - One dominant high-contrast panel owns the primary job of the screen.
-- One operational rail groups quick actions and pending work.
+- A fixed, non-expanding action sidebar can sit at the left edge for icon-first shortcuts.
+- Pending work should live in its own list block, not inside the shortcut rail.
 - Secondary panels show lists, summaries and follow-up signals without duplicating full tabs.
+- The next operational event can sit beside the greeting as a premium utility panel.
 - Prefer lists, rows, segmented controls, toolbars and native buttons over decorative hero cards.
 - The first fold must answer: what is happening now, what needs action, and where the user can go next.
 
@@ -217,11 +219,13 @@ Use this pattern for dense desktop surfaces such as Dashboard, Gestao Financeira
 **Light, texture and shadow**
 - Desktop workspace light must be restrained. Prefer radial opacity near `0.006` to `0.018`.
 - Avoid large glow clouds. When migrating older dashboard surfaces, reduce ornamental light by about 60%.
+- In dark mode, panel shadows must be dark/black, not white. White light is allowed only as an internal highlight near `0.002` to `0.012`.
 - Texture/noise should be barely visible: `opacity-[0.015]` to `opacity-[0.03]`.
 - Shadows communicate hierarchy, not decoration. Use heavier shadow only on the dominant panel or active surface.
 
 **Density and hierarchy**
 - Keep primary panels at `p-6` to `p-8`; compact rails at `p-5` to `p-6`.
+- Left shortcut sidebars should use compact action tiles, no expandable labels, and no legacy actions.
 - Lists should use rows around `rounded-[20px]`, direct labels, status pills and one clear destination.
 - Mini action blocks should be icon-first, roughly `w-20` to `w-[86px]`, with labels limited to one or two words.
 - Avoid explanatory copy when a status, metric or action already makes the state clear.

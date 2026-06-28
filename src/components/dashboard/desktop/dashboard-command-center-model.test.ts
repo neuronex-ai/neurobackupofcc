@@ -84,7 +84,9 @@ describe("dashboard command center model", () => {
 
     expect(queue.map((item) => item.id)).toEqual(["pending-patients", "financial-activation"]);
     expect(queue[0].actionUrl).toBe("/pacientes");
+    expect(queue[0].category).toBe("registrations");
     expect(queue[1].actionUrl).toBe("/financeiro/neurofinance");
+    expect(queue[1].category).toBe("neurofinance");
   });
 
   it("prioritizes destructive unread notifications", () => {
@@ -114,6 +116,29 @@ describe("dashboard command center model", () => {
 
     expect(queue[0].id).toBe("notification-error");
     expect(queue[0].tone).toBe("destructive");
+    expect(queue[0].category).toBe("system");
+  });
+
+  it("adds unscored past sessions to appointment pending work", () => {
+    const queue = buildAttentionQueue({
+      appointments: [
+        appointment({
+          id: "unscored",
+          start_time: "2026-06-28T08:00:00.000Z",
+          end_time: "2026-06-28T09:00:00.000Z",
+          status: "unscored",
+        }),
+      ],
+      now: new Date("2026-06-28T10:00:00.000Z"),
+      pendingPatients: 0,
+      financialConnected: true,
+    });
+
+    expect(queue[0]).toMatchObject({
+      id: "appointment-score-unscored",
+      category: "appointments",
+      actionUrl: "/agenda",
+    });
   });
 
   it("returns the correct financial signal states", () => {

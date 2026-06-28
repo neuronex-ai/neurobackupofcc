@@ -30,10 +30,11 @@ export function useDashboardManagerialMetrics() {
             else acc.income += amount;
           } else if (tx.type === "expense") {
             acc.expense += amount;
+            if (isPending) acc.payable += amount;
           }
           return acc;
         },
-        { income: 0, expense: 0, receivable: 0 }
+        { income: 0, expense: 0, receivable: 0, payable: 0 }
       );
 
       return {

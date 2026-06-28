@@ -33,8 +33,11 @@ export type AttentionQueueItem = {
 };
 
 export type ManagerialMetrics = {
+  income?: number | null;
+  expense?: number | null;
   result?: number | null;
   receivable?: number | null;
+  payable?: number | null;
 };
 
 export type NeurofinanceSnapshot = {
@@ -89,12 +92,12 @@ export const getNotificationQueueCategory = (notification: DashboardNotification
     return "appointments";
   }
 
-  if (includesAny(text, ["anamnese", "diario", "emocao", "resumo", "sessao", "teleconsulta", "paciente", "prontuario"])) {
-    return "sessions";
-  }
-
   if (includesAny(text, ["cadastro", "convite", "link", "perfil", "conta criada"])) {
     return "registrations";
+  }
+
+  if (includesAny(text, ["anamnese", "diario", "emocao", "resumo", "sessao", "teleconsulta", "paciente", "prontuario"])) {
+    return "sessions";
   }
 
   return "system";
@@ -102,7 +105,7 @@ export const getNotificationQueueCategory = (notification: DashboardNotification
 
 export const getAttentionQueueCategoryLabel = (category: AttentionQueueCategory) => {
   const labels: Record<AttentionQueueCategory, string> = {
-    sessions: "Sessoes",
+    sessions: "Sessões",
     appointments: "Agenda",
     registrations: "Cadastros",
     neurofinance: "NeuroFinance",
@@ -187,7 +190,7 @@ export const buildAttentionQueue = ({
       id: `appointment-score-${appointment.id}`,
       label: "Agenda",
       title: "Pontuar comparecimento",
-      description: `${getAppointmentDisplayTitle(appointment) || appointment.patient_name || "Paciente"} ainda precisa de presenca ou ausencia registrada.`,
+      description: `${getAppointmentDisplayTitle(appointment) || appointment.patient_name || "Paciente"} ainda precisa de presença ou ausência registrada.`,
       actionUrl: "/agenda",
       tone: "warning",
       source: "appointment",
@@ -200,8 +203,8 @@ export const buildAttentionQueue = ({
     items.push({
       id: "pending-patients",
       label: "Cadastros",
-      title: "Pacientes em atencao",
-      description: `${pendingPatients} cadastro${pendingPatients === 1 ? "" : "s"} ou retorno${pendingPatients === 1 ? "" : "s"} aguardando revisao.`,
+      title: "Pacientes em atenção",
+      description: `${pendingPatients} cadastro${pendingPatients === 1 ? "" : "s"} ou retorno${pendingPatients === 1 ? "" : "s"} aguardando revisão.`,
       actionUrl: "/pacientes",
       tone: "warning",
       source: "patients",
@@ -214,7 +217,7 @@ export const buildAttentionQueue = ({
       id: "financial-activation",
       label: "Financeiro",
       title: "Ativar NeuroFinance",
-      description: "Conclua a ativacao para acompanhar recebimentos e cobrancas.",
+      description: "Conclua a ativação para acompanhar recebimentos e cobranças.",
       actionUrl: "/financeiro/neurofinance",
       tone: "warning",
       source: "finance",
