@@ -288,26 +288,29 @@ Deno.serve(async (req: Request) => {
       throw err;
     }
 
-    const shouldPreserveFreeAccess =
-      subscription?.status === "active" && subscription?.access_state === "limited_access";
+    const essentialFallback = {
+      plan: "Essential",
+      plan_code: "essential",
+      status: "active",
+      access_state: "limited_access",
+    };
 
     const existingCheckout = await getOpenCheckoutSession(user.id, planCode);
     if (existingCheckout?.checkout_url) {
       await supabaseAdmin
         .from("user_subscriptions")
         .update({
-          plan: shouldPreserveFreeAccess ? "Essential" : PROFESSIONAL_PLAN_NAME,
-          plan_code: shouldPreserveFreeAccess ? "essential" : planCode,
-          status: shouldPreserveFreeAccess ? "active" : "checkout_pending",
-          access_state: shouldPreserveFreeAccess ? "limited_access" : "blocked",
+          ...essentialFallback,
           asaas_customer_id: customerId,
           asaas_checkout_id: existingCheckout.provider_checkout_id || null,
           external_reference: existingCheckout.external_reference,
+          blocked_at: null,
           metadata: {
             ...((subscription?.metadata || {}) as Record<string, unknown>),
             checkout_external_reference: existingCheckout.external_reference,
             checkout_session_id: existingCheckout.id,
             checkout_reused_at: new Date().toISOString(),
+            checkout_access_policy: "essential_until_payment_confirmation",
             checkout_customer_address_present: true,
             checkout_customer_phone_present: true,
           },
@@ -323,13 +326,14 @@ Deno.serve(async (req: Request) => {
         actor_type: "edge_function",
         action: "checkout_reused",
         from_status: subscription?.status || null,
-        to_status: shouldPreserveFreeAccess ? "active" : "checkout_pending",
+        to_status: "active",
         from_access_state: subscription?.access_state || null,
-        to_access_state: shouldPreserveFreeAccess ? "limited_access" : "blocked",
-        reason: "user_resumed_open_checkout",
+        to_access_state: "limited_access",
+        reason: "user_resumed_open_checkout_essential_preserved",
         metadata: {
           external_reference: existingCheckout.external_reference,
           provider_checkout_id: existingCheckout.provider_checkout_id,
+          paid_access_requires_webhook: true,
         },
       });
 
@@ -451,18 +455,17 @@ Deno.serve(async (req: Request) => {
       .upsert(
         {
           user_id: user.id,
-          plan: shouldPreserveFreeAccess ? "Essential" : PROFESSIONAL_PLAN_NAME,
-          plan_code: shouldPreserveFreeAccess ? "essential" : planCode,
-          status: shouldPreserveFreeAccess ? "active" : "checkout_pending",
-          access_state: shouldPreserveFreeAccess ? "limited_access" : "blocked",
+          ...essentialFallback,
           asaas_customer_id: customerId,
           asaas_checkout_id: checkoutId,
           external_reference: externalReference,
+          blocked_at: null,
           metadata: {
             ...((subscription?.metadata || {}) as Record<string, unknown>),
             checkout_external_reference: externalReference,
             checkout_session_id: sessionId,
             checkout_started_at: new Date().toISOString(),
+            checkout_access_policy: "essential_until_payment_confirmation",
             checkout_customer_phone_present: Boolean(phone),
             checkout_customer_address_present: true,
           },
@@ -481,11 +484,15 @@ Deno.serve(async (req: Request) => {
       actor_type: "edge_function",
       action: "checkout_created",
       from_status: subscription?.status || null,
-      to_status: shouldPreserveFreeAccess ? "active" : "checkout_pending",
+      to_status: "active",
       from_access_state: subscription?.access_state || null,
-      to_access_state: shouldPreserveFreeAccess ? "limited_access" : "blocked",
-      reason: "user_started_checkout",
-      metadata: { external_reference: externalReference, provider_checkout_id: checkoutId },
+      to_access_state: "limited_access",
+      reason: "user_started_checkout_essential_preserved",
+      metadata: {
+        external_reference: externalReference,
+        provider_checkout_id: checkoutId,
+        paid_access_requires_webhook: true,
+      },
     });
 
     return jsonResponse({

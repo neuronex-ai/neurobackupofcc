@@ -11,6 +11,41 @@ const PENDING_STATUSES = new Set(["created", "checkout_pending", "payment_pendin
 const PAID_ASAAS_PAYMENT_STATUSES = new Set(["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"]);
 const PENDING_ASAAS_PAYMENT_STATUSES = new Set(["PENDING", "AWAITING_RISK_ANALYSIS", "AUTHORIZED"]);
 
+async function preserveEssentialAccess(checkout: any, metadata?: Record<string, unknown>) {
+  const now = new Date().toISOString();
+
+  const { data: subscription } = await supabaseAdmin
+    .from("user_subscriptions")
+    .update({
+      plan: "Essential",
+      plan_code: "essential",
+      status: "active",
+      access_state: "limited_access",
+      blocked_at: null,
+      updated_at: now,
+    })
+    .eq("user_id", checkout.user_id)
+    .neq("access_state", "paid_access")
+    .select("id,status,access_state")
+    .maybeSingle();
+
+  await supabaseAdmin.from("subscription_audit_logs").insert({
+    user_id: checkout.user_id,
+    subscription_record_id: subscription?.id || checkout.subscription_record_id || null,
+    checkout_session_id: checkout.id,
+    actor_type: "edge_function",
+    action: "checkout_not_paid_essential_preserved",
+    to_status: "active",
+    to_access_state: "limited_access",
+    reason: "checkout_returned_without_payment_confirmation",
+    metadata: {
+      external_reference: checkout.external_reference,
+      paid_access_requires_webhook: true,
+      ...(metadata || {}),
+    },
+  });
+}
+
 async function syncFromAsaasCheckout(checkout: any) {
   const checkoutId = String(checkout?.provider_checkout_id || "");
   if (!checkoutId) return { paid: false, pending: false, payment: null as any };
@@ -116,8 +151,11 @@ async function syncFromAsaasCheckout(checkout: any) {
     await supabaseAdmin
       .from("user_subscriptions")
       .update({
-        status: "payment_pending",
-        access_state: "blocked",
+        plan: "Essential",
+        plan_code: "essential",
+        status: "active",
+        access_state: "limited_access",
+        blocked_at: null,
         asaas_subscription_id: providerSubscriptionId || null,
         last_payment_id: String(payment.id || ""),
         last_payment_status: paymentStatus,
@@ -125,7 +163,7 @@ async function syncFromAsaasCheckout(checkout: any) {
         updated_at: now,
       })
       .eq("user_id", checkout.user_id)
-      .in("status", ["checkout_pending", "payment_pending", "blocked", "trial_expired"]);
+      .neq("access_state", "paid_access");
 
     return { paid: false, pending: true, payment };
   }
@@ -186,6 +224,13 @@ Deno.serve(async (req: Request) => {
       asaasSync.paid ||
       PAID_CHECKOUT_STATUSES.has(checkoutStatus);
     const isPending = !isPaid && (asaasSync.pending || PENDING_STATUSES.has(checkoutStatus));
+
+    if (!isPaid) {
+      await preserveEssentialAccess(checkout, {
+        checkout_status: checkoutStatus,
+        asaas_sync_pending: asaasSync.pending,
+      });
+    }
 
     return jsonResponse({
       plan_name: checkout.plan === "Professional" ? "NeuroNex Professional" : checkout.plan,

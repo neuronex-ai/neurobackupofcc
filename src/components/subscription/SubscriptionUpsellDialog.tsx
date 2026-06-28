@@ -132,6 +132,17 @@ const FieldError = ({ show, children }: { show: boolean; children: string }) => 
   </p>
 );
 
+const iconSurfaceClass =
+  "border-zinc-200 bg-zinc-50 text-zinc-700 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white/70";
+const cardSurfaceClass =
+  "border-zinc-200 bg-white text-zinc-950 shadow-[0_20px_60px_-36px_rgba(15,23,42,0.45)] dark:border-white/[0.08] dark:bg-white/[0.035] dark:text-white dark:shadow-none";
+const subtleSurfaceClass =
+  "border-zinc-200 bg-zinc-50/80 text-zinc-700 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white/70";
+const inputSurfaceClass =
+  "h-12 rounded-2xl border-zinc-200 bg-white px-4 font-semibold text-zinc-950 shadow-inner placeholder:text-zinc-400 focus-visible:ring-1 focus-visible:ring-zinc-950/20 dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white dark:placeholder:text-white/30 dark:focus-visible:ring-white/20";
+const readonlyInputSurfaceClass =
+  "h-12 rounded-2xl border-zinc-200 bg-zinc-100/80 px-4 font-semibold text-zinc-500 shadow-inner focus-visible:ring-0 dark:border-white/[0.08] dark:bg-white/[0.025] dark:text-white/45";
+
 export const SubscriptionUpsellDialog = ({
   open,
   onOpenChange,
@@ -295,9 +306,9 @@ export const SubscriptionUpsellDialog = ({
   );
 
   const planCard = (
-    <div className="w-full rounded-[26px] border border-border/65 bg-card/85 p-5 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.035] md:p-6">
+    <div className={cn("w-full rounded-[26px] border p-5 md:p-6", cardSurfaceClass)}>
       <div className="flex items-start gap-4 text-left">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/50">
+        <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border", iconSurfaceClass)}>
           <Sparkles className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
@@ -324,7 +335,7 @@ export const SubscriptionUpsellDialog = ({
         ))}
       </div>
 
-      <div className="mt-6 flex w-full items-start gap-3 rounded-2xl border border-border/60 bg-muted/35 p-3 text-left dark:border-white/[0.08] dark:bg-white/[0.04]">
+      <div className={cn("mt-6 flex w-full items-start gap-3 rounded-2xl border p-3 text-left", subtleSurfaceClass)}>
         <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <p className="text-[11px] font-medium leading-relaxed text-muted-foreground">
           A assinatura recorrente mensal é concluída no checkout seguro da Asaas por cartão de crédito.
@@ -346,7 +357,7 @@ export const SubscriptionUpsellDialog = ({
 
       {step === 2 ? (
         <div className="space-y-5 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border border-border/70 bg-muted/45">
+          <div className={cn("mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border", iconSurfaceClass)}>
             <MapPin className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
@@ -368,7 +379,7 @@ export const SubscriptionUpsellDialog = ({
                 value={cpfCnpj}
                 onChange={(event) => onCpfCnpjChange(formatCpfCnpj(event.target.value))}
                 placeholder="000.000.000-00"
-                className="h-12 rounded-2xl border-border/65 bg-muted/35 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                className={inputSurfaceClass}
               />
               <FieldError show={detailsTouched && !cpfValid}>Informe um CPF ou CNPJ válido.</FieldError>
             </div>
@@ -384,12 +395,12 @@ export const SubscriptionUpsellDialog = ({
                 value={phone}
                 onChange={(event) => onPhoneChange(formatBrazilianPhone(event.target.value))}
                 placeholder="+55 (00) 00000-0000"
-                className="h-12 rounded-2xl border-border/65 bg-muted/35 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                className={inputSurfaceClass}
               />
               <FieldError show={detailsTouched && !phoneValid}>Informe um telefone brasileiro válido com DDD.</FieldError>
             </div>
 
-            <div className="grid gap-4 rounded-[22px] border border-border/60 bg-muted/20 p-4 dark:border-white/[0.08]">
+            <div className={cn("grid gap-4 rounded-[22px] border p-4", subtleSurfaceClass)}>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Home className="h-4 w-4" />
                 <p className="text-[10px] font-black uppercase tracking-[0.16em]">Endereço fiscal</p>
@@ -408,7 +419,7 @@ export const SubscriptionUpsellDialog = ({
                       value={billingAddress.postalCode || ""}
                       onChange={(event) => onBillingAddressChange({ postalCode: formatCep(event.target.value) })}
                       placeholder="00000-000"
-                      className="h-12 rounded-2xl border-border/65 bg-background/45 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                      className={inputSurfaceClass}
                     />
                     {addressLookupLoading ? (
                       <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -427,7 +438,7 @@ export const SubscriptionUpsellDialog = ({
                     value={billingAddress.address || ""}
                     onChange={(event) => onBillingAddressChange({ address: event.target.value })}
                     placeholder="Rua, avenida ou travessa"
-                    className="h-12 rounded-2xl border-border/65 bg-background/45 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                    className={inputSurfaceClass}
                   />
                   <FieldError show={detailsTouched && String(billingAddress.address || "").trim().length < 3}>Informe o endereço.</FieldError>
                 </div>
@@ -444,7 +455,7 @@ export const SubscriptionUpsellDialog = ({
                     value={billingAddress.addressNumber || ""}
                     onChange={(event) => onBillingAddressChange({ addressNumber: event.target.value })}
                     placeholder="Número"
-                    className="h-12 rounded-2xl border-border/65 bg-background/45 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                    className={inputSurfaceClass}
                   />
                   <FieldError show={detailsTouched && !String(billingAddress.addressNumber || "").trim()}>Informe o número.</FieldError>
                 </div>
@@ -458,7 +469,7 @@ export const SubscriptionUpsellDialog = ({
                     value={billingAddress.province || ""}
                     onChange={(event) => onBillingAddressChange({ province: event.target.value })}
                     placeholder="Bairro"
-                    className="h-12 rounded-2xl border-border/65 bg-background/45 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                    className={inputSurfaceClass}
                   />
                   <FieldError show={detailsTouched && String(billingAddress.province || "").trim().length < 2}>Informe o bairro.</FieldError>
                 </div>
@@ -474,7 +485,7 @@ export const SubscriptionUpsellDialog = ({
                     value={billingAddress.complement || ""}
                     onChange={(event) => onBillingAddressChange({ complement: event.target.value })}
                     placeholder="Sala, bloco, conjunto"
-                    className="h-12 rounded-2xl border-border/65 bg-background/45 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                    className={inputSurfaceClass}
                   />
                   <FieldError show={false}>Campo opcional.</FieldError>
                 </div>
@@ -487,7 +498,7 @@ export const SubscriptionUpsellDialog = ({
                     readOnly
                     value={[billingAddress.city, billingAddress.state].filter(Boolean).join(" / ")}
                     placeholder="Preenchido pelo CEP"
-                    className="h-12 rounded-2xl border-border/65 bg-background/25 px-4 font-semibold text-muted-foreground shadow-inner focus-visible:ring-0"
+                    className={readonlyInputSurfaceClass}
                   />
                   <FieldError show={false}>Campo auxiliar.</FieldError>
                 </div>
@@ -499,7 +510,7 @@ export const SubscriptionUpsellDialog = ({
 
       {step === 3 ? (
         <div className="space-y-5 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border border-border/70 bg-muted/45">
+          <div className={cn("mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border", iconSurfaceClass)}>
             <ShieldCheck className="h-6 w-6 text-muted-foreground" />
           </div>
           <div>
@@ -510,11 +521,11 @@ export const SubscriptionUpsellDialog = ({
           </div>
 
           <div className="grid gap-3 text-left">
-            <div className="rounded-2xl border border-border/65 bg-muted/30 p-4">
+            <div className={cn("rounded-2xl border p-4", subtleSurfaceClass)}>
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Plano</p>
               <p className="mt-1 text-sm font-bold text-foreground">{planName} · {priceLabel}</p>
             </div>
-            <div className="rounded-2xl border border-border/65 bg-muted/30 p-4">
+            <div className={cn("rounded-2xl border p-4", subtleSurfaceClass)}>
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Dados validados</p>
               <p className="mt-1 text-sm font-bold text-foreground">CPF/CNPJ, telefone e endereço confirmados</p>
             </div>
@@ -525,8 +536,8 @@ export const SubscriptionUpsellDialog = ({
   );
 
   const header = (
-    <div className="w-full shrink-0 border-b border-border/55 px-6 py-5 text-center dark:border-white/[0.08] md:px-8 md:py-6">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border border-border/70 bg-muted/40">
+    <div className="w-full shrink-0 border-b border-zinc-200 bg-white/90 px-6 py-5 text-center dark:border-white/[0.08] dark:bg-[#09090b]/78 md:px-8 md:py-6">
+      <div className={cn("mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border", iconSurfaceClass)}>
         <Lock className="h-6 w-6 text-muted-foreground" />
       </div>
       <p className="mt-4 text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">{eyebrow}</p>
@@ -578,7 +589,7 @@ export const SubscriptionUpsellDialog = ({
   );
 
   const footer = (
-    <div className="w-full shrink-0 border-t border-border/55 bg-background/95 px-5 py-4 backdrop-blur-xl dark:border-white/[0.08] md:bg-muted/20 md:px-8 md:py-5">
+    <div className="w-full shrink-0 border-t border-zinc-200 bg-white/95 px-5 py-4 shadow-[0_-18px_50px_-32px_rgba(15,23,42,0.65)] backdrop-blur-xl dark:border-white/[0.08] dark:bg-[#09090b]/92 dark:shadow-none md:px-8 md:py-5">
       <div className={cn("mx-auto grid gap-3", bodyMaxWidth, isMobile ? "grid-cols-1" : "grid-cols-[1fr_1.25fr]")}>
         {secondaryButton}
         {primaryButton}
@@ -591,7 +602,7 @@ export const SubscriptionUpsellDialog = ({
       <ResponsiveModal
         open={open}
         onOpenChange={onOpenChange}
-        drawerClassName="h-[min(94dvh,48rem)] border-t border-border/60 bg-background text-foreground"
+        drawerClassName="h-[min(94dvh,48rem)] border-t border-zinc-200 bg-white text-zinc-950 dark:border-white/[0.08] dark:bg-[#09090b] dark:text-white"
       >
         <div className="flex min-h-0 flex-1 flex-col items-center">
           <div className="relative min-h-0 w-full flex-1 overflow-hidden">{wizardPage}</div>
@@ -605,7 +616,7 @@ export const SubscriptionUpsellDialog = ({
     <ResponsiveModal
       open={open}
       onOpenChange={onOpenChange}
-      className="w-[min(94vw,44rem)] max-h-[min(92dvh,48rem)] overflow-hidden rounded-[30px] border border-border/65 bg-background/96 p-0 text-foreground shadow-2xl backdrop-blur-2xl dark:border-white/[0.08] dark:bg-[#09090b]/96"
+      className="w-[min(94vw,44rem)] max-h-[min(92dvh,48rem)] overflow-hidden rounded-[30px] border border-zinc-200 bg-white p-0 text-zinc-950 shadow-[0_35px_90px_-32px_rgba(15,23,42,0.7)] backdrop-blur-2xl dark:border-white/[0.08] dark:bg-[#09090b]/96 dark:text-white dark:shadow-2xl"
     >
       <div className="flex h-[min(92dvh,48rem)] min-h-0 flex-col items-center">
         <div className="relative min-h-0 w-full flex-1 overflow-hidden">{wizardPage}</div>

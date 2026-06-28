@@ -204,23 +204,28 @@ export function reactFeatureShape(features: Record<string, unknown>, limits: Rec
 }
 
 export function buildEntitlementResponse(row: any, user?: SupabaseUser, checkout?: any) {
-  const status = String(row?.effective_status || row?.status || "inactive");
-  const accessState = String(row?.effective_access_state || row?.access_state || "blocked");
-  const planCode = String(row?.plan_code || "essential");
+  const rawStatus = String(row?.effective_status || row?.status || "inactive");
+  const rawAccessState = String(row?.effective_access_state || row?.access_state || "blocked");
+  const rawPlanCode = String(row?.plan_code || "essential");
+  const paymentBackedAccess = hasPaymentBackedPaidAccess(row, rawStatus, rawAccessState);
+  const pendingCheckoutWithoutPayment = ["trial_expired", "checkout_pending", "payment_pending"].includes(rawStatus) && !paymentBackedAccess;
+  const activeWithoutPaymentProof = rawStatus === "active" && rawAccessState === "paid_access" && !paymentBackedAccess;
+  const shouldUseEssentialFallback = pendingCheckoutWithoutPayment || activeWithoutPaymentProof;
+  const status = shouldUseEssentialFallback ? "active" : rawStatus;
+  const accessState = shouldUseEssentialFallback ? "limited_access" : rawAccessState;
+  const planCode = shouldUseEssentialFallback ? "essential" : rawPlanCode;
   const plan = publicPlanName(planCode);
   const configuredFeatures = (row?.features || {}) as Record<string, unknown>;
   const configuredLimits = (row?.limits || {}) as Record<string, unknown>;
   const configuredInternalFlags = (row?.internal_flags || {}) as Record<string, unknown>;
-  const paymentBackedAccess = hasPaymentBackedPaidAccess(row, status, accessState);
   const currentAccessAllowed = canUseEntitlementAccess(row, status, accessState);
-  const exposedFeatures = currentAccessAllowed ? configuredFeatures : ESSENTIAL_FEATURES;
-  const exposedLimits = currentAccessAllowed ? configuredLimits : ESSENTIAL_LIMITS;
-  const exposedInternalFlags = currentAccessAllowed ? configuredInternalFlags : ESSENTIAL_INTERNAL_FLAGS;
+  const exposedFeatures = shouldUseEssentialFallback ? ESSENTIAL_FEATURES : currentAccessAllowed ? configuredFeatures : ESSENTIAL_FEATURES;
+  const exposedLimits = shouldUseEssentialFallback ? ESSENTIAL_LIMITS : currentAccessAllowed ? configuredLimits : ESSENTIAL_LIMITS;
+  const exposedInternalFlags = shouldUseEssentialFallback ? ESSENTIAL_INTERNAL_FLAGS : currentAccessAllowed ? configuredInternalFlags : ESSENTIAL_INTERNAL_FLAGS;
   const trialEndsAt = row?.trial_ends_at ? new Date(row.trial_ends_at) : undefined;
   const currentPeriodEnd = row?.current_period_end ? new Date(row.current_period_end) : undefined;
   const isTrial = status === "trialing";
-  const activeWithoutPaymentProof = status === "active" && accessState === "paid_access" && !paymentBackedAccess;
-  const messageStatus = activeWithoutPaymentProof ? "payment_pending" : status;
+  const messageStatus = status;
   const daysUntilTrialEnds =
     isTrial && trialEndsAt
       ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -247,7 +252,7 @@ export function buildEntitlementResponse(row: any, user?: SupabaseUser, checkout
     hasPaidAccess: paymentBackedAccess,
     paymentBackedAccess,
     canUseCurrentAccess: currentAccessAllowed,
-    requiresUpsell: Boolean(row?.requires_upsell) || statusRequiresUpsell(status) || activeWithoutPaymentProof,
+    requiresUpsell: shouldUseEssentialFallback ? false : Boolean(row?.requires_upsell) || statusRequiresUpsell(status),
     message: subscriptionMessage(messageStatus, plan),
   };
 }
@@ -326,9 +331,11 @@ export async function expireTrialIfNeeded(subscription: any) {
   const { data, error } = await supabaseAdmin
     .from("user_subscriptions")
     .update({
-      status: "trial_expired",
-      access_state: "blocked",
-      blocked_at: now,
+      plan: "Essential",
+      plan_code: "essential",
+      status: "active",
+      access_state: "limited_access",
+      blocked_at: null,
       metadata: nextMetadata,
       status_version: Number(subscription.status_version || 0) + 1,
       updated_at: now,
@@ -343,16 +350,16 @@ export async function expireTrialIfNeeded(subscription: any) {
   await auditSubscription({
     user_id: subscription.user_id,
     subscription_record_id: subscription.id,
-    action: "trial_expired",
+    action: "trial_expired_essential_started",
     from_status: "trialing",
-    to_status: "trial_expired",
+    to_status: "active",
     from_access_state: subscription.access_state || "trial_access",
-    to_access_state: "blocked",
-    reason: "trial_end_reached",
+    to_access_state: "limited_access",
+    reason: "trial_end_reached_essential_fallback",
     metadata: { trial_ends_at: subscription.trial_ends_at },
   });
 
-  return data || { ...subscription, status: "trial_expired", access_state: "blocked" };
+  return data || { ...subscription, plan: "Essential", plan_code: "essential", status: "active", access_state: "limited_access" };
 }
 
 export async function getOpenCheckoutSession(userId: string, planCode = PROFESSIONAL_PLAN_CODE) {

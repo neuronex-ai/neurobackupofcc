@@ -59,9 +59,11 @@ Deno.serve(async (req: Request) => {
     const { data: expiredTrials, error: expiredTrialError } = await supabaseAdmin
       .from("user_subscriptions")
       .update({
-        status: "trial_expired",
-        access_state: "blocked",
-        blocked_at: now,
+        plan: "Essential",
+        plan_code: "essential",
+        status: "active",
+        access_state: "limited_access",
+        blocked_at: null,
         updated_at: now,
       })
       .eq("status", "trialing")
@@ -69,7 +71,7 @@ Deno.serve(async (req: Request) => {
       .select("id,user_id,status,access_state,external_reference");
 
     if (expiredTrialError) throw expiredTrialError;
-    await audit(expiredTrials || [], "trial_expired", "trial_expired", "blocked", "trial_end_reached");
+    await audit(expiredTrials || [], "trial_expired_essential_started", "active", "limited_access", "trial_end_reached_essential_fallback");
 
     const { data: expiredCheckouts, error: expiredCheckoutError } = await supabaseAdmin
       .from("subscription_checkout_sessions")
@@ -88,9 +90,11 @@ Deno.serve(async (req: Request) => {
       const { data: updatedSubscriptions, error: blockError } = await supabaseAdmin
         .from("user_subscriptions")
         .update({
-          status: "blocked",
-          access_state: "blocked",
-          blocked_at: now,
+          plan: "Essential",
+          plan_code: "essential",
+          status: "active",
+          access_state: "limited_access",
+          blocked_at: null,
           updated_at: now,
         })
         .eq("user_id", checkout.user_id)
@@ -101,10 +105,10 @@ Deno.serve(async (req: Request) => {
       if (blockError) throw blockError;
       await audit(
         (updatedSubscriptions || []).map((row) => ({ ...row, checkout_session_id: checkout.id })),
-        "checkout_expired_blocked",
-        "blocked",
-        "blocked",
-        "checkout_expired",
+        "checkout_expired_essential_preserved",
+        "active",
+        "limited_access",
+        "checkout_expired_essential_fallback",
       );
     }
 

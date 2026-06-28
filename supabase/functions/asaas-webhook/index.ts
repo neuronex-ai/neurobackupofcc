@@ -1824,13 +1824,13 @@ async function auditPlatformAccessChange(context: any, eventId: string | null, a
     if (error) console.warn('[asaas-webhook] subscription audit failed:', error);
 }
 
-function subscriptionTransitionForEvent(event: string, providerStatus: string, currentStatus?: string) {
+function subscriptionTransitionForEvent(event: string, providerStatus: string, currentStatus?: string, currentAccessState?: string) {
     if (event === 'CHECKOUT_CREATED') {
-        return { status: currentStatus || 'checkout_pending', accessState: accessStateFor(currentStatus || 'checkout_pending', 'professional'), checkoutStatus: 'created', effect: 'checkout_update' as const };
+        return { status: 'active', accessState: 'limited_access', checkoutStatus: 'created', effect: 'checkout_update' as const };
     }
     if (event === 'CHECKOUT_PAID') return { status: 'active', accessState: 'paid_access', checkoutStatus: 'paid', effect: 'access_granted' as const };
-    if (event === 'CHECKOUT_CANCELED') return { status: 'canceled', accessState: 'blocked', checkoutStatus: 'canceled', effect: 'access_blocked' as const };
-    if (event === 'CHECKOUT_EXPIRED') return { status: 'blocked', accessState: 'blocked', checkoutStatus: 'expired', effect: 'access_blocked' as const };
+    if (event === 'CHECKOUT_CANCELED') return { status: 'active', accessState: 'limited_access', checkoutStatus: 'canceled', effect: 'checkout_update' as const };
+    if (event === 'CHECKOUT_EXPIRED') return { status: 'active', accessState: 'limited_access', checkoutStatus: 'expired', effect: 'checkout_update' as const };
     if (event === 'SUBSCRIPTION_INACTIVATED' || event === 'SUBSCRIPTION_DELETED') {
         return { status: 'canceled', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const };
     }
@@ -1841,23 +1841,25 @@ function subscriptionTransitionForEvent(event: string, providerStatus: string, c
         return { status: 'canceled', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const };
     }
     if (event === 'SUBSCRIPTION_CREATED' || event === 'SUBSCRIPTION_UPDATED') {
-        if (currentStatus === 'active') {
+        if (currentStatus === 'active' && currentAccessState === 'paid_access') {
             return { status: 'active', accessState: 'paid_access', checkoutStatus: 'updated', effect: 'history_only' as const };
         }
-        return { status: 'payment_pending', accessState: 'blocked', checkoutStatus: 'payment_pending', effect: 'checkout_update' as const };
+        return { status: 'active', accessState: 'limited_access', checkoutStatus: 'payment_pending', effect: 'checkout_update' as const };
     }
-    return { status: currentStatus || 'payment_pending', accessState: accessStateFor(currentStatus || 'payment_pending', 'professional'), checkoutStatus: 'updated', effect: 'history_only' as const };
+    return currentStatus === 'active' && currentAccessState === 'paid_access'
+        ? { status: 'active', accessState: 'paid_access', checkoutStatus: 'updated', effect: 'history_only' as const }
+        : { status: 'active', accessState: 'limited_access', checkoutStatus: 'updated', effect: 'history_only' as const };
 }
 
-function paymentTransitionForEvent(event: string, currentStatus?: string) {
+function paymentTransitionForEvent(event: string, currentStatus?: string, currentAccessState?: string) {
     if (event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_RECEIVED') {
         return { status: 'active', accessState: 'paid_access', checkoutStatus: 'paid', effect: 'access_granted' as const };
     }
     if (event === 'PAYMENT_OVERDUE') {
-        return { status: 'past_due', accessState: 'blocked', checkoutStatus: 'payment_pending', effect: 'access_blocked' as const };
+        return { status: 'active', accessState: 'limited_access', checkoutStatus: 'payment_pending', effect: 'access_warning' as const };
     }
     if (event === 'PAYMENT_CREDIT_CARD_CAPTURE_REFUSED' || event === 'PAYMENT_REPROVED_BY_RISK_ANALYSIS') {
-        return { status: 'payment_pending', accessState: 'blocked', checkoutStatus: 'payment_pending', effect: 'access_blocked' as const };
+        return { status: 'active', accessState: 'limited_access', checkoutStatus: 'payment_pending', effect: 'access_warning' as const };
     }
     if (event === 'PAYMENT_REFUNDED') {
         return { status: 'refunded', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const };
@@ -1866,9 +1868,9 @@ function paymentTransitionForEvent(event: string, currentStatus?: string) {
         return { status: 'chargeback', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const };
     }
     if (event === 'PAYMENT_DELETED' || event === 'PAYMENT_BANK_SLIP_CANCELLED') {
-        return currentStatus === 'active'
+        return currentStatus === 'active' && currentAccessState === 'paid_access'
             ? { status: 'past_due', accessState: 'blocked', checkoutStatus: 'blocked', effect: 'access_blocked' as const }
-            : { status: 'canceled', accessState: 'blocked', checkoutStatus: 'canceled', effect: 'access_blocked' as const };
+            : { status: 'active', accessState: 'limited_access', checkoutStatus: 'canceled', effect: 'checkout_update' as const };
     }
     if (
         event === 'PAYMENT_CREATED' ||
@@ -1878,17 +1880,24 @@ function paymentTransitionForEvent(event: string, currentStatus?: string) {
         event === 'PAYMENT_ANTICIPATED' ||
         event === 'PAYMENT_APPROVED_BY_RISK_ANALYSIS'
     ) {
-        if (currentStatus === 'active') {
+        if (currentStatus === 'active' && currentAccessState === 'paid_access') {
             return { status: 'active', accessState: 'paid_access', checkoutStatus: 'payment_pending', effect: 'history_only' as const };
         }
-        return { status: 'payment_pending', accessState: 'blocked', checkoutStatus: 'payment_pending', effect: 'checkout_update' as const };
+        return { status: 'active', accessState: 'limited_access', checkoutStatus: 'payment_pending', effect: 'checkout_update' as const };
     }
-    return {
-        status: currentStatus || 'payment_pending',
-        accessState: accessStateFor(currentStatus || 'payment_pending', 'professional'),
-        checkoutStatus: 'updated',
-        effect: event === 'PAYMENT_PARTIALLY_REFUNDED' ? 'access_warning' as const : 'history_only' as const,
-    };
+    return currentStatus === 'active' && currentAccessState === 'paid_access'
+        ? {
+            status: 'active',
+            accessState: 'paid_access',
+            checkoutStatus: 'updated',
+            effect: event === 'PAYMENT_PARTIALLY_REFUNDED' ? 'access_warning' as const : 'history_only' as const,
+        }
+        : {
+            status: 'active',
+            accessState: 'limited_access',
+            checkoutStatus: 'updated',
+            effect: 'history_only' as const,
+        };
 }
 
 async function applyPlatformTransition(args: {
@@ -1941,9 +1950,10 @@ async function applyPlatformTransition(args: {
         return true;
     }
 
+    const grantsPaidAccess = status === 'active' && accessState === 'paid_access';
     const nextValues: Record<string, unknown> = {
-        plan: 'Professional',
-        plan_code: 'professional',
+        plan: grantsPaidAccess ? 'Professional' : 'Essential',
+        plan_code: grantsPaidAccess ? 'professional' : 'essential',
         status,
         access_state: accessState,
         asaas_customer_id: providerCustomerId || current?.asaas_customer_id || null,
@@ -1983,7 +1993,7 @@ async function applyPlatformTransition(args: {
     await auditPlatformAccessChange(context, eventId, `asaas_${event.toLowerCase()}`, current, status, accessState, event);
 
     if (status === 'active') {
-        await markProfilePlan(context.userId, 'Professional');
+        await markProfilePlan(context.userId, grantsPaidAccess ? 'Professional' : 'Essential');
     }
 
     await emitAsaasNotification({
@@ -2004,7 +2014,7 @@ async function handlePlatformPaymentEvent(body: any, payment: any, event: string
     const context = await resolvePlatformContext(body, payment);
     if (!context) return false;
 
-    const transition = paymentTransitionForEvent(event, context.userSubscription?.status);
+    const transition = paymentTransitionForEvent(event, context.userSubscription?.status, context.userSubscription?.access_state);
     await applyPlatformTransition({
         body,
         resource: payment,
@@ -2024,7 +2034,12 @@ async function handlePlatformSubscriptionEvent(body: any, resource: any, event: 
     if (!context) return;
 
     const providerStatus = String(sourceResource?.status || '').toUpperCase();
-    const transition = subscriptionTransitionForEvent(event, providerStatus, context.userSubscription?.status);
+    const transition = subscriptionTransitionForEvent(
+        event,
+        providerStatus,
+        context.userSubscription?.status,
+        context.userSubscription?.access_state,
+    );
     await applyPlatformTransition({
         body,
         resource: sourceResource,
