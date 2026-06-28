@@ -267,9 +267,8 @@ export default function Notes() {
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                        className="notes-retina-window group/main-window pointer-events-auto relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden [contain:layout_paint] [mask-image:linear-gradient(#fff,#fff)]"
+                        className="group/main-window pointer-events-auto relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent shadow-none [contain:layout_paint] [mask-image:linear-gradient(#fff,#fff)]"
                     >
-                        <div className="pointer-events-none absolute inset-0 notes-retina-texture opacity-[0.18] [.light_&]:opacity-[0.12]" />
                         {!isFocusMode && (
                             <motion.div
                                 initial={false}

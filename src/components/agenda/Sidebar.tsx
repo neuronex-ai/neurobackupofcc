@@ -3,7 +3,7 @@
 import { Appointment } from "@/types";
 import { isSameDay, setMonth, setYear, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Filter, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -24,6 +24,7 @@ interface SidebarProps {
   onSearchChange: (query: string) => void;
   selectedTag: string | null;
   onTagChange: (tag: string | null) => void;
+  onClose?: () => void;
 }
 
 const TAGS = ['Online', 'Presencial', 'Primeira Vez'];
@@ -112,7 +113,8 @@ export const Sidebar = ({
   searchQuery,
   onSearchChange,
   selectedTag,
-  onTagChange
+  onTagChange,
+  onClose
 }: SidebarProps) => {
   const todayAppointments = appointments.filter(app =>
     isSameDay(new Date(app.start_time), selectedDate)
@@ -122,10 +124,10 @@ export const Sidebar = ({
   const unscored = todayAppointments.filter(a => normalizeAppointmentStatus(a.status, a.notes) === 'unscored').length;
 
   return (
-    <div className="custom-scrollbar flex h-full flex-col space-y-4 overflow-y-auto pr-1">
+    <div className="no-scrollbar flex h-full flex-col gap-3 overflow-y-auto px-0.5 pb-1">
       
       {/* 1. Calendar Section - High Fidelity Monochrome */}
-      <div className="relative shrink-0 overflow-hidden rounded-[34px] border border-zinc-200/70 bg-white p-6 text-zinc-950 shadow-[0_18px_46px_-36px_rgba(24,24,27,0.28),inset_0_1px_0_rgba(255,255,255,0.86)] ring-1 ring-zinc-950/[0.025] transition-all duration-500 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#1A1A1C] dark:to-[#0D0D0F] dark:text-white dark:shadow-[0_24px_64px_-48px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.045)] dark:ring-white/[0.018] motion-reduce:transition-none">
+      <div className="relative shrink-0 overflow-hidden rounded-[32px] border border-zinc-200/70 bg-white p-5 text-zinc-950 shadow-[0_18px_46px_-36px_rgba(24,24,27,0.28),inset_0_1px_0_rgba(255,255,255,0.86)] ring-1 ring-zinc-950/[0.025] transition-all duration-500 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#1A1A1C] dark:to-[#0D0D0F] dark:text-white dark:shadow-[0_24px_64px_-48px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.045)] dark:ring-white/[0.018] motion-reduce:transition-none">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,rgba(24,24,27,0.035),transparent_34%)] dark:bg-[radial-gradient(circle_at_16%_0%,rgba(255,255,255,0.03),transparent_34%)]" />
         
         <div className="relative z-10 mb-8 flex items-center justify-between">
@@ -138,12 +140,24 @@ export const Sidebar = ({
               <span className="text-[7px] font-bold uppercase tracking-widest text-zinc-950/38 dark:text-white/38">Agenda</span>
             </div>
           </div>
-          <button
-            onClick={() => onDateChange(new Date())}
-            className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-500 shadow-sm transition-all hover:bg-zinc-100 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/52 dark:hover:bg-white/[0.09] dark:hover:text-white motion-reduce:transition-none"
-          >
-            Hoje
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onDateChange(new Date())}
+              className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-500 shadow-sm transition-all hover:bg-zinc-100 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/52 dark:hover:bg-white/[0.09] dark:hover:text-white motion-reduce:transition-none"
+            >
+              Hoje
+            </button>
+            {onClose ? (
+              <button
+                type="button"
+                aria-label="Fechar painel da agenda"
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-950 bg-zinc-950 text-white shadow-sm transition-all hover:bg-zinc-800 active:scale-95 dark:border-white dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 motion-reduce:transition-none motion-reduce:active:scale-100"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <Calendar
@@ -174,13 +188,13 @@ export const Sidebar = ({
       </div>
 
       {/* 2. Metrics Section - Unified Monochrome */}
-      <div className="grid shrink-0 grid-cols-2 gap-3 px-0.5">
+      <div className="grid shrink-0 grid-cols-2 gap-2.5 px-0.5">
         <MetricCard label="Presenças" value={attended} />
         <MetricCard label="Não pontuados" value={unscored} />
       </div>
 
       {/* 3. Search & Filters - Minimalist Area */}
-      <div className="flex flex-1 flex-col gap-8 rounded-[34px] border border-zinc-200/70 bg-white/70 p-6 shadow-[0_18px_46px_-38px_rgba(24,24,27,0.22)] dark:border-white/[0.055] dark:bg-[#0A0A0B]/90 dark:shadow-[0_22px_54px_-46px_rgba(0,0,0,0.88)]">
+      <div className="flex flex-1 flex-col gap-7 rounded-[32px] border border-zinc-200/70 bg-white/72 p-5 shadow-[0_18px_46px_-38px_rgba(24,24,27,0.22)] dark:border-white/[0.055] dark:bg-[#0A0A0B]/90 dark:shadow-[0_22px_54px_-46px_rgba(0,0,0,0.88)]">
         
         {/* Search Block */}
         <div className="space-y-3">
@@ -233,7 +247,7 @@ export const Sidebar = ({
 };
 
 const MetricCard = ({ label, value }: { label: string, value: number }) => (
-  <div className="group rounded-[24px] border border-zinc-200/70 bg-white/80 p-5 shadow-[0_14px_34px_-30px_rgba(24,24,27,0.26)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white hover:shadow-[0_18px_40px_-30px_rgba(24,24,27,0.34)] dark:border-white/[0.055] dark:bg-white/[0.035] dark:shadow-[0_18px_42px_-36px_rgba(0,0,0,0.86)] dark:hover:border-white/12 dark:hover:bg-white/[0.055] motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+  <div className="group rounded-[24px] border border-zinc-200/70 bg-white/82 p-4 shadow-[0_14px_34px_-30px_rgba(24,24,27,0.26)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white hover:shadow-[0_18px_40px_-30px_rgba(24,24,27,0.34)] dark:border-white/[0.055] dark:bg-white/[0.035] dark:shadow-[0_18px_42px_-36px_rgba(0,0,0,0.86)] dark:hover:border-white/12 dark:hover:bg-white/[0.055] motion-reduce:transition-none motion-reduce:hover:translate-y-0">
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <span className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">{label}</span>

@@ -79,6 +79,17 @@ export default function DesktopAgenda() {
         return () => window.removeEventListener(SYNAPSE_PAGE_ACTION_EVENT, handleSynapseAction);
     }, [appointments]);
 
+    useEffect(() => {
+        if (!sidebarOpen) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setSidebarOpen(false);
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [sidebarOpen]);
+
     const closeOpenedAppointment = () => {
         setOpenedAppointmentId(null);
         if (searchParams.has("appointmentId")) {
@@ -108,28 +119,45 @@ export default function DesktopAgenda() {
             <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 px-4 pb-4 md:px-6 lg:px-8 xl:px-10">
                 <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-[40px] border border-zinc-200/60 bg-white/58 p-2 shadow-[0_22px_72px_-52px_rgba(24,24,27,0.34),inset_0_1px_0_rgba(255,255,255,0.82)] backdrop-blur-2xl dark:border-white/[0.05] dark:bg-[#0A0A0B]/88 dark:shadow-[0_28px_90px_-58px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3">
                     <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),transparent_28%)] opacity-60 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.012),transparent_32%)] dark:opacity-100" />
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                     {sidebarOpen && (
-                        <motion.aside
-                            key="sidebar"
-                            initial={{ opacity: 0, x: -18, scale: 0.985 }}
-                            animate={{ opacity: 1, x: 0, scale: 1 }}
-                            exit={{ opacity: 0, x: -18, scale: 0.985 }}
-                            transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.8 }}
-                            className="absolute inset-y-3 left-3 z-40 hidden w-[318px] flex-col overflow-hidden xl:flex"
-                        >
-                            <div className="h-full w-full rounded-[36px] border border-zinc-200/60 bg-background/78 p-2 shadow-[0_26px_80px_-42px_rgba(24,24,27,0.38)] backdrop-blur-2xl dark:border-white/[0.055] dark:bg-black/38 dark:shadow-[0_28px_82px_-48px_rgba(0,0,0,0.95)]">
-                                <Sidebar
-                                    selectedDate={selectedDate}
-                                    onDateChange={setSelectedDate}
-                                    appointments={appointments}
-                                    searchQuery={searchQuery}
-                                    onSearchChange={setSearchQuery}
-                                    selectedTag={selectedTag}
-                                    onTagChange={setSelectedTag}
-                                />
-                            </div>
-                        </motion.aside>
+                        <>
+                            <motion.button
+                                key="agenda-sidebar-dismiss"
+                                type="button"
+                                aria-label="Fechar painel da agenda"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.16 }}
+                                onClick={() => setSidebarOpen(false)}
+                                className="absolute inset-0 z-30 hidden cursor-default bg-zinc-950/[0.015] dark:bg-black/10 xl:block"
+                            />
+                            <motion.aside
+                                key="sidebar"
+                                initial={{ opacity: 0, x: -18, scale: 0.985 }}
+                                animate={{ opacity: 1, x: 0, scale: 1 }}
+                                exit={{ opacity: 0, x: -18, scale: 0.985 }}
+                                transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.8 }}
+                                className="absolute inset-y-3 left-3 z-40 hidden w-[318px] flex-col overflow-hidden xl:flex"
+                            >
+                                <div className="relative h-full w-full rounded-[36px] border border-zinc-200/60 bg-white/74 p-2 shadow-[0_26px_80px_-42px_rgba(24,24,27,0.42)] backdrop-blur-2xl dark:border-white/[0.065] dark:bg-[#101012]/86 dark:shadow-[0_28px_82px_-48px_rgba(0,0,0,0.95)]">
+                                    <div className="pointer-events-none absolute inset-0 rounded-[36px] bg-[linear-gradient(145deg,rgba(255,255,255,0.48),transparent_36%)] dark:bg-[linear-gradient(145deg,rgba(255,255,255,0.035),transparent_38%)]" />
+                                    <div className="relative z-10 h-full">
+                                        <Sidebar
+                                            selectedDate={selectedDate}
+                                            onDateChange={setSelectedDate}
+                                            appointments={appointments}
+                                            searchQuery={searchQuery}
+                                            onSearchChange={setSearchQuery}
+                                            selectedTag={selectedTag}
+                                            onTagChange={setSelectedTag}
+                                            onClose={() => setSidebarOpen(false)}
+                                        />
+                                    </div>
+                                </div>
+                            </motion.aside>
+                        </>
                     )}
                 </AnimatePresence>
 
