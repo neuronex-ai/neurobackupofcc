@@ -31,7 +31,14 @@ create policy "Notion tokens delete own"
   to authenticated
   using ((select auth.uid()) = user_id);
 
-grant select, delete on public.user_notion_tokens to authenticated;
+drop policy if exists "Users can view own notion token" on public.user_notion_tokens;
+drop policy if exists "Users can insert own notion token" on public.user_notion_tokens;
+drop policy if exists "Users can update own notion token" on public.user_notion_tokens;
+drop policy if exists "Users can delete own notion token" on public.user_notion_tokens;
+
+revoke select, insert, update, delete on public.user_notion_tokens from anon, authenticated;
+grant select (user_id, workspace_id, bot_id, created_at, updated_at) on public.user_notion_tokens to authenticated;
+grant delete on public.user_notion_tokens to authenticated;
 revoke truncate, references, trigger on public.user_notion_tokens from authenticated;
 
 drop trigger if exists set_updated_at on public.user_notion_tokens;

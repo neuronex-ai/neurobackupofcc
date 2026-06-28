@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface NotionToken {
-    access_token: string;
+    user_id?: string;
     workspace_id?: string;
 }
 
@@ -20,7 +20,7 @@ export const useNotionAuth = () => {
 
             const { data, error } = await supabase
                 .from('user_notion_tokens')
-                .select('access_token, workspace_id')
+                .select('user_id, workspace_id')
                 .eq('user_id', user.id)
                 .single();
 
