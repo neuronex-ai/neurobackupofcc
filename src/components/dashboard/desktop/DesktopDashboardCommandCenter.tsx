@@ -317,7 +317,7 @@ const ScheduleDetailsLayer = ({
     <div
     id={id}
     className={cn(
-      "dashboard-retina-card absolute inset-x-4 bottom-4 top-[148px] z-10 rounded-[24px] p-3 text-foreground transition-[transform,opacity] duration-[520ms] ease-apple motion-reduce:transition-none",
+      "dashboard-retina-card absolute inset-x-4 bottom-4 top-[148px] z-10 rounded-[24px] p-3 text-foreground transition-[transform,opacity] duration-slow ease-apple motion-reduce:transition-none",
       open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
     )}
   >
@@ -458,7 +458,7 @@ const AppointmentScheduleArtifact = ({
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
         className={cn(
-          "dashboard-schedule-card group/appointment absolute inset-x-4 z-20 overflow-hidden rounded-[28px] p-4 text-foreground outline-none transition-[top,height,transform,box-shadow,border-color,background-color] duration-[560ms] ease-apple [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.992] motion-reduce:transform-none motion-reduce:transition-none",
+          "dashboard-schedule-card group/appointment absolute inset-x-4 z-20 overflow-hidden rounded-[28px] p-4 text-foreground outline-none transition-[top,height,transform,box-shadow,border-color,background-color] duration-slow ease-apple [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.992] motion-reduce:transform-none motion-reduce:transition-none",
           nextAppointment && "cursor-pointer",
           summaryOpen
             ? "top-4 h-[124px] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)]"
