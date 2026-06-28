@@ -2,7 +2,7 @@
 
 import { addDays, differenceInMinutes, endOfDay, format, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { ElementType, ReactNode } from "react";
+import type { ElementType, KeyboardEvent, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,8 +11,10 @@ import {
   Bell,
   Calculator,
   Calendar as CalendarIcon,
+  ChevronDown,
   CheckCircle2,
   Clock,
+  FileText,
   MessageSquare,
   Mic,
   Plus,
@@ -224,13 +226,250 @@ const ActionSidebar = ({
   );
 };
 
-const GreetingPanel = ({
+const ClinicalPrepMetric = ({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string | number;
+  detail: string;
+}) => (
+  <div className="rounded-[24px] border border-background/12 bg-background/10 p-4 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-background/48">{label}</p>
+    <p className="mt-2 truncate text-xl font-black tracking-[-0.04em] text-background">{value}</p>
+    <p className="mt-1 truncate text-xs font-semibold text-background/58">{detail}</p>
+  </div>
+);
+
+const SessionSummaryLayer = ({
+  id,
+  open,
+  latestSessionNote,
+  latestSummaryText,
+  latestTopics,
+  latestNextSteps,
+  isLoading,
+}: {
+  id: string;
+  open: boolean;
+  latestSessionNote?: SessionNote;
+  latestSummaryText: string | null;
+  latestTopics: string[];
+  latestNextSteps: string[];
+  isLoading: boolean;
+}) => (
+  <div
+    id={id}
+    className={cn(
+      "absolute inset-x-5 bottom-5 top-[146px] z-10 rounded-[30px] border border-zinc-200/70 bg-white/88 p-4 pt-16 text-foreground shadow-[0_24px_70px_-52px_rgba(0,0,0,0.66)] backdrop-blur-xl transition-all duration-500 motion-reduce:transition-none dark:border-white/[0.08] dark:bg-zinc-950/92",
+      open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
+    )}
+  >
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">Última sessão</p>
+        </div>
+        {latestSessionNote?.created_at ? (
+          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground/70">
+            {format(new Date(latestSessionNote.created_at), "dd/MM", { locale: ptBR })}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+        {isLoading ? (
+          <div className="space-y-2">
+            <div className="h-4 w-11/12 animate-pulse rounded-full bg-muted/45" />
+            <div className="h-4 w-9/12 animate-pulse rounded-full bg-muted/35" />
+            <div className="h-4 w-10/12 animate-pulse rounded-full bg-muted/25" />
+          </div>
+        ) : latestSummaryText ? (
+          <p className="text-sm font-semibold leading-relaxed text-foreground/88">{latestSummaryText}</p>
+        ) : (
+          <p className="text-sm font-medium leading-relaxed text-muted-foreground">Sem resumo confirmado para este paciente ainda.</p>
+        )}
+
+        {!isLoading && latestSummaryText ? (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {[...latestTopics, ...latestNextSteps].slice(0, 6).map((item) => (
+              <span key={item} className="rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+                {item}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  </div>
+);
+
+const AppointmentScheduleArtifact = ({
+  today,
+  nextAppointment,
+  isLoading,
+  summaryOpen,
+  setSummaryOpen,
+  latestSessionNote,
+  latestSummaryText,
+  latestTopics,
+  latestNextSteps,
+  loadingSessionNotes,
+}: {
+  today: Date;
+  nextAppointment?: Appointment;
+  isLoading: boolean;
+  summaryOpen: boolean;
+  setSummaryOpen: (open: boolean) => void;
+  latestSessionNote?: SessionNote;
+  latestSummaryText: string | null;
+  latestTopics: string[];
+  latestNextSteps: string[];
+  loadingSessionNotes: boolean;
+}) => {
+  const navigate = useNavigate();
+  const summaryPanelId = "dashboard-next-session-summary";
+  const minutesUntil = getMinutesUntil(nextAppointment);
+  const online = nextAppointment ? isOnlineAppointment(nextAppointment) : false;
+  const patientName = nextAppointment ? getAppointmentDisplayTitle(nextAppointment) || nextAppointment.patient_name || "Paciente" : "Agenda livre";
+
+  const handleToggle = () => {
+    if (!isLoading && nextAppointment) {
+      setSummaryOpen(!summaryOpen);
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleToggle();
+    }
+  };
+
+  return (
+    <div className="relative h-full min-h-[376px] overflow-hidden border-t border-background/10 bg-background/[0.07] p-5 [perspective:1600px] dark:bg-zinc-950/[0.035] lg:border-l lg:border-t-0">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_62%_10%,hsl(var(--background)/0.08),transparent_30%),linear-gradient(180deg,hsl(var(--background)/0.035),transparent_48%)] opacity-75 dark:bg-[radial-gradient(circle_at_62%_10%,rgba(0,0,0,0.06),transparent_30%),linear-gradient(180deg,rgba(0,0,0,0.035),transparent_48%)]" />
+
+      <SessionSummaryLayer
+        id={summaryPanelId}
+        open={summaryOpen}
+        latestSessionNote={latestSessionNote}
+        latestSummaryText={latestSummaryText}
+        latestTopics={latestTopics}
+        latestNextSteps={latestNextSteps}
+        isLoading={loadingSessionNotes}
+      />
+
+      <div
+        role={nextAppointment ? "button" : undefined}
+        tabIndex={nextAppointment ? 0 : undefined}
+        aria-expanded={nextAppointment ? summaryOpen : undefined}
+        aria-controls={nextAppointment ? summaryPanelId : undefined}
+        onClick={handleToggle}
+        onKeyDown={handleKeyDown}
+        className={cn(
+          "group/appointment absolute inset-x-5 top-6 z-20 rounded-[32px] border border-zinc-200 bg-background p-5 text-foreground shadow-[0_28px_76px_-44px_rgba(0,0,0,0.82)] outline-none transition-all duration-500 [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.985] motion-reduce:transform-none motion-reduce:transition-none dark:border-white/[0.09] dark:bg-zinc-950 dark:text-white",
+          nextAppointment && "cursor-pointer hover:shadow-[0_34px_86px_-46px_rgba(0,0,0,0.92)]",
+          summaryOpen
+            ? "[transform:translateY(-8px)_rotateX(3deg)_rotateY(-1deg)]"
+            : "[transform:translateY(18px)_rotateX(7deg)_rotateY(-5deg)] hover:[transform:translateY(12px)_rotateX(5deg)_rotateY(-3deg)]",
+        )}
+      >
+        <div className="pointer-events-none absolute inset-0 rounded-[32px] bg-[radial-gradient(circle_at_18%_0%,hsl(var(--foreground)/0.05),transparent_34%),linear-gradient(135deg,hsl(var(--foreground)/0.03),transparent_42%)] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.018),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.012),transparent_42%)]" />
+        <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-foreground/[0.035] blur-2xl dark:bg-white/[0.018]" />
+
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {minutesUntil ? (
+                <span className="rounded-full border border-border/45 bg-card/70 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                  {minutesUntil}
+                </span>
+              ) : null}
+              <span className="rounded-full border border-border/45 bg-card/70 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                {nextAppointment ? (online ? "Online" : "Consultório") : "Novo agendamento"}
+              </span>
+            </div>
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[17px] border border-border/55 bg-card text-muted-foreground shadow-sm">
+              <CalendarIcon className="h-4 w-4" />
+            </span>
+          </div>
+
+          {isLoading ? (
+            <div className="mt-8 space-y-4">
+              <div className="h-12 w-48 animate-pulse rounded-[18px] bg-muted/40" />
+              <div className="h-5 w-36 animate-pulse rounded-full bg-muted/30" />
+            </div>
+          ) : nextAppointment ? (
+            <>
+              <div className="mt-7">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{formatAppointmentDay(nextAppointment)}</p>
+                <div className="mt-2 flex items-end justify-between gap-4">
+                  <p className="text-5xl font-black leading-none tracking-[-0.075em] tabular-nums lg:text-6xl">
+                    {formatAppointmentTime(nextAppointment)}
+                  </p>
+                  <ChevronDown className={cn("mb-1 h-5 w-5 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none", summaryOpen && "rotate-180")} />
+                </div>
+                <h3 className="mt-4 truncate text-2xl font-black leading-none tracking-[-0.055em]">{patientName}</h3>
+                <p className="mt-3 line-clamp-2 text-sm font-medium leading-relaxed text-muted-foreground">
+                  {summaryOpen ? "Resumo clínico aberto abaixo." : online ? "Teleconsulta pronta para entrada direta." : "Clique para preparar a sessão."}
+                </p>
+              </div>
+
+              <div className="mt-5 grid gap-2 sm:grid-cols-3" onClick={(event) => event.stopPropagation()}>
+                {online ? (
+                  <Button
+                    className="h-10 rounded-[15px] bg-foreground px-4 text-[9px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950"
+                    onClick={() => navigate("/teleconsulta", { state: { activeAppointmentId: nextAppointment.id } })}
+                  >
+                    Entrar
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                ) : null}
+                <AppointmentDetailModal appointment={nextAppointment}>
+                  <Button variant="outline" className="h-10 rounded-[15px] px-4 text-[9px] font-black uppercase tracking-[0.16em]">
+                    Ficha
+                  </Button>
+                </AppointmentDetailModal>
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-[15px] px-4 text-[9px] font-black uppercase tracking-[0.16em]"
+                  onClick={() => navigate("/agenda", { state: { openAppointmentId: nextAppointment.id } })}
+                >
+                  Abrir
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="mt-8">
+              <p className="text-4xl font-black leading-none tracking-[-0.065em]">Dia livre</p>
+              <p className="mt-3 text-sm font-medium leading-relaxed text-muted-foreground">Crie um horário ou abra a agenda para organizar a próxima sessão.</p>
+              <div className="mt-6" onClick={(event) => event.stopPropagation()}>
+                <NewAppointmentModal selectedDate={today}>
+                  <Button className="h-11 rounded-[16px] bg-foreground px-5 text-[10px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950">
+                    Agendar
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </NewAppointmentModal>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MorningCommandPanel = ({
   today,
   firstName,
   todayAppointments,
   weekAppointmentsCount,
   attentionItems,
   nextAppointment,
+  isLoading,
 }: {
   today: Date;
   firstName: string;
@@ -238,7 +477,15 @@ const GreetingPanel = ({
   weekAppointmentsCount: number;
   attentionItems: AttentionQueueItem[];
   nextAppointment?: Appointment;
+  isLoading: boolean;
 }) => {
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const patientId = nextAppointment?.patient_id || "";
+  const { data: sessionNotes = [], isLoading: loadingSessionNotes } = useSessionNotes(patientId);
+  const latestSessionNote = sessionNotes[0];
+  const latestSummaryText = getSessionSummaryText(latestSessionNote);
+  const latestTopics = getSummaryTopics(latestSessionNote?.ai_summary);
+  const latestNextSteps = getSummaryNextSteps(latestSessionNote?.ai_summary);
   const remainingToday = todayAppointments.filter((appointment) => new Date(appointment.end_time) > new Date()).length;
   const sessionsToday = todayAppointments.filter((appointment) => getAppointmentKind(appointment) === "session").length;
   const onlineToday = todayAppointments.filter((appointment) => isOnlineAppointment(appointment)).length;
@@ -247,166 +494,48 @@ const GreetingPanel = ({
   const nextPatient = nextAppointment ? getAppointmentDisplayTitle(nextAppointment) || nextAppointment.patient_name || "Paciente" : "Sem sessão futura";
   const nextTime = nextAppointment ? formatAppointmentTime(nextAppointment) : "Livre";
 
-  return (
-    <DesktopWorkspacePanel highContrast className="min-h-[376px] p-6 lg:p-8">
-      <div className="flex h-full min-h-[312px] flex-col justify-between gap-8">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-background/52">
-            {format(today, "EEEE, dd 'de' MMMM", { locale: ptBR })}
-          </p>
-          <h1 className="mt-4 max-w-2xl text-4xl font-black leading-[0.92] tracking-[-0.065em] text-background lg:text-6xl">
-            Bom dia, {firstName}.
-          </h1>
-        </div>
-
-        <div className="grid gap-2 lg:grid-cols-3">
-          <div className="rounded-[24px] border border-background/12 bg-background/10 p-4 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-background/48">Próximo foco</p>
-            <p className="mt-2 truncate text-xl font-black tracking-[-0.04em] text-background">{nextPatient}</p>
-            <p className="mt-1 text-xs font-semibold text-background/58">{nextTime}</p>
-          </div>
-          <div className="rounded-[24px] border border-background/12 bg-background/10 p-4 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-background/48">Revisar antes</p>
-            <p className="mt-2 text-xl font-black tracking-[-0.04em] text-background">{clinicalSignals + appointmentSignals}</p>
-            <p className="mt-1 text-xs font-semibold text-background/58">sinais clínicos e agenda</p>
-          </div>
-          <div className="rounded-[24px] border border-background/12 bg-background/10 p-4 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-background/48">Operação do dia</p>
-            <p className="mt-2 text-xl font-black tracking-[-0.04em] text-background">{sessionsToday}</p>
-            <p className="mt-1 text-xs font-semibold text-background/58">{onlineToday} online</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <GreetingChip label="Hoje" value={remainingToday} />
-          <GreetingChip label="Semana" value={weekAppointmentsCount} />
-          <GreetingChip label="Pendências" value={attentionItems.length} />
-        </div>
-      </div>
-    </DesktopWorkspacePanel>
-  );
-};
-
-const NextSessionPanel = ({
-  nextAppointment,
-  isLoading,
-}: {
-  nextAppointment?: Appointment;
-  isLoading: boolean;
-}) => {
-  const navigate = useNavigate();
-  const patientId = nextAppointment?.patient_id || "";
-  const { data: sessionNotes = [], isLoading: loadingSessionNotes } = useSessionNotes(patientId);
-  const latestSessionNote = sessionNotes[0];
-  const latestSummaryText = getSessionSummaryText(latestSessionNote);
-  const latestTopics = getSummaryTopics(latestSessionNote?.ai_summary);
-  const latestNextSteps = getSummaryNextSteps(latestSessionNote?.ai_summary);
-  const minutesUntil = getMinutesUntil(nextAppointment);
-  const online = isOnlineAppointment(nextAppointment);
+  useEffect(() => {
+    setSummaryOpen(false);
+  }, [nextAppointment?.id]);
 
   return (
-    <DesktopWorkspacePanel className="min-h-[376px] p-5 lg:p-6">
-      <div className="flex h-full min-h-[328px] flex-col justify-between gap-6">
-        <SectionHeader
-          eyebrow="Agora"
-          title="Próxima sessão"
-          action={
-            <Button variant="outline" className="h-9 rounded-[14px] px-3 text-xs font-bold" onClick={() => navigate("/agenda")}>
-              Agenda
-            </Button>
-          }
+    <DesktopWorkspacePanel highContrast className="min-h-[376px] p-0">
+      <div className="grid min-h-[376px] lg:grid-cols-[minmax(0,1.22fr)_minmax(390px,0.78fr)]">
+        <div className="flex min-h-[376px] flex-col justify-between gap-8 p-6 lg:p-8">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-background/52">
+              {format(today, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+            </p>
+            <h1 className="mt-4 max-w-2xl text-4xl font-black leading-[0.92] tracking-[-0.065em] text-background lg:text-6xl">
+              Bom dia, {firstName}.
+            </h1>
+          </div>
+
+          <div className="grid gap-2 lg:grid-cols-3">
+            <ClinicalPrepMetric label="Próximo foco" value={nextPatient} detail={nextTime} />
+            <ClinicalPrepMetric label="Revisar antes" value={clinicalSignals + appointmentSignals} detail="sinais clínicos e agenda" />
+            <ClinicalPrepMetric label="Operação do dia" value={sessionsToday} detail={`${onlineToday} online`} />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <GreetingChip label="Hoje" value={remainingToday} />
+            <GreetingChip label="Semana" value={weekAppointmentsCount} />
+            <GreetingChip label="Pendências" value={attentionItems.length} />
+          </div>
+        </div>
+
+        <AppointmentScheduleArtifact
+          today={today}
+          nextAppointment={nextAppointment}
+          isLoading={isLoading}
+          summaryOpen={summaryOpen}
+          setSummaryOpen={setSummaryOpen}
+          latestSessionNote={latestSessionNote}
+          latestSummaryText={latestSummaryText}
+          latestTopics={latestTopics}
+          latestNextSteps={latestNextSteps}
+          loadingSessionNotes={loadingSessionNotes}
         />
-
-        {isLoading ? (
-          <div className="h-48 animate-pulse rounded-[28px] bg-muted/35" />
-        ) : nextAppointment ? (
-          <div className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-zinc-50 p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#171719] dark:to-[#0C0C0E] dark:shadow-[0_24px_58px_-50px_rgba(0,0,0,0.9)]">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_0%,rgba(0,0,0,0.035),transparent_32%)] dark:bg-[radial-gradient(circle_at_14%_0%,rgba(255,255,255,0.012),transparent_34%)]" />
-            <div className="relative z-10">
-              <div className="flex flex-wrap items-center gap-2">
-                {minutesUntil ? (
-                  <span className="rounded-full border border-border/45 bg-background/65 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-                    {minutesUntil}
-                  </span>
-                ) : null}
-                <span className="rounded-full border border-border/45 bg-background/65 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-                  {online ? "Online" : "Consultório"}
-                </span>
-              </div>
-
-              <div className="mt-6">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{formatAppointmentDay(nextAppointment)}</p>
-                <p className="mt-2 text-6xl font-black leading-none tracking-[-0.075em] text-foreground tabular-nums">
-                  {formatAppointmentTime(nextAppointment)}
-                </p>
-                <h3 className="mt-5 truncate text-2xl font-black leading-none tracking-[-0.055em] text-foreground">
-                  {getAppointmentDisplayTitle(nextAppointment) || nextAppointment.patient_name || "Paciente"}
-                </h3>
-                <p className="mt-3 line-clamp-2 text-sm font-medium leading-relaxed text-muted-foreground">
-                  {online ? "Teleconsulta pronta para entrada direta." : "Abra a ficha ou siga para a agenda."}
-                </p>
-              </div>
-
-              <div className="mt-5 rounded-[22px] border border-zinc-200/70 bg-white/72 p-4 shadow-sm dark:border-white/[0.07] dark:bg-white/[0.035]">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">Última sessão</p>
-                  {latestSessionNote?.created_at ? (
-                    <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground/70">
-                      {format(new Date(latestSessionNote.created_at), "dd/MM", { locale: ptBR })}
-                    </span>
-                  ) : null}
-                </div>
-
-                {loadingSessionNotes ? (
-                  <div className="mt-3 h-16 animate-pulse rounded-[16px] bg-muted/40" />
-                ) : latestSummaryText ? (
-                  <>
-                    <p className="mt-3 line-clamp-3 text-sm font-semibold leading-relaxed text-foreground/88">{latestSummaryText}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {[...latestTopics, ...latestNextSteps].slice(0, 4).map((item) => (
-                        <span key={item} className="rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <p className="mt-3 text-sm font-medium leading-relaxed text-muted-foreground">Sem resumo confirmado para este paciente ainda.</p>
-                )}
-              </div>
-
-              <div className="mt-6 grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
-                {online ? (
-                  <Button
-                    className="h-11 rounded-[16px] bg-foreground px-4 text-[10px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950"
-                    onClick={() => navigate("/teleconsulta", { state: { activeAppointmentId: nextAppointment.id } })}
-                  >
-                    Entrar
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                ) : null}
-                <AppointmentDetailModal appointment={nextAppointment}>
-                  <Button variant="outline" className="h-11 rounded-[16px] px-4 text-[10px] font-black uppercase tracking-[0.16em]">
-                    Ficha
-                  </Button>
-                </AppointmentDetailModal>
-                <Button
-                  variant="outline"
-                  className="h-11 rounded-[16px] px-4 text-[10px] font-black uppercase tracking-[0.16em]"
-                  onClick={() => navigate("/agenda", { state: { openAppointmentId: nextAppointment.id } })}
-                >
-                  Abrir
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex min-h-[210px] flex-col justify-center rounded-[28px] border border-dashed border-border/60 bg-muted/18 p-6">
-            <Clock className="h-8 w-8 text-muted-foreground/45" />
-            <h3 className="mt-5 text-2xl font-black tracking-[-0.055em] text-foreground">Sem sessão futura.</h3>
-            <p className="mt-2 text-sm font-medium leading-relaxed text-muted-foreground">Use Agenda para organizar o próximo horário.</p>
-          </div>
-        )}
       </div>
     </DesktopWorkspacePanel>
   );
@@ -946,17 +1075,17 @@ export const DesktopDashboardCommandCenter = () => {
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_50%_10%,hsl(var(--foreground)/0.008),transparent_34%)] dark:bg-[radial-gradient(circle_at_50%_10%,rgba(255,255,255,0.003),transparent_34%)]" />
       <main className="page-spacing relative z-10 flex w-full max-w-[2200px] flex-col gap-4 px-6 md:px-8 lg:px-12 xl:px-16">
         <DesktopWorkspaceShell>
-          <div className="grid gap-4 xl:grid-cols-[104px_minmax(0,1fr)_minmax(420px,0.78fr)]">
+          <div className="grid gap-4 xl:grid-cols-[104px_minmax(0,1fr)]">
             <ActionSidebar today={today} openSynapseText={openSynapseText} openSynapseVoice={openSynapseVoice} />
-            <GreetingPanel
+            <MorningCommandPanel
               today={today}
               firstName={getFirstName(profile)}
               todayAppointments={todayAppointments}
               weekAppointmentsCount={activeAppointments.length}
               attentionItems={attentionItems}
               nextAppointment={nextAppointment}
+              isLoading={loadingAppointments}
             />
-            <NextSessionPanel nextAppointment={nextAppointment} isLoading={loadingAppointments} />
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.02fr)_minmax(500px,0.98fr)]">
