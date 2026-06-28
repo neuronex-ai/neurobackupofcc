@@ -390,20 +390,6 @@
       radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.05), transparent 72%);
   }
 
-  .notes-focus-backdrop {
-    background:
-      radial-gradient(94rem 52rem at 50% -16%, rgba(255, 255, 255, 0.92), transparent 62%),
-      radial-gradient(76rem 46rem at 50% 108%, rgba(228, 228, 231, 0.44), transparent 66%),
-      linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
-  }
-
-  .dark .notes-focus-backdrop {
-    background:
-      radial-gradient(94rem 52rem at 50% -16%, rgba(255, 255, 255, 0.07), transparent 62%),
-      radial-gradient(76rem 46rem at 50% 108%, rgba(255, 255, 255, 0.035), transparent 66%),
-      linear-gradient(180deg, #050506 0%, #000 100%);
-  }
-
   .notes-neuroview-backdrop {
     background:
       radial-gradient(ellipse at center, rgba(255, 255, 255, 0) 0%, rgba(24, 24, 27, 0.046) 100%),
@@ -701,7 +687,6 @@
     }
 
     .notes-retina-texture,
-    .notes-focus-backdrop,
     .notes-neuroview-backdrop {
       animation: none !important;
       transition: none !important;

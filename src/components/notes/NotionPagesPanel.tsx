@@ -320,7 +320,7 @@ function NotionBlockRenderer({
 // ─── Main Component ─────────────────────────────────────────────
 
 interface NotionPagesPanelProps {
-    onSelectNotionPage?: (pageId: string) => void;
+    onSelectNotionPage?: (pageId: string | null) => void;
     selectedPageId?: string | null;
     onImportedNote?: (noteId: string) => void;
 }
@@ -388,7 +388,7 @@ export const NotionPagesPanel = ({
     const handleBack = () => {
         setViewingPage(null);
         setBlocks([]);
-        onSelectNotionPage?.(null as any);
+        onSelectNotionPage?.(null);
     };
 
     const handleRefresh = async () => {

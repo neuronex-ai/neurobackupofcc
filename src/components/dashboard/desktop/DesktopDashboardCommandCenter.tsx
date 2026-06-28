@@ -975,7 +975,7 @@ const PlanningWidget = ({
             <Calculator className="mr-2 h-4 w-4" />
             Calcular
           </Button>
-          <Button onClick={handleSave} disabled={planning.saveGoal.isPending} className="h-11 rounded-[16px] bg-foreground px-4 text-[9px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950">
+          <Button type="button" onClick={handleSave} disabled={planning.saveGoal.isPending} className="h-11 rounded-[16px] bg-foreground px-4 text-[9px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950">
             {planning.saveGoal.isPending ? <Calculator className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Salvar
           </Button>
