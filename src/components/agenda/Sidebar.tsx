@@ -44,7 +44,7 @@ const CustomCaption = () => {
       <button
         onClick={() => previousMonth && goToMonth(previousMonth)}
         disabled={!previousMonth}
-        className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 shadow-sm transition-all hover:bg-zinc-100 hover:text-zinc-950 active:scale-95 disabled:opacity-20 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/52 dark:hover:bg-white/[0.09] dark:hover:text-white motion-reduce:transition-none motion-reduce:active:scale-100"
+        className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 shadow-sm transition-all hover:bg-zinc-100 hover:text-zinc-950 active:scale-95 disabled:opacity-20 dark:border-white/[0.075] dark:bg-white/[0.045] dark:text-white/52 dark:hover:bg-white/[0.085] dark:hover:text-white motion-reduce:transition-none motion-reduce:active:scale-100"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
@@ -55,7 +55,7 @@ const CustomCaption = () => {
             {format(displayMonth, "MMMM yyyy", { locale: ptBR })}
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-[300px] overflow-hidden rounded-[32px] border border-zinc-200 bg-white p-0 shadow-2xl dark:border-white/10 dark:bg-zinc-950" align="center" sideOffset={12}>
+        <PopoverContent className="w-[300px] overflow-hidden rounded-[32px] border border-zinc-200 bg-white p-0 shadow-2xl dark:border-white/[0.08] dark:bg-[#070708]" align="center" sideOffset={12}>
           <div className="flex flex-row h-[280px]">
             <ScrollArea className="w-[100px] border-r border-zinc-100 dark:border-white/[0.05] bg-zinc-50/50 dark:bg-white/[0.01]">
               <div className="flex flex-col p-3 gap-1.5">
@@ -98,7 +98,7 @@ const CustomCaption = () => {
       <button
         onClick={() => nextMonth && goToMonth(nextMonth)}
         disabled={!nextMonth}
-        className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 shadow-sm transition-all hover:bg-zinc-100 hover:text-zinc-950 active:scale-95 disabled:opacity-20 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/52 dark:hover:bg-white/[0.09] dark:hover:text-white motion-reduce:transition-none motion-reduce:active:scale-100"
+        className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 shadow-sm transition-all hover:bg-zinc-100 hover:text-zinc-950 active:scale-95 disabled:opacity-20 dark:border-white/[0.075] dark:bg-white/[0.045] dark:text-white/52 dark:hover:bg-white/[0.085] dark:hover:text-white motion-reduce:transition-none motion-reduce:active:scale-100"
       >
         <ChevronRight className="h-4 w-4" />
       </button>
@@ -127,12 +127,12 @@ export const Sidebar = ({
     <div className="no-scrollbar flex h-full flex-col gap-3 overflow-y-auto px-0.5 pb-1">
       
       {/* 1. Calendar Section - High Fidelity Monochrome */}
-      <div className="relative shrink-0 overflow-hidden rounded-[32px] border border-zinc-200/70 bg-white p-5 text-zinc-950 shadow-[0_18px_46px_-36px_rgba(24,24,27,0.28),inset_0_1px_0_rgba(255,255,255,0.86)] ring-1 ring-zinc-950/[0.025] transition-all duration-500 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#1A1A1C] dark:to-[#0D0D0F] dark:text-white dark:shadow-[0_24px_64px_-48px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.045)] dark:ring-white/[0.018] motion-reduce:transition-none">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,rgba(24,24,27,0.035),transparent_34%)] dark:bg-[radial-gradient(circle_at_16%_0%,rgba(255,255,255,0.03),transparent_34%)]" />
+      <div className="relative shrink-0 overflow-hidden rounded-[32px] border border-zinc-200/70 bg-white p-5 text-zinc-950 shadow-[0_18px_46px_-36px_rgba(24,24,27,0.28),inset_0_1px_0_rgba(255,255,255,0.86)] ring-1 ring-zinc-950/[0.025] transition-all duration-500 dark:border-white/[0.06] dark:bg-[#050506] dark:text-white dark:shadow-[0_24px_64px_-48px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.035)] dark:ring-white/[0.018] motion-reduce:transition-none">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,rgba(24,24,27,0.035),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.5),transparent_44%)] dark:bg-[radial-gradient(circle_at_16%_0%,rgba(255,255,255,0.024),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.024),transparent_42%)]" />
         
         <div className="relative z-10 mb-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 shadow-sm dark:border-white/10 dark:bg-white/[0.055]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 shadow-sm dark:border-white/[0.075] dark:bg-white/[0.045]">
               <CalendarIcon className="h-3.5 w-3.5 text-zinc-500 dark:text-white/56" />
             </div>
             <div className="flex flex-col">
@@ -143,7 +143,7 @@ export const Sidebar = ({
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => onDateChange(new Date())}
-              className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-500 shadow-sm transition-all hover:bg-zinc-100 hover:text-zinc-950 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/52 dark:hover:bg-white/[0.09] dark:hover:text-white motion-reduce:transition-none"
+              className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-zinc-500 shadow-sm transition-all hover:bg-zinc-100 hover:text-zinc-950 dark:border-white/[0.075] dark:bg-white/[0.045] dark:text-white/52 dark:hover:bg-white/[0.085] dark:hover:text-white motion-reduce:transition-none"
             >
               Hoje
             </button>
@@ -194,10 +194,11 @@ export const Sidebar = ({
       </div>
 
       {/* 3. Search & Filters - Minimalist Area */}
-      <div className="flex flex-1 flex-col gap-7 rounded-[32px] border border-zinc-200/70 bg-white/72 p-5 shadow-[0_18px_46px_-38px_rgba(24,24,27,0.22)] dark:border-white/[0.055] dark:bg-[#0A0A0B]/90 dark:shadow-[0_22px_54px_-46px_rgba(0,0,0,0.88)]">
+      <div className="relative flex flex-1 flex-col gap-7 overflow-hidden rounded-[32px] border border-zinc-200/70 bg-white/72 p-5 shadow-[0_18px_46px_-38px_rgba(24,24,27,0.22)] dark:border-white/[0.055] dark:bg-[#050506]/94 dark:shadow-[0_22px_54px_-46px_rgba(0,0,0,0.94)]">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(145deg,rgba(255,255,255,0.36),transparent_40%)] opacity-70 dark:bg-[linear-gradient(145deg,rgba(255,255,255,0.02),transparent_42%)] dark:opacity-100" />
         
         {/* Search Block */}
-        <div className="space-y-3">
+        <div className="relative z-10 space-y-3">
           <div className="flex items-center gap-2 opacity-40">
             <Search className="h-3 w-3" />
             <label className="text-[8px] font-black uppercase tracking-[0.3em]">Buscar Paciente</label>
@@ -207,13 +208,13 @@ export const Sidebar = ({
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Digite o nome..."
-              className="h-11 rounded-2xl border-zinc-200 bg-zinc-50 px-5 text-[10px] font-bold text-zinc-900 shadow-sm transition-all placeholder:text-zinc-300 focus:ring-0 dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white dark:placeholder:text-white/24 motion-reduce:transition-none"
+              className="h-11 rounded-2xl border-zinc-200 bg-zinc-50 px-5 text-[10px] font-bold text-zinc-900 shadow-sm transition-all placeholder:text-zinc-300 focus:ring-0 dark:border-white/[0.075] dark:bg-white/[0.04] dark:text-white dark:placeholder:text-white/24 motion-reduce:transition-none"
             />
           </div>
         </div>
 
         {/* Tags Block */}
-        <div className="space-y-4">
+        <div className="relative z-10 space-y-4">
           <div className="flex items-center gap-2 opacity-40">
             <Filter className="h-3 w-3" />
             <span className="text-[8px] font-black uppercase tracking-[0.3em]">Filtros</span>
@@ -237,7 +238,7 @@ export const Sidebar = ({
         </div>
 
         {/* Brand Accent */}
-        <div className="mt-auto pt-6 border-t border-zinc-200/50 dark:border-white/[0.03] flex items-center justify-between opacity-30">
+        <div className="relative z-10 mt-auto flex items-center justify-between border-t border-zinc-200/50 pt-6 opacity-30 dark:border-white/[0.03]">
           <span className="text-[7px] font-black uppercase tracking-[0.3em]">Synapse Agenda</span>
           <div className="w-1 h-1 rounded-full bg-zinc-900 dark:bg-white" />
         </div>
@@ -247,7 +248,7 @@ export const Sidebar = ({
 };
 
 const MetricCard = ({ label, value }: { label: string, value: number }) => (
-  <div className="group rounded-[24px] border border-zinc-200/70 bg-white/82 p-4 shadow-[0_14px_34px_-30px_rgba(24,24,27,0.26)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white hover:shadow-[0_18px_40px_-30px_rgba(24,24,27,0.34)] dark:border-white/[0.055] dark:bg-white/[0.035] dark:shadow-[0_18px_42px_-36px_rgba(0,0,0,0.86)] dark:hover:border-white/12 dark:hover:bg-white/[0.055] motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+  <div className="group rounded-[24px] border border-zinc-200/70 bg-white/82 p-4 shadow-[0_14px_34px_-30px_rgba(24,24,27,0.26)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white hover:shadow-[0_18px_40px_-30px_rgba(24,24,27,0.34)] dark:border-white/[0.055] dark:bg-white/[0.03] dark:shadow-[0_18px_42px_-36px_rgba(0,0,0,0.9)] dark:hover:border-white/12 dark:hover:bg-white/[0.05] motion-reduce:transition-none motion-reduce:hover:translate-y-0">
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <span className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">{label}</span>

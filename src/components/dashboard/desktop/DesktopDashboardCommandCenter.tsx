@@ -305,28 +305,40 @@ const ScheduleDetailsLayer = ({
   latestTopics: string[];
   latestNextSteps: string[];
   isLoading: boolean;
-}) => (
-  <div
+}) => {
+  const kind = appointment ? getAppointmentKind(appointment) : null;
+  const metadata = appointment ? getAppointmentMetadata(appointment) : null;
+  const isSession = kind === "session";
+  const DetailIcon = isSession ? FileText : Clock;
+  const detailTitle = isSession ? "Última sessão" : kind === "block" ? "Bloqueio reservado" : "Detalhes do evento";
+  const eventNotes = metadata?.eventNotes || "";
+  const eventLocation = metadata?.eventLocation || appointment?.location || "";
+
+  return (
+    <div
     id={id}
     className={cn(
-      "absolute inset-x-4 bottom-4 top-[148px] z-10 rounded-[24px] border border-zinc-200/70 bg-white/92 p-3 text-zinc-950 shadow-[0_20px_58px_-44px_rgba(0,0,0,0.68)] backdrop-blur-xl transition-all duration-500 motion-reduce:transition-none dark:border-white/[0.09] dark:bg-zinc-950/94 dark:text-white",
+      "dashboard-retina-card absolute inset-x-4 bottom-4 top-[148px] z-10 rounded-[24px] p-3 text-foreground transition-[transform,opacity] duration-[520ms] ease-apple motion-reduce:transition-none",
       open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
     )}
   >
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <FileText className="h-3.5 w-3.5 text-zinc-400 dark:text-white/42" />
+        <div className="flex items-center gap-2 [&>p:last-child]:hidden">
+          <DetailIcon className="h-3.5 w-3.5 text-muted-foreground" />
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">{detailTitle}</p>
           <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-white/42">Última sessão</p>
         </div>
         {latestSessionNote?.created_at ? (
-          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400 dark:text-white/38">
+          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground/80">
             {format(new Date(latestSessionNote.created_at), "dd/MM", { locale: ptBR })}
           </span>
         ) : null}
       </div>
 
       <div className="mt-2 min-h-0 flex-1 overflow-y-auto pr-1">
+        {isSession ? (
+          <>
         {isLoading ? (
           <div className="space-y-2">
             <div className="h-4 w-11/12 animate-pulse rounded-full bg-muted/45" />
@@ -334,24 +346,50 @@ const ScheduleDetailsLayer = ({
             <div className="h-4 w-10/12 animate-pulse rounded-full bg-muted/25" />
           </div>
         ) : latestSummaryText ? (
-          <p className="text-xs font-semibold leading-relaxed text-zinc-800 dark:text-white/82">{latestSummaryText}</p>
+          <p className="text-xs font-semibold leading-relaxed text-foreground/82">{latestSummaryText}</p>
         ) : (
-          <p className="text-xs font-medium leading-relaxed text-zinc-500 dark:text-white/52">Sem resumo confirmado para este paciente ainda.</p>
+          <p className="text-xs font-medium leading-relaxed text-muted-foreground">Sem resumo confirmado para este paciente ainda.</p>
         )}
 
         {!isLoading && latestSummaryText ? (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {[...latestTopics, ...latestNextSteps].slice(0, 4).map((item) => (
-              <span key={item} className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.045] dark:text-white/52">
+              <span key={item} className="dashboard-soft-fill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
                 {item}
               </span>
             ))}
           </div>
         ) : null}
+          </>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5">
+              {appointment ? (
+                <span className="dashboard-soft-fill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+                  {format(new Date(appointment.start_time), "HH:mm")} - {format(new Date(appointment.end_time), "HH:mm")}
+                </span>
+              ) : null}
+              {metadata?.eventCategoryLabel ? (
+                <span className="dashboard-soft-fill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+                  {metadata.eventCategoryLabel}
+                </span>
+              ) : null}
+              {eventLocation ? (
+                <span className="dashboard-soft-fill rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+                  {eventLocation}
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs font-semibold leading-relaxed text-foreground/82">
+              {eventNotes || "Sem observações adicionais para este compromisso."}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   </div>
-);
+  );
+};
 
 const AppointmentScheduleArtifact = ({
   today,
@@ -377,10 +415,13 @@ const AppointmentScheduleArtifact = ({
   loadingSessionNotes: boolean;
 }) => {
   const navigate = useNavigate();
-  const summaryPanelId = "dashboard-next-session-summary";
+  const summaryPanelId = "dashboard-next-schedule-details";
   const minutesUntil = getMinutesUntil(nextAppointment);
-  const online = nextAppointment ? isOnlineAppointment(nextAppointment) : false;
-  const patientName = nextAppointment ? getAppointmentDisplayTitle(nextAppointment) || nextAppointment.patient_name || "Paciente" : "Agenda livre";
+  const scheduleKind = nextAppointment ? getAppointmentKind(nextAppointment) : null;
+  const isSession = scheduleKind === "session";
+  const online = nextAppointment && isSession ? isOnlineAppointment(nextAppointment) : false;
+  const scheduleTitle = getScheduleTitle(nextAppointment);
+  const scheduleModeLabel = getScheduleModeLabel(nextAppointment);
 
   const handleToggle = () => {
     if (!isLoading && nextAppointment) {
@@ -399,9 +440,10 @@ const AppointmentScheduleArtifact = ({
     <div className="relative h-full min-h-[264px] overflow-hidden border-t border-background/10 bg-background/[0.07] p-4 [perspective:1600px] dark:border-zinc-950/10 dark:bg-zinc-950/[0.035] lg:border-l lg:border-t-0">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_62%_10%,hsl(var(--background)/0.08),transparent_30%),linear-gradient(180deg,hsl(var(--background)/0.035),transparent_48%)] opacity-75 dark:bg-[radial-gradient(circle_at_62%_10%,rgba(0,0,0,0.06),transparent_30%),linear-gradient(180deg,rgba(0,0,0,0.035),transparent_48%)]" />
 
-      <SessionSummaryLayer
+      <ScheduleDetailsLayer
         id={summaryPanelId}
         open={summaryOpen}
+        appointment={nextAppointment}
         latestSessionNote={latestSessionNote}
         latestSummaryText={latestSummaryText}
         latestTopics={latestTopics}
@@ -417,29 +459,31 @@ const AppointmentScheduleArtifact = ({
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
         className={cn(
-          "group/appointment absolute inset-x-4 z-20 overflow-hidden rounded-[28px] border border-zinc-200 bg-white p-4 text-zinc-950 shadow-[0_22px_62px_-42px_rgba(0,0,0,0.78)] outline-none transition-[top,height,transform,box-shadow] duration-500 [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.992] motion-reduce:transform-none motion-reduce:transition-none dark:border-white/[0.09] dark:bg-zinc-950 dark:text-white",
+          "dashboard-schedule-card group/appointment absolute inset-x-4 z-20 overflow-hidden rounded-[28px] p-4 text-foreground outline-none transition-[top,height,transform,box-shadow,border-color,background-color] duration-[560ms] ease-apple [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.992] motion-reduce:transform-none motion-reduce:transition-none",
           nextAppointment && "cursor-pointer",
           summaryOpen
-            ? "top-4 h-[124px] shadow-[0_18px_54px_-42px_rgba(0,0,0,0.74)] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)]"
-            : "top-5 h-[222px] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)] hover:shadow-[0_28px_72px_-44px_rgba(0,0,0,0.9)] hover:[transform:translateY(-4px)_rotateX(1.4deg)_rotateY(-0.8deg)]",
+            ? "top-4 h-[124px] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)]"
+            : "top-5 h-[222px] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)] hover:[transform:translateY(-3px)_rotateX(0.9deg)_rotateY(-0.45deg)]",
         )}
       >
-        <div className="pointer-events-none absolute inset-0 rounded-[32px] bg-[radial-gradient(circle_at_18%_0%,hsl(var(--foreground)/0.05),transparent_34%),linear-gradient(135deg,hsl(var(--foreground)/0.03),transparent_42%)] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.018),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.012),transparent_42%)]" />
-        <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-foreground/[0.035] blur-2xl dark:bg-white/[0.018]" />
+        <div className="pointer-events-none absolute inset-0 rounded-[32px] bg-[linear-gradient(180deg,hsl(var(--background)/0.24),transparent_42%),linear-gradient(135deg,hsl(var(--foreground)/0.018),transparent_48%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.018),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.012),transparent_48%)]" />
 
         <div className="relative z-10">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 [&>span:last-child]:hidden">
               {minutesUntil ? (
-                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white/52">
+                <span className="dashboard-soft-fill rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                   {minutesUntil}
                 </span>
               ) : null}
-              <span className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-500 dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white/52">
+              <span className="dashboard-soft-fill rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                {scheduleModeLabel}
+              </span>
+              <span className="dashboard-soft-fill rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
                 {nextAppointment ? (online ? "Online" : "Consultório") : "Novo agendamento"}
               </span>
             </div>
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-zinc-200 bg-white text-zinc-500 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white/52">
+            <span className="dashboard-soft-fill flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] text-muted-foreground">
               <CalendarIcon className="h-4 w-4" />
             </span>
           </div>
@@ -459,8 +503,9 @@ const AppointmentScheduleArtifact = ({
                   </p>
                   <ChevronDown className={cn("mb-1 h-5 w-5 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none", summaryOpen && "rotate-180")} />
                 </div>
-                <h3 className={cn("truncate font-black leading-none tracking-[-0.055em] transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-2 text-lg" : "mt-3 text-xl")}>{patientName}</h3>
-                <p className={cn("line-clamp-1 font-medium leading-relaxed text-muted-foreground transition-all duration-300 motion-reduce:transition-none", summaryOpen ? "mt-0 text-xs opacity-0" : "mt-2 text-xs opacity-100")}>
+                <h3 className={cn("truncate font-black leading-none tracking-[-0.055em] transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-2 text-lg" : "mt-3 text-xl")}>{scheduleTitle}</h3>
+                <p className={cn("line-clamp-1 font-medium leading-relaxed text-muted-foreground transition-all duration-300 [font-size:0] motion-reduce:transition-none", summaryOpen ? "mt-0 opacity-0" : "mt-2 opacity-100")}>
+                  <span className="text-xs">{getSchedulePrompt(nextAppointment, summaryOpen)}</span>
                   {summaryOpen ? "Resumo clínico aberto abaixo." : online ? "Teleconsulta pronta para entrada direta." : "Clique para preparar a sessão."}
                 </p>
               </div>

@@ -218,7 +218,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
 
     if (isLoading) {
         return (
-            <div className="flex h-full items-center justify-center bg-zinc-50/70 dark:bg-white/[0.015]">
+            <div className="flex h-full items-center justify-center bg-transparent">
                 <Loader2 className="h-10 w-10 text-zinc-300 dark:text-white/20 animate-spin" />
             </div>
         );
@@ -232,7 +232,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
         return (
             <div className="flex h-full min-h-0 flex-1 flex-col">
                 {/* Day Headers */}
-                <div className="flex shrink-0 border-b border-zinc-200/70 bg-white/55 backdrop-blur-xl dark:border-white/[0.055] dark:bg-white/[0.018]">
+                <div className="flex shrink-0 border-b border-zinc-200/70 bg-white/64 backdrop-blur-xl dark:border-white/[0.048] dark:bg-white/[0.018]">
                     {/* Time gutter header */}
                     <div className="w-16 shrink-0" />
                     {/* Day columns headers */}
@@ -242,8 +242,8 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                             <div
                                 key={day.toISOString()}
                                 className={cn(
-                                    "min-w-0 flex-1 border-l border-zinc-100/80 py-4 text-center dark:border-white/[0.035]",
-                                    isToday && "bg-zinc-100/55 dark:bg-white/[0.025]"
+                                    "min-w-0 flex-1 border-l border-zinc-100/80 py-3.5 text-center dark:border-white/[0.032]",
+                                    isToday && "bg-zinc-100/62 dark:bg-white/[0.024]"
                                 )}
                             >
                                 <span className={cn(
@@ -267,7 +267,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                 <div className="flex-1 overflow-y-auto custom-scrollbar relative h-full">
                     <div className="flex" style={{ minHeight: HOUR_LABELS.length * HOUR_HEIGHT }}>
                         {/* Time gutter */}
-                        <div className="relative w-16 shrink-0 bg-white/32 dark:bg-black/[0.04]">
+                        <div className="relative w-16 shrink-0 bg-white/38 dark:bg-black/[0.08]">
                             {HOUR_LABELS.map((label, i) => (
                                 <div
                                     key={label}
@@ -340,9 +340,9 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                 },
             }}
         >
-            <div id="agenda-main-calendar" className="relative z-10 flex h-full flex-col overflow-hidden bg-transparent px-3.5 pb-3.5 pt-3.5">
-                <header className="relative mb-3.5 flex shrink-0 flex-col justify-between gap-4 overflow-hidden rounded-[28px] border border-zinc-200/70 bg-white p-3 text-zinc-950 shadow-[0_18px_46px_-38px_rgba(24,24,27,0.26),inset_0_1px_0_rgba(255,255,255,0.86)] backdrop-blur-xl dark:border-white/[0.055] dark:bg-[#0A0A0B] dark:text-white dark:shadow-[0_24px_64px_-50px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.045)] xl:flex-row xl:items-center">
-                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(24,24,27,0.035),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.56),transparent_46%)] dark:bg-[radial-gradient(circle_at_12%_0%,rgba(255,255,255,0.03),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.018),transparent_44%)]" />
+            <div id="agenda-main-calendar" className="relative z-10 flex h-full flex-col overflow-hidden bg-transparent px-3 pb-3 pt-3">
+                <header className="relative mb-3 flex shrink-0 flex-col justify-between gap-4 overflow-hidden rounded-[28px] border border-zinc-950 bg-zinc-950 p-3 text-white shadow-[0_22px_56px_-38px_rgba(24,24,27,0.58),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl dark:border-white/[0.055] dark:bg-[#050506] dark:shadow-[0_24px_64px_-50px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.04)] xl:flex-row xl:items-center">
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(255,255,255,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.045),transparent_44%)] dark:bg-[radial-gradient(circle_at_12%_0%,rgba(255,255,255,0.026),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.016),transparent_44%)]" />
                     {/* Left side: Sidebar Toggle, Title/Date, Google Status */}
                     <div className="relative z-10 flex flex-wrap items-center gap-4">
                         {setSidebarOpen && (
@@ -351,7 +351,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 size="icon"
                                 onClick={() => setSidebarOpen(!sidebarOpen)}
                                 aria-label={sidebarOpen ? "Ocultar painel da agenda" : "Mostrar painel da agenda"}
-                                className="hidden h-10 w-10 rounded-full border border-zinc-200 bg-zinc-50 text-zinc-500 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-950 active:scale-95 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/58 dark:hover:border-white/16 dark:hover:bg-white/[0.09] dark:hover:text-white xl:flex motion-reduce:transition-none motion-reduce:active:scale-100"
+                                className="hidden h-10 w-10 rounded-full border border-white/10 bg-white/[0.075] text-white/60 shadow-sm transition-all hover:border-white/20 hover:bg-white/[0.12] hover:text-white active:scale-95 dark:border-white/[0.075] dark:bg-white/[0.05] dark:text-white/60 dark:hover:border-white/20 dark:hover:bg-white/[0.085] dark:hover:text-white xl:flex motion-reduce:transition-none motion-reduce:active:scale-100"
                             >
                                 {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
                             </Button>
@@ -364,8 +364,8 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ duration: 0.3, ease: "easeOut" }}
                             >
-                                <span className="text-4xl font-black leading-none tracking-[-0.065em] text-zinc-950 dark:text-white xl:text-[2.65rem]">
-                                    {format(date, "dd")} <span className="font-black lowercase text-zinc-950/42 dark:text-white/42">{format(date, "MMMM", { locale: ptBR })}</span> <span className="ml-1 text-2xl font-black text-zinc-950/24 dark:text-white/22">{format(date, "yyyy")}</span>
+                                <span className="text-4xl font-black leading-none tracking-[-0.065em] text-white xl:text-[2.65rem]">
+                                    {format(date, "dd")} <span className="font-black lowercase text-white/52">{format(date, "MMMM", { locale: ptBR })}</span> <span className="ml-1 text-2xl font-black text-white/28">{format(date, "yyyy")}</span>
                                 </span>
                             </motion.div>
                         </div>
@@ -373,18 +373,18 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                         {/* Google Connected Badge Moved Here */}
                         <div className="ml-2 hidden sm:block">
                             {isLoadingGoogle ? (
-                                <div className="h-6 w-20 animate-pulse rounded-full bg-zinc-100 dark:bg-white/[0.08]" />
+                                <div className="h-6 w-20 animate-pulse rounded-full bg-white/[0.08]" />
                             ) : isGoogleConnected ? (
-                                <div className="flex cursor-default items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 shadow-sm dark:border-white/10 dark:bg-white/[0.055]">
+                                <div className="flex cursor-default items-center gap-2 rounded-full border border-white/10 bg-white/[0.075] px-2.5 py-1 shadow-sm dark:border-white/[0.075] dark:bg-white/[0.05]">
                                     <div className="relative flex h-1.5 w-1.5">
                                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
                                     </div>
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 dark:text-white/56">Conectado</span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-white/60">Conectado</span>
                                 </div>
                             ) : (
                                 <Button
                                     onClick={() => navigate('/ajustes?tab=integrations')}
-                                    className="h-6 rounded-full border border-zinc-950 bg-zinc-950 px-3 text-[9px] font-black uppercase tracking-widest text-white transition-all hover:bg-zinc-800 dark:border-white dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+                                    className="h-6 rounded-full border border-white bg-white px-3 text-[9px] font-black uppercase tracking-widest text-zinc-950 transition-all hover:bg-zinc-100 dark:border-white dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
                                 >
                                     Conectar
                                 </Button>
@@ -397,7 +397,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
 
                         {/* View Switcher Controls */}
                         {onViewChange && (
-                            <div className="flex rounded-full border border-zinc-200 bg-zinc-100 p-1 shadow-sm dark:border-white/10 dark:bg-white/[0.055]">
+                            <div className="flex rounded-full border border-white/10 bg-white/[0.075] p-1 shadow-sm dark:border-white/[0.075] dark:bg-white/[0.05]">
                                 {([
                                     { id: 'daily', label: 'Dia' },
                                     { id: 'weekly', label: 'Sem' },
@@ -408,13 +408,13 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                         onClick={() => onViewChange(tab.id)}
                                         className={cn(
                                             "relative z-10 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors",
-                                            view === tab.id ? "text-white dark:text-zinc-950" : "text-zinc-500 hover:text-zinc-950 dark:text-white/48 dark:hover:text-white"
+                                            view === tab.id ? "text-zinc-950" : "text-white/52 hover:text-white"
                                         )}
                                     >
                                         {view === tab.id && (
                                             <motion.div
                                                 layoutId="activeViewTabCompact"
-                                                className="absolute inset-0 rounded-full bg-zinc-950 shadow-sm dark:bg-white"
+                                                className="absolute inset-0 rounded-full bg-white shadow-sm"
                                                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                             />
                                         )}
@@ -424,7 +424,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                             </div>
                         )}
 
-                        <div className="hidden h-6 w-px bg-zinc-200 dark:bg-white/10 sm:block" />
+                        <div className="hidden h-6 w-px bg-white/10 sm:block" />
 
                         {/* Navigation Controls */}
                         <div className="flex items-center gap-1.5">
@@ -432,14 +432,14 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => onDateChange(view === 'monthly' ? subMonths(date, 1) : addDays(date, view === 'daily' ? -1 : -7))}
-                                className="h-10 w-10 rounded-full border border-zinc-200 bg-zinc-50 text-zinc-500 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-950 hover:shadow-md active:scale-95 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/62 dark:hover:border-white/16 dark:hover:bg-white/[0.09] dark:hover:text-white motion-reduce:transition-none motion-reduce:active:scale-100"
+                                className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.075] text-white/60 shadow-sm transition-all hover:border-white/20 hover:bg-white/[0.12] hover:text-white hover:shadow-md active:scale-95 dark:border-white/[0.075] dark:bg-white/[0.05] dark:hover:border-white/20 dark:hover:bg-white/[0.085] motion-reduce:transition-none motion-reduce:active:scale-100"
                             >
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
                             <Button
                                 variant="ghost"
                                 onClick={() => onDateChange(new Date())}
-                                className="h-10 rounded-full border border-zinc-200 bg-zinc-50 px-5 text-[10px] font-black uppercase tracking-widest text-zinc-500 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-950 hover:shadow-md active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.055] dark:text-white/62 dark:hover:border-white/16 dark:hover:bg-white/[0.09] dark:hover:text-white motion-reduce:transition-none motion-reduce:active:scale-100"
+                                className="h-10 rounded-full border border-white/10 bg-white/[0.075] px-5 text-[10px] font-black uppercase tracking-widest text-white/60 shadow-sm transition-all hover:border-white/20 hover:bg-white/[0.12] hover:text-white hover:shadow-md active:scale-[0.98] dark:border-white/[0.075] dark:bg-white/[0.05] dark:hover:border-white/20 dark:hover:bg-white/[0.085] motion-reduce:transition-none motion-reduce:active:scale-100"
                             >
                                 Hoje
                             </Button>
@@ -447,13 +447,13 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => onDateChange(view === 'monthly' ? addMonths(date, 1) : addDays(date, view === 'daily' ? 1 : 7))}
-                                className="h-10 w-10 rounded-full border border-zinc-200 bg-zinc-50 text-zinc-500 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-950 hover:shadow-md active:scale-95 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/62 dark:hover:border-white/16 dark:hover:bg-white/[0.09] dark:hover:text-white motion-reduce:transition-none motion-reduce:active:scale-100"
+                                className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.075] text-white/60 shadow-sm transition-all hover:border-white/20 hover:bg-white/[0.12] hover:text-white hover:shadow-md active:scale-95 dark:border-white/[0.075] dark:bg-white/[0.05] dark:hover:border-white/20 dark:hover:bg-white/[0.085] motion-reduce:transition-none motion-reduce:active:scale-100"
                             >
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
 
-                        <div className="mx-1 hidden h-6 w-px bg-zinc-200 dark:bg-white/10 sm:block" />
+                        <div className="mx-1 hidden h-6 w-px bg-white/10 sm:block" />
 
                         {/* Settings Button */}
                         <AgendaSettingsModal />
@@ -462,7 +462,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                         <Button
                             size="icon"
                             onClick={() => { setNewAppointmentDate(new Date()); setSelectedTimeSlot(undefined); }}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-950 font-bold uppercase tracking-[0.1em] text-white shadow-sm transition-all hover:bg-zinc-800 active:scale-95 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 motion-reduce:transition-none motion-reduce:active:scale-100"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white font-bold uppercase tracking-[0.1em] text-zinc-950 shadow-sm transition-all hover:bg-zinc-100 active:scale-95 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 motion-reduce:transition-none motion-reduce:active:scale-100"
                         >
                             <Plus className="h-4 w-4" />
                         </Button>
@@ -470,7 +470,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                 </header>
 
                 {/* Main content area */}
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[24px] border border-zinc-200/70 bg-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] dark:border-white/[0.045] dark:bg-[#080809] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.028)]">
+                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[24px] border border-zinc-200/70 bg-white/74 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] dark:border-white/[0.045] dark:bg-[#030304] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.024)]">
                     {view === 'monthly' ? renderMonthlyView() : renderTimeGridView()}
                 </div>
 

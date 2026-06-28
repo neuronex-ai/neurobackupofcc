@@ -109,7 +109,7 @@ export const AgendaSettingsModal = () => {
             open={open}
             onOpenChange={setOpen}
             trigger={
-                <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 rounded-full border border-zinc-200 bg-zinc-50 text-zinc-500 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-950 active:scale-95 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/62 dark:hover:border-white/16 dark:hover:bg-white/[0.09] dark:hover:text-white motion-reduce:transition-none motion-reduce:active:scale-100">
+                <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0 rounded-full border border-white/10 bg-white/[0.075] text-white/60 shadow-sm transition-all hover:border-white/20 hover:bg-white/[0.12] hover:text-white active:scale-95 dark:border-white/[0.075] dark:bg-white/[0.05] dark:hover:border-white/20 dark:hover:bg-white/[0.085] motion-reduce:transition-none motion-reduce:active:scale-100">
                     <Settings className="h-4 w-4" />
                 </Button>
             }
