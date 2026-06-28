@@ -510,8 +510,8 @@ const AppointmentScheduleArtifact = ({
           />
         </div>
 
-        <div className="relative z-10 flex h-full min-h-0 flex-col">
-          <div className="flex items-start justify-between gap-4">
+        <div className={cn("relative z-10 grid h-full min-h-0", summaryOpen ? "grid-rows-[auto_minmax(0,1fr)] gap-2" : "grid-rows-[auto_minmax(0,1fr)_auto] gap-3")}>
+          <div className="flex min-h-10 items-start justify-between gap-4">
             <div className="flex min-w-0 flex-wrap items-center gap-2 pr-2 [&>span:last-child]:hidden">
               {minutesUntil ? (
                 <span className="dashboard-soft-fill rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
@@ -531,28 +531,28 @@ const AppointmentScheduleArtifact = ({
           </div>
 
           {isLoading ? (
-            <div className="mt-8 space-y-4">
+            <div className="min-h-0 space-y-4 overflow-hidden py-2">
               <div className="h-12 w-48 animate-pulse rounded-[18px] bg-muted/40" />
               <div className="h-5 w-36 animate-pulse rounded-full bg-muted/30" />
             </div>
           ) : nextAppointment ? (
             <>
-              <div className={cn("min-h-0 transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-2" : "mt-4")}>
+              <div className={cn("min-h-0 overflow-hidden transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "py-0" : "py-1")}>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{formatAppointmentDay(nextAppointment)}</p>
-                <div className="mt-2 flex items-end justify-between gap-4">
-                  <p className={cn("min-w-0 font-black leading-none tracking-[-0.075em] tabular-nums transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "text-4xl" : "text-5xl lg:text-6xl")}>
+                <div className={cn("flex items-end justify-between gap-4", summaryOpen ? "mt-1" : "mt-1.5")}>
+                  <p className={cn("min-w-0 font-black leading-[0.86] tracking-[-0.075em] tabular-nums transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "text-[2.25rem]" : "text-[3rem] 2xl:text-[3.35rem]")}>
                     {formatAppointmentTime(nextAppointment)}
                   </p>
-                  <ChevronDown className={cn("mb-1 h-5 w-5 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none", summaryOpen && "rotate-180")} />
+                  <ChevronDown className={cn("mb-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none", summaryOpen && "rotate-180")} />
                 </div>
-                <h3 className={cn("truncate font-black leading-none tracking-[-0.055em] transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-2 text-lg" : "mt-3 text-xl")}>{scheduleTitle}</h3>
-                <p className={cn("line-clamp-1 font-medium leading-relaxed text-muted-foreground transition-all duration-300 [font-size:0] motion-reduce:transition-none", summaryOpen ? "mt-0 opacity-0" : "mt-2 opacity-100")}>
+                <h3 className={cn("truncate font-black leading-[1.02] tracking-[-0.055em] transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-1.5 text-base" : "mt-2 text-lg")}>{scheduleTitle}</h3>
+                <p className={cn("line-clamp-1 font-medium leading-snug text-muted-foreground transition-all duration-300 motion-reduce:transition-none", summaryOpen ? "mt-0 opacity-0 [font-size:0]" : "mt-1.5 text-xs opacity-100")}>
                   <span className="text-xs">{getSchedulePrompt(nextAppointment, summaryOpen)}</span>
                   {summaryOpen ? "Resumo clínico aberto abaixo." : online ? "Teleconsulta pronta para entrada direta." : "Clique para preparar a sessão."}
                 </p>
               </div>
 
-              <div className={cn("mt-auto grid gap-2 pt-3 transition-all duration-300 sm:grid-cols-3 motion-reduce:transition-none", summaryOpen ? "pointer-events-none max-h-0 overflow-hidden py-0 opacity-0" : "max-h-12 opacity-100")} onClick={(event) => event.stopPropagation()}>
+              <div className={cn("grid shrink-0 gap-2 overflow-hidden transition-all duration-300 motion-reduce:transition-none", online ? "sm:grid-cols-3" : "sm:grid-cols-2", summaryOpen ? "pointer-events-none max-h-0 opacity-0" : "max-h-12 opacity-100")} onClick={(event) => event.stopPropagation()}>
                 {online ? (
                   <Button
                     className="h-9 rounded-[14px] bg-foreground px-3 text-[8px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950"
