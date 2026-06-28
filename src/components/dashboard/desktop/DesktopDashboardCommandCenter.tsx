@@ -262,8 +262,8 @@ const SessionSummaryLayer = ({
   <div
     id={id}
     className={cn(
-      "absolute inset-x-5 bottom-5 top-[146px] z-10 rounded-[30px] border border-zinc-200/70 bg-white/88 p-4 pt-16 text-foreground shadow-[0_24px_70px_-52px_rgba(0,0,0,0.66)] backdrop-blur-xl transition-all duration-500 motion-reduce:transition-none dark:border-white/[0.08] dark:bg-zinc-950/92",
-      open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",
+      "absolute inset-x-4 bottom-4 top-[148px] z-10 rounded-[24px] border border-zinc-200/70 bg-white/90 p-3 text-foreground shadow-[0_20px_58px_-44px_rgba(0,0,0,0.68)] backdrop-blur-xl transition-all duration-500 motion-reduce:transition-none dark:border-white/[0.08] dark:bg-zinc-950/94",
+      open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
     )}
   >
     <div className="flex h-full min-h-0 flex-col">
@@ -279,7 +279,7 @@ const SessionSummaryLayer = ({
         ) : null}
       </div>
 
-      <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="mt-2 min-h-0 flex-1 overflow-y-auto pr-1">
         {isLoading ? (
           <div className="space-y-2">
             <div className="h-4 w-11/12 animate-pulse rounded-full bg-muted/45" />
@@ -287,14 +287,14 @@ const SessionSummaryLayer = ({
             <div className="h-4 w-10/12 animate-pulse rounded-full bg-muted/25" />
           </div>
         ) : latestSummaryText ? (
-          <p className="text-sm font-semibold leading-relaxed text-foreground/88">{latestSummaryText}</p>
+          <p className="text-xs font-semibold leading-relaxed text-foreground/88">{latestSummaryText}</p>
         ) : (
-          <p className="text-sm font-medium leading-relaxed text-muted-foreground">Sem resumo confirmado para este paciente ainda.</p>
+          <p className="text-xs font-medium leading-relaxed text-muted-foreground">Sem resumo confirmado para este paciente ainda.</p>
         )}
 
         {!isLoading && latestSummaryText ? (
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {[...latestTopics, ...latestNextSteps].slice(0, 6).map((item) => (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {[...latestTopics, ...latestNextSteps].slice(0, 4).map((item) => (
               <span key={item} className="rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
                 {item}
               </span>
@@ -349,7 +349,7 @@ const AppointmentScheduleArtifact = ({
   };
 
   return (
-    <div className="relative h-full min-h-[376px] overflow-hidden border-t border-background/10 bg-background/[0.07] p-5 [perspective:1600px] dark:bg-zinc-950/[0.035] lg:border-l lg:border-t-0">
+    <div className="relative h-full min-h-[264px] overflow-hidden border-t border-background/10 bg-background/[0.07] p-4 [perspective:1600px] dark:bg-zinc-950/[0.035] lg:border-l lg:border-t-0">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_62%_10%,hsl(var(--background)/0.08),transparent_30%),linear-gradient(180deg,hsl(var(--background)/0.035),transparent_48%)] opacity-75 dark:bg-[radial-gradient(circle_at_62%_10%,rgba(0,0,0,0.06),transparent_30%),linear-gradient(180deg,rgba(0,0,0,0.035),transparent_48%)]" />
 
       <SessionSummaryLayer
@@ -370,11 +370,11 @@ const AppointmentScheduleArtifact = ({
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
         className={cn(
-          "group/appointment absolute inset-x-5 top-6 z-20 rounded-[32px] border border-zinc-200 bg-background p-5 text-foreground shadow-[0_28px_76px_-44px_rgba(0,0,0,0.82)] outline-none transition-all duration-500 [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.985] motion-reduce:transform-none motion-reduce:transition-none dark:border-white/[0.09] dark:bg-zinc-950 dark:text-white",
-          nextAppointment && "cursor-pointer hover:shadow-[0_34px_86px_-46px_rgba(0,0,0,0.92)]",
+          "group/appointment absolute inset-x-4 z-20 overflow-hidden rounded-[28px] border border-zinc-200 bg-background p-4 text-foreground shadow-[0_22px_62px_-42px_rgba(0,0,0,0.78)] outline-none transition-[top,height,transform,box-shadow] duration-500 [transform-style:preserve-3d] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.992] motion-reduce:transform-none motion-reduce:transition-none dark:border-white/[0.09] dark:bg-zinc-950 dark:text-white",
+          nextAppointment && "cursor-pointer",
           summaryOpen
-            ? "[transform:translateY(-8px)_rotateX(3deg)_rotateY(-1deg)]"
-            : "[transform:translateY(18px)_rotateX(7deg)_rotateY(-5deg)] hover:[transform:translateY(12px)_rotateX(5deg)_rotateY(-3deg)]",
+            ? "top-4 h-[124px] shadow-[0_18px_54px_-42px_rgba(0,0,0,0.74)] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)]"
+            : "top-8 h-[184px] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)] hover:shadow-[0_28px_72px_-44px_rgba(0,0,0,0.9)] hover:[transform:translateY(-4px)_rotateX(1.4deg)_rotateY(-0.8deg)]",
         )}
       >
         <div className="pointer-events-none absolute inset-0 rounded-[32px] bg-[radial-gradient(circle_at_18%_0%,hsl(var(--foreground)/0.05),transparent_34%),linear-gradient(135deg,hsl(var(--foreground)/0.03),transparent_42%)] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.018),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.012),transparent_42%)]" />
@@ -392,7 +392,7 @@ const AppointmentScheduleArtifact = ({
                 {nextAppointment ? (online ? "Online" : "Consultório") : "Novo agendamento"}
               </span>
             </div>
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[17px] border border-border/55 bg-card text-muted-foreground shadow-sm">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-border/55 bg-card text-muted-foreground shadow-sm">
               <CalendarIcon className="h-4 w-4" />
             </span>
           </div>
@@ -404,21 +404,21 @@ const AppointmentScheduleArtifact = ({
             </div>
           ) : nextAppointment ? (
             <>
-              <div className="mt-7">
+              <div className={cn("transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-3" : "mt-6")}>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{formatAppointmentDay(nextAppointment)}</p>
                 <div className="mt-2 flex items-end justify-between gap-4">
-                  <p className="text-5xl font-black leading-none tracking-[-0.075em] tabular-nums lg:text-6xl">
+                  <p className={cn("font-black leading-none tracking-[-0.075em] tabular-nums transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "text-4xl" : "text-5xl lg:text-6xl")}>
                     {formatAppointmentTime(nextAppointment)}
                   </p>
                   <ChevronDown className={cn("mb-1 h-5 w-5 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none", summaryOpen && "rotate-180")} />
                 </div>
-                <h3 className="mt-4 truncate text-2xl font-black leading-none tracking-[-0.055em]">{patientName}</h3>
-                <p className="mt-3 line-clamp-2 text-sm font-medium leading-relaxed text-muted-foreground">
+                <h3 className={cn("truncate font-black leading-none tracking-[-0.055em] transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-2 text-lg" : "mt-4 text-2xl")}>{patientName}</h3>
+                <p className={cn("line-clamp-2 font-medium leading-relaxed text-muted-foreground transition-all duration-300 motion-reduce:transition-none", summaryOpen ? "mt-1 text-xs opacity-0" : "mt-3 text-sm opacity-100")}>
                   {summaryOpen ? "Resumo clínico aberto abaixo." : online ? "Teleconsulta pronta para entrada direta." : "Clique para preparar a sessão."}
                 </p>
               </div>
 
-              <div className="mt-5 grid gap-2 sm:grid-cols-3" onClick={(event) => event.stopPropagation()}>
+              <div className={cn("grid gap-2 transition-all duration-300 sm:grid-cols-3 motion-reduce:transition-none", summaryOpen ? "pointer-events-none mt-0 max-h-0 opacity-0" : "mt-4 max-h-12 opacity-100")} onClick={(event) => event.stopPropagation()}>
                 {online ? (
                   <Button
                     className="h-10 rounded-[15px] bg-foreground px-4 text-[9px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950"
