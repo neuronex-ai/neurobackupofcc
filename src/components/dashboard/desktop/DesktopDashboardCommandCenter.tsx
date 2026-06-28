@@ -1122,9 +1122,9 @@ const PendingWorkPanel = ({
           eyebrow="Pendências"
           title="Lista operacional"
           action={
-            <TabsList className="h-auto flex-wrap justify-end rounded-[16px] p-1">
+            <TabsList className="dashboard-segment-list h-auto flex-wrap justify-end rounded-[16px] p-1">
               {pendingFilters.map((filter) => (
-                <TabsTrigger key={filter.value} value={filter.value} className="h-8 gap-2 rounded-[12px] px-3 text-xs">
+                <TabsTrigger key={filter.value} value={filter.value} className="dashboard-segment-trigger h-8 gap-2 rounded-[12px] px-3 text-xs">
                   {filter.label}
                   <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-black text-muted-foreground">{countForFilter(filter.value)}</span>
                 </TabsTrigger>
