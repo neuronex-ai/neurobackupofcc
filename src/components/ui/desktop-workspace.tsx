@@ -11,11 +11,11 @@ export const DesktopWorkspaceShell = ({
 }) => (
   <div
     className={cn(
-      "relative overflow-hidden rounded-[40px] border border-border/45 bg-card/42 p-3 shadow-[0_22px_90px_-76px_hsl(var(--foreground)/0.7)] dark:border-white/[0.04] dark:bg-white/[0.02] md:p-4",
+      "relative overflow-hidden rounded-[40px] border border-border/45 bg-card/42 p-3 shadow-[0_22px_90px_-76px_hsl(var(--foreground)/0.42)] dark:border-white/[0.04] dark:bg-white/[0.02] dark:shadow-[0_22px_70px_-60px_rgba(0,0,0,0.86)] md:p-4",
       className,
     )}
   >
-    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,hsl(var(--foreground)/0.01),transparent_30%),linear-gradient(180deg,hsl(var(--background)/0.05),transparent_42%)]" />
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,hsl(var(--foreground)/0.01),transparent_30%),linear-gradient(180deg,hsl(var(--background)/0.05),transparent_42%)] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.004),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.006),transparent_42%)]" />
     <div className="relative z-10">{children}</div>
   </div>
 );
@@ -31,7 +31,7 @@ export const DesktopWorkspacePanel = ({
 }) => (
   <section
     className={cn(
-      "relative overflow-hidden rounded-[34px] border shadow-[0_24px_74px_-54px_hsl(var(--foreground)/0.76)] ring-1 ring-foreground/[0.025]",
+      "relative overflow-hidden rounded-[34px] border shadow-[0_24px_74px_-56px_hsl(var(--foreground)/0.44)] ring-1 ring-foreground/[0.025] dark:shadow-[0_24px_68px_-54px_rgba(0,0,0,0.9)] dark:ring-white/[0.018]",
       highContrast
         ? "border-foreground bg-foreground text-background dark:border-white dark:bg-white dark:text-zinc-950"
         : "border-border/65 bg-card/78 text-foreground dark:border-white/[0.08] dark:bg-white/[0.04]",
@@ -42,8 +42,8 @@ export const DesktopWorkspacePanel = ({
       className={cn(
         "pointer-events-none absolute inset-0",
         highContrast
-          ? "bg-[radial-gradient(circle_at_8%_0%,hsl(var(--background)/0.055),transparent_32%),linear-gradient(135deg,hsl(var(--background)/0.025),transparent_44%)]"
-          : "bg-[radial-gradient(circle_at_18%_10%,hsl(var(--foreground)/0.008),transparent_34%),radial-gradient(circle_at_92%_88%,hsl(var(--foreground)/0.006),transparent_38%)]",
+          ? "bg-[radial-gradient(circle_at_8%_0%,hsl(var(--background)/0.04),transparent_32%),linear-gradient(135deg,hsl(var(--background)/0.02),transparent_44%)] dark:bg-[radial-gradient(circle_at_8%_0%,rgba(0,0,0,0.04),transparent_32%),linear-gradient(135deg,rgba(0,0,0,0.02),transparent_44%)]"
+          : "bg-[radial-gradient(circle_at_18%_10%,hsl(var(--foreground)/0.006),transparent_34%),radial-gradient(circle_at_92%_88%,hsl(var(--foreground)/0.004),transparent_38%)] dark:bg-[radial-gradient(circle_at_18%_10%,rgba(255,255,255,0.003),transparent_34%),radial-gradient(circle_at_92%_88%,rgba(255,255,255,0.002),transparent_38%)]",
       )}
     />
     <div className="relative z-10">{children}</div>
@@ -76,7 +76,7 @@ export type DesktopActionTileProps = {
 };
 
 export const DesktopActionTile = forwardRef<HTMLButtonElement, DesktopActionTileProps>(({
-      icon: Icon,
+  icon: Icon,
   label,
   onClick,
   active = false,

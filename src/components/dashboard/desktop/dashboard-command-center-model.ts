@@ -2,7 +2,8 @@ import { isAfter, isSameDay } from "date-fns";
 
 import type { Appointment } from "@/types";
 import { getAppointmentKind } from "@/lib/appointment-metadata";
-import { isCancelledAppointmentStatus } from "@/lib/appointment-status";
+import { isCancelledAppointmentStatus, normalizeAppointmentStatus } from "@/lib/appointment-status";
+import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
 
 export type DashboardNotificationSeverity = "success" | "info" | "warning" | "destructive";
 
@@ -18,6 +19,8 @@ export type DashboardNotification = {
   isRead?: boolean;
 };
 
+export type AttentionQueueCategory = "sessions" | "appointments" | "registrations" | "neurofinance" | "system";
+
 export type AttentionQueueItem = {
   id: string;
   label: string;
@@ -25,7 +28,8 @@ export type AttentionQueueItem = {
   description: string;
   actionUrl: string;
   tone: "default" | "warning" | "destructive";
-  source: "notification" | "patients" | "finance";
+  source: "notification" | "patients" | "finance" | "appointment";
+  category: AttentionQueueCategory;
 };
 
 export type ManagerialMetrics = {
@@ -64,6 +68,50 @@ const priorityRank = (priority?: string | null) => {
   return 3;
 };
 
+const normalizeSearchText = (value?: string | null) =>
+  (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const includesAny = (text: string, terms: string[]) => terms.some((term) => text.includes(term));
+
+export const getNotificationQueueCategory = (notification: DashboardNotification): AttentionQueueCategory => {
+  const text = normalizeSearchText(
+    [notification.category, notification.title, notification.message, notification.actionUrl].filter(Boolean).join(" "),
+  );
+
+  if (includesAny(text, ["neurofinance", "financeiro", "pix", "boleto", "cobranca", "pagamento", "conta"])) {
+    return "neurofinance";
+  }
+
+  if (includesAny(text, ["agenda", "agendamento", "reagendamento", "consulta", "confirmou", "cancelou", "cancelamento", "horario"])) {
+    return "appointments";
+  }
+
+  if (includesAny(text, ["anamnese", "diario", "emocao", "resumo", "sessao", "teleconsulta", "paciente", "prontuario"])) {
+    return "sessions";
+  }
+
+  if (includesAny(text, ["cadastro", "convite", "link", "perfil", "conta criada"])) {
+    return "registrations";
+  }
+
+  return "system";
+};
+
+export const getAttentionQueueCategoryLabel = (category: AttentionQueueCategory) => {
+  const labels: Record<AttentionQueueCategory, string> = {
+    sessions: "Sessoes",
+    appointments: "Agenda",
+    registrations: "Cadastros",
+    neurofinance: "NeuroFinance",
+    system: "Sistema",
+  };
+
+  return labels[category];
+};
+
 export const getActiveAppointments = (appointments?: Appointment[] | null) =>
   [...(appointments || [])]
     .filter((appointment) => !isCancelledAppointmentStatus(appointment.status, appointment.notes))
@@ -83,12 +131,16 @@ export const getNextSession = (appointments: Appointment[], now: Date) =>
 
 export const buildAttentionQueue = ({
   notifications,
+  appointments,
+  now = new Date(),
   pendingPatients,
   financialConnected,
   financialLoading = false,
   limit = 5,
 }: {
   notifications?: DashboardNotification[] | null;
+  appointments?: Appointment[] | null;
+  now?: Date;
   pendingPatients: number;
   financialConnected: boolean;
   financialLoading?: boolean;
@@ -106,27 +158,54 @@ export const buildAttentionQueue = ({
       return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime();
     })
     .slice(0, 3)
-    .map<AttentionQueueItem>((notification) => ({
-      id: `notification-${notification.id}`,
-      label: notification.category || "Sistema",
-      title: notification.title,
-      description: notification.message,
-      actionUrl: notification.actionUrl || "/dashboard",
-      tone: notification.severity === "destructive" ? "destructive" : notification.severity === "warning" ? "warning" : "default",
-      source: "notification",
-    }));
+    .map<AttentionQueueItem>((notification) => {
+      const category = getNotificationQueueCategory(notification);
+
+      return {
+        id: `notification-${notification.id}`,
+        label: getAttentionQueueCategoryLabel(category),
+        title: notification.title,
+        description: notification.message,
+        actionUrl: notification.actionUrl || "/dashboard",
+        tone: notification.severity === "destructive" ? "destructive" : notification.severity === "warning" ? "warning" : "default",
+        source: "notification",
+        category,
+      };
+    });
 
   const items = [...notificationItems];
+
+  const attendanceItems = [...(appointments || [])]
+    .filter(
+      (appointment) =>
+        isSessionAppointment(appointment) &&
+        new Date(appointment.end_time).getTime() < now.getTime() &&
+        normalizeAppointmentStatus(appointment.status, appointment.notes) === "unscored",
+    )
+    .slice(0, 2)
+    .map<AttentionQueueItem>((appointment) => ({
+      id: `appointment-score-${appointment.id}`,
+      label: "Agenda",
+      title: "Pontuar comparecimento",
+      description: `${getAppointmentDisplayTitle(appointment) || appointment.patient_name || "Paciente"} ainda precisa de presenca ou ausencia registrada.`,
+      actionUrl: "/agenda",
+      tone: "warning",
+      source: "appointment",
+      category: "appointments",
+    }));
+
+  items.push(...attendanceItems);
 
   if (pendingPatients > 0) {
     items.push({
       id: "pending-patients",
-      label: "Pacientes",
+      label: "Cadastros",
       title: "Pacientes em atencao",
       description: `${pendingPatients} cadastro${pendingPatients === 1 ? "" : "s"} ou retorno${pendingPatients === 1 ? "" : "s"} aguardando revisao.`,
       actionUrl: "/pacientes",
       tone: "warning",
       source: "patients",
+      category: "registrations",
     });
   }
 
@@ -139,6 +218,7 @@ export const buildAttentionQueue = ({
       actionUrl: "/financeiro/neurofinance",
       tone: "warning",
       source: "finance",
+      category: "neurofinance",
     });
   }
 
