@@ -13,16 +13,11 @@ import {
   Calendar as CalendarIcon,
   CheckCircle2,
   Clock,
-  Landmark,
-  LineChart,
   MessageSquare,
   Mic,
   Plus,
-  ReceiptText,
   Save,
   Stethoscope,
-  Target,
-  TrendingUp,
   UserPlus,
   Users,
   Video,
@@ -36,7 +31,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   DesktopActionTile,
-  DesktopWorkspaceIcon,
   DesktopWorkspacePanel,
   DesktopWorkspaceShell,
 } from "@/components/ui/desktop-workspace";
@@ -90,9 +84,6 @@ const pendingFilters: Array<{ value: PendingFilter; label: string }> = [
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-
-const formatCompactCurrency = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 }).format(value);
 
 const formatCentsCurrency = (value: number | null) =>
   value === null ? "-" : formatCurrency(value / 100);
@@ -339,7 +330,7 @@ const NextSessionPanel = ({
                   </span>
                 ) : null}
                 <span className="rounded-full border border-border/45 bg-background/65 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-                  {online ? "Online" : "Consultorio"}
+                  {online ? "Online" : "Consultório"}
                 </span>
               </div>
 
@@ -485,7 +476,7 @@ const AgendaPanel = ({
     <DesktopWorkspacePanel className="p-5 lg:p-6">
       <SectionHeader
         eyebrow="Agenda"
-        title="Fluxo clinico"
+        title="Fluxo clínico"
         action={
           <Button variant="outline" className="h-9 rounded-[14px] px-3 text-xs font-bold" onClick={() => navigate("/agenda")}>
             Abrir
@@ -535,7 +526,7 @@ const AgendaPanel = ({
               ))}
             </div>
           ) : (
-            <EmptyState icon={CalendarIcon} title="Semana livre" description="Sem compromissos ativos nos proximos 7 dias." />
+            <EmptyState icon={CalendarIcon} title="Semana livre" description="Sem compromissos ativos nos próximos 7 dias." />
           )}
         </TabsContent>
       </Tabs>
@@ -543,62 +534,70 @@ const AgendaPanel = ({
   );
 };
 
+const FinanceMetricCard = ({
+  label,
+  value,
+  accent = false,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  onClick?: () => void;
+}) => {
+  const interactive = Boolean(onClick);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!interactive}
+      className={cn(
+        "group relative min-h-[132px] overflow-hidden rounded-[24px] border p-4 text-left shadow-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+        interactive && "hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99] motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100",
+        accent
+          ? "border-foreground bg-foreground text-background dark:border-white dark:bg-white dark:text-zinc-950"
+          : "border-zinc-200 bg-white text-foreground dark:border-white/[0.08] dark:bg-zinc-950",
+      )}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(0,0,0,0.035),transparent_34%)] opacity-70 dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.006),transparent_34%)]" />
+      <div className="relative z-10 flex h-full flex-col justify-between gap-5">
+        <div className="flex items-start justify-between gap-3">
+          <p className={cn("text-[9px] font-black uppercase tracking-[0.16em]", accent ? "text-background/56 dark:text-zinc-950/55" : "text-muted-foreground")}>
+            {label}
+          </p>
+          {interactive ? <ArrowRight className={cn("h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0", accent ? "text-background/52 dark:text-zinc-950/50" : "text-muted-foreground/45")} /> : null}
+        </div>
+        <p className={cn("break-words text-2xl font-black leading-tight tracking-[-0.05em] tabular-nums", accent ? "text-background dark:text-zinc-950" : "text-foreground")}>
+          {value}
+        </p>
+      </div>
+    </button>
+  );
+};
+
 const ManagementWidget = ({
   managerial,
   isLoading,
 }: {
-  managerial?: { result?: number | null; receivable?: number | null } | null;
+  managerial?: ManagerialDashboardMetrics | null;
   isLoading: boolean;
 }) => {
   const navigate = useNavigate();
   const result = Number(managerial?.result || 0);
   const receivable = Number(managerial?.receivable || 0);
-  const healthy = result >= 0;
+  const payable = Number(managerial?.payable || 0);
 
   if (isLoading) {
-    return <div className="h-[270px] animate-pulse rounded-[30px] bg-muted/35" />;
+    return <div className="h-[296px] animate-pulse rounded-[30px] bg-muted/35" />;
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_150px]">
-      <button
-        type="button"
-        onClick={() => navigate("/financeiro")}
-        className="group relative min-h-[236px] overflow-hidden rounded-[34px] border border-zinc-200 bg-zinc-50 p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#171719] dark:to-[#0C0C0E] dark:shadow-[0_24px_58px_-50px_rgba(0,0,0,0.9)]"
-      >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(0,0,0,0.035),transparent_30%)] dark:bg-[radial-gradient(circle_at_16%_12%,rgba(255,255,255,0.012),transparent_34%)]" />
-        <div className="relative z-10 flex h-full flex-col justify-between gap-8">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <DesktopWorkspaceIcon icon={TrendingUp} className="bg-foreground text-background dark:bg-white dark:text-zinc-950" />
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">Gestao Financeira</p>
-                <p className={cn("mt-1 text-xs font-black uppercase tracking-[0.12em]", healthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400")}>
-                  {healthy ? "Resultado positivo" : "Revisar operacao"}
-                </p>
-              </div>
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground/45 transition-transform group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
-          </div>
-
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Resultado do mes</p>
-            <div className="mt-3 flex min-w-0 items-baseline gap-2">
-              <span className="text-2xl font-light italic text-muted-foreground/70">R$</span>
-              <p className="truncate text-5xl font-black leading-none tracking-[-0.065em] text-foreground tabular-nums">
-                {result.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-            <p className="mt-3 text-xs font-medium text-muted-foreground">Resumo gerencial. Detalhes continuam na Gestao Financeira.</p>
-          </div>
-        </div>
-      </button>
-
-      <div className="flex flex-col justify-center gap-2 rounded-[30px] border border-zinc-200/50 bg-zinc-100/50 p-3 dark:border-white/[0.055] dark:bg-white/[0.035]">
-        <DesktopMiniStat label="Resultado" value={formatCurrency(result)} accent />
-        <DesktopMiniStat label="A receber" value={formatCurrency(receivable)} />
-        <DesktopMiniStat label="Status" value={healthy ? "OK" : "Atencao"} tone={healthy ? "success" : "warning"} />
-      </div>
+    <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <FinanceMetricCard label="Resumo do mês" value={formatCurrency(result)} accent />
+      <FinanceMetricCard label="A receber" value={formatCurrency(receivable)} />
+      <FinanceMetricCard label="A pagar" value={formatCurrency(payable)} />
+      <FinanceMetricCard label="Fluxo de caixa" value="Abrir" onClick={() => navigate("/financeiro?view=gestao-fluxo-caixa")} />
     </div>
   );
 };
@@ -614,64 +613,129 @@ const NeuroFinanceWidget = ({
   financialLoading: boolean;
   neuroSnapshot?: { available_balance?: number | null; pending_receivables?: number | null } | null;
   snapshotLoading: boolean;
-  managerial?: { result?: number | null; receivable?: number | null } | null;
+  managerial?: ManagerialDashboardMetrics | null;
 }) => {
   const navigate = useNavigate();
   const signal = buildFinancialSignal({ financialConnected, financialLoading, managerial, neuroSnapshot });
   const loading = financialLoading || (financialConnected && snapshotLoading);
+  const incoming = Number(managerial?.receivable || 0);
 
   if (loading) {
-    return <div className="h-[270px] animate-pulse rounded-[30px] bg-muted/35" />;
+    return <div className="h-[296px] animate-pulse rounded-[30px] bg-muted/35" />;
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_150px]">
-      <button
-        type="button"
-        onClick={() => navigate(signal.ctaPath)}
-        className="group relative min-h-[236px] overflow-hidden rounded-[34px] border border-zinc-200 bg-zinc-50 p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#171719] dark:to-[#0C0C0E] dark:shadow-[0_24px_58px_-50px_rgba(0,0,0,0.9)]"
-      >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(0,0,0,0.035),transparent_30%)] dark:bg-[radial-gradient(circle_at_16%_12%,rgba(255,255,255,0.012),transparent_34%)]" />
-        <div className="relative z-10 flex h-full flex-col justify-between gap-8">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <DesktopWorkspaceIcon icon={Landmark} className="bg-foreground text-background dark:bg-white dark:text-zinc-950" />
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">NeuroFinance</p>
-                <p
-                  className={cn(
-                    "mt-1 text-xs font-black uppercase tracking-[0.12em]",
-                    signal.statusTone === "success" && "text-emerald-600 dark:text-emerald-400",
-                    signal.statusTone === "warning" && "text-amber-600 dark:text-amber-400",
-                    signal.statusTone === "default" && "text-muted-foreground",
-                  )}
-                >
-                  {signal.statusLabel}
-                </p>
-              </div>
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground/45 transition-transform group-hover:translate-x-1 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
-          </div>
+    <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <FinanceMetricCard label="Disponível para saque" value={financialConnected ? formatCentsCurrency(signal.bankBalanceCents) : "Ativar"} accent={financialConnected} onClick={() => navigate(signal.ctaPath)} />
+      <FinanceMetricCard label="Vai cair" value={formatCentsCurrency(signal.bankPendingCents)} />
+      <FinanceMetricCard label="Vai entrar" value={formatCurrency(incoming)} />
+      <FinanceMetricCard label="Extrato" value="Abrir" onClick={() => navigate("/financeiro/neurofinance?view=extrato")} />
+    </div>
+  );
+};
 
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{financialConnected ? "Saldo disponivel" : "Conta digital"}</p>
-            <div className="mt-3 flex min-w-0 items-baseline gap-2">
-              {financialConnected ? <span className="text-2xl font-light italic text-muted-foreground/70">R$</span> : null}
-              <p className="truncate text-5xl font-black leading-none tracking-[-0.065em] text-foreground tabular-nums">
-                {financialConnected ? formatCentsCurrency(signal.bankBalanceCents).replace("R$", "").trim() : "Ativar"}
-              </p>
-            </div>
-            <p className="mt-3 text-xs font-medium text-muted-foreground">
-              {financialConnected ? "Conta, recebiveis e movimentos reais ficam no NeuroFinance." : "Ative para operar conta, Pix, cobrancas e saldo real."}
-            </p>
+const PlanningWidget = ({
+  managerial,
+  isLoading,
+}: {
+  managerial?: ManagerialDashboardMetrics | null;
+  isLoading: boolean;
+}) => {
+  const navigate = useNavigate();
+  const planning = useFinancialPlanning(new Date());
+  const income = Number(managerial?.income || 0);
+  const receivable = Number(managerial?.receivable || 0);
+  const payable = Number(managerial?.payable || 0);
+  const suggestedGoal = Math.max(income + receivable, income, 10000);
+  const [revenueGoal, setRevenueGoal] = useState(formatMoneyInputValue(suggestedGoal));
+  const [sessionPrice, setSessionPrice] = useState("250,00");
+  const [sessionsPerWeek, setSessionsPerWeek] = useState("8");
+
+  useEffect(() => {
+    const nextGoal = planning.goal ? fromPlanningCents(planning.goal.revenue_goal_cents) : suggestedGoal;
+    setRevenueGoal(formatMoneyInputValue(nextGoal));
+    if (planning.goal?.target_sessions) {
+      setSessionsPerWeek(String(Math.max(1, Math.ceil(planning.goal.target_sessions / 4))));
+    }
+  }, [planning.goal, suggestedGoal]);
+
+  const goal = parseMoneyInput(revenueGoal);
+  const price = parseMoneyInput(sessionPrice);
+  const weekly = Math.max(0, Number(sessionsPerWeek || 0));
+  const progress = goal > 0 ? Math.min(100, Math.round((income / goal) * 100)) : 0;
+  const remaining = Math.max(0, goal - income);
+  const sessionsNeeded = price > 0 ? Math.ceil(remaining / price) : 0;
+  const monthlyCapacity = Math.round(weekly * 4);
+  const realisticMonthly = monthlyCapacity * price;
+  const requiredWeekly = sessionsNeeded > 0 ? Math.ceil(sessionsNeeded / 4) : 0;
+
+  const handleSave = async () => {
+    try {
+      await planning.saveGoal.mutateAsync({
+        revenueGoal: goal,
+        expenseLimit: payable,
+        desiredProfit: Math.max(0, goal - payable),
+        targetSessions: sessionsNeeded,
+        notes: `Dashboard: preço médio ${formatCurrency(price)}; ${weekly} consultas/semana.`,
+      });
+      toast.success("Meta financeira atualizada.");
+    } catch (error) {
+      console.error("Falha ao salvar meta financeira:", error);
+      toast.error("Não foi possível salvar a meta financeira.");
+    }
+  };
+
+  if (isLoading || planning.isLoading) {
+    return <div className="h-[296px] animate-pulse rounded-[30px] bg-muted/35" />;
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="relative overflow-hidden rounded-[30px] border border-foreground bg-foreground p-5 text-background shadow-sm dark:border-white dark:bg-white dark:text-zinc-950">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,hsl(var(--background)/0.04),transparent_34%)]" />
+        <div className="relative z-10">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-background/55 dark:text-zinc-950/55">{planning.goal ? "Meta definida" : "Meta sugerida"}</p>
+          <p className="mt-3 text-4xl font-black leading-none tracking-[-0.06em] tabular-nums">{formatCurrency(goal)}</p>
+          <div className="mt-6 h-3 overflow-hidden rounded-full bg-background/12 dark:bg-zinc-950/12">
+            <div className="h-full rounded-full bg-background dark:bg-zinc-950" style={{ width: `${progress}%` }} />
           </div>
+          <p className="mt-4 text-sm font-semibold leading-relaxed text-background/62 dark:text-zinc-950/62">{progress}% atingido no mês.</p>
         </div>
-      </button>
+      </div>
 
-      <div className="flex flex-col justify-center gap-2 rounded-[30px] border border-zinc-200/50 bg-zinc-100/50 p-3 dark:border-white/[0.055] dark:bg-white/[0.035]">
-        <DesktopMiniStat label="Disponivel" value={formatCentsCurrency(signal.bankBalanceCents)} accent={financialConnected} />
-        <DesktopMiniStat label="Vai cair" value={formatCentsCurrency(signal.bankPendingCents)} />
-        <DesktopMiniStat label="Status" value={financialConnected ? "ON" : "OFF"} tone={financialConnected ? "success" : "warning"} />
+      <div className="grid gap-3 md:grid-cols-3">
+        <FinanceMetricCard label="Falta bater" value={formatCurrency(remaining)} />
+        <FinanceMetricCard label="Consultas necessárias" value={sessionsNeeded ? String(sessionsNeeded) : "0"} />
+        <FinanceMetricCard label="Por semana" value={requiredWeekly ? String(requiredWeekly) : "0"} />
+      </div>
+
+      <div className="xl:col-span-2 rounded-[30px] border border-zinc-200/70 bg-zinc-50/72 p-4 dark:border-white/[0.08] dark:bg-white/[0.035]">
+        <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+          <div>
+            <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Meta do mês</p>
+            <Input value={revenueGoal} onChange={(event) => setRevenueGoal(event.target.value)} inputMode="decimal" className="h-11 rounded-[16px] border-zinc-200 bg-white text-sm font-bold dark:border-white/10 dark:bg-zinc-950" />
+          </div>
+          <div>
+            <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Preço médio</p>
+            <Input value={sessionPrice} onChange={(event) => setSessionPrice(event.target.value)} inputMode="decimal" className="h-11 rounded-[16px] border-zinc-200 bg-white text-sm font-bold dark:border-white/10 dark:bg-zinc-950" />
+          </div>
+          <div>
+            <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Consultas/semana</p>
+            <Input value={sessionsPerWeek} onChange={(event) => setSessionsPerWeek(event.target.value)} inputMode="numeric" className="h-11 rounded-[16px] border-zinc-200 bg-white text-sm font-bold dark:border-white/10 dark:bg-zinc-950" />
+          </div>
+          <Button onClick={handleSave} disabled={planning.saveGoal.isPending} className="h-11 rounded-[16px] bg-foreground px-4 text-[9px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950">
+            {planning.saveGoal.isPending ? <Calculator className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Salvar
+          </Button>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-zinc-200/70 bg-white px-4 py-3 dark:border-white/[0.08] dark:bg-zinc-950">
+          <p className="text-xs font-semibold text-muted-foreground">
+            Com {weekly || 0} consultas/semana a {formatCurrency(price)}, o potencial mensal fica em {formatCurrency(realisticMonthly)}.
+          </p>
+          <Button variant="outline" className="h-9 rounded-[14px] px-3 text-xs font-bold" onClick={() => navigate("/financeiro?view=gestao-planejamento")}>
+            Planejamento
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -687,7 +751,7 @@ const FinancialOverviewPanel = ({
 }: {
   financialConnected: boolean;
   financialLoading: boolean;
-  managerial?: { result?: number | null; receivable?: number | null } | null;
+  managerial?: ManagerialDashboardMetrics | null;
   neuroSnapshot?: { available_balance?: number | null; pending_receivables?: number | null } | null;
   managerLoading: boolean;
   snapshotLoading: boolean;
@@ -696,14 +760,17 @@ const FinancialOverviewPanel = ({
     <Tabs defaultValue="management">
       <SectionHeader
         eyebrow="Financeiro"
-        title="Resumo util"
+        title="Resumo útil"
         action={
           <TabsList className="h-10 rounded-[16px]">
             <TabsTrigger value="management" className="h-8 rounded-[12px] px-3 text-xs">
-              Gestao
+              Gestão
             </TabsTrigger>
             <TabsTrigger value="neurofinance" className="h-8 rounded-[12px] px-3 text-xs">
               NeuroFinance
+            </TabsTrigger>
+            <TabsTrigger value="planning" className="h-8 rounded-[12px] px-3 text-xs">
+              Meta
             </TabsTrigger>
           </TabsList>
         }
@@ -721,6 +788,10 @@ const FinancialOverviewPanel = ({
           snapshotLoading={snapshotLoading}
           managerial={managerial}
         />
+      </TabsContent>
+
+      <TabsContent value="planning" className="mt-5">
+        <PlanningWidget managerial={managerial} isLoading={managerLoading} />
       </TabsContent>
     </Tabs>
   </DesktopWorkspacePanel>
@@ -743,7 +814,7 @@ const PendingRows = ({ items }: { items: AttentionQueueItem[] }) => {
       <div className="flex min-h-[190px] flex-col items-center justify-center rounded-[24px] border border-dashed border-border/60 bg-muted/18 p-6 text-center">
         <CheckCircle2 className="h-8 w-8 text-emerald-500/70" />
         <h3 className="mt-4 text-base font-bold text-foreground">Tudo em dia</h3>
-        <p className="mt-2 max-w-sm text-sm font-medium text-muted-foreground">Sem pendencias acionaveis nesta categoria.</p>
+        <p className="mt-2 max-w-sm text-sm font-medium text-muted-foreground">Sem pendências acionáveis nesta categoria.</p>
       </div>
     );
   }
@@ -796,7 +867,7 @@ const PendingWorkPanel = ({
     <DesktopWorkspacePanel className="p-5 lg:p-6">
       <Tabs defaultValue="all">
         <SectionHeader
-          eyebrow="Pendencias"
+          eyebrow="Pendências"
           title="Lista operacional"
           action={
             <TabsList className="h-auto flex-wrap justify-end rounded-[16px] p-1">
@@ -882,7 +953,8 @@ export const DesktopDashboardCommandCenter = () => {
               firstName={getFirstName(profile)}
               todayAppointments={todayAppointments}
               weekAppointmentsCount={activeAppointments.length}
-              pendingCount={attentionItems.length}
+              attentionItems={attentionItems}
+              nextAppointment={nextAppointment}
             />
             <NextSessionPanel nextAppointment={nextAppointment} isLoading={loadingAppointments} />
           </div>

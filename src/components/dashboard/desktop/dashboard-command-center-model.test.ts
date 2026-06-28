@@ -148,7 +148,7 @@ describe("dashboard command center model", () => {
         managerial: { result: 1200, receivable: 300 },
       }),
     ).toMatchObject({
-      statusLabel: "Ativacao pendente",
+      statusLabel: "Ativação pendente",
       statusTone: "warning",
       bankBalanceCents: null,
     });
