@@ -143,10 +143,10 @@ function CreateAccountPausedPage() {
               Cadastro fechado para novos acessos.
             </h2>
             <p className="mt-5 text-sm font-semibold leading-relaxed text-current/58">
-              Faremos uma pausa temporária para aprimorar funcionalidades. Quem já tem conta de acesso pode entrar normalmente pelo login.
+              Faremos uma pausa temporária para aprimorar funcionalidades e segurança de cada processo NeuroNex. Em breve, sua clínica conversará com você.
             </p>
             <div className={cn("mt-7 rounded-[18px] border p-4 text-xs font-semibold leading-relaxed", mutedPanelClass)}>
-              Não movimente dados reais durante este período. O ambiente atual é exclusivo para desenvolvimento.
+              Durante este período, apenas a equipe de desenvolvimento terá acesso à plataforma. Caso tenha dúvidas, contato nosso suporte.
             </div>
             <Button asChild className={cn("mt-7 h-14 w-full rounded-[12px] text-[11px] font-black uppercase tracking-[0.18em]", primaryButtonClass)}>
               <Link to="/auth">
