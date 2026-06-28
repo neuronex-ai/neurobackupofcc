@@ -59,7 +59,6 @@ import {
   buildFinancialSignal,
   getActiveAppointments,
   getNextScheduleItem,
-  getNextSession,
   getTodayAppointments,
   isOnlineAppointment,
   type AttentionQueueCategory,
@@ -257,7 +256,7 @@ const ActionSidebar = ({
             aria-label="Abrir Synapse voz"
             className="group flex w-[86px] shrink-0 flex-col items-center gap-1.5 rounded-[18px] px-2 py-2 transition-all duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
           >
-            <span className="relative flex h-12 w-12 items-center justify-center rounded-[20px] border border-border/60 bg-card text-muted-foreground shadow-sm transition-all duration-300 group-hover:border-foreground/20 group-hover:shadow-md dark:border-white/[0.08] dark:bg-white/[0.045] dark:group-hover:border-white/18">
+            <span className="dashboard-soft-fill relative flex h-12 w-12 items-center justify-center rounded-[20px] text-muted-foreground shadow-sm transition-all duration-300 group-hover:border-foreground/20 group-hover:shadow-md dark:group-hover:border-white/18">
               <SynapseOrbAvatar active className="h-10 w-10 border-0 bg-transparent shadow-none" />
             </span>
             <span className="w-full text-center text-[8px] font-black uppercase leading-tight tracking-[0.1em] text-muted-foreground transition-colors group-hover:text-foreground">
@@ -280,7 +279,7 @@ const ClinicalPrepMetric = ({
   value: string | number;
   detail: string;
 }) => (
-  <div className="rounded-[22px] border border-background/12 bg-background/10 p-3 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+  <div className="rounded-[22px] border border-background/16 bg-background/10 p-3 shadow-[inset_0_1px_0_hsl(var(--background)/0.14)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
     <p className="text-[9px] font-black uppercase tracking-[0.16em] text-background/48">{label}</p>
     <p className="mt-1.5 truncate text-lg font-black tracking-[-0.04em] text-background">{value}</p>
     <p className="mt-1 truncate text-xs font-semibold text-background/58">{detail}</p>
@@ -603,7 +602,8 @@ const MorningCommandPanel = ({
             </h1>
           </div>
 
-          <div className="grid gap-2 lg:grid-cols-3">
+          <div className="grid gap-2 lg:grid-cols-3 [&>*:nth-child(2)]:hidden">
+            <ClinicalPrepMetric label={getScheduleFocusLabel(nextAppointment)} value={nextPatient} detail={nextTime} />
             <ClinicalPrepMetric label="Próximo foco" value={nextPatient} detail={nextTime} />
             <ClinicalPrepMetric label="Revisar antes" value={clinicalSignals + appointmentSignals} detail="sinais clínicos e agenda" />
             <ClinicalPrepMetric label="Operação do dia" value={sessionsToday} detail={`${onlineToday} online`} />
@@ -656,7 +656,7 @@ const AppointmentRow = ({ appointment }: { appointment: Appointment }) => {
     <button
       type="button"
       onClick={() => navigate("/agenda", { state: { openAppointmentId: appointment.id } })}
-      className="group flex w-full items-center gap-3 rounded-[20px] border border-zinc-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.08] dark:bg-zinc-950"
+      className="dashboard-retina-card dashboard-tactile group flex w-full items-center gap-3 rounded-[20px] p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-[16px] bg-foreground text-sm font-bold text-background tabular-nums">
         {formatAppointmentTime(appointment)}
@@ -706,11 +706,11 @@ const AgendaPanel = ({
       />
 
       <Tabs defaultValue="today" className="mt-5">
-        <TabsList className="h-10 rounded-[16px]">
-          <TabsTrigger value="today" className="h-8 rounded-[12px] px-3 text-xs">
+        <TabsList className="dashboard-segment-list h-10 rounded-[16px]">
+          <TabsTrigger value="today" className="dashboard-segment-trigger h-8 rounded-[12px] px-3 text-xs">
             Hoje
           </TabsTrigger>
-          <TabsTrigger value="week" className="h-8 rounded-[12px] px-3 text-xs">
+          <TabsTrigger value="week" className="dashboard-segment-trigger h-8 rounded-[12px] px-3 text-xs">
             7 dias
           </TabsTrigger>
         </TabsList>
@@ -774,11 +774,11 @@ const FinanceMetricCard = ({
       onClick={onClick}
       disabled={!interactive}
       className={cn(
-        "group relative min-h-[132px] overflow-hidden rounded-[24px] border p-4 text-left shadow-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
-        interactive && "hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99] motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100",
+        "dashboard-tactile group relative min-h-[132px] overflow-hidden rounded-[24px] border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+        interactive && "hover:shadow-lg",
         accent
           ? "border-foreground bg-foreground text-background dark:border-white dark:bg-white dark:text-zinc-950"
-          : "border-zinc-200 bg-white text-foreground dark:border-white/[0.08] dark:bg-zinc-950",
+          : "dashboard-retina-card text-foreground",
       )}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(0,0,0,0.035),transparent_34%)] opacity-70 dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.006),transparent_34%)]" />
@@ -957,19 +957,19 @@ const PlanningWidget = ({
 
       <FinanceMetricCard label="Falta bater" value={formatCurrency(remaining)} />
 
-      <div className="xl:col-span-2 rounded-[30px] border border-zinc-200/70 bg-zinc-50/72 p-4 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.035]">
+      <div className="dashboard-retina-card xl:col-span-2 rounded-[30px] p-4">
         <div className="grid gap-3 md:grid-cols-[1fr_0.85fr_0.85fr_auto_auto] md:items-end">
           <div>
             <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Meta do mês</p>
-            <Input value={revenueGoal} onChange={(event) => { setRevenueGoal(event.target.value); setGoalTouched(true); }} inputMode="decimal" className="h-11 rounded-[16px] border-zinc-200 bg-white text-sm font-bold dark:border-white/10 dark:bg-zinc-950" />
+            <Input value={revenueGoal} onChange={(event) => { setRevenueGoal(event.target.value); setGoalTouched(true); }} inputMode="decimal" className="dashboard-soft-fill h-11 rounded-[16px] text-sm font-bold" />
           </div>
           <div>
             <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Preço médio</p>
-            <Input value={sessionPrice} onChange={(event) => setSessionPrice(event.target.value)} inputMode="decimal" className="h-11 rounded-[16px] border-zinc-200 bg-white text-sm font-bold dark:border-white/10 dark:bg-zinc-950" />
+            <Input value={sessionPrice} onChange={(event) => setSessionPrice(event.target.value)} inputMode="decimal" className="dashboard-soft-fill h-11 rounded-[16px] text-sm font-bold" />
           </div>
           <div>
             <p className="mb-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">Consultas/semana</p>
-            <Input value={sessionsPerWeek} onChange={(event) => setSessionsPerWeek(event.target.value)} inputMode="numeric" className="h-11 rounded-[16px] border-zinc-200 bg-white text-sm font-bold dark:border-white/10 dark:bg-zinc-950" />
+            <Input value={sessionsPerWeek} onChange={(event) => setSessionsPerWeek(event.target.value)} inputMode="numeric" className="dashboard-soft-fill h-11 rounded-[16px] text-sm font-bold" />
           </div>
           <Button type="button" variant="outline" onClick={handleCalculateGoal} className="h-11 rounded-[16px] px-4 text-[9px] font-black uppercase tracking-[0.16em]">
             <Calculator className="mr-2 h-4 w-4" />
@@ -980,7 +980,7 @@ const PlanningWidget = ({
             Salvar
           </Button>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-zinc-200/70 bg-white px-4 py-3 dark:border-white/[0.08] dark:bg-zinc-950">
+        <div className="dashboard-soft-fill mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[20px] px-4 py-3">
           <p className="text-xs font-semibold text-muted-foreground">
             Com {weekly || 0} consultas/semana a {formatCurrency(price)}, o potencial mensal fica em {formatCurrency(realisticMonthly)}.
           </p>
@@ -1014,14 +1014,14 @@ const FinancialOverviewPanel = ({
         eyebrow="Financeiro"
         title="Resumo útil"
         action={
-          <TabsList className="h-10 rounded-[16px]">
-            <TabsTrigger value="management" className="h-8 rounded-[12px] px-3 text-xs">
+          <TabsList className="dashboard-segment-list h-10 rounded-[16px]">
+            <TabsTrigger value="management" className="dashboard-segment-trigger h-8 rounded-[12px] px-3 text-xs">
               Gestão
             </TabsTrigger>
-            <TabsTrigger value="neurofinance" className="h-8 rounded-[12px] px-3 text-xs">
+            <TabsTrigger value="neurofinance" className="dashboard-segment-trigger h-8 rounded-[12px] px-3 text-xs">
               NeuroFinance
             </TabsTrigger>
-            <TabsTrigger value="planning" className="h-8 rounded-[12px] px-3 text-xs">
+            <TabsTrigger value="planning" className="dashboard-segment-trigger h-8 rounded-[12px] px-3 text-xs">
               Meta
             </TabsTrigger>
           </TabsList>
@@ -1079,14 +1079,14 @@ const PendingRows = ({ items }: { items: AttentionQueueItem[] }) => {
           type="button"
           onClick={() => navigate(item.actionUrl)}
           className={cn(
-            "group flex w-full items-start gap-3 rounded-[20px] border border-zinc-200 bg-white p-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:border-white/[0.08] dark:bg-zinc-950",
+            "dashboard-retina-card dashboard-tactile group flex w-full items-start gap-3 rounded-[20px] p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             item.tone === "warning" && "border-amber-500/25 bg-amber-500/[0.06]",
             item.tone === "destructive" && "border-rose-500/25 bg-rose-500/[0.055]",
           )}
         >
           <span
             className={cn(
-              "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] border border-border/45 bg-card text-muted-foreground",
+              "dashboard-soft-fill mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] text-muted-foreground",
               item.tone === "warning" && "border-amber-500/25 text-amber-600",
               item.tone === "destructive" && "border-rose-500/25 text-rose-600",
             )}
@@ -1168,7 +1168,7 @@ export const DesktopDashboardCommandCenter = () => {
   const pendingPatients = Number(pendingPatientsRaw || 0);
   const activeAppointments = useMemo(() => getActiveAppointments((allUpcomingAppointments || []) as Appointment[]), [allUpcomingAppointments]);
   const todayAppointments = useMemo(() => getTodayAppointments(activeAppointments, today), [activeAppointments, today]);
-  const nextAppointment = useMemo(() => getNextSession(activeAppointments, new Date()), [activeAppointments]);
+  const nextAppointment = useMemo(() => getNextScheduleItem(activeAppointments, new Date()), [activeAppointments]);
   const attentionItems = useMemo(
     () =>
       buildAttentionQueue({
