@@ -1,14 +1,6 @@
 "use client";
 
-import {
-    lazy,
-    Suspense,
-    useState,
-    useMemo,
-    useEffect,
-    useCallback,
-    type UIEvent,
-} from "react";
+import { lazy, Suspense, useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence, type Transition } from "framer-motion";
@@ -37,20 +29,11 @@ const NoteEditor = lazy(() =>
 );
 
 const NOTES_LAYOUT_STORAGE_KEY = "neuronex:notes-layout";
-const NOTES_PAGE_SIZE = 40;
-const NOTES_LOAD_MORE_OFFSET = 160;
 
 const loadLayoutPreference = () => {
     try {
-        if (typeof window === "undefined") {
-            return { sidebarCollapsed: false, listCollapsed: false };
-        }
-
         const stored = window.localStorage.getItem(NOTES_LAYOUT_STORAGE_KEY);
-
-        if (!stored) {
-            return { sidebarCollapsed: false, listCollapsed: false };
-        }
+        if (!stored) return { sidebarCollapsed: false, listCollapsed: false };
 
         const parsed = JSON.parse(stored);
 
@@ -64,7 +47,7 @@ const loadLayoutPreference = () => {
 };
 
 const NoteEditorSkeleton = () => (
-    <div className="flex h-full min-h-0 flex-col animate-pulse overflow-hidden">
+    <div className="flex h-full flex-col animate-pulse">
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/[0.05] px-7 [.light_&]:border-zinc-200/60">
             <div className="h-8 w-40 rounded-xl bg-white/[0.04] [.light_&]:bg-zinc-100" />
             <div className="flex gap-2">
@@ -73,7 +56,7 @@ const NoteEditorSkeleton = () => (
             </div>
         </div>
 
-        <div className="mx-auto w-full max-w-[820px] flex-1 space-y-7 overflow-hidden px-12 py-12">
+        <div className="mx-auto w-full max-w-[820px] flex-1 space-y-7 px-12 py-12">
             <div className="h-12 w-2/3 rounded-2xl bg-white/[0.045] [.light_&]:bg-zinc-100" />
             <div className="h-px bg-white/[0.05] [.light_&]:bg-zinc-200" />
             <div className="space-y-4">
@@ -105,8 +88,6 @@ export default function Notes() {
 
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
-
-    const [visibleNotesCount, setVisibleNotesCount] = useState(NOTES_PAGE_SIZE);
 
     const {
         notes,
@@ -168,68 +149,16 @@ export default function Notes() {
     const filteredNotes = useMemo(() => {
         if (!notes) return [];
 
-        const normalizedSearch = searchQuery.trim().toLowerCase();
-
         return notes.filter((note) => {
             const matchesModule = selectedModuleId ? note.module_id === selectedModuleId : true;
 
-            if (!normalizedSearch) {
-                return matchesModule;
-            }
-
-            const title = note.title?.toLowerCase() ?? "";
-            const content = note.content?.toLowerCase() ?? "";
-
             const matchesSearch =
-                title.includes(normalizedSearch) ||
-                content.includes(normalizedSearch);
+                note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                note.content.toLowerCase().includes(searchQuery.toLowerCase());
 
             return matchesModule && matchesSearch;
         });
     }, [notes, selectedModuleId, searchQuery]);
-
-    const visibleNotes = useMemo(() => {
-        return filteredNotes.slice(0, visibleNotesCount);
-    }, [filteredNotes, visibleNotesCount]);
-
-    const hasMoreNotes = visibleNotesCount < filteredNotes.length;
-
-    useEffect(() => {
-        setVisibleNotesCount(NOTES_PAGE_SIZE);
-    }, [selectedModuleId, searchQuery, viewMode]);
-
-    useEffect(() => {
-        if (!selectedNoteId) return;
-
-        const selectedIndex = filteredNotes.findIndex((note) => note.id === selectedNoteId);
-
-        if (selectedIndex >= visibleNotesCount) {
-            setVisibleNotesCount(
-                Math.min(filteredNotes.length, selectedIndex + NOTES_PAGE_SIZE)
-            );
-        }
-    }, [filteredNotes, selectedNoteId, visibleNotesCount]);
-
-    const handleLoadMoreNotes = useCallback(() => {
-        setVisibleNotesCount((current) =>
-            Math.min(current + NOTES_PAGE_SIZE, filteredNotes.length)
-        );
-    }, [filteredNotes.length]);
-
-    const handleNotesListScroll = useCallback(
-        (event: UIEvent<HTMLDivElement>) => {
-            if (!hasMoreNotes) return;
-
-            const target = event.currentTarget;
-            const distanceFromBottom =
-                target.scrollHeight - target.scrollTop - target.clientHeight;
-
-            if (distanceFromBottom <= NOTES_LOAD_MORE_OFFSET) {
-                handleLoadMoreNotes();
-            }
-        },
-        [hasMoreNotes, handleLoadMoreNotes]
-    );
 
     if (isMobile) return <MobileNotes />;
 
@@ -249,7 +178,6 @@ export default function Notes() {
             if (newNote) {
                 setSelectedNoteId(newNote.id);
                 setViewMode("notes");
-                setVisibleNotesCount((current) => Math.max(current, NOTES_PAGE_SIZE));
 
                 if (isListCollapsed) {
                     setIsListCollapsed(false);
@@ -278,14 +206,14 @@ export default function Notes() {
         switch (viewMode) {
             case "files":
                 return (
-                    <motion.div {...motionProps} className="flex-1 h-full min-h-0 min-w-0 overflow-hidden">
+                    <motion.div {...motionProps} className="flex-1 h-full min-h-0 min-w-0">
                         <FilesManager />
                     </motion.div>
                 );
 
             case "notion":
                 return (
-                    <motion.div {...motionProps} className="relative z-30 flex-1 h-full min-h-0 min-w-0 overflow-hidden">
+                    <motion.div {...motionProps} className="relative z-30 flex-1 h-full min-h-0 min-w-0">
                         <NotionPagesPanel
                             selectedPageId={selectedNotionPageId}
                             onSelectNotionPage={setSelectedNotionPageId}
@@ -356,7 +284,7 @@ export default function Notes() {
 
             case "neuropulse":
                 return (
-                    <motion.div {...motionProps} className="flex-1 h-full min-h-0 min-w-0 overflow-hidden">
+                    <motion.div {...motionProps} className="flex-1 h-full min-h-0 min-w-0">
                         <NeuroPulse />
                     </motion.div>
                 );
@@ -374,62 +302,44 @@ export default function Notes() {
                                     damping: 34,
                                     mass: 0.78,
                                 }}
-                                className="notes-retina-rail relative z-20 flex min-h-0 shrink-0 flex-col overflow-hidden border-r"
+                                className="notes-retina-rail relative z-20 flex shrink-0 flex-col overflow-hidden border-r"
                             >
                                 <div
                                     className={cn(
-                                        "h-full min-h-0 relative z-10 overflow-hidden",
+                                        "h-full relative z-10",
                                         isListCollapsed ? "w-[52px]" : "w-[330px]"
                                     )}
                                 >
-                                    <div
-                                        className="notes-list-scroll notes-scroll-surface h-full min-h-0 max-h-full overflow-y-auto overflow-x-hidden overscroll-contain"
-                                        onScroll={handleNotesListScroll}
-                                        onWheelCapture={(event) => event.stopPropagation()}
-                                    >
-                                        <NotesListPanel
-                                            searchQuery={searchQuery}
-                                            setSearchQuery={setSearchQuery}
-                                            items={visibleNotes}
-                                            selectedId={selectedNoteId}
-                                            onSelect={setSelectedNoteId}
-                                            onCreate={handleCreateNote}
-                                            onDeleteNote={(id) => {
-                                                deleteNote(id);
+                                    <NotesListPanel
+                                        searchQuery={searchQuery}
+                                        setSearchQuery={setSearchQuery}
+                                        items={filteredNotes}
+                                        selectedId={selectedNoteId}
+                                        onSelect={setSelectedNoteId}
+                                        onCreate={handleCreateNote}
+                                        onDeleteNote={(id) => {
+                                            deleteNote(id);
 
-                                                if (selectedNoteId === id) {
-                                                    setSelectedNoteId(null);
-                                                }
-                                            }}
-                                            isLoading={isLoadingNotes}
-                                            isCollapsed={isListCollapsed}
-                                            onToggleCollapsed={() => setIsListCollapsed((current) => !current)}
-                                            isCreatingNote={isCreatingNote}
-                                        />
-
-                                        {hasMoreNotes && !isListCollapsed && (
-                                            <div className="sticky bottom-0 z-30 flex justify-center border-t border-white/[0.04] bg-black/70 px-5 py-4 backdrop-blur-xl [.light_&]:border-zinc-200/70 [.light_&]:bg-white/80">
-                                                <Button
-                                                    type="button"
-                                                    onClick={handleLoadMoreNotes}
-                                                    className="h-10 rounded-2xl bg-white px-5 text-[10px] font-black uppercase tracking-[0.24em] text-black shadow-none transition-all hover:opacity-90 active:scale-95 [.light_&]:bg-zinc-950 [.light_&]:text-white"
-                                                >
-                                                    Carregar mais
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
+                                            if (selectedNoteId === id) {
+                                                setSelectedNoteId(null);
+                                            }
+                                        }}
+                                        isLoading={isLoadingNotes}
+                                        isCollapsed={isListCollapsed}
+                                        onToggleCollapsed={() => setIsListCollapsed((current) => !current)}
+                                        isCreatingNote={isCreatingNote}
+                                    />
                                 </div>
                             </motion.div>
                         )}
 
-                        <div className="flex-1 min-w-0 min-h-0 bg-transparent relative flex flex-col overflow-hidden group/editor">
+                        <div className="flex-1 min-w-0 min-h-0 bg-transparent relative flex flex-col group/editor">
                             <AnimatePresence mode="wait">
                                 {activeNote ? (
                                     <motion.div
                                         key={activeNote.id}
                                         {...motionProps}
-                                        className="flex-1 flex flex-col h-full min-h-0 relative z-10 bg-transparent overflow-hidden"
+                                        className="flex-1 flex flex-col h-full min-h-0 relative z-10 bg-transparent"
                                     >
                                         <Suspense fallback={<NoteEditorSkeleton />}>
                                             <NoteEditor
@@ -445,7 +355,7 @@ export default function Notes() {
                                         </Suspense>
                                     </motion.div>
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center h-full min-h-0 text-center relative z-10 p-12 space-y-12 animate-in fade-in duration-1000 bg-transparent overflow-hidden">
+                                    <div className="flex flex-col items-center justify-center h-full min-h-0 text-center relative z-10 p-12 space-y-12 animate-in fade-in duration-1000 bg-transparent">
                                         <div className="relative group/gate">
                                             <div className="relative z-10 flex h-40 w-40 items-center justify-center overflow-hidden rounded-[64px] border border-white/[0.05] bg-black/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.22)] backdrop-blur-3xl group/icon [.light_&]:border-zinc-200/50 [.light_&]:bg-white/40 [.light_&]:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
                                                 <div className="absolute inset-0 notes-retina-texture opacity-[0.4] pointer-events-none [.light_&]:opacity-[0.26]" />
@@ -510,11 +420,11 @@ export default function Notes() {
                                     damping: 34,
                                     mass: 0.78,
                                 }}
-                                className="notes-retina-rail relative z-20 hidden min-h-0 shrink-0 overflow-hidden border-r lg:flex"
+                                className="notes-retina-rail relative z-20 hidden shrink-0 overflow-hidden border-r lg:flex"
                             >
                                 <div
                                     className={cn(
-                                        "h-full min-h-0 relative z-10 overflow-hidden",
+                                        "h-full relative z-10",
                                         isSidebarCollapsed ? "w-[66px]" : "w-[226px]"
                                     )}
                                 >
@@ -554,34 +464,6 @@ export default function Notes() {
                     contain: layout paint;
                     transform: translateZ(0);
                     backface-visibility: hidden;
-                }
-
-                .notes-list-scroll {
-                    min-height: 0 !important;
-                    max-height: 100% !important;
-                    scrollbar-gutter: stable;
-                    -webkit-overflow-scrolling: touch;
-                }
-
-                .notes-list-scroll > * {
-                    min-height: 0;
-                }
-
-                .notes-list-scroll::-webkit-scrollbar {
-                    width: 6px;
-                }
-
-                .notes-list-scroll::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-
-                .notes-list-scroll::-webkit-scrollbar-thumb {
-                    border-radius: 999px;
-                    background: rgba(255, 255, 255, 0.12);
-                }
-
-                .light .notes-list-scroll::-webkit-scrollbar-thumb {
-                    background: rgba(24, 24, 27, 0.16);
                 }
             `}</style>
         </div>
