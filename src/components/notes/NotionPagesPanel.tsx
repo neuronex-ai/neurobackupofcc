@@ -713,7 +713,25 @@ export const NotionPagesPanel = ({
                                         </div>
                                     </div>
 
-                                    {/* Arrow */}
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isImportingPage && importingPageId === page.id}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            void handleImportPage(page);
+                                        }}
+                                        className="h-8 shrink-0 rounded-xl px-2.5 text-[9px] font-black uppercase tracking-[0.14em] opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                                    >
+                                        {isImportingPage && importingPageId === page.id ? (
+                                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                        )}
+                                        Importar
+                                    </Button>
+
                                     <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-all group-hover:translate-x-0.5 shrink-0 mt-0.5" />
                                 </div>
 

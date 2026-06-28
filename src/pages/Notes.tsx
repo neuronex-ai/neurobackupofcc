@@ -169,7 +169,19 @@ export default function Notes() {
 
         switch (viewMode) {
             case 'files': return <motion.div {...motionProps} className="flex-1 h-full"><FilesManager /></motion.div>;
-            case 'notion': return <motion.div {...motionProps} className="flex-1 h-full"><NotionPagesPanel selectedPageId={selectedNotionPageId} onSelectNotionPage={setSelectedNotionPageId} /></motion.div>;
+            case 'notion': return (
+                <motion.div {...motionProps} className="relative z-30 flex-1 h-full">
+                    <NotionPagesPanel
+                        selectedPageId={selectedNotionPageId}
+                        onSelectNotionPage={setSelectedNotionPageId}
+                        onImportedNote={(noteId) => {
+                            setSelectedNoteId(noteId);
+                            setViewMode('notes');
+                            if (isListCollapsed) setIsListCollapsed(false);
+                        }}
+                    />
+                </motion.div>
+            );
             case 'tasks': return (
                 <motion.div {...motionProps} className="flex-1 overflow-hidden" style={{ minHeight: 0, minWidth: 0, height: '100%' }}>
                     <TaskBoard
@@ -234,7 +246,6 @@ export default function Notes() {
                                 ) : (
                                     <div className="flex flex-col items-center justify-center h-full text-center relative z-10 p-12 space-y-12 animate-in fade-in duration-1000">
                                         <div className="relative group/gate">
-                                            <div className="absolute inset-0 scale-150 rounded-full bg-white/5 blur-[120px] opacity-0 transition-opacity duration-1000 group-hover/gate:opacity-100 [.light_&]:bg-zinc-900/5" />
                                             <div className="relative z-10 flex h-40 w-40 items-center justify-center overflow-hidden rounded-[64px] border border-white/[0.05] bg-black/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.22)] backdrop-blur-3xl group/icon [.light_&]:border-zinc-200/50 [.light_&]:bg-white/40 [.light_&]:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)]">
                                                 <div className="absolute inset-0 notes-retina-texture opacity-[0.4] pointer-events-none [.light_&]:opacity-[0.26]" />
                                                 <img src="/favicon-dark.png" alt="NeuroNex" className="h-16 w-16 dark:hidden transition-all duration-1000 group-hover/gate:scale-110" />
@@ -259,9 +270,9 @@ export default function Notes() {
     };
 
     return (
-        <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-transparent font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
+        <div className="relative isolate z-0 flex h-screen w-screen flex-col overflow-hidden bg-transparent font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
             <div className="relative isolate z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 items-stretch px-5 pb-5 pt-28 [contain:layout_paint]">
-                <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[30px] ring-1 ring-zinc-950/[0.025] dark:ring-white/[0.025] [clip-path:inset(0_round_30px)] [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
+                <div className="relative isolate z-10 flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[30px] ring-1 ring-zinc-950/[0.025] dark:ring-white/[0.025] [clip-path:inset(0_round_30px)] [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -291,7 +302,7 @@ export default function Notes() {
                             </motion.div>
                         )}
 
-                        <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
+                        <div className="relative isolate z-30 flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">
                             <AnimatePresence mode="wait">
                                 {renderMainContent()}
                             </AnimatePresence>

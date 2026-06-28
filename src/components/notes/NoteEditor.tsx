@@ -301,23 +301,8 @@ export const NoteEditor = ({
   return (
     <div className={cn(
       "flex flex-col h-full w-full bg-transparent font-sans relative transition-all duration-700",
-      isFocusMode ? "z-[60] fixed inset-0 bg-zinc-50 dark:bg-black overflow-hidden" : ""
+      isFocusMode ? "z-[60] fixed inset-0 overflow-hidden bg-background" : ""
     )}>
-      {/* Immersive Focus Mode Background */}
-      <AnimatePresence>
-        {isFocusMode && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-0 pointer-events-none overflow-hidden"
-          >
-            <div className="absolute inset-0 notes-focus-backdrop" />
-            <div className="absolute inset-0 notes-retina-texture opacity-[0.18] dark:opacity-[0.26]" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Editor Toolbar */}
       <AnimatePresence>
         {showToolbar && (
