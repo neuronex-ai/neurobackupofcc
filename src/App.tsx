@@ -56,6 +56,9 @@ const PatientPortal = lazy(() => import("./pages/PatientPortal"));
 const PatientPortalInvite = lazy(() => import("./pages/PatientPortalInvite"));
 const PatientPortalActivate = lazy(() => import("./pages/PatientPortalActivate"));
 const PwaIntent = lazy(() => import("./pages/PwaIntent"));
+const NeuroZap = lazy(() => import("./pages/desktop/NeuroZap"));
+const LegacyTeleconsulta = lazy(() => import("./pages/legacy/LegacyTeleconsulta"));
+const LegacyMobileNotes = lazy(() => import("./pages/legacy/LegacyMobileNotes"));
 
 // Lazy Loaded Public Pages (web only - excluded from main bundle) - REMOVED FOR LEAN MVP
 const HelpCenter = lazy(() => import("@/pages/public/HelpCenter"));
@@ -162,6 +165,9 @@ const SharedRoutes = () => {
 
         <Route path="/ajustes" element={<ProtectedRoute><Ajustes /></ProtectedRoute>} />
         <Route path="/teleconsulta" element={<PaidRoute><Teleconsulta /></PaidRoute>} />
+        <Route path="/neurozap" element={<PaidRoute><NeuroZap /></PaidRoute>} />
+        <Route path="/teleconsulta-antiga" element={<PaidRoute><LegacyTeleconsulta /></PaidRoute>} />
+        <Route path="/notas-mobile-antiga" element={<PaidRoute><LegacyMobileNotes /></PaidRoute>} />
 
         {/* ─── Patient Portal Routes (Web Only) ──────────────────────── */}
         {!electronMode && (
