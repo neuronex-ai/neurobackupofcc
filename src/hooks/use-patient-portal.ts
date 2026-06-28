@@ -112,6 +112,11 @@ export interface PatientPortalGoal {
   created_at: string;
 }
 
+export interface PatientPortalAppointmentRequest {
+  startTime: string;
+  type: "online" | "presencial";
+}
+
 const readFunctionError = async (error: unknown, fallback: string) => {
   const context = (error as { context?: Response })?.context;
   if (context) {
@@ -261,5 +266,40 @@ export const usePatientPortalGoals = (enabled = true) => {
     queryFn: () =>
       invokePortalFunction<{ goals: PatientPortalGoal[] }>("patient-portal-current", { action: "goals" }),
     enabled: Boolean(user?.id) && enabled,
+  });
+};
+
+export const useRequestPatientPortalAppointment = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ startTime, type }: PatientPortalAppointmentRequest) =>
+      invokePortalFunction<{ appointment: PatientPortalAppointment }>(
+        "patient-portal-current",
+        { action: "request_appointment", startTime, type },
+        "Nao foi possivel solicitar o horario.",
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-appointments", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-current", user?.id] });
+    },
+  });
+};
+
+export const useTogglePatientPortalGoal = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ goalId, isCompleted }: { goalId: string; isCompleted: boolean }) =>
+      invokePortalFunction<{ goal: PatientPortalGoal }>(
+        "patient-portal-current",
+        { action: "toggle_goal", goalId, isCompleted },
+        "Nao foi possivel atualizar a meta.",
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-goals", user?.id] });
+    },
   });
 };

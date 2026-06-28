@@ -1,29 +1,46 @@
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import {
+  useRequestPatientPortalAppointment,
   usePatientPortalAppointments,
   usePatientPortalBilling,
   usePatientPortalCurrent,
   usePatientPortalDocuments,
   usePatientPortalGoals,
   usePatientPortalMood,
+  useTogglePatientPortalGoal,
 } from "@/hooks/use-patient-portal";
 import { cn } from "@/lib/utils";
 import {
+  Angry,
+  ArrowRight,
+  BrainCircuit,
   CalendarDays,
+  CalendarPlus,
   CheckCircle2,
+  Circle,
   CreditCard,
   Download,
   FileText,
+  Frown,
   HeartPulse,
   Home,
+  Laugh,
   Loader2,
   Lock,
   LogOut,
+  MapPin,
+  Meh,
+  ReceiptText,
   ShieldAlert,
+  Smile,
   Sparkles,
+  Target,
+  TrendingUp,
   UserRound,
+  Video,
 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -36,11 +53,37 @@ const dateTime = new Intl.DateTimeFormat("pt-BR", {
   hour: "2-digit",
   minute: "2-digit",
 });
+const dateOnly = new Intl.DateTimeFormat("pt-BR");
+const shortDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
+const dayOnly = new Intl.DateTimeFormat("pt-BR", { day: "2-digit" });
+const monthOnly = new Intl.DateTimeFormat("pt-BR", { month: "short" });
+
+const moodOptions = [
+  { score: 1, label: "Pesado", icon: Angry, tone: "text-rose-500 border-rose-500/25 bg-rose-500/10" },
+  { score: 2, label: "Dificil", icon: Frown, tone: "text-orange-500 border-orange-500/25 bg-orange-500/10" },
+  { score: 3, label: "Neutro", icon: Meh, tone: "text-amber-500 border-amber-500/25 bg-amber-500/10" },
+  { score: 4, label: "Bem", icon: Smile, tone: "text-emerald-500 border-emerald-500/25 bg-emerald-500/10" },
+  { score: 5, label: "Leve", icon: Laugh, tone: "text-blue-500 border-blue-500/25 bg-blue-500/10" },
+] as const;
+
+const toDateInputValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+const fileSize = (bytes: number) => {
+  if (!bytes) return "0 KB";
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 const navItems = [
   { value: "home", label: "Inicio", path: "/portal", icon: Home },
   { value: "agenda", label: "Agenda", path: "/portal/agenda", icon: CalendarDays },
   { value: "diario", label: "Diario", path: "/portal/diario", icon: HeartPulse },
+  { value: "metas", label: "Metas", path: "/portal/metas", icon: Target },
+  { value: "progresso", label: "Progresso", path: "/portal/progresso", icon: TrendingUp },
   { value: "documentos", label: "Docs", path: "/portal/documentos", icon: FileText },
   { value: "financeiro", label: "Financeiro", path: "/portal/financeiro", icon: CreditCard },
   { value: "perfil", label: "Perfil", path: "/portal/perfil", icon: UserRound },
@@ -110,32 +153,164 @@ const LockedPortalState = ({
   </div>
 );
 
+const AppointmentRequestDialog = () => {
+  const tomorrow = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    return date;
+  }, []);
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState(toDateInputValue(tomorrow));
+  const [time, setTime] = useState("09:00");
+  const [type, setType] = useState<"online" | "presencial">("online");
+  const requestAppointment = useRequestPatientPortalAppointment();
+
+  const handleSubmit = () => {
+    const start = new Date(`${date}T${time}:00`);
+    if (!date || !time || !Number.isFinite(start.getTime()) || start.getTime() <= Date.now()) {
+      toast.error("Escolha um horario futuro.");
+      return;
+    }
+
+    requestAppointment.mutate(
+      { startTime: start.toISOString(), type },
+      {
+        onSuccess: () => {
+          toast.success("Solicitacao enviada para o profissional.");
+          setOpen(false);
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Nao foi possivel solicitar o horario."),
+      },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="h-11 rounded-2xl bg-zinc-950 px-4 text-xs font-black uppercase tracking-[0.16em] text-white shadow-xl shadow-black/10 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100">
+          <CalendarPlus className="mr-2 h-4 w-4" />
+          Novo horario
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-[520px] rounded-[28px] border border-border/70 bg-card p-0 shadow-2xl">
+        <div className="border-b border-border/60 p-6">
+          <DialogTitle className="text-xl font-semibold tracking-tight">Solicitar agendamento</DialogTitle>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Envie uma preferencia de horario para confirmacao do profissional.
+          </p>
+        </div>
+
+        <div className="space-y-5 p-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Data</span>
+              <input
+                type="date"
+                min={toDateInputValue(new Date())}
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm text-foreground outline-none transition-colors focus:border-foreground/40"
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Horario</span>
+              <input
+                type="time"
+                value={time}
+                onChange={(event) => setTime(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm text-foreground outline-none transition-colors focus:border-foreground/40"
+              />
+            </label>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              { value: "online" as const, label: "Online", icon: Video },
+              { value: "presencial" as const, label: "Presencial", icon: MapPin },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setType(option.value)}
+                className={cn(
+                  "flex h-14 items-center justify-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-colors",
+                  type === option.value
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <option.icon className="h-4 w-4" />
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <Button
+            onClick={handleSubmit}
+            disabled={requestAppointment.isPending}
+            className="h-12 w-full rounded-2xl bg-zinc-950 text-xs font-black uppercase tracking-[0.18em] text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+          >
+            {requestAppointment.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+            Enviar solicitacao
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const AppointmentsView = ({ appointments }: { appointments: ReturnType<typeof usePatientPortalAppointments>["data"] }) => {
   const rows = appointments?.appointments || [];
 
   if (!rows.length) {
-    return <EmptyState title="Nenhuma sessao agendada" description="Quando seu psicologo confirmar novos horarios, eles aparecem aqui." />;
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <AppointmentRequestDialog />
+        </div>
+        <EmptyState title="Nenhuma sessao agendada" description="Quando seu psicologo confirmar novos horarios, eles aparecem aqui." />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Agenda compartilhada</p>
+          <p className="mt-1 text-sm text-muted-foreground">{rows.length} registro{rows.length === 1 ? "" : "s"} visivel{rows.length === 1 ? "" : "s"}</p>
+        </div>
+        <AppointmentRequestDialog />
+      </div>
       {rows.map((appointment) => (
-        <article key={appointment.id} className="rounded-3xl border border-border/50 bg-card/76 p-4">
+        <article key={appointment.id} className="rounded-[28px] border border-border/55 bg-card/80 p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-base font-semibold text-foreground">{dateTime.format(new Date(appointment.start_time))}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {appointment.type || "Sessao"} - {appointment.status || "agendada"}
-              </p>
-              {appointment.location && <p className="mt-2 text-sm text-muted-foreground">{appointment.location}</p>}
+            <div className="flex min-w-0 gap-4">
+              <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border border-border bg-background">
+                <span className="text-base font-bold text-foreground">{dayOnly.format(new Date(appointment.start_time))}</span>
+                <span className="text-[9px] font-black uppercase text-muted-foreground">{monthOnly.format(new Date(appointment.start_time))}</span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-base font-semibold text-foreground">{dateTime.format(new Date(appointment.start_time))}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {appointment.type || "Sessao"} - {appointment.status || "agendada"}
+                </p>
+                {appointment.location && <p className="mt-2 text-sm text-muted-foreground">{appointment.location}</p>}
+              </div>
             </div>
-            {appointment.google_meet_link && (
-              <Button asChild size="sm" className="rounded-xl">
-                <a href={appointment.google_meet_link} target="_blank" rel="noreferrer">
-                  Entrar
-                </a>
-              </Button>
-            )}
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <span className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                {appointment.type === "online" ? <Video className="mr-1.5 h-3 w-3" /> : <MapPin className="mr-1.5 h-3 w-3" />}
+                {appointment.type || "Sessao"}
+              </span>
+              {appointment.google_meet_link && (
+                <Button asChild size="sm" className="rounded-xl">
+                  <a href={appointment.google_meet_link} target="_blank" rel="noreferrer">
+                    Entrar
+                  </a>
+                </Button>
+              )}
+            </div>
           </div>
         </article>
       ))}
@@ -151,20 +326,36 @@ const DocumentsView = ({ documents }: { documents: ReturnType<typeof usePatientP
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Arquivos compartilhados</p>
+          <p className="mt-1 text-sm text-muted-foreground">{rows.length} documento{rows.length === 1 ? "" : "s"} {rows.length === 1 ? "disponivel" : "disponiveis"}</p>
+        </div>
+      </div>
       {rows.map((document) => (
-        <article key={document.id} className="rounded-3xl border border-border/50 bg-card/76 p-4">
+        <article key={document.id} className="rounded-[28px] border border-border/55 bg-card/80 p-4 shadow-sm transition-colors hover:border-foreground/15">
           <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-foreground">{document.name}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {document.sharedAt ? `Compartilhado em ${dateTime.format(new Date(document.sharedAt))}` : "Compartilhado"}
-              </p>
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-base font-semibold text-foreground">{document.name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {fileSize(document.sizeBytes)} - {document.sharedAt ? `Compartilhado em ${dateOnly.format(new Date(document.sharedAt))}` : "Compartilhado"}
+                </p>
+              </div>
             </div>
-            <Button asChild disabled={!document.signedUrl} size="icon" variant="outline" className="h-10 w-10 shrink-0 rounded-xl">
-              <a href={document.signedUrl || "#"} target="_blank" rel="noreferrer" aria-label={`Baixar ${document.name}`}>
-                <Download className="h-4 w-4" />
-              </a>
+            <Button
+              disabled={!document.signedUrl}
+              size="icon"
+              variant="outline"
+              className="h-10 w-10 shrink-0 rounded-xl"
+              onClick={() => document.signedUrl && window.open(document.signedUrl, "_blank", "noopener,noreferrer")}
+              aria-label={`Baixar ${document.name}`}
+            >
+              <Download className="h-4 w-4" />
             </Button>
           </div>
         </article>

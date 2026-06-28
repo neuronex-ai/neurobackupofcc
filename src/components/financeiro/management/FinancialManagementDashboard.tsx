@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import type { Transaction } from "@/types";
 import type { FinanceView } from "../FinancialDashboard";
 import { NewTransactionModal } from "../NewTransactionModal";
+import { RecurringManager } from "../RecurringManager";
 
 type ManagementProps = {
   activeView: FinanceView;
@@ -828,7 +829,7 @@ export const FinancialManagementDashboard = (props: ManagementProps) => {
     case "gestao-inadimplencia":
       return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Cobranças" description="Filtro legado de inadimplência: cobranças vencidas dentro da área de Cobranças." setActiveView={props.setActiveView}><ChargesWorkspace scope="management" title="Cobranças vencidas" initialStatusFilters={["overdue"]} /></RouteFrame></div>);
     case "gestao-planejamento":
-      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Planejamento" description="Metas, ponto de equilíbrio, ticket médio e cenários de crescimento." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><PlanningPanel {...common} /><ActionQueue {...common} /></RouteFrame></div>);
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Planejamento" description="Metas, ponto de equilíbrio, ticket médio e cenários de crescimento." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><PlanningPanel {...common} /><RecurringManager /><ActionQueue {...common} /></RouteFrame></div>);
     case "gestao-relatorios":
       return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Relatórios" description="DRE simplificada, fluxo, cobranças vencidas e resumo para contador." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><ReportsPanel metrics={metrics} /></RouteFrame></div>);
     case "gestao-visao-geral":

@@ -5,6 +5,8 @@ import {
   jsonResponse,
   supabaseAdmin,
 } from "../_shared/asaas-client.ts";
+import { GetObjectCommand, S3Client } from "npm:@aws-sdk/client-s3";
+import { getSignedUrl } from "npm:@aws-sdk/s3-request-presigner";
 import {
   getPatientPortalContext,
   requireActivePatientPortal,
@@ -27,6 +29,15 @@ async function loadAppointments(context: any) {
 }
 
 async function loadDocuments(context: any) {
+  const r2 = new S3Client({
+    region: "auto",
+    endpoint: Deno.env.get("R2_ENDPOINT")!,
+    credentials: {
+      accessKeyId: Deno.env.get("R2_ACCESS_KEY_ID")!,
+      secretAccessKey: Deno.env.get("R2_SECRET_ACCESS_KEY")!,
+    },
+  });
+
   const { data, error } = await supabaseAdmin
     .from("document_files")
     .select("id,bucket,object_key,original_name,mime_type,size_bytes,created_at,shared_with_patient_at")
@@ -41,8 +52,17 @@ async function loadDocuments(context: any) {
   const documents = await Promise.all((data || []).map(async (doc: any) => {
     let signedUrl: string | null = null;
     if (doc.bucket && doc.object_key) {
-      const signed = await supabaseAdmin.storage.from(doc.bucket).createSignedUrl(doc.object_key, 60 * 5);
-      signedUrl = signed.data?.signedUrl || null;
+      const name = encodeURIComponent(doc.original_name || "documento").replace(/'/g, "%27");
+      signedUrl = await getSignedUrl(
+        r2,
+        new GetObjectCommand({
+          Bucket: doc.bucket,
+          Key: doc.object_key,
+          ResponseContentType: doc.mime_type || undefined,
+          ResponseContentDisposition: `inline; filename*=UTF-8''${name}`,
+        }),
+        { expiresIn: 300 },
+      );
     }
     return {
       id: doc.id,
@@ -159,6 +179,62 @@ async function loadMood(user: any, context: any, body: Record<string, unknown>) 
   };
 }
 
+async function requestAppointment(context: any, body: Record<string, unknown>) {
+  const startTime = new Date(String(body.startTime || ""));
+  const type = String(body.type || "online");
+
+  if (!Number.isFinite(startTime.getTime()) || startTime.getTime() <= Date.now()) {
+    return errorResponse("Escolha um horario futuro.", 400);
+  }
+  if (!["online", "presencial"].includes(type)) {
+    return errorResponse("Modalidade invalida.", 400);
+  }
+
+  const endTime = new Date(startTime.getTime() + 50 * 60 * 1000);
+  const { data, error } = await supabaseAdmin
+    .from("appointments")
+    .insert({
+      user_id: context.professional.id,
+      patient_id: context.patient.id,
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
+      type,
+      status: "unscored",
+      notes: "Solicitacao via Portal do Paciente",
+      metadata: {
+        kind: "session",
+        sessionType: "acompanhamento",
+        modality: type,
+        durationMinutes: 50,
+        origin: "patient_portal",
+        syncStatus: "pending",
+      },
+    })
+    .select("id,start_time,end_time,type,status,location,google_meet_link,created_at,updated_at")
+    .single();
+
+  if (error) throw error;
+  return { appointment: data };
+}
+
+async function toggleGoal(context: any, body: Record<string, unknown>) {
+  const goalId = String(body.goalId || "");
+  const isCompleted = Boolean(body.isCompleted);
+  if (!goalId) return errorResponse("Meta invalida.", 400);
+
+  const { data, error } = await supabaseAdmin
+    .from("patient_goals")
+    .update({ is_completed: isCompleted })
+    .eq("id", goalId)
+    .eq("patient_id", context.patient.id)
+    .eq("user_id", context.professional.id)
+    .select("id,description,is_completed,due_date,created_at")
+    .single();
+
+  if (error) throw error;
+  return { goal: data };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return corsResponse();
   if (req.method !== "GET" && req.method !== "POST") return errorResponse("Metodo nao permitido.", 405);
@@ -180,6 +256,14 @@ Deno.serve(async (req: Request) => {
     if (action === "documents") return jsonResponse(await loadDocuments(context));
     if (action === "billing") return jsonResponse(await loadBilling(context));
     if (action === "goals") return jsonResponse(await loadGoals(context));
+    if (action === "request_appointment") {
+      const result = await requestAppointment(context, body as Record<string, unknown>);
+      return result instanceof Response ? result : jsonResponse(result);
+    }
+    if (action === "toggle_goal") {
+      const result = await toggleGoal(context, body as Record<string, unknown>);
+      return result instanceof Response ? result : jsonResponse(result);
+    }
     if (action === "mood") {
       const result = await loadMood(user, context, body as Record<string, unknown>);
       return result instanceof Response ? result : jsonResponse(result);

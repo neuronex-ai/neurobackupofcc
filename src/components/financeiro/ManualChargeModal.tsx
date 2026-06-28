@@ -250,7 +250,7 @@ export function ManualChargeModal({ open, onOpenChange }: ManualChargeModalProps
         <div className="border-b border-zinc-200 px-6 py-5 dark:border-white/10">
           <DialogTitle className="text-xl font-black tracking-tight text-zinc-950 dark:text-white">Nova cobranca manual</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Registro gerencial em aberto. Nao gera cobranca Asaas nem movimentacao bancaria.
+            Registro gerencial em aberto. Nao gera cobranca bancaria NeuroFinance nem movimentacao em conta.
           </DialogDescription>
         </div>
 

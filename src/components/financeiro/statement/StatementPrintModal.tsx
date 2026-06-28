@@ -23,7 +23,7 @@ export const StatementPrintModal = ({ children, transactions, dateRange, summary
     
     const printWindow = window.open('', '', 'height=900,width=1000');
     if (printWindow) {
-        printWindow.document.write('<html><head><title>Extrato Financeiro</title>');
+        printWindow.document.write('<html><head><title>Extrato NeuroFinance</title>');
         printWindow.document.write('<script src="https://cdn.tailwindcss.com"></script>');
         printWindow.document.write('<style>@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap"); body { font-family: "Inter", sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; }</style>');
         printWindow.document.write('</head><body class="bg-gray-100 flex justify-center p-0">');
@@ -37,7 +37,7 @@ export const StatementPrintModal = ({ children, transactions, dateRange, summary
     }
   };
 
-  const professionalName = profile ? `${profile.first_name} ${profile.last_name}` : "Psicólogo Responsável";
+  const professionalName = profile ? `${profile.first_name} ${profile.last_name}` : "Profissional responsavel";
 
   return (
     <Dialog>
@@ -56,7 +56,7 @@ export const StatementPrintModal = ({ children, transactions, dateRange, summary
                 <div className="p-2 rounded-xl bg-white/5 border border-white/10">
                     <FileText className="h-5 w-5 text-white/70" /> 
                 </div>
-                Visualizar Impressão
+                Extrato NeuroFinance
             </DialogTitle>
             
             <div className="text-[10px] bg-white/5 border border-white/10 px-3 py-1 rounded-full text-white/50 uppercase tracking-widest font-bold">
@@ -83,7 +83,7 @@ export const StatementPrintModal = ({ children, transactions, dateRange, summary
         {/* Footer Actions */}
         <div className="p-6 border-t border-white/10 bg-[#0A0A0B] flex justify-end shrink-0 relative z-20">
             <Button onClick={handlePrint} className="bg-white text-black hover:bg-white/90 gap-2 font-bold uppercase text-xs tracking-widest rounded-xl h-12 px-8 shadow-lg transition-transform active:scale-95">
-                <Printer className="h-4 w-4" /> Imprimir Extrato
+                <Printer className="h-4 w-4" /> Imprimir extrato
             </Button>
         </div>
       </DialogContent>
