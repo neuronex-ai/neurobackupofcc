@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -9,13 +9,13 @@ import {
   isValidBrazilianPhoneLength,
   isValidBillingAddress,
   isValidCpfCnpjLength,
-  type BillingAddressPayload,
   normalizeCpfCnpj,
   normalizePhone,
   normalizePostalCode,
   startSubscriptionCheckout,
 } from "@/lib/subscription-checkout";
 import { SubscriptionUpsellDialog } from "@/components/subscription/SubscriptionUpsellDialog";
+import { useCheckoutBillingDraft } from "@/hooks/use-checkout-billing-draft";
 
 const PROFESSIONAL_FEATURES = [
   "Synapse texto e voz com limites maiores",
@@ -37,12 +37,15 @@ export const TrialExpiredUpsell = () => {
   const [open, setOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [freeLoading, setFreeLoading] = useState(false);
-  const [cpfCnpj, setCpfCnpj] = useState("");
-  const [phone, setPhone] = useState("");
-  const [billingAddress, setBillingAddress] = useState<BillingAddressPayload>({});
-  const updateBillingAddress = useCallback((patch: Partial<BillingAddressPayload>) => {
-    setBillingAddress((current) => ({ ...current, ...patch }));
-  }, []);
+  const {
+    cpfCnpj,
+    setCpfCnpj,
+    phone,
+    setPhone,
+    billingAddress,
+    updateBillingAddress,
+    persistBillingDraft,
+  } = useCheckoutBillingDraft();
 
   useEffect(() => {
     if (!isLoading && !isDevAccount && requiresUpsell) {
@@ -77,6 +80,7 @@ export const TrialExpiredUpsell = () => {
 
     setCheckoutLoading(true);
     try {
+      await persistBillingDraft();
       const result = await startSubscriptionCheckout({
         planId: "Professional",
         cpfCnpj: normalizeCpfCnpj(cpfCnpj),

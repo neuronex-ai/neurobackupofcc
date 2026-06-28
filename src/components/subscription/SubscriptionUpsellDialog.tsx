@@ -18,7 +18,6 @@ import {
   Loader2,
   Lock,
   MapPin,
-  Phone,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -70,8 +69,14 @@ const formatCpfCnpj = (value: string) => {
 };
 
 const normalizeBrazilianPhone = (value: string) => {
-  const digits = onlyDigits(value).slice(0, 13);
-  return digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
+  const digits = onlyDigits(value);
+  const trimmed = value.trim();
+  const hasCountryPrefix = trimmed.startsWith("+55") || /^55(?:\D|$)/.test(trimmed);
+  const localDigits = hasCountryPrefix || (digits.startsWith("55") && digits.length > 11)
+    ? digits.slice(2)
+    : digits;
+
+  return localDigits.slice(0, 11);
 };
 
 const formatBrazilianPhone = (value: string) => {

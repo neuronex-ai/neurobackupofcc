@@ -103,6 +103,30 @@ async function getFinancialDocument(userId: string) {
   return data as any;
 }
 
+async function assertCustomerAvailableForUser(customerId: string, userId: string) {
+  const normalizedCustomerId = String(customerId || "").trim();
+  if (!normalizedCustomerId) return;
+
+  const { data, error } = await supabaseAdmin
+    .from("user_subscriptions")
+    .select("user_id")
+    .eq("asaas_customer_id", normalizedCustomerId)
+    .neq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (data?.user_id) {
+    const err: any = new Error(
+      "Este CPF/CNPJ já está vinculado a outra conta NeuroNex. Use os dados da conta correta ou fale com o suporte.",
+    );
+    err.status = 409;
+    err.code = "customer_already_linked";
+    throw err;
+  }
+}
+
 function profileName(profile: any, fallbackEmail: string) {
   const joinedName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
   return String(profile?.full_name || profile?.name || joinedName || fallbackEmail || "Cliente NeuroNex").trim();

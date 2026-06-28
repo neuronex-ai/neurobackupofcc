@@ -20,6 +20,12 @@ export type BillingAddressPayload = Pick<
   "address" | "addressNumber" | "complement" | "province" | "postalCode" | "city" | "state"
 >;
 
+export type CheckoutBillingDraft = {
+  cpfCnpj?: string;
+  phone?: string;
+  billingAddress?: BillingAddressPayload;
+};
+
 export type CheckoutResult = {
   url?: string;
   error?: string;
@@ -58,6 +64,66 @@ export const isValidBillingAddress = (value: BillingAddressPayload) => (
   String(value.addressNumber || "").trim().length >= 1 &&
   String(value.province || "").trim().length >= 2
 );
+
+const CHECKOUT_BILLING_DRAFT_VERSION = "v1";
+
+const sanitizeBillingDraft = (value: CheckoutBillingDraft): CheckoutBillingDraft => ({
+  cpfCnpj: String(value.cpfCnpj || "").slice(0, 32),
+  phone: String(value.phone || "").slice(0, 32),
+  billingAddress: {
+    address: String(value.billingAddress?.address || "").slice(0, 160),
+    addressNumber: String(value.billingAddress?.addressNumber || "").slice(0, 32),
+    complement: String(value.billingAddress?.complement || "").slice(0, 120),
+    province: String(value.billingAddress?.province || "").slice(0, 120),
+    postalCode: String(value.billingAddress?.postalCode || "").slice(0, 16),
+    city: String(value.billingAddress?.city || "").slice(0, 120),
+    state: String(value.billingAddress?.state || "").slice(0, 2).toUpperCase(),
+  },
+});
+
+const hasBillingDraftData = (value: CheckoutBillingDraft) => Boolean(
+  value.cpfCnpj ||
+  value.phone ||
+  value.billingAddress?.address ||
+  value.billingAddress?.addressNumber ||
+  value.billingAddress?.province ||
+  value.billingAddress?.postalCode ||
+  value.billingAddress?.city ||
+  value.billingAddress?.state,
+);
+
+async function getCheckoutBillingDraftKey() {
+  const { data } = await supabase.auth.getUser();
+  const userId = data.user?.id || "anonymous";
+  return `neuronex:subscription-checkout:${userId}:${CHECKOUT_BILLING_DRAFT_VERSION}`;
+}
+
+export async function readCheckoutBillingDraft(): Promise<CheckoutBillingDraft | null> {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const key = await getCheckoutBillingDraftKey();
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CheckoutBillingDraft;
+    return sanitizeBillingDraft(parsed);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveCheckoutBillingDraft(value: CheckoutBillingDraft) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const key = await getCheckoutBillingDraftKey();
+    const sanitized = sanitizeBillingDraft(value);
+    if (!hasBillingDraftData(sanitized)) return;
+    window.localStorage.setItem(key, JSON.stringify(sanitized));
+  } catch {
+    // Local persistence is a convenience only; checkout must continue without it.
+  }
+}
 
 async function readFunctionError(error: unknown): Promise<Record<string, any> | null> {
   const maybeError = error as {
