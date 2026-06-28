@@ -3,7 +3,7 @@
 import { lazy, Suspense, useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Transition } from "framer-motion";
 
 import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import { useReminders } from "@/hooks/use-reminders";
@@ -104,17 +104,17 @@ export default function Notes() {
     }, [noteIdParam, notes]);
 
     useEffect(() => {
-        const handleNeuroFlowNavigate = (event: CustomEvent) => {
-            const { flowId } = event.detail;
+        const handleNeuroFlowNavigate = (event: Event) => {
+            const { flowId } = (event as CustomEvent<{ flowId?: string }>).detail ?? {};
             if (flowId) {
                 setSelectedFlowId(flowId);
                 setViewMode('neuroflow');
             }
         };
 
-        window.addEventListener('neuroflow:navigate' as any, handleNeuroFlowNavigate);
+        window.addEventListener('neuroflow:navigate', handleNeuroFlowNavigate);
         return () => {
-            window.removeEventListener('neuroflow:navigate' as any, handleNeuroFlowNavigate);
+            window.removeEventListener('neuroflow:navigate', handleNeuroFlowNavigate);
         };
     }, []);
 
@@ -159,11 +159,12 @@ export default function Notes() {
     const activeNote = notes?.find(n => n.id === selectedNoteId);
 
     const renderMainContent = () => {
+        const contentTransition: Transition = { duration: 0.4, ease: [0.23, 1, 0.32, 1] };
         const motionProps = {
             initial: { opacity: 0, y: 10 },
             animate: { opacity: 1, y: 0 },
             exit: { opacity: 0, y: -10 },
-            transition: { duration: 0.4, ease: [0.23, 1, 0.32, 1] as any }
+            transition: contentTransition
         };
 
         switch (viewMode) {
@@ -258,16 +259,7 @@ export default function Notes() {
     };
 
     return (
-        <div className="notes-retina-canvas relative flex h-screen w-screen flex-col overflow-hidden font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
-            {/* Master Surface Overlay */}
-            <div className="pointer-events-none absolute inset-0 z-0 notes-retina-texture opacity-[0.28] [.light_&]:opacity-[0.2]" />
-
-            {/* Ambient Background Glows */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="notes-retina-ambient" />
-                <div className="notes-retina-vignette" />
-            </div>
-
+        <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-transparent font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
             <div className="relative isolate z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 items-stretch px-5 pb-5 pt-28 [contain:layout_paint]">
                 {/* Master Clipping Stage - O "quadrado" solicitado para acoplar os canvas */}
                 <div className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[30px] [clip-path:inset(0_round_30px)] [contain:layout_paint] [transform:translateZ(0)] backface-visibility-hidden">

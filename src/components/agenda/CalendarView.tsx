@@ -340,8 +340,8 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                 },
             }}
         >
-            <div id="agenda-main-calendar" className="relative z-10 flex h-full flex-col overflow-hidden bg-transparent px-5 pb-5 pt-5">
-                <header className="relative mb-5 flex shrink-0 flex-col justify-between gap-5 overflow-hidden rounded-[30px] border border-zinc-200/70 bg-white p-4 text-zinc-950 shadow-[0_18px_46px_-36px_rgba(24,24,27,0.28),inset_0_1px_0_rgba(255,255,255,0.86)] backdrop-blur-xl dark:border-white/[0.055] dark:bg-[#0A0A0B] dark:text-white dark:shadow-[0_24px_64px_-48px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.045)] xl:flex-row xl:items-center">
+            <div id="agenda-main-calendar" className="relative z-10 flex h-full flex-col overflow-hidden bg-transparent px-3.5 pb-3.5 pt-3.5">
+                <header className="relative mb-3.5 flex shrink-0 flex-col justify-between gap-4 overflow-hidden rounded-[28px] border border-zinc-200/70 bg-white p-3 text-zinc-950 shadow-[0_18px_46px_-38px_rgba(24,24,27,0.26),inset_0_1px_0_rgba(255,255,255,0.86)] backdrop-blur-xl dark:border-white/[0.055] dark:bg-[#0A0A0B] dark:text-white dark:shadow-[0_24px_64px_-50px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.045)] xl:flex-row xl:items-center">
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(24,24,27,0.035),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.56),transparent_46%)] dark:bg-[radial-gradient(circle_at_12%_0%,rgba(255,255,255,0.03),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.018),transparent_44%)]" />
                     {/* Left side: Sidebar Toggle, Title/Date, Google Status */}
                     <div className="relative z-10 flex flex-wrap items-center gap-4">
@@ -350,6 +350,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setSidebarOpen(!sidebarOpen)}
+                                aria-label={sidebarOpen ? "Ocultar painel da agenda" : "Mostrar painel da agenda"}
                                 className="hidden h-10 w-10 rounded-full border border-zinc-200 bg-zinc-50 text-zinc-500 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-950 active:scale-95 dark:border-white/10 dark:bg-white/[0.055] dark:text-white/58 dark:hover:border-white/16 dark:hover:bg-white/[0.09] dark:hover:text-white xl:flex motion-reduce:transition-none motion-reduce:active:scale-100"
                             >
                                 {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
@@ -363,8 +364,8 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ duration: 0.3, ease: "easeOut" }}
                             >
-                                <span className="text-4xl font-black leading-none tracking-[-0.065em] text-zinc-950 dark:text-white xl:text-5xl">
-                                    {format(date, "dd")} <span className="font-black lowercase text-zinc-950/42 dark:text-white/42">{format(date, "MMMM", { locale: ptBR })}</span> <span className="ml-1 text-3xl font-black text-zinc-950/24 dark:text-white/22">{format(date, "yyyy")}</span>
+                                <span className="text-4xl font-black leading-none tracking-[-0.065em] text-zinc-950 dark:text-white xl:text-[2.65rem]">
+                                    {format(date, "dd")} <span className="font-black lowercase text-zinc-950/42 dark:text-white/42">{format(date, "MMMM", { locale: ptBR })}</span> <span className="ml-1 text-2xl font-black text-zinc-950/24 dark:text-white/22">{format(date, "yyyy")}</span>
                                 </span>
                             </motion.div>
                         </div>
@@ -469,7 +470,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
                 </header>
 
                 {/* Main content area */}
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[26px] border border-zinc-200/70 bg-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] dark:border-white/[0.045] dark:bg-[#080809] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.028)]">
+                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto rounded-[24px] border border-zinc-200/70 bg-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] dark:border-white/[0.045] dark:bg-[#080809] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.028)]">
                     {view === 'monthly' ? renderMonthlyView() : renderTimeGridView()}
                 </div>
 

@@ -18,7 +18,7 @@ export default function DesktopAgenda() {
     useAgendaRealtime();
     const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [view, setView] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
     const [searchQuery, setSearchQuery] = useState("");
@@ -104,21 +104,21 @@ export default function DesktopAgenda() {
     }, [appointments, searchQuery, selectedTag]);
 
     return (
-        <div className="desktop-page-canvas relative flex h-screen w-full flex-col overflow-hidden pt-10 font-sans text-foreground selection:bg-primary/10 selection:text-primary">
-            <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 px-6 pb-8 md:px-8 lg:px-12 xl:px-16">
-                <div className="relative flex min-h-0 flex-1 gap-4 overflow-hidden rounded-[40px] border border-zinc-200/70 bg-white/72 p-3 shadow-[0_24px_70px_-46px_rgba(24,24,27,0.34),inset_0_1px_0_rgba(255,255,255,0.88)] backdrop-blur-2xl dark:border-white/[0.055] dark:bg-[#0A0A0B] dark:shadow-[0_28px_90px_-52px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.045)] md:p-4">
-                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(24,24,27,0.035),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.36),transparent_38%)] opacity-70 dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.026),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.018),transparent_42%)] dark:opacity-100" />
+        <div className="relative flex h-screen w-full flex-col overflow-hidden bg-transparent pt-10 font-sans text-foreground selection:bg-primary/10 selection:text-primary">
+            <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 px-4 pb-4 md:px-6 lg:px-8 xl:px-10">
+                <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-[40px] border border-zinc-200/60 bg-white/58 p-2 shadow-[0_22px_72px_-52px_rgba(24,24,27,0.34),inset_0_1px_0_rgba(255,255,255,0.82)] backdrop-blur-2xl dark:border-white/[0.05] dark:bg-[#0A0A0B]/88 dark:shadow-[0_28px_90px_-58px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3">
+                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),transparent_28%)] opacity-60 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.012),transparent_32%)] dark:opacity-100" />
                 <AnimatePresence mode="wait">
                     {sidebarOpen && (
                         <motion.aside
                             key="sidebar"
-                            initial={{ width: 0, opacity: 0, x: -40 }}
-                            animate={{ width: 300, opacity: 1, x: 0 }}
-                            exit={{ width: 0, opacity: 0, x: -40 }}
-                            transition={{ type: "spring", stiffness: 300, damping: 30, mass: 0.8 }}
-                            className="relative z-10 hidden h-full shrink-0 flex-col overflow-hidden xl:flex"
+                            initial={{ opacity: 0, x: -18, scale: 0.985 }}
+                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: -18, scale: 0.985 }}
+                            transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.8 }}
+                            className="absolute inset-y-3 left-3 z-40 hidden w-[318px] flex-col overflow-hidden xl:flex"
                         >
-                            <div className="w-[300px] h-full flex flex-col">
+                            <div className="h-full w-full rounded-[36px] border border-zinc-200/60 bg-background/78 p-2 shadow-[0_26px_80px_-42px_rgba(24,24,27,0.38)] backdrop-blur-2xl dark:border-white/[0.055] dark:bg-black/38 dark:shadow-[0_28px_82px_-48px_rgba(0,0,0,0.95)]">
                                 <Sidebar
                                     selectedDate={selectedDate}
                                     onDateChange={setSelectedDate}
@@ -134,7 +134,7 @@ export default function DesktopAgenda() {
                 </AnimatePresence>
 
                 <main className="relative z-10 flex h-full min-w-0 flex-1 flex-col" data-synapse-target="daily-schedule">
-                    <div className="relative flex-1 overflow-hidden rounded-[34px] border border-zinc-200/70 bg-zinc-50/72 shadow-[0_18px_58px_-40px_rgba(24,24,27,0.34)] ring-1 ring-zinc-950/[0.025] dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#1A1A1C] dark:to-[#0D0D0F] dark:shadow-[0_24px_68px_-54px_rgba(0,0,0,0.9)] dark:ring-white/[0.018]">
+                    <div className="relative flex-1 overflow-hidden rounded-[34px] border border-zinc-200/65 bg-zinc-50/68 shadow-[0_18px_58px_-42px_rgba(24,24,27,0.32)] ring-1 ring-zinc-950/[0.022] dark:border-white/[0.055] dark:bg-[#0B0B0C] dark:shadow-[0_24px_68px_-54px_rgba(0,0,0,0.9)] dark:ring-white/[0.018]">
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(24,24,27,0.018),transparent_34%),radial-gradient(circle_at_92%_88%,rgba(24,24,27,0.012),transparent_38%)] dark:bg-[radial-gradient(circle_at_18%_10%,rgba(255,255,255,0.018),transparent_34%),radial-gradient(circle_at_92%_88%,rgba(255,255,255,0.008),transparent_38%)]" />
                         <CalendarView
                             date={selectedDate}

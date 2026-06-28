@@ -86,7 +86,7 @@ export const AgendaSettingsModal = () => {
             }
             toast.success("Horários atualizados com sucesso!");
             setOpen(false);
-        } catch (error: any) {
+        } catch (error) {
             console.error("Save error detail:", error);
             toast.error(error?.message || "Erro ao salvar configuração.");
         } finally {
@@ -94,11 +94,11 @@ export const AgendaSettingsModal = () => {
         }
     };
 
-    const updateDay = (dayId: string, field: 'enabled' | 'start' | 'end', value: any) => {
-        setWorkingHours((prev: any) => ({
+    const updateDay = <K extends keyof WorkingDayHours>(dayId: string, field: K, value: WorkingDayHours[K]) => {
+        setWorkingHours((prev) => ({
             ...prev,
             [dayId]: {
-                ...prev[dayId],
+                ...(prev[dayId] ?? DEFAULT_WORKING_HOURS[dayId] ?? { enabled: false, start: "08:00", end: "18:00" }),
                 [field]: value
             }
         }));
