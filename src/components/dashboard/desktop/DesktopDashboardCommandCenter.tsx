@@ -304,15 +304,21 @@ const NextSessionPanel = ({
   isLoading: boolean;
 }) => {
   const navigate = useNavigate();
+  const patientId = nextAppointment?.patient_id || "";
+  const { data: sessionNotes = [], isLoading: loadingSessionNotes } = useSessionNotes(patientId);
+  const latestSessionNote = sessionNotes[0];
+  const latestSummaryText = getSessionSummaryText(latestSessionNote);
+  const latestTopics = getSummaryTopics(latestSessionNote?.ai_summary);
+  const latestNextSteps = getSummaryNextSteps(latestSessionNote?.ai_summary);
   const minutesUntil = getMinutesUntil(nextAppointment);
   const online = isOnlineAppointment(nextAppointment);
 
   return (
-    <DesktopWorkspacePanel className="min-h-[340px] p-5 lg:p-6">
-      <div className="flex h-full min-h-[292px] flex-col justify-between gap-6">
+    <DesktopWorkspacePanel className="min-h-[376px] p-5 lg:p-6">
+      <div className="flex h-full min-h-[328px] flex-col justify-between gap-6">
         <SectionHeader
           eyebrow="Agora"
-          title="Proxima sessao"
+          title="Próxima sessão"
           action={
             <Button variant="outline" className="h-9 rounded-[14px] px-3 text-xs font-bold" onClick={() => navigate("/agenda")}>
               Agenda
@@ -323,7 +329,7 @@ const NextSessionPanel = ({
         {isLoading ? (
           <div className="h-48 animate-pulse rounded-[28px] bg-muted/35" />
         ) : nextAppointment ? (
-          <div className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-zinc-50 p-5 shadow-sm dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#171719] dark:to-[#0C0C0E]">
+          <div className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-zinc-50 p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#171719] dark:to-[#0C0C0E] dark:shadow-[0_24px_58px_-50px_rgba(0,0,0,0.9)]">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_0%,rgba(0,0,0,0.035),transparent_32%)] dark:bg-[radial-gradient(circle_at_14%_0%,rgba(255,255,255,0.012),transparent_34%)]" />
             <div className="relative z-10">
               <div className="flex flex-wrap items-center gap-2">
@@ -348,6 +354,34 @@ const NextSessionPanel = ({
                 <p className="mt-3 line-clamp-2 text-sm font-medium leading-relaxed text-muted-foreground">
                   {online ? "Teleconsulta pronta para entrada direta." : "Abra a ficha ou siga para a agenda."}
                 </p>
+              </div>
+
+              <div className="mt-5 rounded-[22px] border border-zinc-200/70 bg-white/72 p-4 shadow-sm dark:border-white/[0.07] dark:bg-white/[0.035]">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">Última sessão</p>
+                  {latestSessionNote?.created_at ? (
+                    <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground/70">
+                      {format(new Date(latestSessionNote.created_at), "dd/MM", { locale: ptBR })}
+                    </span>
+                  ) : null}
+                </div>
+
+                {loadingSessionNotes ? (
+                  <div className="mt-3 h-16 animate-pulse rounded-[16px] bg-muted/40" />
+                ) : latestSummaryText ? (
+                  <>
+                    <p className="mt-3 line-clamp-3 text-sm font-semibold leading-relaxed text-foreground/88">{latestSummaryText}</p>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {[...latestTopics, ...latestNextSteps].slice(0, 4).map((item) => (
+                        <span key={item} className="rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-muted-foreground">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="mt-3 text-sm font-medium leading-relaxed text-muted-foreground">Sem resumo confirmado para este paciente ainda.</p>
+                )}
               </div>
 
               <div className="mt-6 grid gap-2 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
@@ -378,8 +412,8 @@ const NextSessionPanel = ({
         ) : (
           <div className="flex min-h-[210px] flex-col justify-center rounded-[28px] border border-dashed border-border/60 bg-muted/18 p-6">
             <Clock className="h-8 w-8 text-muted-foreground/45" />
-            <h3 className="mt-5 text-2xl font-black tracking-[-0.055em] text-foreground">Sem sessao futura.</h3>
-            <p className="mt-2 text-sm font-medium leading-relaxed text-muted-foreground">Use Agenda para organizar o proximo horario.</p>
+            <h3 className="mt-5 text-2xl font-black tracking-[-0.055em] text-foreground">Sem sessão futura.</h3>
+            <p className="mt-2 text-sm font-medium leading-relaxed text-muted-foreground">Use Agenda para organizar o próximo horário.</p>
           </div>
         )}
       </div>
