@@ -522,7 +522,7 @@ const AppointmentScheduleArtifact = ({
                 ) : null}
                 <AppointmentDetailModal appointment={nextAppointment}>
                   <Button variant="outline" className="h-9 rounded-[14px] px-3 text-[8px] font-black uppercase tracking-[0.16em]">
-                    Ficha
+                    {isSession ? "Ficha" : "Detalhes"}
                   </Button>
                 </AppointmentDetailModal>
                 <Button
