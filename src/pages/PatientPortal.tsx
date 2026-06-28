@@ -374,14 +374,26 @@ const BillingView = ({ billing }: { billing: ReturnType<typeof usePatientPortalB
 
   return (
     <div className="space-y-5">
+      <div className="rounded-[28px] border border-border/55 bg-card/80 p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">NeuroFinance</p>
+            <p className="mt-1 text-sm text-muted-foreground">Cobrancas, pagamentos e comprovantes compartilhados.</p>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
+            <ReceiptText className="h-5 w-5" />
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-3">
         {entries.map((entry) => (
-          <article key={entry.id} className="rounded-3xl border border-border/50 bg-card/76 p-4">
+          <article key={entry.id} className="rounded-[24px] border border-border/55 bg-card/80 p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-base font-semibold text-foreground">{entry.title || entry.description || "Cobranca"}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {entry.due_date ? `Vence em ${new Intl.DateTimeFormat("pt-BR").format(new Date(entry.due_date))}` : "Sem vencimento"}
+                  {entry.due_date ? `Vence em ${dateOnly.format(new Date(entry.due_date))}` : "Sem vencimento"}
                 </p>
               </div>
               <div className="text-right">
@@ -395,24 +407,168 @@ const BillingView = ({ billing }: { billing: ReturnType<typeof usePatientPortalB
 
       {invoices.length > 0 && (
         <section className="space-y-3">
-          <p className="px-1 text-sm font-semibold text-muted-foreground">Faturas</p>
-          {invoices.map((invoice) => (
-            <article key={invoice.id} className="rounded-3xl border border-border/50 bg-card/76 p-4">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-base font-semibold text-foreground">{invoice.invoice_number || "Fatura"}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{invoice.status}</p>
-                </div>
-                <Button asChild size="sm" variant="outline" className="rounded-xl">
-                  <a href={invoice.invoice_url || invoice.bank_slip_url || invoice.receipt_url || "#"} target="_blank" rel="noreferrer">
+          <p className="px-1 text-sm font-semibold text-muted-foreground">Documentos financeiros</p>
+          {invoices.map((invoice) => {
+            const url = invoice.invoice_url || invoice.bank_slip_url || invoice.receipt_url || "";
+            return (
+              <article key={invoice.id} className="rounded-[24px] border border-border/55 bg-card/80 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-base font-semibold text-foreground">{invoice.invoice_number || "Documento"}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {invoice.status} {invoice.due_date ? `- ${dateOnly.format(new Date(invoice.due_date))}` : ""}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!url}
+                    className="rounded-xl"
+                    onClick={() => url && window.open(url, "_blank", "noopener,noreferrer")}
+                  >
                     Abrir
-                  </a>
-                </Button>
-              </div>
-            </article>
-          ))}
+                  </Button>
+                </div>
+              </article>
+            );
+          })}
         </section>
       )}
+    </div>
+  );
+};
+
+const GoalsView = ({ goals }: { goals: ReturnType<typeof usePatientPortalGoals>["data"] }) => {
+  const rows = goals?.goals || [];
+  const toggleGoal = useTogglePatientPortalGoal();
+  const completedCount = rows.filter((goal) => goal.is_completed).length;
+  const progress = rows.length ? Math.round((completedCount / rows.length) * 100) : 0;
+
+  if (!rows.length) {
+    return <EmptyState title="Nenhuma meta ativa" description="Quando novas metas forem compartilhadas, elas aparecem aqui." />;
+  }
+
+  return (
+    <div className="space-y-5">
+      <section className="rounded-[28px] border border-border/55 bg-card/80 p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Plano de metas</p>
+            <p className="mt-1 text-sm text-muted-foreground">{completedCount} de {rows.length} concluidas</p>
+          </div>
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-background text-lg font-black text-foreground">
+            {progress}%
+          </div>
+        </div>
+        <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-foreground transition-all" style={{ width: `${progress}%` }} />
+        </div>
+      </section>
+
+      <div className="space-y-3">
+        {rows.map((goal) => (
+          <button
+            key={goal.id}
+            type="button"
+            onClick={() =>
+              toggleGoal.mutate(
+                { goalId: goal.id, isCompleted: !goal.is_completed },
+                {
+                  onSuccess: () => toast.success(goal.is_completed ? "Meta reaberta." : "Meta concluida."),
+                  onError: (error) => toast.error(error instanceof Error ? error.message : "Nao foi possivel atualizar a meta."),
+                },
+              )
+            }
+            className={cn(
+              "flex w-full items-start gap-4 rounded-[24px] border p-4 text-left transition-colors",
+              goal.is_completed
+                ? "border-emerald-500/20 bg-emerald-500/10"
+                : "border-border/55 bg-card/80 hover:border-foreground/15",
+            )}
+          >
+            <span className="mt-0.5 text-foreground">
+              {goal.is_completed ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className={cn("block text-sm font-semibold text-foreground", goal.is_completed && "text-muted-foreground line-through")}>
+                {goal.description}
+              </span>
+              {goal.due_date && (
+                <span className="mt-1 block text-xs font-medium text-muted-foreground">
+                  Ate {dateOnly.format(new Date(`${goal.due_date}T00:00:00`))}
+                </span>
+              )}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ProgressView = ({
+  appointments,
+  goals,
+  mood,
+}: {
+  appointments: ReturnType<typeof usePatientPortalAppointments>["data"];
+  goals: ReturnType<typeof usePatientPortalGoals>["data"];
+  mood: ReturnType<typeof usePatientPortalMood>;
+}) => {
+  const appointmentRows = appointments?.appointments || [];
+  const goalRows = goals?.goals || [];
+  const completedGoals = goalRows.filter((goal) => goal.is_completed).length;
+  const completedSessions = appointmentRows.filter((appointment) => new Date(appointment.start_time).getTime() < Date.now()).length;
+  const activeGoals = goalRows.filter((goal) => !goal.is_completed).slice(0, 4);
+  const lastMood = mood.data?.logs?.[0];
+  const moodMeta = moodOptions.find((option) => option.score === lastMood?.mood_score);
+  const MoodIcon = moodMeta?.icon || HeartPulse;
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <MetricCard title="Sessoes registradas" value={String(completedSessions)} icon={CalendarDays} />
+        <MetricCard title="Metas concluidas" value={`${completedGoals}/${goalRows.length || 0}`} icon={Target} tone={completedGoals ? "success" : "default"} />
+        <MetricCard title="Ultimo humor" value={lastMood ? String(lastMood.mood_score) : "Sem registro"} icon={HeartPulse} />
+      </div>
+
+      <section className="rounded-[28px] border border-border/55 bg-card/80 p-5 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
+            <BrainCircuit className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-semibold text-foreground">Direcao atual</p>
+            {activeGoals.length ? (
+              <div className="mt-4 grid gap-2">
+                {activeGoals.map((goal) => (
+                  <div key={goal.id} className="rounded-2xl border border-border/55 bg-background/60 p-3 text-sm text-muted-foreground">
+                    {goal.description}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Nenhuma meta aberta no momento.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-[28px] border border-border/55 bg-card/80 p-5 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border", moodMeta?.tone || "border-border bg-background text-muted-foreground")}>
+            <MoodIcon className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-base font-semibold text-foreground">Registro emocional recente</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {lastMood
+                ? `${moodMeta?.label || "Registro"} em ${dateTime.format(new Date(lastMood.created_at))}${lastMood.notes ? `: ${lastMood.notes}` : "."}`
+                : "Nenhum diario preenchido ainda."}
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
@@ -431,28 +587,32 @@ const DiaryView = ({ mood }: { mood: ReturnType<typeof usePatientPortalMood> }) 
 
   return (
     <div className="space-y-5">
-      <section className="rounded-3xl border border-border/50 bg-card/76 p-5">
+      <section className="rounded-[28px] border border-border/55 bg-card/80 p-5 shadow-sm">
         <p className="text-lg font-semibold text-foreground">Como voce esta hoje?</p>
         <div className="mt-5 grid grid-cols-5 gap-2">
-          {[1, 2, 3, 4, 5].map((score) => (
-            <Button
-              key={score}
-              variant={moodScore === score ? "default" : "outline"}
-              onClick={() => setMoodScore(score)}
-              className="h-12 rounded-2xl text-base font-semibold"
+          {moodOptions.map((option) => (
+            <button
+              key={option.score}
+              type="button"
+              onClick={() => setMoodScore(option.score)}
+              className={cn(
+                "flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl border px-2 text-xs font-semibold transition-colors",
+                moodScore === option.score ? option.tone : "border-border bg-background text-muted-foreground hover:text-foreground",
+              )}
             >
-              {score}
-            </Button>
+              <option.icon className="h-5 w-5" />
+              <span className="max-w-full truncate">{option.label}</span>
+            </button>
           ))}
         </div>
         <Textarea
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
           placeholder="Escreva uma nota breve para acompanhar seu processo."
-          className="mt-4 min-h-28 rounded-2xl"
+          className="mt-4 min-h-28 rounded-2xl border-border bg-background"
           maxLength={1200}
         />
-        <Button onClick={saveMood} disabled={mood.saveMood.isPending} className="mt-4 h-11 rounded-xl">
+        <Button onClick={saveMood} disabled={mood.saveMood.isPending} className="mt-4 h-11 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100">
           {mood.saveMood.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Salvar diario
         </Button>
@@ -462,13 +622,15 @@ const DiaryView = ({ mood }: { mood: ReturnType<typeof usePatientPortalMood> }) 
         <p className="px-1 text-sm font-semibold text-muted-foreground">Registros recentes</p>
         {logs.length ? (
           logs.map((log) => (
-            <article key={log.id} className="rounded-3xl border border-border/50 bg-card/76 p-4">
+            <article key={log.id} className="rounded-[24px] border border-border/55 bg-card/80 p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold text-foreground">{dateTime.format(new Date(log.created_at))}</p>
                   {log.notes && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{log.notes}</p>}
                 </div>
-                <span className="rounded-full bg-foreground px-3 py-1 text-sm font-semibold text-background">{log.mood_score}</span>
+                <span className={cn("rounded-full border px-3 py-1 text-sm font-semibold", moodOptions.find((option) => option.score === log.mood_score)?.tone || "border-border bg-background text-foreground")}>
+                  {log.mood_score}
+                </span>
               </div>
             </article>
           ))
