@@ -5,6 +5,7 @@ import {
   buildAttentionQueue,
   buildFinancialSignal,
   getActiveAppointments,
+  getNextScheduleItem,
   getNextSession,
   getTodayAppointments,
   isOnlineAppointment,
@@ -56,6 +57,27 @@ describe("dashboard command center model", () => {
 
     expect(next?.id).toBe("future");
     expect(isOnlineAppointment(next)).toBe(true);
+  });
+
+  it("finds the next schedule item when an event comes before a session", () => {
+    const active = getActiveAppointments([
+      appointment({
+        id: "event",
+        patient_id: null,
+        start_time: "2026-06-28T11:00:00.000Z",
+        end_time: "2026-06-28T12:00:00.000Z",
+        metadata: { kind: "event", eventTitle: "Supervisao", eventCategoryLabel: "Supervisao" },
+        patient_name: undefined,
+      }),
+      appointment({
+        id: "session",
+        start_time: "2026-06-28T14:00:00.000Z",
+        end_time: "2026-06-28T15:00:00.000Z",
+      }),
+    ]);
+
+    expect(getNextScheduleItem(active, new Date("2026-06-28T10:00:00.000Z"))?.id).toBe("event");
+    expect(getNextSession(active, new Date("2026-06-28T10:00:00.000Z"))?.id).toBe("session");
   });
 
   it("finds the next presencial session", () => {

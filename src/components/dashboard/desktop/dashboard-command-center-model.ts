@@ -132,6 +132,9 @@ export const isOnlineAppointment = (appointment?: Appointment | null) =>
 export const getNextSession = (appointments: Appointment[], now: Date) =>
   appointments.find((appointment) => isSessionAppointment(appointment) && isAfter(new Date(appointment.end_time), now));
 
+export const getNextScheduleItem = (appointments: Appointment[], now: Date) =>
+  appointments.find((appointment) => isAfter(new Date(appointment.end_time), now));
+
 export const buildAttentionQueue = ({
   notifications,
   appointments,

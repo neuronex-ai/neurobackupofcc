@@ -11,11 +11,11 @@ export const DesktopWorkspaceShell = ({
 }) => (
   <div
     className={cn(
-      "relative overflow-hidden rounded-[40px] border border-border/45 bg-card/42 p-3 shadow-[0_22px_90px_-76px_hsl(var(--foreground)/0.42)] dark:border-white/[0.04] dark:bg-white/[0.02] dark:shadow-[0_22px_70px_-60px_rgba(0,0,0,0.86)] md:p-4",
+      "relative overflow-hidden rounded-[40px] border border-foreground/[0.105] bg-background/72 p-3 shadow-[0_22px_90px_-76px_hsl(var(--foreground)/0.42)] ring-1 ring-background/70 backdrop-blur-2xl dark:border-white/[0.055] dark:bg-white/[0.02] dark:ring-white/[0.015] dark:shadow-[0_22px_70px_-60px_rgba(0,0,0,0.86)] md:p-4",
       className,
     )}
   >
-    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,hsl(var(--foreground)/0.01),transparent_30%),linear-gradient(180deg,hsl(var(--background)/0.05),transparent_42%)] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.004),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.006),transparent_42%)]" />
+    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--background)/0.46),transparent_42%),linear-gradient(135deg,hsl(var(--foreground)/0.018),transparent_46%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.006),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.006),transparent_46%)]" />
     <div className="relative z-10">{children}</div>
   </div>
 );
@@ -31,10 +31,10 @@ export const DesktopWorkspacePanel = ({
 }) => (
   <section
     className={cn(
-      "relative overflow-hidden rounded-[34px] border shadow-[0_24px_74px_-56px_hsl(var(--foreground)/0.44)] ring-1 ring-foreground/[0.025] dark:shadow-[0_24px_68px_-54px_rgba(0,0,0,0.9)] dark:ring-white/[0.018]",
+      "relative overflow-hidden rounded-[34px] border shadow-[0_24px_74px_-56px_hsl(var(--foreground)/0.44)] ring-1 ring-background/65 backdrop-blur-2xl dark:shadow-[0_24px_68px_-54px_rgba(0,0,0,0.9)] dark:ring-white/[0.018]",
       highContrast
         ? "border-foreground bg-foreground text-background dark:border-white dark:bg-white dark:text-zinc-950"
-        : "border-border/65 bg-card/78 text-foreground dark:border-white/[0.08] dark:bg-white/[0.04]",
+        : "border-foreground/[0.105] bg-background/74 text-foreground dark:border-white/[0.08] dark:bg-white/[0.04]",
       className,
     )}
   >
@@ -43,7 +43,7 @@ export const DesktopWorkspacePanel = ({
         "pointer-events-none absolute inset-0",
         highContrast
           ? "bg-[radial-gradient(circle_at_8%_0%,hsl(var(--background)/0.04),transparent_32%),linear-gradient(135deg,hsl(var(--background)/0.02),transparent_44%)] dark:bg-[radial-gradient(circle_at_8%_0%,rgba(0,0,0,0.04),transparent_32%),linear-gradient(135deg,rgba(0,0,0,0.02),transparent_44%)]"
-          : "bg-[radial-gradient(circle_at_18%_10%,hsl(var(--foreground)/0.006),transparent_34%),radial-gradient(circle_at_92%_88%,hsl(var(--foreground)/0.004),transparent_38%)] dark:bg-[radial-gradient(circle_at_18%_10%,rgba(255,255,255,0.003),transparent_34%),radial-gradient(circle_at_92%_88%,rgba(255,255,255,0.002),transparent_38%)]",
+          : "bg-[linear-gradient(180deg,hsl(var(--background)/0.58),transparent_44%),linear-gradient(135deg,hsl(var(--foreground)/0.012),transparent_48%)] dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.006),transparent_44%),linear-gradient(135deg,rgba(255,255,255,0.006),transparent_48%)]",
       )}
     />
     <div className="relative z-10">{children}</div>
@@ -59,7 +59,7 @@ export const DesktopWorkspaceIcon = ({
 }) => (
   <span
     className={cn(
-      "flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] border border-border/50 bg-white text-muted-foreground shadow-sm dark:border-white/[0.07] dark:bg-white/[0.055]",
+      "flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] border border-foreground/[0.105] bg-background/76 text-muted-foreground shadow-sm dark:border-white/[0.07] dark:bg-white/[0.055]",
       className,
     )}
   >
@@ -97,7 +97,7 @@ export const DesktopActionTile = forwardRef<HTMLButtonElement, DesktopActionTile
         "flex h-12 w-12 items-center justify-center rounded-[20px] border shadow-sm transition-all duration-300 group-hover:text-foreground",
         active
           ? "border-foreground bg-foreground text-background dark:border-white dark:bg-white dark:text-zinc-950"
-          : "border-border/60 bg-white text-muted-foreground dark:border-white/[0.07] dark:bg-white/[0.045] dark:group-hover:bg-white/[0.08]",
+          : "border-foreground/[0.105] bg-background/76 text-muted-foreground dark:border-white/[0.07] dark:bg-white/[0.045] dark:group-hover:bg-white/[0.08]",
       )}
     >
       <Icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100" />
@@ -126,7 +126,7 @@ export const DesktopMiniStat = ({
 }) => (
   <div
     className={cn(
-      "rounded-[22px] border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-950",
+      "rounded-[22px] border border-foreground/[0.105] bg-background/76 p-4 shadow-sm dark:border-white/10 dark:bg-zinc-950",
       accent && "border-foreground bg-foreground text-background dark:border-white dark:bg-white dark:text-zinc-950",
       tone === "success" && "border-emerald-500/20 bg-emerald-500/[0.055]",
       tone === "warning" && "border-amber-500/25 bg-amber-500/[0.06]",
