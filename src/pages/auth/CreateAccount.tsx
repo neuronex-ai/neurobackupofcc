@@ -120,7 +120,7 @@ function CreateAccountPausedPage() {
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-current/35">Novas contas pausadas</p>
               <h1 className="mt-6 text-5xl font-black leading-[0.92] tracking-[-0.06em]">Estamos aprimorando o NeuroNex.</h1>
               <p className="mt-7 text-base font-semibold leading-relaxed text-current/50">
-                A criação pública de contas está temporariamente indisponível durante esta etapa de desenvolvimento.
+                A criação de contas está temporariamente indisponível durante esta etapa de desenvolvimento.
               </p>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-current/10">
