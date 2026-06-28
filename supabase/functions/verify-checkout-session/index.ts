@@ -7,7 +7,6 @@ import {
 } from "../_shared/asaas-client.ts";
 
 const PAID_CHECKOUT_STATUSES = new Set(["paid"]);
-const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "admin_override"]);
 const PENDING_STATUSES = new Set(["created", "checkout_pending", "payment_pending", "pending", "updated"]);
 const PAID_ASAAS_PAYMENT_STATUSES = new Set(["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"]);
 const PENDING_ASAAS_PAYMENT_STATUSES = new Set(["PENDING", "AWAITING_RISK_ANALYSIS", "AUTHORIZED"]);
@@ -165,23 +164,27 @@ Deno.serve(async (req: Request) => {
       return { paid: false, pending: false, payment: null as any };
     });
 
+    const { data: refreshedCheckout, error: refreshedCheckoutError } = await supabaseAdmin
+      .from("subscription_checkout_sessions")
+      .select("status,provider_payment_id,provider_subscription_id,paid_at")
+      .eq("id", checkout.id)
+      .maybeSingle();
+
+    if (refreshedCheckoutError) throw refreshedCheckoutError;
+
     const { data: subscription, error: subscriptionError } = await supabaseAdmin
       .from("user_subscriptions")
-      .select("plan,status,access_state,asaas_subscription_id,current_period_end,last_payment_status")
+      .select("plan,status,access_state,asaas_subscription_id,current_period_end,last_payment_id,last_payment_status,last_payment_event_at")
       .eq("user_id", checkout.user_id)
       .maybeSingle();
 
     if (subscriptionError) throw subscriptionError;
 
-    const checkoutStatus = String(checkout.status || "checkout_pending");
+    const checkoutStatus = String(refreshedCheckout?.status || checkout.status || "checkout_pending");
     const subscriptionStatus = String(subscription?.status || "inactive");
     const isPaid =
       asaasSync.paid ||
-      PAID_CHECKOUT_STATUSES.has(checkoutStatus) ||
-      (
-        ACTIVE_SUBSCRIPTION_STATUSES.has(subscriptionStatus) &&
-        subscription?.access_state === "paid_access"
-      );
+      PAID_CHECKOUT_STATUSES.has(checkoutStatus);
     const isPending = !isPaid && (asaasSync.pending || PENDING_STATUSES.has(checkoutStatus));
 
     return jsonResponse({
@@ -197,6 +200,7 @@ Deno.serve(async (req: Request) => {
       subscription_status: subscriptionStatus,
       is_paid: isPaid,
       is_active: isPaid,
+      payment_confirmation_source: asaasSync.paid ? "asaas_payment_lookup" : PAID_CHECKOUT_STATUSES.has(checkoutStatus) ? "checkout_session_paid" : null,
       message: isPaid
         ? "Pagamento confirmado."
         : isPending

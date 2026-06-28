@@ -288,20 +288,50 @@ Deno.serve(async (req: Request) => {
       throw err;
     }
 
+    const shouldPreserveFreeAccess =
+      subscription?.status === "active" && subscription?.access_state === "limited_access";
+
     const existingCheckout = await getOpenCheckoutSession(user.id, planCode);
     if (existingCheckout?.checkout_url) {
       await supabaseAdmin
         .from("user_subscriptions")
         .update({
+          plan: shouldPreserveFreeAccess ? "Essential" : PROFESSIONAL_PLAN_NAME,
+          plan_code: shouldPreserveFreeAccess ? "essential" : planCode,
+          status: shouldPreserveFreeAccess ? "active" : "checkout_pending",
+          access_state: shouldPreserveFreeAccess ? "limited_access" : "blocked",
           asaas_customer_id: customerId,
+          asaas_checkout_id: existingCheckout.provider_checkout_id || null,
+          external_reference: existingCheckout.external_reference,
           metadata: {
             ...((subscription?.metadata || {}) as Record<string, unknown>),
+            checkout_external_reference: existingCheckout.external_reference,
+            checkout_session_id: existingCheckout.id,
+            checkout_reused_at: new Date().toISOString(),
             checkout_customer_address_present: true,
             checkout_customer_phone_present: true,
           },
+          status_version: Number(subscription?.status_version || 0) + 1,
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", user.id);
+
+      await supabaseAdmin.from("subscription_audit_logs").insert({
+        user_id: user.id,
+        subscription_record_id: subscription?.id || null,
+        checkout_session_id: existingCheckout.id,
+        actor_type: "edge_function",
+        action: "checkout_reused",
+        from_status: subscription?.status || null,
+        to_status: shouldPreserveFreeAccess ? "active" : "checkout_pending",
+        from_access_state: subscription?.access_state || null,
+        to_access_state: shouldPreserveFreeAccess ? "limited_access" : "blocked",
+        reason: "user_resumed_open_checkout",
+        metadata: {
+          external_reference: existingCheckout.external_reference,
+          provider_checkout_id: existingCheckout.provider_checkout_id,
+        },
+      });
 
       return jsonResponse({
         url: existingCheckout.checkout_url,
@@ -415,9 +445,6 @@ Deno.serve(async (req: Request) => {
       .eq("id", sessionId);
 
     if (updateError) throw updateError;
-
-    const shouldPreserveFreeAccess =
-      subscription?.status === "active" && subscription?.access_state === "limited_access";
 
     const { error: subscriptionUpdateError } = await supabaseAdmin
       .from("user_subscriptions")

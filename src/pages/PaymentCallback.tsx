@@ -15,6 +15,7 @@ interface SessionData {
     status: string;
     is_paid: boolean;
     is_active: boolean;
+    payment_confirmation_source?: string | null;
     message?: string;
 }
 
@@ -63,7 +64,12 @@ const PaymentCallback = () => {
 
             if (
                 data?.status === 'active' &&
-                (data?.accessState === 'paid_access' || data?.accessState === 'admin_override')
+                data?.canUseCurrentAccess === true &&
+                (
+                    data?.paymentBackedAccess === true ||
+                    data?.hasPaidAccess === true ||
+                    data?.accessState === 'admin_override'
+                )
             ) {
                 return true;
             }
@@ -83,7 +89,7 @@ const PaymentCallback = () => {
 
             setSessionData(data);
 
-            if (data?.is_paid || data?.is_active || data?.status === 'paid') {
+            if (data?.is_paid === true || data?.status === 'paid') {
                 showSuccess();
                 return;
             }
