@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { PROFESSIONAL_PLAN_PRICE_LABEL } from "@/lib/subscription-plans";
 import {
   isValidBrazilianPhoneLength,
+  isValidBillingAddress,
   isValidCpfCnpjLength,
+  type BillingAddressPayload,
   normalizeCpfCnpj,
   normalizePhone,
+  normalizePostalCode,
   startSubscriptionCheckout,
 } from "@/lib/subscription-checkout";
 import { SubscriptionUpsellDialog } from "@/components/subscription/SubscriptionUpsellDialog";
@@ -36,6 +39,10 @@ export const TrialExpiredUpsell = () => {
   const [freeLoading, setFreeLoading] = useState(false);
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [phone, setPhone] = useState("");
+  const [billingAddress, setBillingAddress] = useState<BillingAddressPayload>({});
+  const updateBillingAddress = useCallback((patch: Partial<BillingAddressPayload>) => {
+    setBillingAddress((current) => ({ ...current, ...patch }));
+  }, []);
 
   useEffect(() => {
     if (!isLoading && !isDevAccount && requiresUpsell) {
@@ -53,11 +60,6 @@ export const TrialExpiredUpsell = () => {
   const description = message || `Assine o Professional por ${PROFESSIONAL_PLAN_PRICE_LABEL} ou permaneça no Essential gratuito.`;
 
   const startCheckout = async () => {
-    if (checkoutUrl) {
-      window.location.href = checkoutUrl;
-      return;
-    }
-
     if (!isValidCpfCnpjLength(cpfCnpj)) {
       toast.error("Informe um CPF ou CNPJ válido para continuar.");
       return;
@@ -68,12 +70,24 @@ export const TrialExpiredUpsell = () => {
       return;
     }
 
+    if (!isValidBillingAddress(billingAddress)) {
+      toast.error("Informe CEP, endereço, número e bairro para continuar.");
+      return;
+    }
+
     setCheckoutLoading(true);
     try {
       const result = await startSubscriptionCheckout({
         planId: "Professional",
         cpfCnpj: normalizeCpfCnpj(cpfCnpj),
         phone: normalizePhone(phone),
+        address: billingAddress.address?.trim(),
+        addressNumber: billingAddress.addressNumber?.trim(),
+        complement: billingAddress.complement?.trim(),
+        province: billingAddress.province?.trim(),
+        postalCode: normalizePostalCode(billingAddress.postalCode || ""),
+        city: billingAddress.city?.trim(),
+        state: billingAddress.state?.trim(),
       });
 
       if (result.url) {
@@ -96,6 +110,15 @@ export const TrialExpiredUpsell = () => {
         /telefone|phone|celular/i.test(result.error || "")
       ) {
         toast.error("Informe um telefone válido para abrir o checkout.");
+        return;
+      }
+
+      if (
+        result.requiresAddress ||
+        result.code === "customer_address_required" ||
+        /endere|address|postal|cep|bairro|province/i.test(result.error || "")
+      ) {
+        toast.error("Informe um endereço completo para abrir o checkout.");
         return;
       }
 
@@ -148,6 +171,8 @@ export const TrialExpiredUpsell = () => {
       onCpfCnpjChange={setCpfCnpj}
       phone={phone}
       onPhoneChange={setPhone}
+      billingAddress={billingAddress}
+      onBillingAddressChange={updateBillingAddress}
       checkoutUrl={checkoutUrl}
       checkoutLoading={checkoutLoading}
       freeLoading={freeLoading}

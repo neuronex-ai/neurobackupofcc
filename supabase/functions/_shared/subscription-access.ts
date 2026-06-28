@@ -346,6 +346,11 @@ export async function findOrCreateAsaasCustomer(input: {
   email: string;
   cpfCnpj?: string | null;
   phone?: string | null;
+  address?: string | null;
+  addressNumber?: string | null;
+  complement?: string | null;
+  province?: string | null;
+  postalCode?: string | null;
 }) {
   const existingCustomerId = String(input.existingCustomerId || "").trim();
   const cpfCnpj = sanitizeDigits(input.cpfCnpj);
@@ -353,6 +358,7 @@ export async function findOrCreateAsaasCustomer(input: {
     return null;
   }
   const phone = sanitizeDigits(input.phone);
+  const postalCode = sanitizeDigits(input.postalCode);
   const externalReference = `neuronex_user_${input.userId}`;
   const customerPayload = {
     name: input.name,
@@ -360,6 +366,11 @@ export async function findOrCreateAsaasCustomer(input: {
     email: input.email || undefined,
     phone: phone || undefined,
     mobilePhone: phone || undefined,
+    address: input.address?.trim() || undefined,
+    addressNumber: input.addressNumber?.trim() || undefined,
+    complement: input.complement?.trim() || undefined,
+    province: input.province?.trim() || undefined,
+    postalCode: postalCode || undefined,
     externalReference,
     groupName: "NeuroNex SaaS",
     notificationDisabled: false,

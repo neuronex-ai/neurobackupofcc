@@ -41,6 +41,39 @@ export const CashFlowScenarios = () => {
     ? data?.filter(point => point.Projetado !== 0 || point.Realizado !== 0)
     : data;
 
+  const exportCsv = () => {
+    const rows = chartData || [];
+    if (rows.length === 0) {
+      toast.info("Nao ha dados para exportar.");
+      return;
+    }
+
+    const csvRows = [
+      ["periodo", "data", "projetado", "realizado", "eventos"],
+      ...rows.map((point) => [
+        point.fullLabel,
+        format(new Date(point.date), "yyyy-MM-dd"),
+        String(point.Projetado),
+        String(point.Realizado),
+        point.details.map((detail) => `${detail.type}:${detail.description}:${detail.amount}`).join(" | "),
+      ]),
+    ];
+
+    const csv = csvRows
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `projecao-financeira-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("CSV de projecao gerado.");
+  };
+
   const handleChartClick = (state: any) => {
     if (state && state.activePayload) {
       setSelectedPoint(state.activePayload[0].payload as ChartPoint);
@@ -88,7 +121,7 @@ export const CashFlowScenarios = () => {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => toast.success("Relatório gerado")}
+            onClick={exportCsv}
             className="h-12 w-12 bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-2xl transition-all shadow-sm active:scale-95"
           >
             <Download className="h-5 w-5" />

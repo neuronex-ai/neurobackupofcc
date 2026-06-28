@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { ElementType, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowDownLeft,
@@ -14,10 +14,12 @@ import {
   Clock,
   FileText,
   Landmark,
+  Loader2,
   LineChart,
   PieChart,
   PlusCircle,
   ReceiptText,
+  Save,
   Sparkles,
   Target,
   TrendingDown,
@@ -29,7 +31,14 @@ import { addDays, endOfMonth, format, isAfter, isBefore, isWithinInterval, start
 import { ptBR } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ChargesWorkspace } from "@/components/financeiro/ChargesWorkspace";
+import { FinancialCalendarCard } from "@/components/financeiro/ReceivablesCalendarCard";
+import { fromPlanningCents, useFinancialPlanning } from "@/hooks/use-financial-planning";
+import { useProjectedCashFlow } from "@/hooks/use-projected-cash-flow";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Transaction } from "@/types";
 import type { FinanceView } from "../FinancialDashboard";
 import { NewTransactionModal } from "../NewTransactionModal";
@@ -53,6 +62,12 @@ const currency = (value: number) =>
 
 const shortCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 }).format(Number.isFinite(value) ? value : 0);
+
+const parseMoneyInput = (value: string) => {
+  const normalized = value.replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  const amount = Number(normalized);
+  return Number.isFinite(amount) ? Math.max(0, amount) : 0;
+};
 
 const amountOf = (transaction: Transaction) => Math.abs(Number(transaction.amount ?? 0));
 const dateOf = (transaction: Transaction) => new Date(transaction.date || transaction.created_at || Date.now());
@@ -215,7 +230,7 @@ const Hero = ({ metrics, setActiveView, onCreateEntry }: { metrics: Metrics; set
           Seu consultório em números.
         </h1>
         <p className="mt-7 max-w-3xl text-base font-medium leading-relaxed text-zinc-500 dark:text-white/48 md:text-lg">
-          Receitas, despesas, recebíveis, inadimplência e planejamento em uma camada gerencial separada do NeuroFinance.
+          Receitas, despesas, recebíveis, cobranças vencidas e planejamento em uma camada gerencial separada do NeuroFinance.
         </p>
         <div className="mt-10 flex flex-wrap gap-3">
           <Button onClick={() => onCreateEntry("income")} className="h-14 rounded-2xl bg-zinc-950 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-black dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100">
@@ -256,7 +271,7 @@ const Radar = ({ metrics, setActiveView }: { metrics: Metrics; setActiveView: (v
     <MetricCard icon={ArrowUpRight} label="Receitas" value={shortCurrency(metrics.incomeMonth)} hint="Entradas confirmadas no mês" tone="success" onClick={() => setActiveView("gestao-receitas")} />
     <MetricCard icon={ArrowDownLeft} label="Despesas" value={shortCurrency(metrics.expenseMonth)} hint="Saídas confirmadas no mês" onClick={() => setActiveView("gestao-despesas")} />
     <MetricCard icon={WalletCards} label="A receber" value={shortCurrency(metrics.receivable)} hint="Entradas pendentes e previstas" onClick={() => setActiveView("gestao-cobrancas")} />
-    <MetricCard icon={Users} label="Inadimplência" value={metrics.overdueCount.toString()} hint={`${currency(metrics.overdueAmount)} em atraso`} tone={metrics.overdueCount > 0 ? "warning" : "success"} onClick={() => setActiveView("gestao-inadimplencia")} />
+    <MetricCard icon={Users} label="Vencidas" value={metrics.overdueCount.toString()} hint={`${currency(metrics.overdueAmount)} em atraso`} tone={metrics.overdueCount > 0 ? "warning" : "success"} onClick={() => setActiveView("gestao-inadimplencia")} />
     <MetricCard icon={LineChart} label="Previsão" value={shortCurrency(metrics.projectedBalance)} hint="Resultado projetado com próximos 30 dias" onClick={() => setActiveView("gestao-planejamento")} />
   </div>
 );
@@ -479,6 +494,10 @@ const Overview = (props: ManagementProps & { metrics: Metrics; onCreateEntry: (t
     <div className="space-y-6">
       <Hero metrics={metrics} setActiveView={setActiveView} onCreateEntry={onCreateEntry} />
       <Radar metrics={metrics} setActiveView={setActiveView} />
+      <FinancialCalendarCard
+        onOpenFutureStatement={() => setActiveView("gestao-fluxo-caixa")}
+        onOpenScheduledPayments={() => setActiveView("gestao-despesas")}
+      />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
         <CashFlowOverview metrics={metrics} setActiveView={setActiveView} />
         <CategoryList title="Despesas por categoria" categories={metrics.expenseCategories} emptyLabel="Sem despesas categorizadas" />
@@ -493,7 +512,7 @@ const Overview = (props: ManagementProps & { metrics: Metrics; onCreateEntry: (t
         </ManagementPanel>
         <ManagementPanel>
           <div className="p-7 md:p-8">
-            <SectionTitle eyebrow="Pacientes & inadimplência" title="Recebíveis em atenção" description="Cobranças pendentes, vencidas ou sem baixa." />
+            <SectionTitle eyebrow="Cobranças" title="Recebíveis em atenção" description="Cobranças pendentes, vencidas ou sem baixa." />
             <div className="mt-7"><ReceivablesList metrics={metrics} onSelect={setSelectedTransaction} /></div>
           </div>
         </ManagementPanel>
@@ -578,24 +597,69 @@ const MiniStat = ({ label, value, dark = false }: { label: string; value: string
 );
 
 const PlanningPanel = ({ metrics, compact = false, setActiveView }: { metrics: Metrics; compact?: boolean; setActiveView: (view: FinanceView) => void }) => {
-  const monthlyGoal = Math.max(metrics.incomeMonth * 1.2, 12000);
-  const goalProgress = monthlyGoal > 0 ? Math.min(100, (metrics.incomeMonth / monthlyGoal) * 100) : 0;
-  const remaining = Math.max(0, monthlyGoal - metrics.incomeMonth);
+  const planning = useFinancialPlanning(new Date());
+  const { data: projection = [] } = useProjectedCashFlow("mixed", compact ? 90 : 180, "monthly");
+  const suggestedRevenue = Math.max(metrics.incomeMonth + metrics.upcomingIncome, metrics.incomeMonth, 0);
+  const suggestedExpenseLimit = Math.max(metrics.expenseMonth + metrics.upcomingExpenses, metrics.fixedExpenses, 0);
+  const [revenueGoal, setRevenueGoal] = useState("");
+  const [expenseLimit, setExpenseLimit] = useState("");
+  const [desiredProfit, setDesiredProfit] = useState("");
+  const [targetSessions, setTargetSessions] = useState("");
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    const goal = planning.goal;
+    setRevenueGoal(String((goal ? fromPlanningCents(goal.revenue_goal_cents) : suggestedRevenue).toFixed(2)).replace(".", ","));
+    setExpenseLimit(String((goal ? fromPlanningCents(goal.expense_limit_cents) : suggestedExpenseLimit).toFixed(2)).replace(".", ","));
+    setDesiredProfit(String((goal ? fromPlanningCents(goal.desired_profit_cents) : Math.max(0, suggestedRevenue - suggestedExpenseLimit)).toFixed(2)).replace(".", ","));
+    setTargetSessions(String(goal?.target_sessions || metrics.breakEvenSessions || ""));
+    setNotes(goal?.notes || "");
+  }, [metrics.breakEvenSessions, planning.goal, suggestedExpenseLimit, suggestedRevenue]);
+
+  const revenueGoalValue = parseMoneyInput(revenueGoal);
+  const expenseLimitValue = parseMoneyInput(expenseLimit);
+  const desiredProfitValue = parseMoneyInput(desiredProfit);
+  const targetSessionsValue = Math.max(0, Math.round(Number(targetSessions || 0)));
+  const goalProgress = revenueGoalValue > 0 ? Math.min(100, (metrics.incomeMonth / revenueGoalValue) * 100) : 0;
+  const expenseUsage = expenseLimitValue > 0 ? Math.min(100, (metrics.expenseMonth / expenseLimitValue) * 100) : 0;
+  const remaining = Math.max(0, revenueGoalValue - metrics.incomeMonth);
   const sessionsNeeded = metrics.averageTicket > 0 ? Math.ceil(remaining / metrics.averageTicket) : 0;
+  const projectedMonths = projection
+    .filter((point) => new Date(point.date) >= startOfMonth(new Date()))
+    .slice(0, compact ? 3 : 6);
+  const projectionEvents = projectedMonths
+    .flatMap((point) => point.details.slice(0, compact ? 2 : 4).map((detail) => ({ ...detail, period: point.fullLabel })))
+    .slice(0, compact ? 4 : 10);
+
+  const handleSave = async () => {
+    try {
+      await planning.saveGoal.mutateAsync({
+        revenueGoal: revenueGoalValue,
+        expenseLimit: expenseLimitValue,
+        desiredProfit: desiredProfitValue,
+        targetSessions: targetSessionsValue,
+        notes,
+      });
+      toast.success("Meta financeira salva.");
+    } catch (error) {
+      console.error("Falha ao salvar planejamento:", error);
+      toast.error("Nao foi possivel salvar a meta financeira.");
+    }
+  };
 
   return (
     <ManagementPanel>
       <div className="p-7 md:p-8">
         <div className="flex items-start justify-between gap-4">
-          <SectionTitle eyebrow="Planejamento" title="Metas e ponto de equilíbrio" description="Transforme agenda, ticket médio e despesas em previsão de resultado." />
+          <SectionTitle eyebrow="Planejamento" title="Metas e ponto de equilíbrio" description="Meta salva, limite de despesas e previsão explicada pelos eventos financeiros reais." />
           {compact ? <Button onClick={() => setActiveView("gestao-planejamento")} variant="outline" className="h-11 shrink-0 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.04]">Abrir</Button> : null}
         </div>
         <div className="mt-8 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
           <div className="rounded-[30px] bg-zinc-950 p-6 text-white dark:bg-white dark:text-zinc-950">
-            <p className="text-[9px] font-black uppercase tracking-[0.24em] opacity-45">Meta sugerida</p>
-            <h3 className="mt-3 text-4xl font-black tracking-[-0.065em]">{currency(monthlyGoal)}</h3>
+            <p className="text-[9px] font-black uppercase tracking-[0.24em] opacity-45">{planning.goal ? "Meta salva" : "Meta inicial"}</p>
+            <h3 className="mt-3 text-4xl font-black tracking-[-0.065em]">{currency(revenueGoalValue)}</h3>
             <div className="mt-6 h-3 overflow-hidden rounded-full bg-white/10 dark:bg-zinc-950/10"><div className="h-full rounded-full bg-white dark:bg-zinc-950" style={{ width: `${goalProgress}%` }} /></div>
-            <p className="mt-4 text-sm font-medium leading-relaxed opacity-62">Você já atingiu {goalProgress.toFixed(0)}% da meta sugerida para o mês.</p>
+            <p className="mt-4 text-sm font-medium leading-relaxed opacity-62">Você já atingiu {goalProgress.toFixed(0)}% da meta de receita do mês.</p>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             <MiniStat label="Falta" value={currency(remaining)} />
@@ -603,16 +667,66 @@ const PlanningPanel = ({ metrics, compact = false, setActiveView }: { metrics: M
             <MiniStat label="Equilíbrio" value={metrics.breakEvenSessions ? `${metrics.breakEvenSessions}` : "—"} />
           </div>
         </div>
+        {!compact ? (
+          <>
+            <div className="mt-6 grid gap-4 xl:grid-cols-4">
+              <PlanningField label="Meta de receita" value={revenueGoal} onChange={setRevenueGoal} />
+              <PlanningField label="Limite de despesas" value={expenseLimit} onChange={setExpenseLimit} />
+              <PlanningField label="Lucro desejado" value={desiredProfit} onChange={setDesiredProfit} />
+              <div>
+                <p className="mb-2 text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-white/32">Sessões alvo</p>
+                <Input value={targetSessions} onChange={(event) => setTargetSessions(event.target.value)} inputMode="numeric" className="h-12 rounded-2xl border-zinc-200 bg-white/80 text-sm font-bold dark:border-white/10 dark:bg-white/[0.035]" />
+              </div>
+            </div>
+            <div className="mt-5 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+              <div className="space-y-4 rounded-[28px] border border-zinc-200/70 bg-zinc-50/70 p-5 dark:border-white/10 dark:bg-white/[0.035]">
+                <MiniBar label="Receita realizada" value={metrics.incomeMonth} max={Math.max(revenueGoalValue, 1)} tone="positive" />
+                <MiniBar label="Despesa usada" value={metrics.expenseMonth} max={Math.max(expenseLimitValue, 1)} tone={expenseUsage > 85 ? "negative" : "default"} />
+                <MiniStat label="Resultado desejado" value={currency(desiredProfitValue)} />
+                <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Notas do planejamento" className="min-h-24 rounded-2xl border-zinc-200 bg-white/80 text-sm dark:border-white/10 dark:bg-white/[0.035]" />
+                <Button onClick={handleSave} disabled={planning.saveGoal.isPending} className="h-12 w-full rounded-2xl bg-zinc-950 text-[9px] font-black uppercase tracking-[0.18em] text-white dark:bg-white dark:text-zinc-950">
+                  {planning.saveGoal.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Salvar planejamento
+                </Button>
+              </div>
+              <div className="rounded-[28px] border border-zinc-200/70 bg-white/72 p-5 dark:border-white/10 dark:bg-white/[0.03]">
+                <p className="text-[9px] font-black uppercase tracking-[0.22em] text-zinc-400 dark:text-white/32">Eventos da previsão</p>
+                <div className="mt-4 space-y-3">
+                  {projectionEvents.length ? projectionEvents.map((event) => (
+                    <div key={`${event.id}-${event.period}-${event.description}`} className="grid grid-cols-[1fr_120px] gap-3 rounded-[18px] border border-zinc-200/70 bg-zinc-50/70 p-4 dark:border-white/10 dark:bg-white/[0.035]">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-zinc-950 dark:text-white">{event.description}</p>
+                        <p className="mt-1 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">{event.period} · {event.source}</p>
+                      </div>
+                      <p className={cn("text-right text-sm font-black tabular-nums", event.type === "income" ? "text-emerald-600 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300")}>
+                        {event.type === "income" ? "+" : "-"} {currency(event.amount)}
+                      </p>
+                    </div>
+                  )) : (
+                    <EmptyHint title="Sem eventos previstos" description="Cadastre cobranças, despesas ou recorrências para explicar a projeção." icon={LineChart} />
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        ) : null}
       </div>
     </ManagementPanel>
   );
 };
 
+const PlanningField = ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) => (
+  <div>
+    <p className="mb-2 text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400 dark:text-white/32">{label}</p>
+    <Input value={value} onChange={(event) => onChange(event.target.value)} inputMode="decimal" className="h-12 rounded-2xl border-zinc-200 bg-white/80 text-sm font-bold dark:border-white/10 dark:bg-white/[0.035]" />
+  </div>
+);
+
 const ReportsPanel = ({ metrics }: { metrics: Metrics }) => {
   const reports = [
     { title: "DRE simplificada", description: "Receitas, despesas e resultado do mês.", icon: FileText },
     { title: "Fluxo de caixa", description: "Realizado, previsto e projetado.", icon: LineChart },
-    { title: "Inadimplência", description: "Cobranças vencidas e valores em aberto.", icon: Users },
+    { title: "Cobranças vencidas", description: "Valores em aberto por status e vencimento.", icon: Users },
     { title: "Contador", description: "Resumo mensal para exportação futura.", icon: ReceiptText },
   ];
 
@@ -710,13 +824,13 @@ export const FinancialManagementDashboard = (props: ManagementProps) => {
     case "gestao-despesas":
       return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Despesas" description="Custos fixos, variáveis, recorrências e categorias que afetam o resultado." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><ExpensesPanels metrics={metrics} setSelectedTransaction={props.setSelectedTransaction} onCreateEntry={openEntryModal} /></RouteFrame></div>);
     case "gestao-cobrancas":
-      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Cobranças" description="Acompanhe cobranças abertas, a vencer, vencidas e recorrentes de forma gerencial." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><ManagementPanel><div className="p-7 md:p-8"><SectionTitle eyebrow="Cobranças gerenciais" title="Abertas e pendentes" description="O usuário pensa em quem deve, não no banco por trás da cobrança." /><div className="mt-7"><ReceivablesList metrics={metrics} onSelect={props.setSelectedTransaction} /></div></div></ManagementPanel><ActionQueue {...common} /></RouteFrame></div>);
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Cobranças" description="Acompanhe cobranças abertas, a vencer, vencidas e recorrentes de forma gerencial." setActiveView={props.setActiveView}><ChargesWorkspace scope="management" title="Cobranças gerenciais" /><ActionQueue {...common} /></RouteFrame></div>);
     case "gestao-inadimplencia":
-      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Pacientes & Inadimplência" description="Valores em aberto, atrasos e pacientes que precisam de abordagem financeira." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><ManagementPanel><div className="p-7 md:p-8"><SectionTitle eyebrow="Inadimplência" title="Cobranças vencidas" description="Lista de pendências vencidas ou em risco." /><div className="mt-7"><ReceivablesList metrics={{ ...metrics, pendingIncomeTransactions: metrics.overdueIncomeTransactions } as Metrics} onSelect={props.setSelectedTransaction} /></div></div></ManagementPanel></RouteFrame></div>);
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Cobranças" description="Filtro legado de inadimplência: cobranças vencidas dentro da área de Cobranças." setActiveView={props.setActiveView}><ChargesWorkspace scope="management" title="Cobranças vencidas" initialStatusFilters={["overdue"]} /></RouteFrame></div>);
     case "gestao-planejamento":
       return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Planejamento" description="Metas, ponto de equilíbrio, ticket médio e cenários de crescimento." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><PlanningPanel {...common} /><ActionQueue {...common} /></RouteFrame></div>);
     case "gestao-relatorios":
-      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Relatórios" description="DRE simplificada, fluxo, inadimplência e resumo para contador." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><ReportsPanel metrics={metrics} /></RouteFrame></div>);
+      return withEntryModal(<div className="px-6 py-6"><RouteFrame eyebrow="Gestão Financeira" title="Relatórios" description="DRE simplificada, fluxo, cobranças vencidas e resumo para contador." setActiveView={props.setActiveView} onCreateEntry={openEntryModal}><ReportsPanel metrics={metrics} /></RouteFrame></div>);
     case "gestao-visao-geral":
     default:
       return withEntryModal(<div className="px-6 py-6"><Overview {...props} metrics={metrics} onCreateEntry={openEntryModal} /></div>);

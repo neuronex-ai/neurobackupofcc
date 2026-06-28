@@ -284,7 +284,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
 
             <MiniActionBlock
                 icon={AlertTriangle}
-                label="Inadimplência"
+                label="Cobranças vencidas"
                 onClick={() => onNavigate?.('cobrancas-historia')}
             />
 

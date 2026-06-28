@@ -1,13 +1,16 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { SubscriptionUpsellDialog } from "@/components/subscription/SubscriptionUpsellDialog";
 import { PROFESSIONAL_PLAN_PRICE_LABEL } from "@/lib/subscription-plans";
 import {
   isValidBrazilianPhoneLength,
+  isValidBillingAddress,
   isValidCpfCnpjLength,
+  type BillingAddressPayload,
   normalizeCpfCnpj,
   normalizePhone,
+  normalizePostalCode,
   startSubscriptionCheckout,
 } from "@/lib/subscription-checkout";
 
@@ -32,6 +35,10 @@ export const UpgradePlanModal = ({ currentPlan, children }: UpgradePlanModalProp
   const [isLoading, setIsLoading] = useState(false);
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [phone, setPhone] = useState("");
+  const [billingAddress, setBillingAddress] = useState<BillingAddressPayload>({});
+  const updateBillingAddress = useCallback((patch: Partial<BillingAddressPayload>) => {
+    setBillingAddress((current) => ({ ...current, ...patch }));
+  }, []);
 
   const handleTrigger = () => {
     if (currentPlan === "Professional") {
@@ -52,12 +59,24 @@ export const UpgradePlanModal = ({ currentPlan, children }: UpgradePlanModalProp
       return;
     }
 
+    if (!isValidBillingAddress(billingAddress)) {
+      toast.error("Informe CEP, endereço, número e bairro para continuar.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await startSubscriptionCheckout({
         planId: "Professional",
         cpfCnpj: normalizeCpfCnpj(cpfCnpj),
         phone: normalizePhone(phone),
+        address: billingAddress.address?.trim(),
+        addressNumber: billingAddress.addressNumber?.trim(),
+        complement: billingAddress.complement?.trim(),
+        province: billingAddress.province?.trim(),
+        postalCode: normalizePostalCode(billingAddress.postalCode || ""),
+        city: billingAddress.city?.trim(),
+        state: billingAddress.state?.trim(),
       });
 
       if (result.url) {
@@ -72,6 +91,11 @@ export const UpgradePlanModal = ({ currentPlan, children }: UpgradePlanModalProp
 
       if (result.requiresPhone || result.code === "customer_phone_required") {
         toast.error("Informe um telefone válido para abrir o checkout.");
+        return;
+      }
+
+      if (result.requiresAddress || result.code === "customer_address_required") {
+        toast.error("Informe um endereço completo para abrir o checkout.");
         return;
       }
 
@@ -109,6 +133,8 @@ export const UpgradePlanModal = ({ currentPlan, children }: UpgradePlanModalProp
         onCpfCnpjChange={setCpfCnpj}
         phone={phone}
         onPhoneChange={setPhone}
+        billingAddress={billingAddress}
+        onBillingAddressChange={updateBillingAddress}
         checkoutLoading={isLoading}
         onCheckout={handleCheckout}
       />

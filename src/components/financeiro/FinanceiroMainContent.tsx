@@ -22,7 +22,7 @@ const FINANCE_ROUTE_LABELS: Partial<Record<FinanceView, { groupLabel: string; vi
   "gestao-receitas": { groupLabel: "Gestão Financeira", viewLabel: "Receitas" },
   "gestao-despesas": { groupLabel: "Gestão Financeira", viewLabel: "Despesas" },
   "gestao-cobrancas": { groupLabel: "Gestão Financeira", viewLabel: "Cobranças" },
-  "gestao-inadimplencia": { groupLabel: "Gestão Financeira", viewLabel: "Pacientes & Inadimplência" },
+  "gestao-inadimplencia": { groupLabel: "Gestão Financeira", viewLabel: "Cobranças vencidas" },
   "gestao-planejamento": { groupLabel: "Gestão Financeira", viewLabel: "Planejamento" },
   "gestao-relatorios": { groupLabel: "Gestão Financeira", viewLabel: "Relatórios" },
   "conta-digital": { groupLabel: "NeuroFinance", viewLabel: "Conta e Saldo" },

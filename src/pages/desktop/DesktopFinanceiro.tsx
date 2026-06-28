@@ -78,7 +78,6 @@ const FINANCE_NAV: NavItem[] = [
       { id: "gestao-receitas", label: "Receitas", icon: ArrowUpRight, description: "Entradas confirmadas, ticket médio e fontes de receita" },
       { id: "gestao-despesas", label: "Despesas", icon: ArrowDownLeft, description: "Custos fixos, variáveis e categorias" },
       { id: "gestao-cobrancas", label: "Cobranças", icon: WalletCards, description: "Cobranças abertas, vencidas e recorrentes" },
-      { id: "gestao-inadimplencia", label: "Inadimplência", icon: Users, description: "Pacientes, valores em aberto e atrasos" },
       { id: "gestao-planejamento", label: "Planejamento", icon: Sparkles, description: "Metas, ponto de equilíbrio e previsibilidade" },
       { id: "gestao-relatorios", label: "Relatórios", icon: FileText, description: "DRE simplificada, fluxo e resumo para contador" },
     ],
@@ -192,8 +191,8 @@ const DesktopFinanceiro = () => {
 
   useEffect(() => {
     const nextView = getInitialFinanceView(location.pathname, location.search);
-    if (nextView !== activeView) setActiveView(nextView);
-  }, [location.pathname, location.search, activeView]);
+    setActiveView((current) => (current === nextView ? current : nextView));
+  }, [location.pathname, location.search]);
 
   const allTransactions = useMemo(() => {
     const merged = [...(transactions || [])];

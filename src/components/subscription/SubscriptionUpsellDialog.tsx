@@ -5,14 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveModal } from "@/components/ui/ResponsiveModal";
 import { useIsMobile } from "@/hooks/use-mobile";
+import type { BillingAddressPayload } from "@/lib/subscription-checkout";
+import { isValidBillingAddress, normalizePostalCode } from "@/lib/subscription-checkout";
 import { cn } from "@/lib/utils";
 import {
   Check,
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Home,
   Loader2,
   Lock,
+  MapPin,
   Phone,
   ShieldCheck,
   Sparkles,
@@ -33,6 +37,8 @@ type SubscriptionUpsellDialogProps = {
   onCpfCnpjChange: (value: string) => void;
   phone: string;
   onPhoneChange: (value: string) => void;
+  billingAddress: BillingAddressPayload;
+  onBillingAddressChange: (patch: Partial<BillingAddressPayload>) => void;
   checkoutUrl?: string;
   checkoutLoading?: boolean;
   freeLoading?: boolean;
@@ -80,6 +86,11 @@ const formatBrazilianPhone = (value: string) => {
   return `+55 ${local}`
     .replace(/^\+55 (\d{2})(\d)/, "+55 ($1) $2")
     .replace(/^\+55 \((\d{2})\) (\d{5})(\d)/, "+55 ($1) $2-$3");
+};
+
+const formatCep = (value: string) => {
+  const digits = normalizePostalCode(value);
+  return digits.replace(/^(\d{5})(\d)/, "$1-$2");
 };
 
 const isValidCpfCnpj = (value: string) => {
@@ -135,6 +146,8 @@ export const SubscriptionUpsellDialog = ({
   onCpfCnpjChange,
   phone,
   onPhoneChange,
+  billingAddress,
+  onBillingAddressChange,
   checkoutUrl,
   checkoutLoading = false,
   freeLoading = false,
@@ -145,19 +158,55 @@ export const SubscriptionUpsellDialog = ({
   const isMobile = useIsMobile();
   const [step, setStep] = useState(1);
   const [detailsTouched, setDetailsTouched] = useState(false);
+  const [autoAppliedCep, setAutoAppliedCep] = useState("");
+  const [addressLookupLoading, setAddressLookupLoading] = useState(false);
   const price = splitPriceLabel(priceLabel);
 
   useEffect(() => {
     if (open) {
       setStep(1);
       setDetailsTouched(false);
+      setAutoAppliedCep("");
     }
   }, [open]);
+
+  const cepDigits = normalizePostalCode(billingAddress.postalCode || "");
+
+  useEffect(() => {
+    if (!open || step !== 2 || cepDigits.length !== 8 || autoAppliedCep === cepDigits) return;
+
+    let cancelled = false;
+    setAddressLookupLoading(true);
+    fetch(`https://viacep.com.br/ws/${cepDigits}/json/`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (cancelled || data?.erro) return;
+        onBillingAddressChange({
+          postalCode: formatCep(data.cep || cepDigits),
+          address: data.logradouro || billingAddress.address || "",
+          province: data.bairro || billingAddress.province || "",
+          city: data.localidade || billingAddress.city || "",
+          state: String(data.uf || billingAddress.state || "").toUpperCase().slice(0, 2),
+        });
+        setAutoAppliedCep(cepDigits);
+      })
+      .catch(() => {
+        setAutoAppliedCep(cepDigits);
+      })
+      .finally(() => {
+        if (!cancelled) setAddressLookupLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [autoAppliedCep, billingAddress.address, billingAddress.city, billingAddress.province, billingAddress.state, cepDigits, onBillingAddressChange, open, step]);
 
   const visibleFeatures = useMemo(() => features.slice(0, isMobile ? 4 : 5), [features, isMobile]);
   const cpfValid = isValidCpfCnpj(cpfCnpj);
   const phoneValid = isValidPhone(phone);
-  const canProceedFromDetails = Boolean(checkoutUrl) || (cpfValid && phoneValid);
+  const addressValid = isValidBillingAddress(billingAddress);
+  const canProceedFromDetails = cpfValid && phoneValid && addressValid;
   const actionLabel = checkoutUrl ? "Retomar checkout" : "Ir para checkout";
   const bodyMaxWidth = isMobile ? "max-w-[25rem]" : "max-w-[32rem]";
   const effectiveDescription = featureName
@@ -288,12 +337,12 @@ export const SubscriptionUpsellDialog = ({
       {step === 2 ? (
         <div className="space-y-5 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[22px] border border-border/70 bg-muted/45">
-            <Phone className="h-5 w-5 text-muted-foreground" />
+            <MapPin className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
             <h3 className="text-2xl font-black tracking-tight text-foreground">Dados para cobrança</h3>
             <p className="mx-auto mt-2 max-w-[28rem] text-sm font-medium leading-relaxed text-muted-foreground">
-              Esses dados são enviados apenas ao checkout da Asaas para validar o cliente da assinatura NeuroNex.
+              A Asaas exige documento, telefone e endereço do cliente para abrir o checkout recorrente com segurança.
             </p>
           </div>
 
@@ -329,6 +378,111 @@ export const SubscriptionUpsellDialog = ({
               />
               <FieldError show={detailsTouched && !phoneValid}>Informe um telefone brasileiro válido com DDD.</FieldError>
             </div>
+
+            <div className="grid gap-4 rounded-[22px] border border-border/60 bg-muted/20 p-4 dark:border-white/[0.08]">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Home className="h-4 w-4" />
+                <p className="text-[10px] font-black uppercase tracking-[0.16em]">Endereço fiscal</p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[0.8fr_1.2fr]">
+                <div className="space-y-2">
+                  <Label htmlFor="subscription-postal-code" className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                    CEP
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="subscription-postal-code"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                      value={billingAddress.postalCode || ""}
+                      onChange={(event) => onBillingAddressChange({ postalCode: formatCep(event.target.value) })}
+                      placeholder="00000-000"
+                      className="h-12 rounded-2xl border-border/65 bg-background/45 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                    />
+                    {addressLookupLoading ? (
+                      <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                    ) : null}
+                  </div>
+                  <FieldError show={detailsTouched && cepDigits.length !== 8}>Informe um CEP válido.</FieldError>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subscription-address" className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                    Endereço
+                  </Label>
+                  <Input
+                    id="subscription-address"
+                    autoComplete="address-line1"
+                    value={billingAddress.address || ""}
+                    onChange={(event) => onBillingAddressChange({ address: event.target.value })}
+                    placeholder="Rua, avenida ou travessa"
+                    className="h-12 rounded-2xl border-border/65 bg-background/45 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                  />
+                  <FieldError show={detailsTouched && String(billingAddress.address || "").trim().length < 3}>Informe o endereço.</FieldError>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[0.75fr_1.25fr]">
+                <div className="space-y-2">
+                  <Label htmlFor="subscription-address-number" className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                    Número
+                  </Label>
+                  <Input
+                    id="subscription-address-number"
+                    autoComplete="address-line2"
+                    value={billingAddress.addressNumber || ""}
+                    onChange={(event) => onBillingAddressChange({ addressNumber: event.target.value })}
+                    placeholder="Número"
+                    className="h-12 rounded-2xl border-border/65 bg-background/45 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                  />
+                  <FieldError show={detailsTouched && !String(billingAddress.addressNumber || "").trim()}>Informe o número.</FieldError>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subscription-province" className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                    Bairro
+                  </Label>
+                  <Input
+                    id="subscription-province"
+                    value={billingAddress.province || ""}
+                    onChange={(event) => onBillingAddressChange({ province: event.target.value })}
+                    placeholder="Bairro"
+                    className="h-12 rounded-2xl border-border/65 bg-background/45 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                  />
+                  <FieldError show={detailsTouched && String(billingAddress.province || "").trim().length < 2}>Informe o bairro.</FieldError>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[1fr_0.65fr]">
+                <div className="space-y-2">
+                  <Label htmlFor="subscription-complement" className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                    Complemento
+                  </Label>
+                  <Input
+                    id="subscription-complement"
+                    value={billingAddress.complement || ""}
+                    onChange={(event) => onBillingAddressChange({ complement: event.target.value })}
+                    placeholder="Sala, bloco, conjunto"
+                    className="h-12 rounded-2xl border-border/65 bg-background/45 px-4 font-semibold text-foreground shadow-inner focus-visible:ring-1 focus-visible:ring-foreground/20"
+                  />
+                  <FieldError show={false}>Campo opcional.</FieldError>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                    Cidade/UF
+                  </Label>
+                  <Input
+                    readOnly
+                    value={[billingAddress.city, billingAddress.state].filter(Boolean).join(" / ")}
+                    placeholder="Preenchido pelo CEP"
+                    className="h-12 rounded-2xl border-border/65 bg-background/25 px-4 font-semibold text-muted-foreground shadow-inner focus-visible:ring-0"
+                  />
+                  <FieldError show={false}>Campo auxiliar.</FieldError>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
@@ -352,7 +506,7 @@ export const SubscriptionUpsellDialog = ({
             </div>
             <div className="rounded-2xl border border-border/65 bg-muted/30 p-4">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Dados validados</p>
-              <p className="mt-1 text-sm font-bold text-foreground">CPF/CNPJ e telefone confirmados</p>
+              <p className="mt-1 text-sm font-bold text-foreground">CPF/CNPJ, telefone e endereço confirmados</p>
             </div>
           </div>
         </div>

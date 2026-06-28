@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
   FeatureKey,
@@ -9,9 +9,12 @@ import {
 import { PLAN_PRICE_LABELS } from "@/lib/subscription-plans";
 import {
   isValidBrazilianPhoneLength,
+  isValidBillingAddress,
   isValidCpfCnpjLength,
+  type BillingAddressPayload,
   normalizeCpfCnpj,
   normalizePhone,
+  normalizePostalCode,
   startSubscriptionCheckout,
 } from "@/lib/subscription-checkout";
 import { SubscriptionUpsellDialog } from "@/components/subscription/SubscriptionUpsellDialog";
@@ -34,6 +37,10 @@ export const UpsellModal = ({ feature, open, onOpenChange }: UpsellModalProps) =
   const [isLoading, setIsLoading] = useState(false);
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [phone, setPhone] = useState("");
+  const [billingAddress, setBillingAddress] = useState<BillingAddressPayload>({});
+  const updateBillingAddress = useCallback((patch: Partial<BillingAddressPayload>) => {
+    setBillingAddress((current) => ({ ...current, ...patch }));
+  }, []);
 
   const handleUpgrade = async () => {
     if (requiredPlan !== "Professional") {
@@ -51,12 +58,24 @@ export const UpsellModal = ({ feature, open, onOpenChange }: UpsellModalProps) =
       return;
     }
 
+    if (!isValidBillingAddress(billingAddress)) {
+      toast.error("Informe CEP, endereço, número e bairro para continuar.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await startSubscriptionCheckout({
         planId: requiredPlan,
         cpfCnpj: normalizeCpfCnpj(cpfCnpj),
         phone: normalizePhone(phone),
+        address: billingAddress.address?.trim(),
+        addressNumber: billingAddress.addressNumber?.trim(),
+        complement: billingAddress.complement?.trim(),
+        province: billingAddress.province?.trim(),
+        postalCode: normalizePostalCode(billingAddress.postalCode || ""),
+        city: billingAddress.city?.trim(),
+        state: billingAddress.state?.trim(),
       });
 
       if (result.requiresDocument || result.code === "customer_document_required") {
@@ -66,6 +85,11 @@ export const UpsellModal = ({ feature, open, onOpenChange }: UpsellModalProps) =
 
       if (result.requiresPhone || result.code === "customer_phone_required") {
         toast.error("Informe um telefone válido para abrir o checkout.");
+        return;
+      }
+
+      if (result.requiresAddress || result.code === "customer_address_required") {
+        toast.error("Informe um endereço completo para abrir o checkout.");
         return;
       }
 
@@ -124,6 +148,8 @@ export const UpsellModal = ({ feature, open, onOpenChange }: UpsellModalProps) =
       onCpfCnpjChange={setCpfCnpj}
       phone={phone}
       onPhoneChange={setPhone}
+      billingAddress={billingAddress}
+      onBillingAddressChange={updateBillingAddress}
       checkoutLoading={isLoading}
       onCheckout={handleUpgrade}
     />

@@ -35,7 +35,7 @@ import { InvoicesHistoryList } from "@/components/financeiro/invoice/InvoicesHis
 import { GenerateRPSForm } from "@/components/financeiro/invoice/GenerateRPSForm";
 import { BankTransferView } from "@/components/financeiro/BankTransferView";
 import { BankAccountsView } from "@/components/financeiro/BankAccountsView";
-import { ReceivablesCalendarCard } from "@/components/financeiro/ReceivablesCalendarCard";
+import { NeuroFinanceMovementsTimeline } from "@/components/financeiro/NeuroFinanceMovementsTimeline";
 import TransactionDetailView from "@/components/financeiro/TransactionDetailView";
 import { PixPagarCopiaCola } from "@/components/financeiro/pix/PixPagarCopiaCola";
 import { PixTransferir } from "@/components/financeiro/pix/PixTransferir";
@@ -266,7 +266,7 @@ export function FinancialDashboard({
             return (
                 <motion.div {...motionProps} key="conta-digital" className="space-y-6 px-6 py-6">
                     <NeuroNexBankPanel transactions={allTransactions} isLoadingTransactions={isLoadingTransactions} onNavigate={setActiveView} />
-                    <ReceivablesCalendarCard
+                    <NeuroFinanceMovementsTimeline
                         onOpenFutureStatement={() => {
                             setExtratoTab("futuro");
                             setActiveView("extrato");

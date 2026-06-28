@@ -128,7 +128,7 @@ export const FinancialPulsePanel = () => {
                   </Button>
                   <Button 
                     variant="outline" 
-                    onClick={() => navigate("/financeiro?view=gestao-inadimplencia")} 
+                    onClick={() => navigate("/financeiro?view=gestao-cobrancas")} 
                     className="h-12 min-w-[140px] flex-1 rounded-2xl border-zinc-200 bg-white/70 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70"
                   >
                     Cobrar

@@ -29,6 +29,13 @@ type CheckoutRequest = {
   email?: string;
   cpfCnpj?: string;
   phone?: string;
+  address?: string;
+  addressNumber?: string;
+  complement?: string;
+  province?: string;
+  postalCode?: string;
+  city?: string;
+  state?: string;
 };
 
 type AsaasCheckoutResponse = {
@@ -75,7 +82,7 @@ const resolveAppUrl = (req: Request) => {
 async function getProfile(userId: string) {
   const { data } = await supabaseAdmin
     .from("profiles")
-    .select("full_name,name,first_name,last_name,phone")
+    .select("full_name,name,first_name,last_name,phone,professional_address")
     .eq("id", userId)
     .maybeSingle();
   return data as any;
@@ -84,7 +91,7 @@ async function getProfile(userId: string) {
 async function getFinancialDocument(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("financial_accounts")
-    .select("cpf_cnpj,mobile_phone")
+    .select("cpf_cnpj,mobile_phone,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,address_postal_code")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -110,6 +117,38 @@ function hasValidBrazilianPhone(value?: string | null) {
   const digits = sanitizeDigits(value);
   const localDigits = digits.startsWith("55") && digits.length > 11 ? digits.slice(2) : digits;
   return Boolean(localDigits && !/^0+$/.test(localDigits) && [10, 11].includes(localDigits.length));
+}
+
+function trimString(value?: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function pickString(...values: unknown[]) {
+  for (const value of values) {
+    const trimmed = trimString(value);
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
+
+function profileAddress(profile: any) {
+  return profile?.professional_address && typeof profile.professional_address === "object"
+    ? profile.professional_address
+    : {};
+}
+
+function hasValidCustomerAddress(value: {
+  address?: string | null;
+  addressNumber?: string | null;
+  province?: string | null;
+  postalCode?: string | null;
+}) {
+  return (
+    trimString(value.address).length >= 3 &&
+    trimString(value.addressNumber).length >= 1 &&
+    trimString(value.province).length >= 2 &&
+    sanitizeDigits(value.postalCode).length === 8
+  );
 }
 
 function assertCheckoutAllowed(subscription: any) {
@@ -155,21 +194,6 @@ Deno.serve(async (req: Request) => {
       return errorResponse("Plano inválido para checkout.", 400);
     }
 
-    const existingCheckout = await getOpenCheckoutSession(user.id, planCode);
-    if (existingCheckout?.checkout_url) {
-      return jsonResponse({
-        url: existingCheckout.checkout_url,
-        session_id: existingCheckout.external_reference,
-        provider_checkout_id: existingCheckout.provider_checkout_id,
-        provider: "asaas",
-        plan: publicPlanName(planCode),
-        plan_code: planCode,
-        amount_total: existingCheckout.amount_cents,
-        currency: existingCheckout.currency,
-        reused: true,
-      });
-    }
-
     const subscription = await getUserSubscription(user.id);
     assertCheckoutAllowed(subscription);
 
@@ -183,10 +207,40 @@ Deno.serve(async (req: Request) => {
     const expiredUrl = `${appUrl}/payment/callback?status=expired&session_id=${encodeURIComponent(externalReference)}`;
     const profile = await getProfile(user.id);
     const financialAccount = await getFinancialDocument(user.id);
+    const profileAddr = profileAddress(profile);
     const customerName = String(body.name || profileName(profile, user.email || "")).trim();
     const customerEmail = String(body.email || user.email || "").trim();
     const cpfCnpj = sanitizeDigits(body.cpfCnpj || financialAccount?.cpf_cnpj);
     const phone = sanitizeDigits(body.phone || profile?.phone || financialAccount?.mobile_phone);
+    const address = pickString(
+      body.address,
+      financialAccount?.address_street,
+      profileAddr.street,
+      profileAddr.address,
+    );
+    const addressNumber = pickString(
+      body.addressNumber,
+      financialAccount?.address_number,
+      profileAddr.number,
+      profileAddr.addressNumber,
+    );
+    const complement = pickString(
+      body.complement,
+      financialAccount?.address_complement,
+      profileAddr.complement,
+    );
+    const province = pickString(
+      body.province,
+      financialAccount?.address_neighborhood,
+      profileAddr.neighborhood,
+      profileAddr.province,
+    );
+    const postalCode = sanitizeDigits(
+      body.postalCode ||
+      financialAccount?.address_postal_code ||
+      profileAddr.postalCode ||
+      profileAddr.postal_code,
+    );
 
     if (!hasValidCpfCnpj(cpfCnpj)) {
       const err: any = new Error("Informe um CPF ou CNPJ válido para iniciar o checkout.");
@@ -204,6 +258,14 @@ Deno.serve(async (req: Request) => {
       throw err;
     }
 
+    if (!hasValidCustomerAddress({ address, addressNumber, province, postalCode })) {
+      const err: any = new Error("Informe CEP, endereço, número e bairro para iniciar o checkout.");
+      err.status = 422;
+      err.code = "customer_address_required";
+      err.requires_address = true;
+      throw err;
+    }
+
     const customerId = await findOrCreateAsaasCustomer({
       userId: user.id,
       existingCustomerId: subscription?.asaas_customer_id,
@@ -211,6 +273,11 @@ Deno.serve(async (req: Request) => {
       email: customerEmail,
       cpfCnpj,
       phone,
+      address,
+      addressNumber,
+      complement,
+      province,
+      postalCode,
     });
 
     if (!customerId) {
@@ -219,6 +286,34 @@ Deno.serve(async (req: Request) => {
       err.code = "customer_document_required";
       err.requires_document = true;
       throw err;
+    }
+
+    const existingCheckout = await getOpenCheckoutSession(user.id, planCode);
+    if (existingCheckout?.checkout_url) {
+      await supabaseAdmin
+        .from("user_subscriptions")
+        .update({
+          asaas_customer_id: customerId,
+          metadata: {
+            ...((subscription?.metadata || {}) as Record<string, unknown>),
+            checkout_customer_address_present: true,
+            checkout_customer_phone_present: true,
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id);
+
+      return jsonResponse({
+        url: existingCheckout.checkout_url,
+        session_id: existingCheckout.external_reference,
+        provider_checkout_id: existingCheckout.provider_checkout_id,
+        provider: "asaas",
+        plan: publicPlanName(planCode),
+        plan_code: planCode,
+        amount_total: existingCheckout.amount_cents,
+        currency: existingCheckout.currency,
+        reused: true,
+      });
     }
 
     const pendingPayload = {
@@ -239,6 +334,7 @@ Deno.serve(async (req: Request) => {
         previous_access_state: subscription?.access_state || null,
         has_customer_id: Boolean(customerId),
         has_customer_phone: Boolean(phone),
+        has_customer_address: true,
       }),
       updated_at: now.toISOString(),
     };
@@ -312,6 +408,7 @@ Deno.serve(async (req: Request) => {
           asaas_checkout: checkout,
           has_customer_id: Boolean(customerId),
           has_customer_phone: Boolean(phone),
+          has_customer_address: true,
         }),
         updated_at: new Date().toISOString(),
       })
@@ -340,6 +437,7 @@ Deno.serve(async (req: Request) => {
             checkout_session_id: sessionId,
             checkout_started_at: new Date().toISOString(),
             checkout_customer_phone_present: Boolean(phone),
+            checkout_customer_address_present: true,
           },
           status_version: Number(subscription?.status_version || 0) + 1,
           updated_at: new Date().toISOString(),
@@ -397,6 +495,7 @@ Deno.serve(async (req: Request) => {
         code: (error as any)?.code,
         requires_document: Boolean((error as any)?.requires_document),
         requires_phone: Boolean((error as any)?.requires_phone),
+        requires_address: Boolean((error as any)?.requires_address),
         trial_ends_at: (error as any)?.trial_ends_at,
       },
     );
