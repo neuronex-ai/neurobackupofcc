@@ -28,6 +28,14 @@ export const PLAN_CODE_BY_NAME: Record<string, "essential" | "professional" | "e
 
 const PAID_ACCESS_STATUSES = new Set(["active", "trialing", "admin_override"]);
 const USABLE_ACCESS_STATES = new Set(["paid_access", "trial_access", "limited_access", "admin_override"]);
+const PAYMENT_BACKED_STATUSES = new Set([
+  "CONFIRMED",
+  "RECEIVED",
+  "RECEIVED_IN_CASH",
+  "CHECKOUT_PAID",
+  "PAYMENT_CONFIRMED",
+  "PAYMENT_RECEIVED",
+]);
 const UPSELL_STATUSES = new Set([
   "trial_expired",
   "checkout_pending",
@@ -40,6 +48,37 @@ const UPSELL_STATUSES = new Set([
   "chargeback",
   "internal_error",
 ]);
+
+const ESSENTIAL_FEATURES: Record<string, unknown> = {
+  ai_copilot: false,
+  telemedicine: false,
+  advanced_finance: false,
+  patient_portal: false,
+  multiple_professionals: false,
+  admin_dashboard: false,
+  performance_reports: false,
+  api_access: false,
+};
+
+const ESSENTIAL_LIMITS: Record<string, unknown> = {
+  patients: 5,
+  session_records_monthly: null,
+  ai_monthly_actions: 0,
+  neurodrive_documents: 0,
+  neurodrive_storage_mb: 0,
+  teleconsultations_monthly: 0,
+  synapse_text_messages: 0,
+  synapse_voice_minutes: 0,
+  integrations: 0,
+  reports_monthly: 0,
+};
+
+const ESSENTIAL_INTERNAL_FLAGS: Record<string, unknown> = {
+  can_use_neurofinance: false,
+  can_use_synapse: false,
+  can_use_neurodrive: false,
+  overage_policy: "block",
+};
 
 type SupabaseUser = {
   id: string;
@@ -91,6 +130,26 @@ export function statusRequiresUpsell(status: string) {
 
 export function canUseCurrentAccess(status: string, accessState: string) {
   return PAID_ACCESS_STATUSES.has(status) && USABLE_ACCESS_STATES.has(accessState);
+}
+
+function hasPaymentBackedPaidAccess(row: any, status: string, accessState: string) {
+  if (status === "admin_override" || accessState === "admin_override") return true;
+  if (status !== "active" || accessState !== "paid_access") return false;
+
+  const paymentStatus = String(row?.last_payment_status || "").trim().toUpperCase();
+  return Boolean(
+    row?.last_payment_id ||
+    PAYMENT_BACKED_STATUSES.has(paymentStatus) ||
+    (row?.asaas_subscription_id && row?.last_payment_event_at),
+  );
+}
+
+function canUseEntitlementAccess(row: any, status: string, accessState: string) {
+  if (!canUseCurrentAccess(status, accessState)) return false;
+  if (status === "active" && accessState === "paid_access") {
+    return hasPaymentBackedPaidAccess(row, status, accessState);
+  }
+  return true;
 }
 
 export function subscriptionMessage(status: string, plan: string) {
@@ -149,11 +208,19 @@ export function buildEntitlementResponse(row: any, user?: SupabaseUser, checkout
   const accessState = String(row?.effective_access_state || row?.access_state || "blocked");
   const planCode = String(row?.plan_code || "essential");
   const plan = publicPlanName(planCode);
-  const features = (row?.features || {}) as Record<string, unknown>;
-  const limits = (row?.limits || {}) as Record<string, unknown>;
+  const configuredFeatures = (row?.features || {}) as Record<string, unknown>;
+  const configuredLimits = (row?.limits || {}) as Record<string, unknown>;
+  const configuredInternalFlags = (row?.internal_flags || {}) as Record<string, unknown>;
+  const paymentBackedAccess = hasPaymentBackedPaidAccess(row, status, accessState);
+  const currentAccessAllowed = canUseEntitlementAccess(row, status, accessState);
+  const exposedFeatures = currentAccessAllowed ? configuredFeatures : ESSENTIAL_FEATURES;
+  const exposedLimits = currentAccessAllowed ? configuredLimits : ESSENTIAL_LIMITS;
+  const exposedInternalFlags = currentAccessAllowed ? configuredInternalFlags : ESSENTIAL_INTERNAL_FLAGS;
   const trialEndsAt = row?.trial_ends_at ? new Date(row.trial_ends_at) : undefined;
   const currentPeriodEnd = row?.current_period_end ? new Date(row.current_period_end) : undefined;
   const isTrial = status === "trialing";
+  const activeWithoutPaymentProof = status === "active" && accessState === "paid_access" && !paymentBackedAccess;
+  const messageStatus = activeWithoutPaymentProof ? "payment_pending" : status;
   const daysUntilTrialEnds =
     isTrial && trialEndsAt
       ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -164,10 +231,10 @@ export function buildEntitlementResponse(row: any, user?: SupabaseUser, checkout
     planCode,
     status,
     accessState,
-    features: reactFeatureShape(features, limits),
-    rawFeatures: features,
-    limits,
-    internalFlags: row?.internal_flags || {},
+    features: reactFeatureShape(exposedFeatures, exposedLimits),
+    rawFeatures: exposedFeatures,
+    limits: exposedLimits,
+    internalFlags: exposedInternalFlags,
     isDevAccount: user?.email === "jotahub@gmail.com" || status === "admin_override",
     subscriptionId: row?.asaas_subscription_id || row?.subscription_record_id || undefined,
     checkoutSessionId: checkout?.external_reference || undefined,
@@ -177,10 +244,11 @@ export function buildEntitlementResponse(row: any, user?: SupabaseUser, checkout
     isTrial,
     isTrialExpired: status === "trial_expired",
     daysUntilTrialEnds,
-    hasPaidAccess: Boolean(row?.has_paid_access),
-    canUseCurrentAccess: canUseCurrentAccess(status, accessState),
-    requiresUpsell: Boolean(row?.requires_upsell) || statusRequiresUpsell(status),
-    message: subscriptionMessage(status, plan),
+    hasPaidAccess: paymentBackedAccess,
+    paymentBackedAccess,
+    canUseCurrentAccess: currentAccessAllowed,
+    requiresUpsell: Boolean(row?.requires_upsell) || statusRequiresUpsell(status) || activeWithoutPaymentProof,
+    message: subscriptionMessage(messageStatus, plan),
   };
 }
 
