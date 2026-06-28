@@ -76,7 +76,7 @@ export const isSessionAppointment = (appointment?: Appointment | null) =>
   Boolean(appointment) && getAppointmentKind(appointment!) === "session";
 
 export const isOnlineAppointment = (appointment?: Appointment | null) =>
-  Boolean(appointment) && (appointment!.type === "online" || appointment!.type === "teleconsulta" || Boolean(appointment!.google_meet_link));
+  Boolean(appointment) && (appointment!.type === "online" || String(appointment!.type) === "teleconsulta" || Boolean(appointment!.google_meet_link));
 
 export const getNextSession = (appointments: Appointment[], now: Date) =>
   appointments.find((appointment) => isSessionAppointment(appointment) && isAfter(new Date(appointment.end_time), now));

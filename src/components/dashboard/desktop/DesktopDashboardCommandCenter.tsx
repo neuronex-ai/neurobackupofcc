@@ -1,529 +1,737 @@
 "use client";
 
-import { addDays, differenceInMinutes, endOfDay, format, isAfter, isSameDay, startOfDay } from "date-fns";
+import { addDays, differenceInMinutes, endOfDay, format, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import type { ElementType, ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { forwardRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   ArrowRight,
-  BadgeCheck,
-  BarChart3,
+  Bell,
   Calendar as CalendarIcon,
   CheckCircle2,
-  ChevronRight,
   Clock,
-  HeartPulse,
-  Landmark,
-  ListChecks,
+  FileText,
   MessageSquare,
   Mic,
-  MonitorPlay,
-  ShieldCheck,
-  Sparkles,
+  Plus,
   Stethoscope,
+  UserPlus,
   Users,
   Video,
   WalletCards,
 } from "lucide-react";
 
+import { NewAppointmentModal } from "@/components/agenda/NewAppointmentModal";
+import { AppointmentDetailModal } from "@/components/agenda/AppointmentDetailModal";
+import { NewProntuarioModal } from "@/components/notes/NewProntuarioModal";
+import { NewPatientModal } from "@/components/patients/NewPatientModal";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useSynapse } from "@/context/SynapseProvider";
 import { useAppointmentsByDateRange } from "@/hooks/use-appointments-by-date-range";
+import { useDashboardManagerialMetrics } from "@/hooks/use-dashboard-managerial-metrics";
 import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { useGoogleCalendarSync } from "@/hooks/use-google-calendar-sync";
+import { useNeurofinanceSnapshot } from "@/hooks/use-neurofinance-snapshot";
+import { useNotifications } from "@/hooks/use-notifications";
 import { usePendingPatientsCount } from "@/hooks/use-pending-patients-count";
-import { useSynapse } from "@/context/SynapseProvider";
-import { cn } from "@/lib/utils";
-import { getAppointmentStatusMeta, isCancelledAppointmentStatus } from "@/lib/appointment-status";
+import { useProfile } from "@/hooks/use-profile";
+import { getAppointmentKind } from "@/lib/appointment-metadata";
+import { getAppointmentStatusMeta } from "@/lib/appointment-status";
 import { getAppointmentDisplayTitle } from "@/lib/appointment-utils";
-import { FinancialPulsePanel } from "./FinancialPulsePanel";
+import { cn } from "@/lib/utils";
+import type { Appointment } from "@/types";
+import {
+  buildAttentionQueue,
+  buildFinancialSignal,
+  getActiveAppointments,
+  getNextSession,
+  getTodayAppointments,
+  isOnlineAppointment,
+  type AttentionQueueItem,
+} from "./dashboard-command-center-model";
 
-type DashboardAppointment = any;
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-type ActionItem = {
-  priority: string;
-  title: string;
-  description: string;
-  icon: ElementType<{ className?: string }>;
-  actionLabel: string;
-  onClick: () => void;
-  tone?: "default" | "dark" | "warning";
-};
+const formatCentsCurrency = (value: number | null) =>
+  value === null ? "-" : formatCurrency(value / 100);
 
-const DashboardBadge = ({ children, icon: Icon = Sparkles }: { children: ReactNode; icon?: ElementType<{ className?: string }> }) => (
-  <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200/70 bg-white/70 px-3.5 py-1.5 text-[9px] font-black uppercase tracking-[0.24em] text-zinc-500 shadow-sm backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.045] dark:text-white/45">
-    <Icon className="h-3.5 w-3.5" />
-    {children}
-  </div>
-);
+const formatAppointmentTime = (appointment?: Appointment | null) =>
+  appointment?.start_time ? format(new Date(appointment.start_time), "HH:mm") : "-";
 
-const DashboardPanel = ({ children, className, innerClassName, delay = 0 }: { children: ReactNode; className?: string; innerClassName?: string; delay?: number }) => (
-  <motion.section
-    initial={{ opacity: 0, y: 18, filter: "blur(10px)" }}
-    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-    transition={{ duration: 0.55, delay: delay / 1000, ease: [0.22, 1, 0.36, 1] }}
-    className={cn(
-      "relative overflow-hidden rounded-[34px] border border-border/70 bg-card/88 shadow-[0_28px_92px_-72px_rgba(24,24,27,0.58)] dark:border-white/[0.065] dark:bg-card/92 dark:shadow-[0_30px_100px_-70px_rgba(0,0,0,0.95)]",
-      className
-    )}
-  >
-    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.62),transparent_34%,rgba(255,255,255,0.18))] dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.055),transparent_34%,rgba(255,255,255,0.016))]" />
-    <div className={cn("relative z-10", innerClassName)}>{children}</div>
-  </motion.section>
-);
+const formatAppointmentDay = (appointment?: Appointment | null) =>
+  appointment?.start_time ? format(new Date(appointment.start_time), "dd/MM") : "-";
 
-const SectionTitle = ({ eyebrow, title, description }: { eyebrow: string; title: string; description?: string }) => (
-  <div className="flex flex-col gap-1.5">
-    <p className="text-[9px] font-black uppercase tracking-[0.28em] text-zinc-400 dark:text-white/32">{eyebrow}</p>
-    <h2 className="text-xl font-black tracking-[-0.035em] text-zinc-950 dark:text-white">{title}</h2>
-    {description ? <p className="max-w-xl text-xs font-medium leading-relaxed text-zinc-500 dark:text-white/42">{description}</p> : null}
-  </div>
-);
-
-const formatAppointmentTime = (appointment?: DashboardAppointment) => {
-  if (!appointment?.start_time) return "—";
-  return format(new Date(appointment.start_time), "HH:mm");
-};
-
-const formatAppointmentDate = (appointment?: DashboardAppointment) => {
-  if (!appointment?.start_time) return "Sem data";
-  const date = new Date(appointment.start_time);
-  return isSameDay(date, new Date()) ? "Hoje" : format(date, "EEE, dd 'de' MMM", { locale: ptBR });
-};
-
-const getMinutesUntil = (appointment?: DashboardAppointment) => {
+const getMinutesUntil = (appointment?: Appointment | null) => {
   if (!appointment?.start_time) return null;
+
   const minutes = differenceInMinutes(new Date(appointment.start_time), new Date());
   if (minutes < 0) return "em andamento";
   if (minutes < 60) return `${minutes} min`;
+
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return rest ? `${hours}h ${rest}min` : `${hours}h`;
 };
 
-const AppointmentTypeLabel = ({ appointment }: { appointment?: DashboardAppointment }) => {
-  const isOnline = appointment?.type === "teleconsulta" || !!appointment?.google_meet_link;
-  return (
-    <div className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/70 bg-zinc-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/42">
-      {isOnline ? <Video className="h-3.5 w-3.5" /> : <Stethoscope className="h-3.5 w-3.5" />}
-      {isOnline ? "Online" : "Consultório"}
-    </div>
-  );
+const getFirstName = (profile?: { first_name?: string | null; full_name?: string | null; name?: string | null } | null) =>
+  profile?.first_name || profile?.full_name?.split(" ")[0] || profile?.name?.split(" ")[0] || "Doutor";
+
+const getAppointmentLabel = (appointment: Appointment) => {
+  const kind = getAppointmentKind(appointment);
+  if (kind === "block") return "Bloqueio";
+  if (kind === "event") return "Evento";
+  return appointment.type === "online" || isOnlineAppointment(appointment) ? "Online" : "Consultorio";
 };
 
-const RadarMetric = ({ icon: Icon, label, value, hint, tone = "default", onClick }: { icon: ElementType<{ className?: string }>; label: string; value: string | number; hint: string; tone?: "default" | "dark" | "warning" | "success"; onClick?: () => void }) => (
-  <button
-    type="button"
-    onClick={onClick}
+const DashboardPanel = ({
+  children,
+  className,
+  delay = 0,
+  reduceMotion,
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+  reduceMotion: boolean;
+}) => (
+  <motion.section
+    initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+    animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+    transition={{ duration: 0.28, delay, ease: [0.22, 1, 0.36, 1] }}
     className={cn(
-      "group relative min-h-[150px] overflow-hidden rounded-[28px] border p-5 text-left transition-all duration-500 hover:-translate-y-1 active:scale-[0.99]",
-      tone === "dark"
-        ? "border-zinc-950 bg-zinc-950 text-white shadow-[0_28px_90px_-64px_rgba(0,0,0,0.85)] dark:border-white dark:bg-white dark:text-zinc-950"
-        : "border-zinc-200/70 bg-white/76 text-zinc-950 shadow-[0_22px_74px_-62px_rgba(24,24,27,0.55)] dark:border-white/[0.065] dark:bg-white/[0.035] dark:text-white",
-      tone === "warning" && "border-amber-500/25 bg-amber-50/70 dark:border-amber-300/15 dark:bg-amber-300/[0.055]",
-      tone === "success" && "border-emerald-500/20 bg-emerald-50/70 dark:border-emerald-300/15 dark:bg-emerald-300/[0.05]"
+      "relative overflow-hidden rounded-[34px] border border-border/65 bg-card/78 shadow-[0_28px_90px_-70px_hsl(var(--foreground)/0.7)] backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.04]",
+      className,
     )}
   >
-    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.5),transparent_42%)] opacity-70 dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.055),transparent_42%)]" />
-    <div className="relative z-10 flex items-start justify-between gap-4">
-      <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", tone === "dark" ? "bg-white/12 dark:bg-zinc-950/10" : "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950")}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <ArrowRight className="h-4 w-4 opacity-24 transition-transform group-hover:translate-x-1" />
-    </div>
-    <div className="relative z-10 mt-7">
-      <div className="text-4xl font-black tracking-[-0.06em]">{value}</div>
-      <div className={cn("mt-2 text-[9px] font-black uppercase tracking-[0.2em]", tone === "dark" ? "opacity-55" : "text-zinc-400 dark:text-white/34")}>{label}</div>
-      <p className={cn("mt-3 text-xs font-semibold leading-relaxed", tone === "dark" ? "opacity-62" : "text-zinc-500 dark:text-white/42")}>{hint}</p>
-    </div>
-  </button>
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,hsl(var(--foreground)/0.052),transparent_34%),radial-gradient(circle_at_92%_88%,hsl(var(--foreground)/0.035),transparent_38%)]" />
+    <div className="relative z-10">{children}</div>
+  </motion.section>
 );
 
-const CommandCenterHero = ({ todayAppointments, pendingPatients, nextAppointment, openSynapseText, openSynapseVoice }: { todayAppointments: DashboardAppointment[]; pendingPatients: number; nextAppointment?: DashboardAppointment; openSynapseText: () => void; openSynapseVoice: () => void }) => {
-  const navigate = useNavigate();
-  const greeting = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long" }).format(new Date());
-  const nextMinutes = getMinutesUntil(nextAppointment);
-  const hasAppointments = todayAppointments.length > 0;
+const SectionHeader = ({
+  eyebrow,
+  title,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  action?: ReactNode;
+}) => (
+  <div className="flex items-start justify-between gap-4">
+    <div className="min-w-0">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{eyebrow}</p>
+      <h2 className="mt-1 truncate text-lg font-bold tracking-[-0.03em] text-foreground">{title}</h2>
+    </div>
+    {action}
+  </div>
+);
+
+const IconPill = ({ icon: Icon }: { icon: ElementType<{ className?: string }> }) => (
+  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] border border-border/50 bg-white text-muted-foreground shadow-sm dark:border-white/[0.07] dark:bg-white/[0.055]">
+    <Icon className="h-4 w-4" />
+  </span>
+);
+
+type QuickActionButtonProps = {
+  icon: ElementType<{ className?: string }>;
+  label: string;
+  onClick?: () => void;
+};
+
+const QuickActionButton = forwardRef<HTMLButtonElement, QuickActionButtonProps>(({
+  icon: Icon,
+  label,
+  onClick,
+}, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    onClick={onClick}
+    aria-label={label}
+    className="group flex w-[86px] shrink-0 flex-col items-center gap-1.5 rounded-[18px] px-2 py-2 transition-all duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]"
+  >
+    <span className="flex h-12 w-12 items-center justify-center rounded-[20px] border border-border/60 bg-white text-muted-foreground shadow-sm transition-all duration-300 group-hover:text-foreground dark:border-white/[0.07] dark:bg-white/[0.045] dark:group-hover:bg-white/[0.08]">
+      <Icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+    </span>
+    <span className="w-full text-center text-[8px] font-black uppercase leading-tight tracking-[0.1em] text-muted-foreground transition-colors group-hover:text-foreground">
+      {label}
+    </span>
+  </button>
+));
+QuickActionButton.displayName = "QuickActionButton";
+
+const DashboardToolbar = ({
+  today,
+  firstName,
+  openSynapseText,
+  openSynapseVoice,
+}: {
+  today: Date;
+  firstName: string;
+  openSynapseText: () => void;
+  openSynapseVoice: () => void;
+}) => (
+  <div className="relative overflow-hidden rounded-[34px] border border-border/65 bg-card/78 p-4 shadow-[0_24px_74px_-54px_hsl(var(--foreground)/0.76)] ring-1 ring-foreground/[0.025] backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.035] dark:ring-white/[0.035]">
+    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--background)/0.62),transparent_42%),radial-gradient(circle_at_0%_0%,hsl(var(--foreground)/0.045),transparent_34%)]" />
+    <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="min-w-0">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+        {format(today, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+      </p>
+      <h1 className="mt-1 truncate text-2xl font-bold tracking-[-0.04em] text-foreground">Bom dia, {firstName}.</h1>
+    </div>
+
+    <div className="flex max-w-full items-start gap-2 overflow-x-auto rounded-[24px] border border-border/45 bg-white/58 px-3 py-1 shadow-sm backdrop-blur-xl no-scrollbar dark:border-white/[0.055] dark:bg-white/[0.018]">
+      <NewAppointmentModal selectedDate={today}>
+        <QuickActionButton icon={Plus} label="Agendar" />
+      </NewAppointmentModal>
+
+      <NewPatientModal>
+        <QuickActionButton icon={UserPlus} label="Paciente" />
+      </NewPatientModal>
+
+      <NewProntuarioModal>
+        <QuickActionButton icon={FileText} label="Prontuario" />
+      </NewProntuarioModal>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <QuickActionButton icon={MessageSquare} label="Synapse" onClick={openSynapseText} />
+        </TooltipTrigger>
+        <TooltipContent>Synapse texto</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <QuickActionButton icon={Mic} label="Voz" onClick={openSynapseVoice} />
+        </TooltipTrigger>
+        <TooltipContent>Synapse voz</TooltipContent>
+      </Tooltip>
+    </div>
+    </div>
+  </div>
+);
+
+const MetricCard = ({
+  icon,
+  label,
+  value,
+  detail,
+  tone = "default",
+  onClick,
+}: {
+  icon: ElementType<{ className?: string }>;
+  label: string;
+  value: string | number;
+  detail: string;
+  tone?: "default" | "warning" | "success";
+  onClick: () => void;
+}) => {
+  const Icon = icon;
 
   return (
-    <DashboardPanel className="rounded-[42px]" innerClassName="p-8 md:p-10 xl:p-12" delay={60}>
-      <div className="grid gap-10 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-end">
-        <div>
-          <DashboardBadge icon={Sparkles}>Central da Clínica</DashboardBadge>
-          <p className="mt-10 text-[10px] font-black uppercase tracking-[0.35em] text-zinc-400 dark:text-white/35">{greeting}</p>
-          <h1 className="mt-5 max-w-5xl text-[clamp(3rem,6vw,6.2rem)] font-black leading-[0.88] tracking-[-0.075em] text-zinc-950 dark:text-white">
-            {hasAppointments ? `Sua clínica tem ${todayAppointments.length} atendimento${todayAppointments.length > 1 ? "s" : ""} hoje.` : "Sua clínica está livre hoje."}
-          </h1>
-          <p className="mt-7 max-w-3xl text-base font-medium leading-relaxed text-zinc-500 dark:text-white/48 md:text-lg">
-            {nextAppointment
-              ? `Próxima sessão às ${formatAppointmentTime(nextAppointment)}${nextMinutes ? ` (${nextMinutes})` : ""}. ${pendingPatients > 0 ? `${pendingPatients} paciente${pendingPatients > 1 ? "s" : ""} aguardam atenção.` : "Nenhuma pendência crítica de paciente no radar."}`
-              : pendingPatients > 0
-                ? `${pendingPatients} paciente${pendingPatients > 1 ? "s" : ""} aguardam atenção. Use o dia para revisar prontuários, retornos e pendências.`
-                : "Use este espaço para revisar prontuários, planejar cobranças e preparar a semana com o Synapse."}
-          </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Button onClick={() => navigate("/agenda")} className="h-14 rounded-2xl bg-zinc-950 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-black dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100">
-              Abrir agenda <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button onClick={openSynapseText} variant="outline" className="h-14 rounded-2xl border-zinc-200/80 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 dark:hover:bg-white/[0.07]">
-              <MessageSquare className="mr-2 h-4 w-4" /> Perguntar ao Synapse
-            </Button>
-            <Button onClick={openSynapseVoice} variant="outline" className="h-14 rounded-2xl border-zinc-200/80 bg-white/70 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 dark:hover:bg-white/[0.07]">
-              <Mic className="mr-2 h-4 w-4" /> Voz
-            </Button>
-          </div>
-        </div>
-
-        <div className="rounded-[34px] bg-zinc-950 p-6 text-white shadow-[0_34px_110px_-74px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950">
-          <div className="flex items-center justify-between">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 dark:bg-zinc-950/10">
-              <Clock className="h-5 w-5" />
-            </div>
-            <span className="rounded-full border border-white/10 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.2em] opacity-55 dark:border-zinc-950/10">Próxima ação</span>
-          </div>
-          <div className="mt-10">
-            <p className="text-[9px] font-black uppercase tracking-[0.25em] opacity-45">{nextAppointment ? formatAppointmentDate(nextAppointment) : "Sem sessão futura"}</p>
-            <h3 className="mt-3 text-4xl font-black leading-[0.92] tracking-[-0.06em]">{nextAppointment ? getAppointmentDisplayTitle(nextAppointment) || "Paciente Particular" : "Planejar a clínica"}</h3>
-            <p className="mt-4 text-sm font-medium leading-relaxed opacity-62">
-              {nextAppointment ? `Atendimento às ${formatAppointmentTime(nextAppointment)}. Revise o prontuário e prepare a sessão antes de iniciar.` : "Sem compromisso imediato. Uma boa janela para revisar pendências e organizar a semana."}
-            </p>
-          </div>
-          <Button onClick={() => nextAppointment ? navigate("/agenda", { state: { openAppointmentId: nextAppointment.id } }) : openSynapseText()} className="mt-8 h-12 w-full rounded-2xl bg-white text-[10px] font-black uppercase tracking-[0.2em] text-zinc-950 hover:bg-white/90 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900">
-            {nextAppointment ? "Abrir compromisso" : "Gerar briefing"} <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group min-w-0 rounded-[26px] border border-zinc-200/70 bg-white/70 p-4 text-left shadow-sm backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_48px_-38px_rgba(0,0,0,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98] dark:border-white/[0.065] dark:bg-white/[0.032] dark:hover:bg-white/[0.055]",
+        tone === "warning" && "border-amber-500/25 bg-amber-500/[0.06]",
+        tone === "success" && "border-emerald-500/20 bg-emerald-500/[0.055]",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <IconPill icon={Icon} />
+        <ArrowRight className="h-4 w-4 text-muted-foreground/45 transition-transform group-hover:translate-x-0.5" />
       </div>
-    </DashboardPanel>
+      <p className="mt-4 truncate text-3xl font-bold leading-none tracking-[-0.055em] text-foreground">{value}</p>
+      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-muted-foreground/80">{detail}</p>
+    </button>
   );
 };
 
-const AttentionRadar = ({ todayAppointments, upcomingAppointments, pendingPatients, nextAppointment, financialConnected }: { todayAppointments: DashboardAppointment[]; upcomingAppointments: DashboardAppointment[]; pendingPatients: number; nextAppointment?: DashboardAppointment; financialConnected: boolean }) => {
+const MetricsRail = ({
+  todayAppointments,
+  nextAppointment,
+  pendingPatients,
+  financialConnected,
+}: {
+  todayAppointments: Appointment[];
+  nextAppointment?: Appointment;
+  pendingPatients: number;
+  financialConnected: boolean;
+}) => {
   const navigate = useNavigate();
-  const nextTime = nextAppointment ? formatAppointmentTime(nextAppointment) : "—";
+  const remainingToday = todayAppointments.filter((appointment) => new Date(appointment.end_time) > new Date()).length;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-      <RadarMetric icon={CalendarIcon} label="Atendimentos hoje" value={todayAppointments.length} hint="Agenda viva do dia" tone="dark" onClick={() => navigate("/agenda")} />
-      <RadarMetric icon={Clock} label="Próxima sessão" value={nextTime} hint={nextAppointment ? getAppointmentDisplayTitle(nextAppointment) || "Paciente Particular" : "Sem compromisso próximo"} onClick={() => navigate("/agenda")} />
-      <RadarMetric icon={Users} label="Pacientes em atenção" value={pendingPatients} hint="Pendências e convites aguardando resposta" tone={pendingPatients > 0 ? "warning" : "success"} onClick={() => navigate("/pacientes")} />
-      <RadarMetric icon={WalletCards} label="NeuroFinance" value={financialConnected ? "ON" : "OFF"} hint={financialConnected ? "Conta financeira conectada" : "Ative para ver financeiro aqui"} tone={financialConnected ? "success" : "warning"} onClick={() => navigate("/financeiro")} />
-      <RadarMetric icon={BarChart3} label="Semana" value={upcomingAppointments.length} hint="Compromissos ativos nos próximos 7 dias" onClick={() => navigate("/agenda")} />
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <MetricCard icon={CalendarIcon} label="Hoje" value={remainingToday} detail="Atendimentos restantes" onClick={() => navigate("/agenda")} />
+      <MetricCard
+        icon={Clock}
+        label="Proxima"
+        value={nextAppointment ? formatAppointmentTime(nextAppointment) : "-"}
+        detail={nextAppointment ? getAppointmentDisplayTitle(nextAppointment) || "Paciente" : "Sem sessao futura"}
+        onClick={() => navigate("/agenda")}
+      />
+      <MetricCard
+        icon={Users}
+        label="Atencao"
+        value={pendingPatients}
+        detail="Cadastros ou retornos pendentes"
+        tone={pendingPatients > 0 ? "warning" : "success"}
+        onClick={() => navigate("/pacientes")}
+      />
+      <MetricCard
+        icon={WalletCards}
+        label="Financeiro"
+        value={financialConnected ? "ON" : "OFF"}
+        detail={financialConnected ? "Conta conectada" : "Ativacao pendente"}
+        tone={financialConnected ? "success" : "warning"}
+        onClick={() => navigate("/financeiro/neurofinance")}
+      />
     </div>
   );
 };
 
-const TodaySchedule = ({ appointments, isLoading }: { appointments: DashboardAppointment[]; isLoading: boolean }) => {
-  const navigate = useNavigate();
+const AppointmentStatusPill = ({ appointment }: { appointment: Appointment }) => {
+  const status = getAppointmentStatusMeta(appointment.status, appointment.notes);
 
   return (
-    <DashboardPanel className="h-full min-h-[560px]" innerClassName="flex h-full flex-col p-7 md:p-8" delay={150}>
-      <div className="flex items-start justify-between gap-4">
-        <SectionTitle eyebrow="Agenda viva" title="Hoje na clínica" description="Atendimentos, status e ações rápidas do dia." />
-        <Button onClick={() => navigate("/agenda")} variant="outline" className="h-11 shrink-0 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.04]">
-          Agenda <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="mt-8 flex-1 space-y-3 overflow-y-auto pr-1 custom-scrollbar">
-        {isLoading ? (
-          [1, 2, 3, 4].map((item) => <div key={item} className="h-24 animate-pulse rounded-[24px] bg-zinc-100 dark:bg-white/[0.035]" />)
-        ) : appointments.length === 0 ? (
-          <div className="flex h-full min-h-[360px] flex-col items-center justify-center text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"><CalendarIcon className="h-6 w-6" /></div>
-            <h3 className="mt-6 text-2xl font-black tracking-[-0.045em] text-zinc-950 dark:text-white">Nenhum atendimento hoje.</h3>
-            <p className="mt-3 max-w-sm text-sm font-medium leading-relaxed text-zinc-500 dark:text-white/42">Use o dia para organizar prontuários, revisar pacientes e preparar cobranças.</p>
-          </div>
-        ) : (
-          appointments.map((appointment, index) => {
-            const statusMeta = getAppointmentStatusMeta(appointment.status, appointment.notes);
-            return (
-              <motion.button
-                key={appointment.id}
-                type="button"
-                onClick={() => navigate("/agenda", { state: { openAppointmentId: appointment.id } })}
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.04, duration: 0.35 }}
-                className="group flex w-full items-center gap-4 rounded-[26px] border border-zinc-200/70 bg-zinc-50/70 p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_22px_70px_-54px_rgba(24,24,27,0.55)] dark:border-white/[0.07] dark:bg-white/[0.032] dark:hover:bg-white/[0.055]"
-              >
-                <div className="flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-[20px] bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
-                  <span className="text-lg font-black tabular-nums tracking-[-0.04em]">{formatAppointmentTime(appointment)}</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="truncate text-base font-black tracking-[-0.035em] text-zinc-950 dark:text-white">{getAppointmentDisplayTitle(appointment) || "Paciente Particular"}</h4>
-                    <span className={cn("rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em]", statusMeta.bgClass, statusMeta.borderClass, statusMeta.textClass)}>{statusMeta.label}</span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <AppointmentTypeLabel appointment={appointment} />
-                    <span className="rounded-full border border-zinc-200/70 bg-white/60 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/34">{appointment.location || "Local não informado"}</span>
-                  </div>
-                </div>
-                <ChevronRight className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-1 dark:text-white/25" />
-              </motion.button>
-            );
-          })
-        )}
-      </div>
-    </DashboardPanel>
+    <span className={cn("rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em]", status.bgClass, status.borderClass, status.textClass)}>
+      {status.label}
+    </span>
   );
 };
 
-const NextSessionPanel = ({ appointment, isLoading }: { appointment?: DashboardAppointment; isLoading: boolean }) => {
-  const navigate = useNavigate();
-  const minutesUntil = getMinutesUntil(appointment);
+const AppointmentModePill = ({ appointment }: { appointment: Appointment }) => {
+  const online = isOnlineAppointment(appointment);
+  const Icon = online ? Video : Stethoscope;
 
   return (
-    <DashboardPanel className="min-h-[270px]" innerClassName="p-7 md:p-8" delay={190}>
-      <SectionTitle eyebrow="Próxima sessão" title="Preparação imediata" description="O que vem a seguir na rotina clínica." />
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/45 bg-background/45 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+      <Icon className="h-3.5 w-3.5" />
+      {getAppointmentLabel(appointment)}
+    </span>
+  );
+};
+
+const NextSessionPanel = ({
+  appointment,
+  isLoading,
+  reduceMotion,
+}: {
+  appointment?: Appointment;
+  isLoading: boolean;
+  reduceMotion: boolean;
+}) => {
+  const navigate = useNavigate();
+  const minutesUntil = getMinutesUntil(appointment);
+  const online = isOnlineAppointment(appointment);
+
+  return (
+    <DashboardPanel className="min-h-[316px] p-5 lg:p-6" reduceMotion={reduceMotion} delay={0.03}>
+      <SectionHeader eyebrow="Agora" title="Proxima sessao" />
+
       {isLoading ? (
-        <div className="mt-8 h-44 animate-pulse rounded-[28px] bg-zinc-100 dark:bg-white/[0.035]" />
+        <div className="mt-5 h-52 animate-pulse rounded-[20px] bg-muted/40" />
       ) : appointment ? (
-        <div className="mt-8">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-400 dark:text-white/34">{formatAppointmentDate(appointment)}</p>
-              <h3 className="mt-3 text-4xl font-black leading-[0.9] tracking-[-0.06em] text-zinc-950 dark:text-white">{formatAppointmentTime(appointment)}</h3>
+        <div className="mt-5 flex h-[calc(100%-3.25rem)] min-h-[230px] flex-col justify-between gap-5">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <AppointmentStatusPill appointment={appointment} />
+              <AppointmentModePill appointment={appointment} />
+              {minutesUntil ? (
+                <span className="rounded-full border border-border/45 bg-background/45 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                  {minutesUntil}
+                </span>
+              ) : null}
             </div>
-            <AppointmentTypeLabel appointment={appointment} />
+
+            <div className="mt-6 grid gap-5 md:grid-cols-[150px_minmax(0,1fr)] md:items-end">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{formatAppointmentDay(appointment)}</p>
+                <p className="mt-2 text-5xl font-bold leading-none tracking-[-0.06em] text-foreground tabular-nums">{formatAppointmentTime(appointment)}</p>
+              </div>
+              <div className="min-w-0">
+                <h3 className="truncate text-2xl font-bold tracking-[-0.045em] text-foreground">
+                  {getAppointmentDisplayTitle(appointment) || appointment.patient_name || "Paciente"}
+                </h3>
+                <p className="mt-2 line-clamp-2 text-sm font-medium leading-relaxed text-muted-foreground">
+                  {online ? "Sessao online pronta para iniciar pela Teleconsulta." : "Revise o contexto e abra a ficha antes do atendimento."}
+                </p>
+              </div>
+            </div>
           </div>
-          <h4 className="mt-6 text-2xl font-black tracking-[-0.045em] text-zinc-950 dark:text-white">{getAppointmentDisplayTitle(appointment) || "Paciente Particular"}</h4>
-          <p className="mt-3 text-sm font-medium leading-relaxed text-zinc-500 dark:text-white/44">{minutesUntil ? `Começa em ${minutesUntil}. ` : ""}Revise o prontuário, confirme o contexto e abra a sessão quando estiver pronto.</p>
-          <div className="mt-7 grid grid-cols-2 gap-3">
-            <Button onClick={() => navigate("/agenda", { state: { openAppointmentId: appointment.id } })} className="h-12 rounded-2xl bg-zinc-950 text-[9px] font-black uppercase tracking-[0.16em] text-white dark:bg-white dark:text-zinc-950">Abrir agenda</Button>
-            <Button onClick={() => navigate("/pacientes")} variant="outline" className="h-12 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.16em] dark:border-white/10 dark:bg-white/[0.04]">Paciente</Button>
+
+          <div className="flex flex-wrap gap-2">
+            {online ? (
+              <Button
+                className="h-10 rounded-xl px-4 text-xs font-bold"
+                onClick={() => navigate("/teleconsulta", { state: { activeAppointmentId: appointment.id } })}
+              >
+                Entrar
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : null}
+
+            <AppointmentDetailModal appointment={appointment}>
+              <Button variant={online ? "outline" : "default"} className="h-10 rounded-xl px-4 text-xs font-bold">
+                Ficha
+              </Button>
+            </AppointmentDetailModal>
+
+            {appointment.patient_id ? (
+              <Button variant="outline" className="h-10 rounded-xl px-4 text-xs font-bold" onClick={() => navigate(`/pacientes/${appointment.patient_id}`)}>
+                Paciente
+              </Button>
+            ) : null}
+
+            <Button variant="ghost" className="h-10 rounded-xl px-4 text-xs font-bold" onClick={() => navigate("/agenda", { state: { openAppointmentId: appointment.id } })}>
+              Agenda
+            </Button>
           </div>
         </div>
       ) : (
-        <div className="mt-8 rounded-[28px] border border-zinc-200/70 bg-zinc-50/75 p-6 text-center dark:border-white/10 dark:bg-white/[0.035]">
-          <MonitorPlay className="mx-auto h-8 w-8 text-zinc-300 dark:text-white/25" />
-          <h3 className="mt-5 text-xl font-black tracking-[-0.04em] text-zinc-950 dark:text-white">Sem próxima sessão.</h3>
-          <p className="mt-3 text-sm font-medium leading-relaxed text-zinc-500 dark:text-white/42">O dashboard fica pronto para destacar o próximo atendimento assim que houver agendamentos.</p>
+        <div className="mt-5 flex min-h-[230px] flex-col items-center justify-center rounded-[20px] border border-dashed border-border/60 bg-muted/20 p-6 text-center">
+          <Clock className="h-8 w-8 text-muted-foreground/45" />
+          <h3 className="mt-4 text-lg font-bold text-foreground">Sem sessao futura</h3>
+          <p className="mt-2 max-w-sm text-sm font-medium text-muted-foreground">Quando houver agendamento, a proxima acao aparece aqui.</p>
+          <NewAppointmentModal>
+            <Button variant="outline" className="mt-5 h-10 rounded-xl px-4 text-xs font-bold">
+              Agendar sessao
+            </Button>
+          </NewAppointmentModal>
         </div>
       )}
     </DashboardPanel>
   );
 };
 
-const SynapseBriefingPanel = ({ todayAppointments, pendingPatients, financialConnected, openSynapseText, openSynapseVoice }: { todayAppointments: DashboardAppointment[]; pendingPatients: number; financialConnected: boolean; openSynapseText: () => void; openSynapseVoice: () => void }) => {
-  const insights = [
-    todayAppointments.length > 0 ? `${todayAppointments.length} atendimento${todayAppointments.length > 1 ? "s" : ""} no calendário de hoje.` : "Dia sem atendimentos: bom momento para organização clínica.",
-    pendingPatients > 0 ? `${pendingPatients} paciente${pendingPatients > 1 ? "s" : ""} em atenção ou aguardando retorno.` : "Nenhum paciente pendente no radar principal.",
-    financialConnected ? "NeuroFinance conectado para acompanhamento financeiro." : "NeuroFinance ainda não está ativo no dashboard.",
-  ];
+const AppointmentRow = ({ appointment }: { appointment: Appointment }) => {
+  const navigate = useNavigate();
 
   return (
-    <DashboardPanel className="min-h-[270px] bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" innerClassName="p-7 md:p-8" delay={230}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[9px] font-black uppercase tracking-[0.28em] opacity-45">Synapse Briefing</p>
-          <h2 className="mt-3 text-3xl font-black leading-[0.92] tracking-[-0.055em]">Pergunte à sua clínica.</h2>
+    <button
+      type="button"
+      onClick={() => navigate("/agenda", { state: { openAppointmentId: appointment.id } })}
+      className="group flex w-full items-center gap-3 rounded-[18px] border border-border/45 bg-background/35 p-3 text-left transition-all duration-200 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.995]"
+    >
+      <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-xl bg-foreground text-sm font-bold text-background tabular-nums">
+        {formatAppointmentTime(appointment)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <p className="min-w-0 truncate text-sm font-bold tracking-[-0.015em] text-foreground">
+            {getAppointmentDisplayTitle(appointment) || appointment.patient_name || "Paciente"}
+          </p>
+          <AppointmentStatusPill appointment={appointment} />
         </div>
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 dark:bg-zinc-950/10"><Sparkles className="h-5 w-5" /></div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <AppointmentModePill appointment={appointment} />
+          <span className="rounded-full border border-border/45 bg-background/45 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+            {formatAppointmentDay(appointment)}
+          </span>
+        </div>
       </div>
-      <div className="mt-7 space-y-2">
-        {insights.map((insight) => (
-          <div key={insight} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.065] px-4 py-3 text-sm font-semibold leading-relaxed opacity-78 dark:border-zinc-950/10 dark:bg-zinc-950/[0.045]">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-            {insight}
-          </div>
-        ))}
-      </div>
-      <div className="mt-7 grid grid-cols-2 gap-3">
-        <Button onClick={openSynapseText} className="h-12 rounded-2xl bg-white text-[9px] font-black uppercase tracking-[0.16em] text-zinc-950 dark:bg-zinc-950 dark:text-white"><MessageSquare className="mr-2 h-4 w-4" /> Texto</Button>
-        <Button onClick={openSynapseVoice} variant="outline" className="h-12 rounded-2xl border-white/15 bg-white/[0.065] text-[9px] font-black uppercase tracking-[0.16em] text-white hover:bg-white/10 dark:border-zinc-950/10 dark:bg-zinc-950/[0.045] dark:text-zinc-950"><Mic className="mr-2 h-4 w-4" /> Voz</Button>
-      </div>
-    </DashboardPanel>
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/45 transition-transform group-hover:translate-x-0.5" />
+    </button>
   );
 };
 
-const ClinicalPulsePanel = ({ todayAppointments, pendingPatients, weeklyAppointments }: { todayAppointments: DashboardAppointment[]; pendingPatients: number; weeklyAppointments: DashboardAppointment[] }) => {
-  const activePatients = new Set(weeklyAppointments.map((apt) => getAppointmentDisplayTitle(apt) || apt.patient_id || apt.patient?.id).filter(Boolean)).size;
-  const patientsToWatch = [
-    pendingPatients > 0 ? `${pendingPatients} paciente${pendingPatients > 1 ? "s" : ""} com pendência de cadastro ou retorno` : "Nenhuma pendência crítica de cadastro",
-    todayAppointments.length > 0 ? `${todayAppointments.length} sessão${todayAppointments.length > 1 ? "ões" : ""} para preparar hoje` : "Sem sessões para preparar hoje",
-    weeklyAppointments.length > 0 ? `${weeklyAppointments.length} compromisso${weeklyAppointments.length > 1 ? "s" : ""} na semana` : "Semana ainda sem compromissos ativos",
-  ];
+const AgendaPanel = ({
+  todayAppointments,
+  weekAppointments,
+  isLoading,
+  reduceMotion,
+}: {
+  todayAppointments: Appointment[];
+  weekAppointments: Appointment[];
+  isLoading: boolean;
+  reduceMotion: boolean;
+}) => {
+  const navigate = useNavigate();
+  const todayVisible = todayAppointments.slice(0, 6);
+  const weekVisible = weekAppointments.slice(0, 8);
 
   return (
-    <DashboardPanel className="h-full" innerClassName="p-7 md:p-8" delay={280}>
-      <SectionTitle eyebrow="Pulso clínico" title="Continuidade dos pacientes" description="Um resumo da atenção clínica que precisa estar no radar." />
-      <div className="mt-8 grid grid-cols-3 gap-3">
-        <div className="rounded-[24px] bg-zinc-950 p-4 text-white dark:bg-white dark:text-zinc-950">
-          <p className="text-[8px] font-black uppercase tracking-[0.2em] opacity-45">Ativos</p>
-          <p className="mt-4 text-3xl font-black tracking-[-0.06em]">{activePatients}</p>
-        </div>
-        <div className="rounded-[24px] border border-zinc-200/70 bg-zinc-50/75 p-4 dark:border-white/10 dark:bg-white/[0.035]">
-          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-white/34">Hoje</p>
-          <p className="mt-4 text-3xl font-black tracking-[-0.06em] text-zinc-950 dark:text-white">{todayAppointments.length}</p>
-        </div>
-        <div className="rounded-[24px] border border-zinc-200/70 bg-zinc-50/75 p-4 dark:border-white/10 dark:bg-white/[0.035]">
-          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-white/34">Atenção</p>
-          <p className="mt-4 text-3xl font-black tracking-[-0.06em] text-zinc-950 dark:text-white">{pendingPatients}</p>
-        </div>
-      </div>
-      <div className="mt-6 space-y-2">
-        {patientsToWatch.map((item) => (
-          <div key={item} className="flex items-center gap-3 rounded-[20px] border border-zinc-200/70 bg-zinc-50/70 px-4 py-3 text-sm font-semibold text-zinc-600 dark:border-white/10 dark:bg-white/[0.035] dark:text-white/48">
-            <HeartPulse className="h-4 w-4 shrink-0 text-zinc-400 dark:text-white/32" />
-            {item}
-          </div>
-        ))}
-      </div>
-    </DashboardPanel>
-  );
-};
+    <DashboardPanel className="p-5 lg:p-6" reduceMotion={reduceMotion} delay={0.06}>
+      <SectionHeader
+        eyebrow="Agenda"
+        title="Fluxo clinico"
+        action={
+          <Button variant="outline" className="h-9 rounded-xl px-3 text-xs font-bold" onClick={() => navigate("/agenda")}>
+            Abrir
+          </Button>
+        }
+      />
 
-const WorkQueuePanel = ({ items }: { items: ActionItem[] }) => (
-  <DashboardPanel innerClassName="p-7 md:p-8" delay={360}>
-    <div className="flex items-start justify-between gap-4">
-      <SectionTitle eyebrow="Fila de trabalho" title="O que precisa de ação" description="Pendências operacionais organizadas por prioridade." />
-      <ListChecks className="h-6 w-6 text-zinc-300 dark:text-white/24" />
-    </div>
-    <div className="mt-8 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
-      {items.map((item) => (
-        <button
-          key={`${item.priority}-${item.title}`}
-          type="button"
-          onClick={item.onClick}
-          className={cn(
-            "group relative min-h-[210px] overflow-hidden rounded-[28px] border p-5 text-left transition-all duration-300 hover:-translate-y-1 active:scale-[0.99]",
-            item.tone === "dark" ? "border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950" : "border-zinc-200/70 bg-zinc-50/72 text-zinc-950 dark:border-white/10 dark:bg-white/[0.035] dark:text-white",
-            item.tone === "warning" && "border-amber-500/25 bg-amber-50/75 dark:border-amber-300/15 dark:bg-amber-300/[0.055]"
-          )}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl", item.tone === "dark" ? "bg-white/12 dark:bg-zinc-950/10" : "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950")}>
-              <item.icon className="h-5 w-5" />
+      <Tabs defaultValue="today" className="mt-5">
+        <TabsList className="h-10 rounded-xl">
+          <TabsTrigger value="today" className="h-8 rounded-lg px-3 text-xs">
+            Hoje
+          </TabsTrigger>
+          <TabsTrigger value="week" className="h-8 rounded-lg px-3 text-xs">
+            7 dias
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="today" className="mt-4">
+          {isLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="h-20 animate-pulse rounded-[18px] bg-muted/40" />
+              ))}
             </div>
-            <span className={cn("rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.16em]", item.tone === "dark" ? "border-white/10 opacity-55 dark:border-zinc-950/10" : "border-zinc-200 bg-white/70 text-zinc-400 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/32")}>{item.priority}</span>
-          </div>
-          <h3 className="mt-7 text-lg font-black leading-tight tracking-[-0.035em]">{item.title}</h3>
-          <p className={cn("mt-3 text-sm font-medium leading-relaxed", item.tone === "dark" ? "opacity-62" : "text-zinc-500 dark:text-white/42")}>{item.description}</p>
-          <div className={cn("mt-6 flex items-center text-[9px] font-black uppercase tracking-[0.18em]", item.tone === "dark" ? "opacity-70" : "text-zinc-500 dark:text-white/48")}>{item.actionLabel}<ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" /></div>
-        </button>
-      ))}
-    </div>
-  </DashboardPanel>
+          ) : todayVisible.length ? (
+            <div className="space-y-2">
+              {todayVisible.map((appointment) => (
+                <AppointmentRow key={appointment.id} appointment={appointment} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={CalendarIcon} title="Dia livre" description="Nenhum atendimento marcado para hoje." />
+          )}
+        </TabsContent>
+
+        <TabsContent value="week" className="mt-4">
+          {isLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="h-20 animate-pulse rounded-[18px] bg-muted/40" />
+              ))}
+            </div>
+          ) : weekVisible.length ? (
+            <div className="space-y-2">
+              {weekVisible.map((appointment) => (
+                <AppointmentRow key={appointment.id} appointment={appointment} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={CalendarIcon} title="Semana livre" description="Sem compromissos ativos nos proximos 7 dias." />
+          )}
+        </TabsContent>
+      </Tabs>
+    </DashboardPanel>
+  );
+};
+
+const EmptyState = ({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: ElementType<{ className?: string }>;
+  title: string;
+  description: string;
+}) => (
+  <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[20px] border border-dashed border-border/60 bg-muted/20 p-6 text-center">
+    <Icon className="h-8 w-8 text-muted-foreground/45" />
+    <h3 className="mt-4 text-base font-bold text-foreground">{title}</h3>
+    <p className="mt-2 max-w-sm text-sm font-medium text-muted-foreground">{description}</p>
+  </div>
 );
 
-const OperationalTimeline = ({ appointments, isLoading, isExpanded, setExpanded }: { appointments: DashboardAppointment[]; isLoading: boolean; isExpanded: boolean; setExpanded: (value: boolean) => void }) => {
+const QueueIcon = ({ item }: { item: AttentionQueueItem }) => {
+  if (item.source === "patients") return <Users className="h-4 w-4" />;
+  if (item.source === "finance") return <WalletCards className="h-4 w-4" />;
+  if (item.tone === "destructive") return <AlertCircle className="h-4 w-4" />;
+  return <Bell className="h-4 w-4" />;
+};
+
+const AttentionQueuePanel = ({
+  items,
+  isLoading,
+  reduceMotion,
+}: {
+  items: AttentionQueueItem[];
+  isLoading: boolean;
+  reduceMotion: boolean;
+}) => {
   const navigate = useNavigate();
-  const visibleAppointments = isExpanded ? appointments : appointments.slice(0, 4);
 
   return (
-    <DashboardPanel className="min-h-[520px]" innerClassName="p-7 md:p-8" delay={420}>
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <SectionTitle eyebrow="Linha do tempo" title="Fluxo operacional da clínica" description="Agenda, sessões e eventos importantes em ordem cronológica." />
-        {appointments.length > 4 ? (
-          <Button variant="outline" onClick={() => setExpanded(!isExpanded)} className="h-11 rounded-2xl border-zinc-200 bg-white/70 text-[9px] font-black uppercase tracking-[0.18em] dark:border-white/10 dark:bg-white/[0.04]">
-            {isExpanded ? "Recolher" : "Ver tudo"}
-          </Button>
-        ) : null}
-      </div>
+    <DashboardPanel className="p-5 lg:p-6" reduceMotion={reduceMotion} delay={0.09}>
+      <SectionHeader eyebrow="Fila" title="O que exige acao" />
 
-      <div className="space-y-4">
+      <div className="mt-5 space-y-2">
         {isLoading ? (
-          [1, 2, 3, 4].map((item) => <div key={item} className="h-24 animate-pulse rounded-[24px] bg-zinc-100 dark:bg-white/[0.035]" />)
-        ) : visibleAppointments.length === 0 ? (
-          <div className="rounded-[28px] border border-zinc-200/70 bg-zinc-50/70 p-10 text-center dark:border-white/10 dark:bg-white/[0.035]">
-            <CalendarIcon className="mx-auto h-9 w-9 text-zinc-300 dark:text-white/24" />
-            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400 dark:text-white/32">Nenhum evento futuro</p>
-          </div>
+          [1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-[18px] bg-muted/40" />)
+        ) : items.length ? (
+          items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => navigate(item.actionUrl)}
+              className={cn(
+                "flex w-full items-start gap-3 rounded-[18px] border border-border/45 bg-background/35 p-3 text-left transition-all duration-200 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.995]",
+                item.tone === "warning" && "border-amber-500/25 bg-amber-500/[0.055]",
+                item.tone === "destructive" && "border-rose-500/25 bg-rose-500/[0.055]",
+              )}
+            >
+              <span
+                className={cn(
+                  "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/45 bg-card text-muted-foreground",
+                  item.tone === "warning" && "border-amber-500/25 text-amber-600",
+                  item.tone === "destructive" && "border-rose-500/25 text-rose-600",
+                )}
+              >
+                <QueueIcon item={item} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">{item.label}</span>
+                <span className="mt-1 block truncate text-sm font-bold text-foreground">{item.title}</span>
+                <span className="mt-1 line-clamp-2 text-xs font-medium leading-relaxed text-muted-foreground">{item.description}</span>
+              </span>
+              <ArrowRight className="mt-3 h-4 w-4 shrink-0 text-muted-foreground/45" />
+            </button>
+          ))
         ) : (
-          <AnimatePresence mode="popLayout" initial={false}>
-            {visibleAppointments.map((appointment, index) => {
-              const statusMeta = getAppointmentStatusMeta(appointment.status, appointment.notes);
-              return (
-                <motion.button
-                  key={appointment.id}
-                  type="button"
-                  layout
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -12 }}
-                  transition={{ delay: index * 0.04, duration: 0.32 }}
-                  onClick={() => navigate("/agenda", { state: { openAppointmentId: appointment.id } })}
-                  className="group grid w-full grid-cols-[88px_1fr_auto] items-center gap-5 rounded-[26px] border border-zinc-200/70 bg-zinc-50/70 p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:bg-white dark:border-white/[0.07] dark:bg-white/[0.032] dark:hover:bg-white/[0.055]"
-                >
-                  <div className="rounded-[20px] bg-zinc-950 px-3 py-3 text-center text-white dark:bg-white dark:text-zinc-950">
-                    <div className="text-lg font-black tabular-nums tracking-[-0.04em]">{formatAppointmentTime(appointment)}</div>
-                    <div className="mt-1 text-[8px] font-black uppercase tracking-[0.14em] opacity-52">{formatAppointmentDate(appointment)}</div>
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="truncate text-base font-black tracking-[-0.03em] text-zinc-950 dark:text-white">{getAppointmentDisplayTitle(appointment) || "Paciente Particular"}</h4>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <AppointmentTypeLabel appointment={appointment} />
-                      <span className={cn("rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em]", statusMeta.bgClass, statusMeta.borderClass, statusMeta.textClass)}>{statusMeta.label}</span>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-zinc-300 transition-transform group-hover:translate-x-1 dark:text-white/24" />
-                </motion.button>
-              );
-            })}
-          </AnimatePresence>
+          <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[20px] border border-dashed border-border/60 bg-muted/20 p-6 text-center">
+            <CheckCircle2 className="h-8 w-8 text-emerald-500/70" />
+            <h3 className="mt-4 text-base font-bold text-foreground">Tudo em dia</h3>
+            <p className="mt-2 max-w-sm text-sm font-medium text-muted-foreground">Sem pendencias acionaveis no momento.</p>
+          </div>
         )}
       </div>
     </DashboardPanel>
   );
 };
 
-const OperationalHealthPanel = ({ financialConnected, financialLoading, pendingPatients }: { financialConnected: boolean; financialLoading: boolean; pendingPatients: number }) => {
-  const items = [
-    { label: "Agenda", status: "Sincronização ativa", icon: CalendarIcon, good: true },
-    { label: "NeuroFinance", status: financialLoading ? "Verificando" : financialConnected ? "Conectado" : "Aguardando ativação", icon: Landmark, good: financialConnected },
-    { label: "Pacientes", status: pendingPatients > 0 ? `${pendingPatients} pendência${pendingPatients > 1 ? "s" : ""}` : "Sem pendências críticas", icon: Users, good: pendingPatients === 0 },
-    { label: "Segurança", status: "Controles ativos", icon: ShieldCheck, good: true },
-  ];
+const FinancialMetric = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-[20px] border border-zinc-200 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+    <p className="mt-2 truncate text-base font-black tracking-[-0.035em] text-foreground tabular-nums">{value}</p>
+  </div>
+);
+
+const FinancialSignalPanel = ({
+  financialConnected,
+  financialLoading,
+  managerial,
+  neuroSnapshot,
+  managerLoading,
+  snapshotLoading,
+  reduceMotion,
+}: {
+  financialConnected: boolean;
+  financialLoading: boolean;
+  managerial?: { result?: number | null; receivable?: number | null } | null;
+  neuroSnapshot?: { available_balance?: number | null; pending_receivables?: number | null } | null;
+  managerLoading: boolean;
+  snapshotLoading: boolean;
+  reduceMotion: boolean;
+}) => {
+  const navigate = useNavigate();
+  const signal = buildFinancialSignal({ financialConnected, financialLoading, managerial, neuroSnapshot });
+  const loading = managerLoading || financialLoading || (financialConnected && snapshotLoading);
 
   return (
-    <DashboardPanel innerClassName="p-7 md:p-8" delay={460}>
-      <SectionTitle eyebrow="Saúde operacional" title="Status da clínica" description="Integrações, segurança e pontos que podem afetar sua rotina." />
-      <div className="mt-8 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {items.map((item) => (
-          <div key={item.label} className="rounded-[24px] border border-zinc-200/70 bg-zinc-50/70 p-5 dark:border-white/10 dark:bg-white/[0.035]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"><item.icon className="h-4 w-4" /></div>
-              {item.good ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <AlertCircle className="h-4 w-4 text-amber-500" />}
+    <DashboardPanel className="p-5 lg:p-6" reduceMotion={reduceMotion} delay={0.12}>
+      <SectionHeader
+        eyebrow="Financeiro"
+        title="Sinal do consultorio"
+        action={
+          <Button variant="outline" className="h-9 rounded-[14px] px-3 text-xs font-bold" onClick={() => navigate(signal.ctaPath)}>
+            {signal.ctaLabel}
+          </Button>
+        }
+      />
+
+      {loading ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {[1, 2, 3, 4].map((item) => (
+            <div key={item} className="h-20 animate-pulse rounded-[18px] bg-muted/40" />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_132px]">
+          <button
+            type="button"
+            onClick={() => navigate(signal.ctaPath)}
+            className="group relative min-h-[188px] overflow-hidden rounded-[32px] border border-zinc-200 bg-zinc-50 p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] dark:border-white/[0.055] dark:bg-gradient-to-br dark:from-[#1A1A1C] dark:to-[#0D0D0F] dark:shadow-xl"
+          >
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(255,255,255,0.82),transparent_34%),radial-gradient(circle_at_92%_88%,rgba(0,0,0,0.035),transparent_38%)] dark:bg-[radial-gradient(circle_at_16%_12%,rgba(255,255,255,0.095),transparent_36%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent_48%)]" />
+            <div className="relative z-10 flex h-full flex-col justify-between gap-8">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <IconPill icon={WalletCards} />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">Resultado</p>
+                    <p
+                      className={cn(
+                        "mt-1 text-xs font-black uppercase tracking-[0.12em]",
+                        signal.statusTone === "success" && "text-emerald-600 dark:text-emerald-400",
+                        signal.statusTone === "warning" && "text-amber-600 dark:text-amber-400",
+                        signal.statusTone === "default" && "text-muted-foreground",
+                      )}
+                    >
+                      {signal.statusLabel}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground/45 transition-transform group-hover:translate-x-1" />
+              </div>
+
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Gestao do mes</p>
+                <div className="mt-3 flex min-w-0 items-baseline gap-2">
+                  <span className="text-2xl font-light italic text-muted-foreground/70">R$</span>
+                  <p className="truncate text-5xl font-black leading-none tracking-[-0.065em] text-foreground tabular-nums">
+                    {signal.result.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <p className="mt-3 text-xs font-medium text-muted-foreground">Resumo executivo. A operacao detalhada permanece no Financeiro.</p>
+              </div>
             </div>
-            <h3 className="mt-5 text-sm font-black uppercase tracking-[0.12em] text-zinc-950 dark:text-white">{item.label}</h3>
-            <p className="mt-2 text-xs font-semibold leading-relaxed text-zinc-500 dark:text-white/42">{item.status}</p>
+          </button>
+
+          <div className="flex flex-col justify-center gap-2 rounded-[28px] border border-zinc-200/50 bg-zinc-100/50 p-3 backdrop-blur-xl dark:border-white/[0.055] dark:bg-white/[0.045]">
+            <FinancialMetric label="A receber" value={formatCurrency(signal.receivable)} />
+            <FinancialMetric label="Saldo NF" value={formatCentsCurrency(signal.bankBalanceCents)} />
+            <FinancialMetric label="Vai cair" value={formatCentsCurrency(signal.bankPendingCents)} />
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </DashboardPanel>
   );
 };
 
 export const DesktopDashboardCommandCenter = () => {
-  const today = new Date();
-  const navigate = useNavigate();
+  const today = useMemo(() => new Date(), []);
+  const reduceMotion = Boolean(useReducedMotion());
+  const { data: profile } = useProfile();
   const { setShellState, setActiveTab, toggleVoiceMode } = useSynapse();
 
   useGoogleCalendarSync();
 
-  const { data: allUpcomingAppointments, isLoading: loadingApts } = useAppointmentsByDateRange(startOfDay(today), endOfDay(addDays(today, 7)));
+  const { data: allUpcomingAppointments, isLoading: loadingAppointments } = useAppointmentsByDateRange(startOfDay(today), endOfDay(addDays(today, 7)));
   const { data: pendingPatientsRaw } = usePendingPatientsCount();
+  const { notifications, isLoading: notificationsLoading } = useNotifications();
+  const { data: managerial, isLoading: managerLoading } = useDashboardManagerialMetrics();
+  const { data: neuroSnapshot, isLoading: snapshotLoading } = useNeurofinanceSnapshot();
   const { isConnected: financialConnected, isLoading: financialLoading } = useFinancialAccount();
-  const [isTimelineExpanded, setIsTimelineExpanded] = useState(false);
 
   const pendingPatients = Number(pendingPatientsRaw || 0);
-
-  const activeUpcomingAppointments = useMemo(() => {
-    if (!allUpcomingAppointments) return [];
-    return allUpcomingAppointments
-      .filter((apt: DashboardAppointment) => !isCancelledAppointmentStatus(apt.status, apt.notes))
-      .sort((a: DashboardAppointment, b: DashboardAppointment) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-  }, [allUpcomingAppointments]);
-
-  const todayAppointments = useMemo(() => activeUpcomingAppointments.filter((apt: DashboardAppointment) => isSameDay(new Date(apt.start_time), today)), [activeUpcomingAppointments, today]);
-
-  const nextAppointment = useMemo(() => {
-    const now = new Date();
-    return activeUpcomingAppointments.find((apt: DashboardAppointment) => isAfter(new Date(apt.end_time), now));
-  }, [activeUpcomingAppointments]);
+  const activeAppointments = useMemo(() => getActiveAppointments((allUpcomingAppointments || []) as Appointment[]), [allUpcomingAppointments]);
+  const todayAppointments = useMemo(() => getTodayAppointments(activeAppointments, today), [activeAppointments, today]);
+  const nextAppointment = useMemo(() => getNextSession(activeAppointments, new Date()), [activeAppointments]);
+  const attentionItems = useMemo(
+    () =>
+      buildAttentionQueue({
+        notifications,
+        pendingPatients,
+        financialConnected,
+        financialLoading,
+      }),
+    [financialConnected, financialLoading, notifications, pendingPatients],
+  );
 
   const openSynapseText = () => {
     setShellState("compact");
@@ -536,109 +744,51 @@ export const DesktopDashboardCommandCenter = () => {
     toggleVoiceMode();
   };
 
-  const workQueue = useMemo<ActionItem[]>(() => {
-    const items: ActionItem[] = [];
-
-    if (nextAppointment) {
-      items.push({
-        priority: "Agora",
-        title: "Preparar próxima sessão",
-        description: `${getAppointmentDisplayTitle(nextAppointment) || "Paciente Particular"} às ${formatAppointmentTime(nextAppointment)}. Revise o contexto antes do atendimento.`,
-        icon: Clock,
-        actionLabel: "Abrir agenda",
-        tone: "dark",
-        onClick: () => navigate("/agenda", { state: { openAppointmentId: nextAppointment.id } }),
-      });
-    }
-
-    if (pendingPatients > 0) {
-      items.push({
-        priority: "Atenção",
-        title: "Pacientes aguardando ação",
-        description: `${pendingPatients} paciente${pendingPatients > 1 ? "s" : ""} precisam de revisão, cadastro ou retorno.`,
-        icon: Users,
-        actionLabel: "Ver pacientes",
-        tone: "warning",
-        onClick: () => navigate("/pacientes"),
-      });
-    }
-
-    if (!financialConnected) {
-      items.push({
-        priority: "Financeiro",
-        title: "Ativar NeuroFinance",
-        description: "Conecte sua conta financeira para acompanhar cobranças, recebíveis e saques pelo dashboard.",
-        icon: WalletCards,
-        actionLabel: "Abrir financeiro",
-        tone: "warning",
-        onClick: () => navigate("/financeiro"),
-      });
-    }
-
-    if (todayAppointments.length === 0) {
-      items.push({
-        priority: "Planejamento",
-        title: "Organizar prontuários e cobranças",
-        description: "Sem atendimentos hoje. Use o Synapse para gerar um plano de revisão clínica e financeira.",
-        icon: Sparkles,
-        actionLabel: "Falar com Synapse",
-        onClick: openSynapseText,
-      });
-    }
-
-    items.push({
-      priority: "Rotina",
-      title: "Revisar a semana clínica",
-      description: `${activeUpcomingAppointments.length} compromisso${activeUpcomingAppointments.length !== 1 ? "s" : ""} ativo${activeUpcomingAppointments.length !== 1 ? "s" : ""} nos próximos 7 dias.`,
-      icon: CalendarIcon,
-      actionLabel: "Ver agenda",
-      onClick: () => navigate("/agenda"),
-    });
-
-    return items.slice(0, 4);
-  }, [activeUpcomingAppointments.length, financialConnected, navigate, nextAppointment, pendingPatients, todayAppointments.length]);
-
   return (
-    <div className="relative min-h-screen w-full bg-background pb-32 pt-28 font-sans selection:bg-primary/10 selection:text-primary">
-      <main className="relative z-10 mx-auto flex w-full max-w-[2220px] flex-col gap-6 px-5 md:px-8 lg:px-10 xl:px-14">
-        <CommandCenterHero
-          todayAppointments={todayAppointments}
-          pendingPatients={pendingPatients}
-          nextAppointment={nextAppointment}
+    <div className="relative min-h-screen w-full bg-background pb-24 pt-28 font-sans text-foreground selection:bg-primary/10 selection:text-primary">
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_50%_10%,hsl(var(--foreground)/0.035),transparent_34%)] dark:bg-[radial-gradient(circle_at_50%_10%,hsl(var(--foreground)/0.045),transparent_34%)]" />
+      <main className="page-spacing relative z-10 flex w-full max-w-[2200px] flex-col gap-4 px-6 md:px-8 lg:px-12 xl:px-16">
+        <div className="relative overflow-hidden rounded-[34px] border border-border/45 bg-card/42 p-3 shadow-[0_22px_90px_-76px_hsl(var(--foreground)/0.7)] backdrop-blur-sm dark:border-white/[0.04] dark:bg-white/[0.02] md:p-4">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,hsl(var(--foreground)/0.04),transparent_30%),linear-gradient(180deg,hsl(var(--background)/0.16),transparent_42%)]" />
+          <div className="relative z-10 flex flex-col gap-4">
+        <DashboardToolbar
+          today={today}
+          firstName={getFirstName(profile)}
           openSynapseText={openSynapseText}
           openSynapseVoice={openSynapseVoice}
         />
 
-        <AttentionRadar
+        <MetricsRail
           todayAppointments={todayAppointments}
-          upcomingAppointments={activeUpcomingAppointments}
-          pendingPatients={pendingPatients}
           nextAppointment={nextAppointment}
+          pendingPatients={pendingPatients}
           financialConnected={financialConnected}
         />
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.75fr)]">
-          <TodaySchedule appointments={todayAppointments} isLoading={loadingApts} />
-          <div className="grid gap-6">
-            <NextSessionPanel appointment={nextAppointment} isLoading={loadingApts} />
-            <SynapseBriefingPanel
-              todayAppointments={todayAppointments}
-              pendingPatients={pendingPatients}
-              financialConnected={financialConnected}
-              openSynapseText={openSynapseText}
-              openSynapseVoice={openSynapseVoice}
-            />
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.78fr)]">
+          <NextSessionPanel appointment={nextAppointment} isLoading={loadingAppointments} reduceMotion={reduceMotion} />
+          <AttentionQueuePanel items={attentionItems} isLoading={notificationsLoading} reduceMotion={reduceMotion} />
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(380px,0.72fr)]">
+          <AgendaPanel
+            todayAppointments={todayAppointments}
+            weekAppointments={activeAppointments}
+            isLoading={loadingAppointments}
+            reduceMotion={reduceMotion}
+          />
+          <FinancialSignalPanel
+            financialConnected={financialConnected}
+            financialLoading={financialLoading}
+            managerial={managerial}
+            neuroSnapshot={neuroSnapshot}
+            managerLoading={managerLoading}
+            snapshotLoading={snapshotLoading}
+            reduceMotion={reduceMotion}
+          />
+        </div>
           </div>
         </div>
-
-        <div className="grid gap-6 xl:grid-cols-2">
-          <ClinicalPulsePanel todayAppointments={todayAppointments} pendingPatients={pendingPatients} weeklyAppointments={activeUpcomingAppointments} />
-          <FinancialPulsePanel />
-        </div>
-
-        <WorkQueuePanel items={workQueue} />
-        <OperationalTimeline appointments={activeUpcomingAppointments} isLoading={loadingApts} isExpanded={isTimelineExpanded} setExpanded={setIsTimelineExpanded} />
-        <OperationalHealthPanel financialConnected={financialConnected} financialLoading={financialLoading} pendingPatients={pendingPatients} />
       </main>
     </div>
   );
