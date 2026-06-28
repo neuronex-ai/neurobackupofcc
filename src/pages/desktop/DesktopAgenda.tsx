@@ -117,8 +117,8 @@ export default function DesktopAgenda() {
     return (
         <div className="relative flex h-screen w-full flex-col overflow-hidden bg-transparent pt-10 font-sans text-foreground selection:bg-primary/10 selection:text-primary">
             <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 px-4 pb-4 md:px-6 lg:px-8 xl:px-10">
-                <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-[40px] border border-zinc-200/60 bg-white/58 p-2 shadow-[0_22px_72px_-52px_rgba(24,24,27,0.34),inset_0_1px_0_rgba(255,255,255,0.82)] backdrop-blur-2xl dark:border-white/[0.05] dark:bg-[#0A0A0B]/88 dark:shadow-[0_28px_90px_-58px_rgba(0,0,0,0.96),inset_0_1px_0_rgba(255,255,255,0.04)] md:p-3">
-                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.22),transparent_28%)] opacity-60 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.012),transparent_32%)] dark:opacity-100" />
+                <div className="relative flex min-h-0 flex-1 overflow-hidden rounded-[40px] border border-border/45 bg-card/42 p-2 shadow-[0_22px_90px_-76px_hsl(var(--foreground)/0.5)] backdrop-blur-sm dark:border-white/[0.04] dark:bg-white/[0.02] dark:shadow-[0_22px_70px_-60px_rgba(0,0,0,0.86)] md:p-3">
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_0%,hsl(var(--foreground)/0.012),transparent_32%),linear-gradient(180deg,hsl(var(--background)/0.06),transparent_42%)] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.006),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.006),transparent_42%)]" />
                 <AnimatePresence>
                     {sidebarOpen && (
                         <>
@@ -131,7 +131,7 @@ export default function DesktopAgenda() {
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.16 }}
                                 onClick={() => setSidebarOpen(false)}
-                                className="absolute inset-0 z-30 hidden cursor-default bg-zinc-950/[0.015] dark:bg-black/10 xl:block"
+                                className="absolute inset-0 z-30 hidden cursor-default bg-zinc-950/[0.018] backdrop-blur-[1px] dark:bg-black/20 xl:block"
                             />
                             <motion.aside
                                 key="sidebar"
@@ -141,8 +141,8 @@ export default function DesktopAgenda() {
                                 transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.8 }}
                                 className="absolute inset-y-3 left-3 z-40 hidden w-[318px] flex-col overflow-hidden xl:flex"
                             >
-                                <div className="relative h-full w-full rounded-[36px] border border-zinc-200/60 bg-white/74 p-2 shadow-[0_26px_80px_-42px_rgba(24,24,27,0.42)] backdrop-blur-2xl dark:border-white/[0.065] dark:bg-[#101012]/86 dark:shadow-[0_28px_82px_-48px_rgba(0,0,0,0.95)]">
-                                    <div className="pointer-events-none absolute inset-0 rounded-[36px] bg-[linear-gradient(145deg,rgba(255,255,255,0.48),transparent_36%)] dark:bg-[linear-gradient(145deg,rgba(255,255,255,0.035),transparent_38%)]" />
+                                <div className="relative h-full w-full rounded-[34px] border border-zinc-200/70 bg-white/84 p-2 shadow-[0_30px_90px_-46px_rgba(24,24,27,0.44),inset_0_1px_0_rgba(255,255,255,0.86)] backdrop-blur-3xl dark:border-white/[0.075] dark:bg-[#070708]/94 dark:shadow-[0_32px_94px_-50px_rgba(0,0,0,0.98),inset_0_1px_0_rgba(255,255,255,0.038)]">
+                                    <div className="pointer-events-none absolute inset-0 rounded-[34px] bg-[linear-gradient(145deg,rgba(255,255,255,0.54),transparent_38%),radial-gradient(circle_at_0%_0%,rgba(24,24,27,0.035),transparent_36%)] dark:bg-[linear-gradient(145deg,rgba(255,255,255,0.04),transparent_40%),radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.028),transparent_36%)]" />
                                     <div className="relative z-10 h-full">
                                         <Sidebar
                                             selectedDate={selectedDate}
@@ -162,8 +162,8 @@ export default function DesktopAgenda() {
                 </AnimatePresence>
 
                 <main className="relative z-10 flex h-full min-w-0 flex-1 flex-col" data-synapse-target="daily-schedule">
-                    <div className="relative flex-1 overflow-hidden rounded-[34px] border border-zinc-200/65 bg-zinc-50/68 shadow-[0_18px_58px_-42px_rgba(24,24,27,0.32)] ring-1 ring-zinc-950/[0.022] dark:border-white/[0.055] dark:bg-[#0B0B0C] dark:shadow-[0_24px_68px_-54px_rgba(0,0,0,0.9)] dark:ring-white/[0.018]">
-                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(24,24,27,0.018),transparent_34%),radial-gradient(circle_at_92%_88%,rgba(24,24,27,0.012),transparent_38%)] dark:bg-[radial-gradient(circle_at_18%_10%,rgba(255,255,255,0.018),transparent_34%),radial-gradient(circle_at_92%_88%,rgba(255,255,255,0.008),transparent_38%)]" />
+                    <div className="relative flex-1 overflow-hidden rounded-[34px] border border-zinc-200/70 bg-white/72 shadow-[0_20px_64px_-48px_rgba(24,24,27,0.36),inset_0_1px_0_rgba(255,255,255,0.82)] ring-1 ring-zinc-950/[0.024] dark:border-white/[0.055] dark:bg-[#050506] dark:shadow-[0_26px_72px_-58px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.028)] dark:ring-white/[0.018]">
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,rgba(24,24,27,0.02),transparent_34%),radial-gradient(circle_at_92%_88%,rgba(24,24,27,0.012),transparent_38%)] dark:bg-[radial-gradient(circle_at_18%_10%,rgba(255,255,255,0.014),transparent_34%),radial-gradient(circle_at_92%_88%,rgba(255,255,255,0.004),transparent_38%)]" />
                         <CalendarView
                             date={selectedDate}
                             onDateChange={setSelectedDate}
