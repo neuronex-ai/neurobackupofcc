@@ -796,26 +796,6 @@
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02));
   }
 
-  .dashboard-schedule-now-marker {
-    position: absolute;
-    left: 20px;
-    bottom: 12px;
-    width: 12px;
-    height: 12px;
-    border-radius: 999px;
-    background: hsl(var(--foreground));
-    box-shadow:
-      0 0 0 7px hsl(var(--foreground) / 0.065),
-      0 14px 32px -14px hsl(var(--foreground) / 0.7);
-  }
-
-  .dark .dashboard-schedule-now-marker {
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow:
-      0 0 0 7px rgba(255, 255, 255, 0.055),
-      0 14px 32px -14px rgba(255, 255, 255, 0.48);
-  }
-
   @media (hover: hover) {
     .desktop-tactile:hover:not(:disabled) {
       transform: translateY(-1px);
@@ -846,8 +826,7 @@
     .notes-retina-texture,
     .notes-neuroview-backdrop,
     .dashboard-schedule-orbit,
-    .dashboard-schedule-scan,
-    .dashboard-schedule-now-marker {
+    .dashboard-schedule-scan {
       animation: none !important;
       transition: none !important;
     }

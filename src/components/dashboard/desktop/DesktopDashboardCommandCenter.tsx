@@ -423,6 +423,17 @@ const AppointmentScheduleArtifact = ({
   const online = nextAppointment && isSession ? isOnlineAppointment(nextAppointment) : false;
   const scheduleTitle = getScheduleTitle(nextAppointment);
   const scheduleModeLabel = getScheduleModeLabel(nextAppointment);
+  const scheduleMetadata = nextAppointment ? getAppointmentMetadata(nextAppointment) : null;
+  const scheduleLocation = scheduleMetadata?.eventLocation || nextAppointment?.location || "";
+  const scheduleNotes = scheduleMetadata?.eventNotes?.replace(/\s+/g, " ").trim() || "";
+  const scheduleContext =
+    scheduleKind === "event" || scheduleKind === "block"
+      ? [scheduleMetadata?.eventCategoryLabel, scheduleLocation].filter(Boolean).join(" · ") ||
+        scheduleNotes ||
+        "Revisar detalhes do compromisso."
+      : nextAppointment
+        ? getSchedulePrompt(nextAppointment, summaryOpen)
+        : "";
 
   const handleToggle = () => {
     if (!isLoading && nextAppointment) {
@@ -503,11 +514,6 @@ const AppointmentScheduleArtifact = ({
             transition={{ duration: 5.8, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.2 }}
           />
           <span className="dashboard-schedule-time-rail" />
-          <motion.span
-            className="dashboard-schedule-now-marker"
-            animate={prefersReducedMotion ? undefined : { scale: [1, 1.18, 1], opacity: [0.72, 1, 0.72] }}
-            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
-          />
         </div>
 
         <div className={cn("relative z-10 grid h-full min-h-0", summaryOpen ? "grid-rows-[auto_minmax(0,1fr)] gap-2" : "grid-rows-[auto_minmax(0,1fr)_auto] gap-3")}>
@@ -547,8 +553,7 @@ const AppointmentScheduleArtifact = ({
                 </div>
                 <h3 className={cn("truncate font-black leading-[1.02] tracking-[-0.055em] transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-1.5 text-base" : "mt-2 text-lg")}>{scheduleTitle}</h3>
                 <p className={cn("line-clamp-1 font-medium leading-snug text-muted-foreground transition-all duration-300 motion-reduce:transition-none", summaryOpen ? "mt-0 opacity-0 [font-size:0]" : "mt-1.5 text-xs opacity-100")}>
-                  <span className="text-xs">{getSchedulePrompt(nextAppointment, summaryOpen)}</span>
-                  {summaryOpen ? "Resumo clínico aberto abaixo." : online ? "Teleconsulta pronta para entrada direta." : "Clique para preparar a sessão."}
+                  {summaryOpen ? "Resumo clínico aberto abaixo." : scheduleContext}
                 </p>
               </div>
 
