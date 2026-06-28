@@ -15,8 +15,6 @@ import {
   CheckCircle2,
   Clock,
   FileText,
-  MessageSquare,
-  Mic,
   Plus,
   Save,
   Stethoscope,
@@ -29,6 +27,7 @@ import {
 import { AppointmentDetailModal } from "@/components/agenda/AppointmentDetailModal";
 import { NewAppointmentModal } from "@/components/agenda/NewAppointmentModal";
 import { NewPatientModal } from "@/components/patients/NewPatientModal";
+import { SynapseOrbAvatar } from "@/components/synapse/SynapseOrbAvatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -235,9 +234,9 @@ const ClinicalPrepMetric = ({
   value: string | number;
   detail: string;
 }) => (
-  <div className="rounded-[24px] border border-background/12 bg-background/10 p-4 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+  <div className="rounded-[22px] border border-background/12 bg-background/10 p-3 shadow-[inset_0_1px_0_hsl(var(--background)/0.12)] transition-transform duration-300 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
     <p className="text-[9px] font-black uppercase tracking-[0.16em] text-background/48">{label}</p>
-    <p className="mt-2 truncate text-xl font-black tracking-[-0.04em] text-background">{value}</p>
+    <p className="mt-1.5 truncate text-lg font-black tracking-[-0.04em] text-background">{value}</p>
     <p className="mt-1 truncate text-xs font-semibold text-background/58">{detail}</p>
   </div>
 );
@@ -374,7 +373,7 @@ const AppointmentScheduleArtifact = ({
           nextAppointment && "cursor-pointer",
           summaryOpen
             ? "top-4 h-[124px] shadow-[0_18px_54px_-42px_rgba(0,0,0,0.74)] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)]"
-            : "top-8 h-[184px] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)] hover:shadow-[0_28px_72px_-44px_rgba(0,0,0,0.9)] hover:[transform:translateY(-4px)_rotateX(1.4deg)_rotateY(-0.8deg)]",
+            : "top-5 h-[222px] [transform:translateY(0)_rotateX(0deg)_rotateY(0deg)] hover:shadow-[0_28px_72px_-44px_rgba(0,0,0,0.9)] hover:[transform:translateY(-4px)_rotateX(1.4deg)_rotateY(-0.8deg)]",
         )}
       >
         <div className="pointer-events-none absolute inset-0 rounded-[32px] bg-[radial-gradient(circle_at_18%_0%,hsl(var(--foreground)/0.05),transparent_34%),linear-gradient(135deg,hsl(var(--foreground)/0.03),transparent_42%)] dark:bg-[radial-gradient(circle_at_18%_0%,rgba(255,255,255,0.018),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.012),transparent_42%)]" />
@@ -404,7 +403,7 @@ const AppointmentScheduleArtifact = ({
             </div>
           ) : nextAppointment ? (
             <>
-              <div className={cn("transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-3" : "mt-6")}>
+              <div className={cn("transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-2" : "mt-4")}>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{formatAppointmentDay(nextAppointment)}</p>
                 <div className="mt-2 flex items-end justify-between gap-4">
                   <p className={cn("font-black leading-none tracking-[-0.075em] tabular-nums transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "text-4xl" : "text-5xl lg:text-6xl")}>
@@ -412,16 +411,16 @@ const AppointmentScheduleArtifact = ({
                   </p>
                   <ChevronDown className={cn("mb-1 h-5 w-5 text-muted-foreground transition-transform duration-300 motion-reduce:transition-none", summaryOpen && "rotate-180")} />
                 </div>
-                <h3 className={cn("truncate font-black leading-none tracking-[-0.055em] transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-2 text-lg" : "mt-4 text-2xl")}>{patientName}</h3>
-                <p className={cn("line-clamp-2 font-medium leading-relaxed text-muted-foreground transition-all duration-300 motion-reduce:transition-none", summaryOpen ? "mt-1 text-xs opacity-0" : "mt-3 text-sm opacity-100")}>
+                <h3 className={cn("truncate font-black leading-none tracking-[-0.055em] transition-all duration-500 motion-reduce:transition-none", summaryOpen ? "mt-2 text-lg" : "mt-3 text-xl")}>{patientName}</h3>
+                <p className={cn("line-clamp-1 font-medium leading-relaxed text-muted-foreground transition-all duration-300 motion-reduce:transition-none", summaryOpen ? "mt-0 text-xs opacity-0" : "mt-2 text-xs opacity-100")}>
                   {summaryOpen ? "Resumo clínico aberto abaixo." : online ? "Teleconsulta pronta para entrada direta." : "Clique para preparar a sessão."}
                 </p>
               </div>
 
-              <div className={cn("grid gap-2 transition-all duration-300 sm:grid-cols-3 motion-reduce:transition-none", summaryOpen ? "pointer-events-none mt-0 max-h-0 opacity-0" : "mt-4 max-h-12 opacity-100")} onClick={(event) => event.stopPropagation()}>
+              <div className={cn("grid gap-2 transition-all duration-300 sm:grid-cols-3 motion-reduce:transition-none", summaryOpen ? "pointer-events-none mt-0 max-h-0 opacity-0" : "mt-3 max-h-10 opacity-100")} onClick={(event) => event.stopPropagation()}>
                 {online ? (
                   <Button
-                    className="h-10 rounded-[15px] bg-foreground px-4 text-[9px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950"
+                    className="h-9 rounded-[14px] bg-foreground px-3 text-[8px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950"
                     onClick={() => navigate("/teleconsulta", { state: { activeAppointmentId: nextAppointment.id } })}
                   >
                     Entrar
@@ -429,13 +428,13 @@ const AppointmentScheduleArtifact = ({
                   </Button>
                 ) : null}
                 <AppointmentDetailModal appointment={nextAppointment}>
-                  <Button variant="outline" className="h-10 rounded-[15px] px-4 text-[9px] font-black uppercase tracking-[0.16em]">
+                  <Button variant="outline" className="h-9 rounded-[14px] px-3 text-[8px] font-black uppercase tracking-[0.16em]">
                     Ficha
                   </Button>
                 </AppointmentDetailModal>
                 <Button
                   variant="outline"
-                  className="h-10 rounded-[15px] px-4 text-[9px] font-black uppercase tracking-[0.16em]"
+                  className="h-9 rounded-[14px] px-3 text-[8px] font-black uppercase tracking-[0.16em]"
                   onClick={() => navigate("/agenda", { state: { openAppointmentId: nextAppointment.id } })}
                 >
                   Abrir
@@ -443,12 +442,12 @@ const AppointmentScheduleArtifact = ({
               </div>
             </>
           ) : (
-            <div className="mt-8">
-              <p className="text-4xl font-black leading-none tracking-[-0.065em]">Dia livre</p>
-              <p className="mt-3 text-sm font-medium leading-relaxed text-muted-foreground">Crie um horário ou abra a agenda para organizar a próxima sessão.</p>
-              <div className="mt-6" onClick={(event) => event.stopPropagation()}>
+            <div className="mt-5">
+              <p className="text-3xl font-black leading-none tracking-[-0.065em]">Dia livre</p>
+              <p className="mt-2 line-clamp-2 text-xs font-medium leading-relaxed text-muted-foreground">Crie um horário ou abra a agenda para organizar a próxima sessão.</p>
+              <div className="mt-4" onClick={(event) => event.stopPropagation()}>
                 <NewAppointmentModal selectedDate={today}>
-                  <Button className="h-11 rounded-[16px] bg-foreground px-5 text-[10px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950">
+                  <Button className="h-9 rounded-[14px] bg-foreground px-4 text-[9px] font-black uppercase tracking-[0.16em] text-background hover:bg-foreground/90 dark:bg-white dark:text-zinc-950">
                     Agendar
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -499,14 +498,14 @@ const MorningCommandPanel = ({
   }, [nextAppointment?.id]);
 
   return (
-    <DesktopWorkspacePanel highContrast className="min-h-[376px] p-0">
-      <div className="grid min-h-[376px] lg:grid-cols-[minmax(0,1.22fr)_minmax(390px,0.78fr)]">
-        <div className="flex min-h-[376px] flex-col justify-between gap-8 p-6 lg:p-8">
+    <DesktopWorkspacePanel highContrast className="min-h-[264px] p-0">
+      <div className="grid min-h-[264px] lg:grid-cols-[minmax(0,1.22fr)_minmax(390px,0.78fr)]">
+        <div className="flex min-h-[264px] flex-col justify-between gap-5 p-6 lg:px-8 lg:py-6">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-background/52">
               {format(today, "EEEE, dd 'de' MMMM", { locale: ptBR })}
             </p>
-            <h1 className="mt-4 max-w-2xl text-4xl font-black leading-[0.92] tracking-[-0.065em] text-background lg:text-6xl">
+            <h1 className="mt-3 max-w-2xl text-4xl font-black leading-[0.92] tracking-[-0.065em] text-background lg:text-5xl">
               Bom dia, {firstName}.
             </h1>
           </div>
@@ -1075,7 +1074,7 @@ export const DesktopDashboardCommandCenter = () => {
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_50%_10%,hsl(var(--foreground)/0.008),transparent_34%)] dark:bg-[radial-gradient(circle_at_50%_10%,rgba(255,255,255,0.003),transparent_34%)]" />
       <main className="page-spacing relative z-10 flex w-full max-w-[2200px] flex-col gap-4 px-6 md:px-8 lg:px-12 xl:px-16">
         <DesktopWorkspaceShell>
-          <div className="grid gap-4 xl:grid-cols-[104px_minmax(0,1fr)]">
+          <div className="grid items-start gap-4 xl:grid-cols-[104px_minmax(0,1fr)]">
             <ActionSidebar today={today} openSynapseText={openSynapseText} openSynapseVoice={openSynapseVoice} />
             <MorningCommandPanel
               today={today}
