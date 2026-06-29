@@ -239,6 +239,16 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/patient-portal-current/index.ts"
 
+[functions.public-anamnesis]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/public-anamnesis/index.ts"
+
+[functions.public-appointment-notification]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/public-appointment-notification/index.ts"
+
 [functions.verify-checkout-session]
 enabled = true
 verify_jwt = false

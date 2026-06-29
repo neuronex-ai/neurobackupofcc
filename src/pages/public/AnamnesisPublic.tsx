@@ -14,6 +14,13 @@ interface ExtractedItem {
     isSection?: boolean;
 }
 
+interface PublicAnamnesisResponse {
+    anamnesis?: {
+        patient_name?: string;
+        content?: unknown;
+    };
+}
+
 export default function AnamnesisPublic() {
     const { id } = useParams<{ id: string }>();
     const [token, setToken] = useState("");
@@ -25,10 +32,13 @@ export default function AnamnesisPublic() {
 
     const emitProgressNotification = async (progressValue: number) => {
         if (!id) throw new Error("Anamnese não identificada.");
-        const { error } = await (supabase.rpc as any)('emit_public_anamnesis_notification', {
-            p_anamnesis_id: id,
-            p_token: token,
-            p_progress: progressValue,
+        const { error } = await supabase.functions.invoke('public-anamnesis', {
+            body: {
+                action: 'notify',
+                id,
+                token,
+                progress: progressValue,
+            },
         });
         if (error) throw error;
     };
@@ -41,15 +51,20 @@ export default function AnamnesisPublic() {
         setStatus('verifying');
 
         try {
-            const { data: result, error } = await supabase.rpc('get_public_anamnesis', {
-                p_id: id,
-                p_token: token
+            const { data: result, error } = await supabase.functions.invoke<PublicAnamnesisResponse>('public-anamnesis', {
+                body: {
+                    action: 'get',
+                    id,
+                    token,
+                },
             });
 
             if (error) throw error;
             if (!result) throw new Error("Acesso inválido.");
 
-            const record = result as any;
+            if (!result?.anamnesis) throw new Error("Acesso invalido.");
+
+            const record = result.anamnesis as any;
             if (record.patient_name) setPatientName(record.patient_name);
 
             let items: ExtractedItem[] = [];
@@ -91,10 +106,13 @@ export default function AnamnesisPublic() {
 
     const persistContent = async () => {
         if (!id) throw new Error("Anamnese não identificada.");
-        const { error } = await supabase.rpc('update_public_anamnesis', {
-            p_id: id,
-            p_token: token,
-            p_content: data
+        const { error } = await supabase.functions.invoke('public-anamnesis', {
+            body: {
+                action: 'update',
+                id,
+                token,
+                content: data,
+            },
         });
         if (error) throw error;
     };

@@ -71,12 +71,14 @@ export default function SecureConfirmAppointment() {
     currentAppointment: PublicAppointment,
     event: PublicAppointmentEvent,
   ) => {
-    const { error } = await (supabase.rpc as any)(
-      'emit_public_appointment_notification',
+    const { error } = await supabase.functions.invoke(
+      'public-appointment-notification',
       {
-        p_appointment_id: currentAppointment.id,
-        p_token: currentAppointment.token,
-        p_event: event,
+        body: {
+          appointmentId: currentAppointment.id,
+          token: currentAppointment.token,
+          event,
+        },
       },
     );
     if (error) throw error;
