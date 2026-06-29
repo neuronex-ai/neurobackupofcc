@@ -231,11 +231,29 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
         if (!editingFlow) return;
 
         try {
+            const nextPatientId = selectedPatient === "none" ? null : selectedPatient;
+            const existingWorkflow = parseStoredNeuroFlowWorkflow(editingFlow.workflow) || emptyNeuroFlowWorkflow({
+                title: editingFlow.title,
+                patientId: editingFlow.patient_id,
+                ownerScope: editingFlow.patient_id ? 'patient' : 'none',
+            });
+            const nextWorkflow = {
+                ...existingWorkflow,
+                metadata: {
+                    ...existingWorkflow.metadata,
+                    title: newTitle,
+                    patientId: nextPatientId,
+                    ownerScope: nextPatientId ? 'patient' : 'none',
+                    updatedAt: new Date().toISOString(),
+                },
+            };
+
             const { error } = await supabase
                 .from('neuro_flows')
                 .update({
                     title: newTitle,
-                    patient_id: selectedPatient === "none" ? null : selectedPatient,
+                    patient_id: nextPatientId,
+                    workflow: nextWorkflow,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', editingFlow.id);
@@ -276,17 +294,17 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
 
             <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 z-10">
                 <div className="shrink-0 space-y-2">
-                    <h1 className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-3xl font-black uppercase leading-none tracking-tight text-transparent lg:text-4xl [.light_&]:bg-zinc-900">NeuroFlow</h1>
+                    <h1 className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-3xl font-black uppercase leading-none tracking-tight text-transparent lg:text-4xl [.light_&]:bg-zinc-900">NeuroFlow Studio</h1>
                     <div className="flex items-center gap-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-300 [.light_&]:text-zinc-500">Conecte ideias. Expanda Synapses.</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-300 [.light_&]:text-zinc-500">Mapeamentos clínicos, hipóteses e artefatos conectados.</p>
                     </div>
                 </div>
 
                 <div className="flex flex-col md:flex-row items-center gap-4 w-full max-w-4xl">
                     <div className="relative flex-1 w-full">
                         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45 [.light_&]:text-zinc-700" />
-                        <Input
-                            placeholder="Pesquisar em sua rede neural..."
+                            <Input
+                            placeholder="Pesquisar fluxos, pacientes ou tags..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="h-14 w-full rounded-[22px] border-white/5 bg-white/[0.03] pl-11 text-sm text-white placeholder:text-white/28 backdrop-blur-md transition-all focus-visible:ring-1 focus-visible:ring-primary/20 [.light_&]:border-zinc-200 [.light_&]:bg-zinc-100 [.light_&]:text-zinc-900 [.light_&]:placeholder:text-zinc-400"
@@ -298,7 +316,7 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
                         className="h-14 w-full rounded-[22px] bg-white px-10 text-[11px] font-black uppercase tracking-tight text-black shadow-[0_10px_30px_rgba(255,255,255,0.1)] transition-all hover:bg-zinc-200 md:w-auto [.light_&]:bg-zinc-900 [.light_&]:text-white [.light_&]:shadow-[0_10px_30px_rgba(0,0,0,0.1)] [.light_&]:hover:bg-zinc-800"
                     >
                         <Plus size={18} className="mr-2" strokeWidth={3} />
-                        Novo Fluxo
+                        Novo Studio
                     </Button>
                 </div>
             </div>
@@ -322,8 +340,8 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
                                 <Brain size={32} strokeWidth={1.5} />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-sm font-black uppercase tracking-tighter text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">Ideação Neural</h3>
-                                <p className="text-[8px] text-zinc-300 dark:text-zinc-800 font-black uppercase tracking-[0.2em]">Ponto de Partida</p>
+                                <h3 className="text-sm font-black uppercase tracking-tighter text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">Novo Mapeamento</h3>
+                                <p className="text-[8px] text-zinc-300 dark:text-zinc-800 font-black uppercase tracking-[0.2em]">Canvas Clínico</p>
                             </div>
                         </motion.button>
 

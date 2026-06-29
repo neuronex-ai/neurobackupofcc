@@ -51,29 +51,9 @@ export interface NeuroFlowWorkflow {
     patientId?: string | null;
     ownerScope?: 'patient' | 'professional' | 'none';
     updatedAt?: string;
-    migratedFrom?: 'workflow' | 'neuro_flows_json' | 'flow_tables';
     [key: string]: unknown;
   };
   links: NeuroFlowWorkflowLink[];
-}
-
-export interface LegacyFlowTables {
-  nodes?: Array<{
-    id: string;
-    type?: string | null;
-    x?: number | null;
-    y?: number | null;
-    label?: string | null;
-    content?: Record<string, unknown> | null;
-  }> | null;
-  edges?: Array<{
-    id: string;
-    source_id?: string | null;
-    target_id?: string | null;
-    source_handle?: string | null;
-    target_handle?: string | null;
-    type?: string | null;
-  }> | null;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -211,62 +191,6 @@ export const parseStoredNeuroFlowWorkflow = (value: unknown): NeuroFlowWorkflow 
     viewport: isRecord(value.viewport) ? value.viewport : {},
     metadata: isRecord(value.metadata) ? value.metadata : {},
     links: Array.isArray(value.links) ? value.links as NeuroFlowWorkflowLink[] : [],
-  });
-};
-
-export const workflowFromLegacyJson = ({
-  nodes,
-  edges,
-  viewport,
-  metadata = {},
-}: {
-  nodes?: unknown;
-  edges?: unknown;
-  viewport?: unknown;
-  metadata?: NeuroFlowWorkflow['metadata'];
-}) => serializeNeuroFlowWorkflow({
-  nodes: Array.isArray(nodes) ? nodes as Node[] : [],
-  edges: Array.isArray(edges) ? edges as Edge[] : [],
-  viewport: isRecord(viewport) ? viewport : {},
-  metadata: { ...metadata, migratedFrom: 'neuro_flows_json' },
-});
-
-export const workflowFromLegacyTables = ({
-  nodes,
-  edges,
-  viewport = {},
-  metadata = {},
-}: LegacyFlowTables & {
-  viewport?: Partial<Viewport>;
-  metadata?: NeuroFlowWorkflow['metadata'];
-}) => {
-  const reactFlowNodes: Node[] = (nodes || []).map((node) => ({
-    id: node.id,
-    type: node.type || 'item',
-    position: { x: finiteNumber(node.x), y: finiteNumber(node.y) },
-    data: {
-      label: node.label || 'Sem titulo',
-      ...(isRecord(node.content) ? node.content : {}),
-    },
-  }));
-
-  const reactFlowEdges: Edge[] = (edges || [])
-    .filter((edge) => edge.source_id && edge.target_id)
-    .map((edge) => ({
-      id: edge.id,
-      source: edge.source_id!,
-      target: edge.target_id!,
-      sourceHandle: edge.source_handle || undefined,
-      targetHandle: edge.target_handle || undefined,
-      type: edge.type || 'neural',
-      animated: true,
-    }));
-
-  return serializeNeuroFlowWorkflow({
-    nodes: reactFlowNodes,
-    edges: reactFlowEdges,
-    viewport,
-    metadata: { ...metadata, migratedFrom: 'flow_tables' },
   });
 };
 

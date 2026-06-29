@@ -1,12 +1,5 @@
 alter table public.neuro_flows
-  add column if not exists workflow jsonb not null default jsonb_build_object(
-    'schema', 'neuroflow.workflow.v2',
-    'nodes', '[]'::jsonb,
-    'edges', '[]'::jsonb,
-    'viewport', '{}'::jsonb,
-    'metadata', '{}'::jsonb,
-    'links', '[]'::jsonb
-  ),
+  add column if not exists workflow jsonb not null default '{"schema":"neuroflow.workflow.v2","nodes":[],"edges":[],"viewport":{},"metadata":{},"links":[]}'::jsonb,
   add column if not exists workflow_schema_version text not null default 'neuroflow.workflow.v2',
   add column if not exists save_revision integer not null default 0,
   add column if not exists last_saved_at timestamptz,
@@ -22,106 +15,127 @@ create index if not exists neuro_flows_user_patient_idx
   on public.neuro_flows(user_id, patient_id)
   where patient_id is not null;
 
-with flow_table_nodes as (
-  select
-    fn.flow_id,
-    jsonb_agg(
-      jsonb_build_object(
-        'id', fn.id,
-        'type', coalesce(fn.type, 'item'),
-        'position', jsonb_build_object('x', fn.x, 'y', fn.y),
-        'data', coalesce(fn.content, '{}'::jsonb) || jsonb_build_object('label', coalesce(fn.label, fn.content->>'label', 'Sem titulo'))
+do $$
+begin
+  if to_regclass('public.flow_nodes') is not null
+    and to_regclass('public.flow_edges') is not null
+    and exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'neuro_flows'
+        and column_name in ('nodes', 'edges', 'viewport')
+    )
+  then
+    execute $sql$
+      with flow_table_nodes as (
+        select
+          fn.flow_id,
+          jsonb_agg(
+            jsonb_build_object(
+              'id', fn.id,
+              'type', coalesce(fn.type, 'item'),
+              'position', jsonb_build_object('x', fn.x, 'y', fn.y),
+              'data', coalesce(fn.content, '{}'::jsonb) || jsonb_build_object('label', coalesce(fn.label, fn.content->>'label', 'Sem titulo'))
+            )
+            order by fn.created_at, fn.id
+          ) as nodes
+        from public.flow_nodes fn
+        group by fn.flow_id
+      ),
+      flow_table_edges as (
+        select
+          fe.flow_id,
+          jsonb_agg(
+            jsonb_strip_nulls(jsonb_build_object(
+              'id', fe.id,
+              'source', fe.source_id,
+              'target', fe.target_id,
+              'sourceHandle', fe.source_handle,
+              'targetHandle', fe.target_handle,
+              'type', coalesce(fe.type, 'neural'),
+              'animated', true,
+              'data', '{}'::jsonb
+            ))
+            order by fe.created_at, fe.id
+          ) as edges
+        from public.flow_edges fe
+        group by fe.flow_id
       )
-      order by fn.created_at, fn.id
-    ) as nodes
-  from public.flow_nodes fn
-  group by fn.flow_id
-),
-flow_table_edges as (
-  select
-    fe.flow_id,
-    jsonb_agg(
-      jsonb_strip_nulls(jsonb_build_object(
-        'id', fe.id,
-        'source', fe.source_id,
-        'target', fe.target_id,
-        'sourceHandle', fe.source_handle,
-        'targetHandle', fe.target_handle,
-        'type', coalesce(fe.type, 'neural'),
-        'animated', true,
-        'data', '{}'::jsonb
-      ))
-      order by fe.created_at, fe.id
-    ) as edges
-  from public.flow_edges fe
-  group by fe.flow_id
-)
-update public.neuro_flows nf
-set
-  workflow = jsonb_build_object(
-    'schema', 'neuroflow.workflow.v2',
-    'nodes', case
-      when jsonb_array_length(coalesce(ftn.nodes, '[]'::jsonb)) > 0 then coalesce(ftn.nodes, '[]'::jsonb)
-      else coalesce(nf.nodes, '[]'::jsonb)
-    end,
-    'edges', case
-      when jsonb_array_length(coalesce(fte.edges, '[]'::jsonb)) > 0 then coalesce(fte.edges, '[]'::jsonb)
-      else coalesce(nf.edges, '[]'::jsonb)
-    end,
-    'viewport', coalesce(nf.viewport, '{}'::jsonb),
-    'metadata', jsonb_strip_nulls(jsonb_build_object(
-      'title', nf.title,
-      'patientId', nf.patient_id,
-      'ownerScope', case when nf.patient_id is null then 'none' else 'patient' end,
-      'migratedFrom', case
-        when jsonb_array_length(coalesce(ftn.nodes, '[]'::jsonb)) > 0 then 'flow_tables'
-        when jsonb_array_length(coalesce(nf.nodes, '[]'::jsonb)) > 0 then 'neuro_flows_json'
-        else null
-      end,
-      'updatedAt', coalesce(nf.updated_at, now())
-    )),
-    'links', '[]'::jsonb
-  ),
-  workflow_schema_version = 'neuroflow.workflow.v2',
-  last_saved_at = coalesce(nf.last_saved_at, nf.updated_at, now())
-from flow_table_nodes ftn
-full outer join flow_table_edges fte on fte.flow_id = ftn.flow_id
-where nf.id = coalesce(ftn.flow_id, fte.flow_id)
-  and (
-    jsonb_array_length(coalesce(ftn.nodes, '[]'::jsonb)) > 0
-    or jsonb_array_length(coalesce(fte.edges, '[]'::jsonb)) > 0
-  );
+      update public.neuro_flows nf
+      set
+        workflow = jsonb_build_object(
+          'schema', 'neuroflow.workflow.v2',
+          'nodes', case
+            when jsonb_array_length(coalesce(ftn.nodes, '[]'::jsonb)) > 0 then coalesce(ftn.nodes, '[]'::jsonb)
+            else coalesce(nf.nodes, '[]'::jsonb)
+          end,
+          'edges', case
+            when jsonb_array_length(coalesce(fte.edges, '[]'::jsonb)) > 0 then coalesce(fte.edges, '[]'::jsonb)
+            else coalesce(nf.edges, '[]'::jsonb)
+          end,
+          'viewport', coalesce(nf.viewport, '{}'::jsonb),
+          'metadata', jsonb_strip_nulls(jsonb_build_object(
+            'title', nf.title,
+            'patientId', nf.patient_id,
+            'ownerScope', case when nf.patient_id is null then 'none' else 'patient' end,
+            'updatedAt', coalesce(nf.updated_at, now())
+          )),
+          'links', '[]'::jsonb
+        ),
+        workflow_schema_version = 'neuroflow.workflow.v2',
+        last_saved_at = coalesce(nf.last_saved_at, nf.updated_at, now())
+      from flow_table_nodes ftn
+      full outer join flow_table_edges fte on fte.flow_id = ftn.flow_id
+      where nf.id = coalesce(ftn.flow_id, fte.flow_id)
+        and (
+          jsonb_array_length(coalesce(ftn.nodes, '[]'::jsonb)) > 0
+          or jsonb_array_length(coalesce(fte.edges, '[]'::jsonb)) > 0
+        );
+    $sql$;
+  end if;
 
-update public.neuro_flows nf
-set
-  workflow = jsonb_build_object(
-    'schema', 'neuroflow.workflow.v2',
-    'nodes', coalesce(nf.nodes, '[]'::jsonb),
-    'edges', coalesce(nf.edges, '[]'::jsonb),
-    'viewport', coalesce(nf.viewport, '{}'::jsonb),
-    'metadata', jsonb_strip_nulls(jsonb_build_object(
-      'title', nf.title,
-      'patientId', nf.patient_id,
-      'ownerScope', case when nf.patient_id is null then 'none' else 'patient' end,
-      'migratedFrom', case when jsonb_array_length(coalesce(nf.nodes, '[]'::jsonb)) > 0 then 'neuro_flows_json' else null end,
-      'updatedAt', coalesce(nf.updated_at, now())
-    )),
-    'links', '[]'::jsonb
-  ),
-  workflow_schema_version = 'neuroflow.workflow.v2',
-  last_saved_at = coalesce(nf.last_saved_at, nf.updated_at, now())
-where nf.workflow = jsonb_build_object(
-    'schema', 'neuroflow.workflow.v2',
-    'nodes', '[]'::jsonb,
-    'edges', '[]'::jsonb,
-    'viewport', '{}'::jsonb,
-    'metadata', '{}'::jsonb,
-    'links', '[]'::jsonb
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'neuro_flows'
+      and column_name in ('nodes', 'edges', 'viewport')
   )
-  and (
-    jsonb_array_length(coalesce(nf.nodes, '[]'::jsonb)) > 0
-    or jsonb_array_length(coalesce(nf.edges, '[]'::jsonb)) > 0
-  );
+  then
+    execute $sql$
+      update public.neuro_flows nf
+      set
+        workflow = jsonb_build_object(
+          'schema', 'neuroflow.workflow.v2',
+          'nodes', coalesce(nf.nodes, '[]'::jsonb),
+          'edges', coalesce(nf.edges, '[]'::jsonb),
+          'viewport', coalesce(nf.viewport, '{}'::jsonb),
+          'metadata', jsonb_strip_nulls(jsonb_build_object(
+            'title', nf.title,
+            'patientId', nf.patient_id,
+            'ownerScope', case when nf.patient_id is null then 'none' else 'patient' end,
+            'updatedAt', coalesce(nf.updated_at, now())
+          )),
+          'links', '[]'::jsonb
+        ),
+        workflow_schema_version = 'neuroflow.workflow.v2',
+        last_saved_at = coalesce(nf.last_saved_at, nf.updated_at, now())
+      where nf.workflow = jsonb_build_object(
+          'schema', 'neuroflow.workflow.v2',
+          'nodes', '[]'::jsonb,
+          'edges', '[]'::jsonb,
+          'viewport', '{}'::jsonb,
+          'metadata', '{}'::jsonb,
+          'links', '[]'::jsonb
+        )
+        and (
+          jsonb_array_length(coalesce(nf.nodes, '[]'::jsonb)) > 0
+          or jsonb_array_length(coalesce(nf.edges, '[]'::jsonb)) > 0
+        );
+    $sql$;
+  end if;
+end $$;
 
 alter table public.neuro_flows enable row level security;
 

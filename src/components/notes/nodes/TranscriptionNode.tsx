@@ -5,10 +5,16 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
-export const TranscriptionNode = ({ data, selected }: any) => {
+export const TranscriptionNode = ({ id, data, selected }: any) => {
     const [isRecording, setIsRecording] = useState(false);
     const [transcript, setTranscript] = useState<string>(data.transcript || "");
     const recognitionRef = useRef<any>(null);
+
+    const updateData = (patch: Record<string, unknown>) => {
+        if (typeof data.onUpdateNodeData === 'function') {
+            data.onUpdateNodeData(id, patch);
+        }
+    };
 
     useEffect(() => {
         if ('webkitSpeechRecognition' in window) {
@@ -26,8 +32,8 @@ export const TranscriptionNode = ({ data, selected }: any) => {
                 }
                 if (finalTranscript) {
                     setTranscript(prev => {
-                        const updated = prev + " " + finalTranscript;
-                        data.transcript = updated;
+                        const updated = `${prev} ${finalTranscript}`.trim();
+                        updateData({ transcript: updated });
                         return updated;
                     });
                 }
@@ -60,7 +66,7 @@ export const TranscriptionNode = ({ data, selected }: any) => {
 
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setTranscript(e.target.value);
-        data.transcript = e.target.value;
+        updateData({ transcript: e.target.value });
     };
 
     return (
@@ -141,10 +147,11 @@ export const TranscriptionNode = ({ data, selected }: any) => {
             {/* Editable Area */}
             <div className="p-0 relative min-h-[200px] flex-1 flex flex-col">
                 <textarea
-                    className="flex-1 w-full p-6 bg-transparent resize-none outline-none text-[13px] leading-relaxed text-zinc-300 font-medium placeholder:text-zinc-800 placeholder:italic custom-scrollbar tracking-tight"
+                    className="nodrag nowheel flex-1 w-full p-6 bg-transparent resize-none outline-none text-[13px] leading-relaxed text-zinc-300 font-medium placeholder:text-zinc-800 placeholder:italic custom-scrollbar tracking-tight"
                     placeholder={isRecording ? "Capturando fluxo neural..." : "Clique no microfone para converter voz em texto..."}
                     value={transcript}
                     onChange={handleChange}
+                    onPointerDown={(event) => event.stopPropagation()}
                 />
 
                 <AnimatePresence>

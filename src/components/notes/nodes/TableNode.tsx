@@ -4,34 +4,39 @@ import { MoreHorizontal, Plus, TableProperties } from "lucide-react";
 import { useState } from 'react';
 import { Handle, NodeResizer, Position } from 'reactflow';
 
-export const TableNode = ({ data, selected }: any) => {
+export const TableNode = ({ id, data, selected }: any) => {
     const [rows, setRows] = useState<number>(data.rows || 3);
     const [cols, setCols] = useState<number>(data.cols || 2);
     const [cellData, setCellData] = useState<Record<string, string>>(data.cellData || {});
 
-    // Sync local state to data object for persistence (this would ideally use a callback to update node data in parent)
-    // For now, we just rely on local state, but in a real app we'd use useReactFlow to update node data.
+    const updateData = (patch: Record<string, unknown>) => {
+        if (typeof data.onUpdateNodeData === 'function') {
+            data.onUpdateNodeData(id, patch);
+        }
+    };
 
     const handleAddRow = () => {
         setRows(prev => {
             const newVal = prev + 1;
-            data.rows = newVal;
+            updateData({ rows: newVal });
             return newVal;
         });
     };
     const handleAddCol = () => {
         setCols(prev => {
             const newVal = prev + 1;
-            data.cols = newVal;
+            updateData({ cols: newVal });
             return newVal;
         });
     };
 
     const handleUpdateCell = (r: number, c: number, value: string) => {
         const key = `${r}-${c}`;
-        setCellData(prev => ({ ...prev, [key]: value }));
-        // In a real implementation, we would debounce and update the node data here
-        data.cellData = { ...data.cellData, [key]: value };
+        setCellData(prev => {
+            const next = { ...prev, [key]: value };
+            updateData({ cellData: next });
+            return next;
+        });
     };
 
     return (
@@ -89,10 +94,11 @@ export const TableNode = ({ data, selected }: any) => {
                                 {Array.from({ length: cols }).map((_, cIndex) => (
                                     <td key={cIndex} className="border-r border-white/5 last:border-0 p-0 min-w-[100px]">
                                         <input
-                                            className="w-full bg-transparent p-3 text-[13px] font-medium text-zinc-300 placeholder:text-zinc-800 outline-none focus:bg-white/[0.05] transition-all"
+                                            className="nodrag nowheel w-full bg-transparent p-3 text-[13px] font-medium text-zinc-300 placeholder:text-zinc-800 outline-none focus:bg-white/[0.05] transition-all"
                                             placeholder="..."
                                             value={cellData[`${rIndex}-${cIndex}`] || ""}
                                             onChange={(e) => handleUpdateCell(rIndex, cIndex, e.target.value)}
+                                            onPointerDown={(event) => event.stopPropagation()}
                                         />
                                     </td>
                                 ))}

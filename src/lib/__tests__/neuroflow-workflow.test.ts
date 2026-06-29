@@ -4,7 +4,6 @@ import {
   deserializeNeuroFlowWorkflow,
   serializeNeuroFlowWorkflow,
   validateNeuroFlowWorkflow,
-  workflowFromLegacyTables,
 } from '../neuroflow-workflow';
 
 describe('neuroflow workflow v2', () => {
@@ -39,22 +38,5 @@ describe('neuroflow workflow v2', () => {
       metadata: {},
       links: [],
     })).toThrow(/conexao invalida/i);
-  });
-
-  it('converts legacy flow tables into workflow v2', () => {
-    const workflow = workflowFromLegacyTables({
-      nodes: [
-        { id: 'n1', type: 'item', x: 10, y: 20, label: 'Nota', content: { sourceNoteId: 'note-1' } },
-        { id: 'n2', type: 'timeline', x: 40, y: 50, label: 'Evento', content: {} },
-      ],
-      edges: [
-        { id: 'e1', source_id: 'n1', target_id: 'n2', type: 'neural' },
-      ],
-      metadata: { title: 'Legado' },
-    });
-
-    expect(workflow.metadata.migratedFrom).toBe('flow_tables');
-    expect(workflow.nodes[0].data.label).toBe('Nota');
-    expect(workflow.edges[0].target).toBe('n2');
   });
 });

@@ -7,8 +7,7 @@ import {
     deserializeNeuroFlowWorkflow,
     emptyNeuroFlowWorkflow,
     parseStoredNeuroFlowWorkflow,
-    serializeNeuroFlowWorkflow,
-    workflowFromLegacyJson
+    serializeNeuroFlowWorkflow
 } from '@/lib/neuroflow-workflow';
 import { cn } from '@/lib/utils';
 import {
@@ -144,14 +143,11 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
       saveRevisionRef.current = typeof flowData?.save_revision === 'number' ? flowData.save_revision : 0;
 
       const workflow = parseStoredNeuroFlowWorkflow(flowData?.workflow)
-        || workflowFromLegacyJson({
-          metadata: {
-            title: flowData?.title || "NeuroFlow Studio",
-            patientId: currentPatientId,
-            ownerScope: currentPatientId ? 'patient' : 'none',
-          },
-        })
-        || emptyNeuroFlowWorkflow();
+        || emptyNeuroFlowWorkflow({
+          title: flowData?.title || "NeuroFlow Studio",
+          patientId: currentPatientId,
+          ownerScope: currentPatientId ? 'patient' : 'none',
+        });
 
       const restored = deserializeNeuroFlowWorkflow(workflow);
       const nextNodes = restored.nodes.length > 0

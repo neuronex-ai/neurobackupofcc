@@ -18,6 +18,9 @@ import { useEffect, useRef, useState } from "react";
 import { MermaidDiagram } from "./MermaidDiagram";
 
 import { useCreateChatSession, useSendChatMessage } from "@/hooks/use-ai-chat";
+import { usePatients } from "@/hooks/use-patients";
+import { usePersonalNotes } from "@/hooks/use-personal-notes";
+import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -31,6 +34,12 @@ const LENSES = [
     { value: "junguiana", label: "Junguiana (Analítica)" },
     { value: "neuropsicologia", label: "Neuropsicologia" },
 ];
+
+const escapeHtml = (value: string) =>
+    value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 
 const NeuralBackground = () => {
     const { theme } = useTheme();
@@ -56,11 +65,15 @@ const NeuralBackground = () => {
 export const NeuroPulse = () => {
     const [input, setInput] = useState("");
     const [selectedLens, setSelectedLens] = useState("tcc");
+    const [selectedPatientId, setSelectedPatientId] = useState("none");
     const [diagramCode, setDiagramCode] = useState<string | null>(null);
+    const [savedNoteId, setSavedNoteId] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const diagramRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
+    const { data: patients = [] } = usePatients();
+    const { createNote } = usePersonalNotes();
 
     // Hooks
     const { mutateAsync: createSession } = useCreateChatSession();
@@ -140,6 +153,7 @@ export const NeuroPulse = () => {
 
         setIsGenerating(true);
         setDiagramCode(null);
+        setSavedNoteId(null);
 
         try {
             // 1. Create a temporary session for this analysis
@@ -192,7 +206,40 @@ Relato:
             }
 
             setDiagramCode(aiText);
-            toast.success("Diagrama NeuroPulse gerado com sucesso.");
+            const patientId = selectedPatientId === "none" ? null : selectedPatientId;
+            const lensLabel = LENSES.find(l => l.value === selectedLens)?.label || selectedLens;
+            const title = `NeuroPulse - ${new Date().toLocaleDateString("pt-BR")}`;
+            const createdNote = await createNote({
+                title,
+                content: [
+                    `<p><strong>NeuroPulse</strong> - ${escapeHtml(lensLabel)}</p>`,
+                    `<pre class="mermaid">${escapeHtml(aiText)}</pre>`,
+                ].join(""),
+                tags: ["NeuroPulse", "Mermaid"],
+                patient_id: patientId,
+                module_id: "neuropulse",
+                reference_date: new Date().toISOString(),
+            } as any);
+
+            setSavedNoteId(createdNote.id);
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                await supabase.from("neuro_pulse_entries").insert({
+                    user_id: user.id,
+                    title,
+                    data: {
+                        note_id: createdNote.id,
+                        patient_id: patientId,
+                        lens: selectedLens,
+                        lens_label: lensLabel,
+                        input,
+                        mermaid: aiText,
+                    },
+                });
+            }
+
+            toast.success("Diagrama NeuroPulse salvo como nota Mermaid.");
 
         } catch (error: any) {
             console.error("Erro ao gerar diagrama:", error);
@@ -260,6 +307,24 @@ Relato:
                 </div>
 
                 <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/5 bg-black/40 p-1.5 shadow-2xl backdrop-blur-3xl [.light_&]:border-zinc-200 [.light_&]:bg-white/40 [.light_&]:shadow-xl">
+                    <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
+                        <SelectTrigger className="w-[190px] h-10 bg-transparent border-none text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors focus:ring-0">
+                            <SelectValue placeholder="Paciente" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white dark:bg-[#0a0a0b] border-zinc-100 dark:border-white/5 text-zinc-400">
+                            <SelectItem value="none" className="text-[10px] uppercase tracking-widest focus:bg-white/5 focus:text-white">
+                                Sem paciente
+                            </SelectItem>
+                            {patients.map(patient => (
+                                <SelectItem key={patient.id} value={patient.id} className="text-[10px] uppercase tracking-widest focus:bg-white/5 focus:text-white">
+                                    {patient.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <div className="mx-1 h-6 w-px bg-white/5 [.light_&]:bg-zinc-200" />
+
                     <Select value={selectedLens} onValueChange={setSelectedLens}>
                         <SelectTrigger className="w-[200px] h-10 bg-transparent border-none text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors focus:ring-0">
                             <SelectValue placeholder="Ótica Analítica" />
@@ -425,6 +490,11 @@ Relato:
                                 className="h-full flex flex-col"
                             >
                                 <div className="absolute top-6 right-6 z-20 flex gap-2">
+                                    {savedNoteId && (
+                                        <div className="hidden items-center rounded-xl border border-emerald-500/15 bg-emerald-500/10 px-3 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400 md:flex">
+                                            Nota criada
+                                        </div>
+                                    )}
                                     <div className="flex p-1 bg-white/80 dark:bg-black/60 backdrop-blur-2xl border border-zinc-200 dark:border-white/5 rounded-xl shadow-2xl">
                                         <Button size="icon" variant="ghost" title="Regenerar" className="h-9 w-9 rounded-lg hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white" onClick={handleGenerate} disabled={isGenerating}>
                                             <RefreshCcw className={cn("h-4 w-4", isGenerating && "animate-spin")} />
