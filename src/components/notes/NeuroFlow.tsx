@@ -97,13 +97,14 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
   const saveTimerRef = useRef<number | null>(null);
   const latestGraphRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
   const saveRevisionRef = useRef<number | null>(null);
+  const lastSavedFingerprintRef = useRef<string | null>(null);
   const isLoadingRef = useRef(true);
   const isHydratingRef = useRef(false);
   const hasAutoFittedRef = useRef(false);
   const flowTitleRef = useRef(flowTitle);
   const patientIdRef = useRef(patientId);
   const saveStateRef = useRef<() => Promise<void>>(async () => undefined);
-  const { screenToFlowPosition, getViewport, setViewport, zoomIn, zoomOut, fitView } = useReactFlow();
+  const { screenToFlowPosition, getViewport, zoomIn, zoomOut, fitView } = useReactFlow();
   const { theme } = useTheme();
 
   // Modal States
@@ -190,15 +191,14 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         animated: edge.animated ?? true,
       })));
 
-      if (restored.viewport && typeof restored.viewport.zoom === 'number') {
-        window.setTimeout(() => {
-          void setViewport({
-            x: restored.viewport.x || 0,
-            y: restored.viewport.y || 0,
-            zoom: restored.viewport.zoom || 1,
-          }, { duration: 0 });
-        }, 0);
-      }
+      lastSavedFingerprintRef.current = JSON.stringify({
+        nodes: workflow.nodes,
+        edges: workflow.edges,
+        metadata: {
+          ...workflow.metadata,
+          updatedAt: undefined,
+        },
+      });
     } catch (e) {
       console.error(e);
     } finally {
@@ -208,7 +208,7 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         setSaveStatus('saved');
       }, 0);
     }
-  }, [attachRuntimeNodeData, flowId, setNodes, setEdges, setViewport]);
+  }, [attachRuntimeNodeData, flowId, setNodes, setEdges]);
 
   useEffect(() => { loadFlow(); }, [loadFlow]);
 
@@ -253,6 +253,21 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
           ownerScope: patientIdRef.current ? 'patient' : 'none',
         },
       });
+      const nextFingerprint = JSON.stringify({
+        nodes: workflow.nodes,
+        edges: workflow.edges,
+        viewport: workflow.viewport,
+        metadata: {
+          ...workflow.metadata,
+          updatedAt: undefined,
+        },
+        links: workflow.links,
+      });
+
+      if (nextFingerprint === lastSavedFingerprintRef.current) {
+        setSaveStatus('saved');
+        return;
+      }
 
       const { data, error } = await supabase.rpc('save_neuroflow_workflow' as any, {
         p_flow_id: flowId,
@@ -266,6 +281,7 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
       if (saved && typeof saved.save_revision === 'number') {
         saveRevisionRef.current = saved.save_revision;
       }
+      lastSavedFingerprintRef.current = nextFingerprint;
       setSaveStatus('saved');
 
     } catch (e) {
@@ -339,6 +355,10 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
     });
   }, []);
 
+  const handleMoveEnd = useCallback(() => {
+    scheduleSave(2200);
+  }, [scheduleSave]);
+
   const onConnect = useCallback((params: Connection | Edge) => {
     const edgeId = `edge-${crypto.randomUUID()}`;
     setEdges((eds) => addEdge({
@@ -406,7 +426,6 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
     };
 
     setNodes((nds) => nds.concat(newNode));
-    toast.success(`${data.label || 'Bloco'} adicionado ao mapa.`);
   }, [getViewport, setNodes, patientId, updateNodeData]);
 
   const onNodeDoubleClick = useCallback((_event: React.MouseEvent, node: Node) => {
@@ -448,7 +467,7 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         onDrop={onDrop}
         onDragOver={onDragOver}
         onInit={handleInit}
-        onMoveEnd={() => scheduleSave(1800)}
+        onMoveEnd={handleMoveEnd}
         onNodeDoubleClick={onNodeDoubleClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}

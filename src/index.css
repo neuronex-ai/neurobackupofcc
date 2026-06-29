@@ -355,6 +355,71 @@
   }
 
   /* Notes retina surfaces stay local; the page background comes from the app shell. */
+  .notes-lumen-canvas {
+    isolation: isolate;
+  }
+
+  .notes-lumen-field {
+    overflow: hidden;
+    transform: translateZ(0);
+    background:
+      radial-gradient(74rem 38rem at 50% -10%, hsl(var(--foreground) / 0.052), transparent 56%),
+      radial-gradient(42rem 28rem at 14% 18%, hsl(var(--foreground) / 0.024), transparent 62%),
+      radial-gradient(40rem 26rem at 86% 18%, hsl(var(--foreground) / 0.018), transparent 64%),
+      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background) / 0.98) 100%);
+  }
+
+  .notes-lumen-field::before,
+  .notes-lumen-field::after {
+    content: '';
+    position: absolute;
+    inset: -12%;
+    pointer-events: none;
+  }
+
+  .notes-lumen-field::before {
+    background:
+      repeating-linear-gradient(90deg, hsl(var(--foreground) / 0.018) 0 1px, transparent 1px 5px),
+      repeating-linear-gradient(0deg, hsl(var(--foreground) / 0.012) 0 1px, transparent 1px 7px),
+      radial-gradient(circle at 50% 8%, hsl(var(--foreground) / 0.05), transparent 38%);
+    opacity: 0.34;
+    filter: blur(0.22px);
+    mix-blend-mode: soft-light;
+  }
+
+  .notes-lumen-field::after {
+    background:
+      radial-gradient(circle at 50% 16%, hsl(var(--foreground) / 0.044), transparent 36%),
+      linear-gradient(115deg, transparent 0 36%, hsl(var(--foreground) / 0.018) 42%, transparent 54% 100%);
+    opacity: 0.48;
+    filter: blur(18px) saturate(1.05);
+    mix-blend-mode: screen;
+  }
+
+  .dark .notes-lumen-field {
+    background:
+      radial-gradient(78rem 42rem at 50% -12%, rgba(255, 255, 255, 0.074), transparent 58%),
+      radial-gradient(44rem 30rem at 16% 18%, rgba(255, 255, 255, 0.026), transparent 64%),
+      radial-gradient(42rem 28rem at 84% 16%, rgba(255, 255, 255, 0.018), transparent 66%),
+      linear-gradient(180deg, #070708 0%, #050506 100%);
+  }
+
+  .dark .notes-lumen-field::before {
+    background:
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.024) 0 1px, transparent 1px 6px),
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.016) 0 1px, transparent 1px 8px),
+      radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.07), transparent 40%);
+    opacity: 0.3;
+  }
+
+  .dark .notes-lumen-field::after {
+    background:
+      radial-gradient(circle at 50% 14%, rgba(255, 255, 255, 0.065), transparent 38%),
+      linear-gradient(115deg, transparent 0 36%, rgba(255, 255, 255, 0.022) 42%, transparent 54% 100%);
+    opacity: 0.5;
+    mix-blend-mode: screen;
+  }
+
   .notes-retina-rail {
     border-color: rgba(24, 24, 27, 0.075);
     background:
@@ -378,16 +443,20 @@
   .notes-retina-texture {
     pointer-events: none;
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.04), transparent 44%, rgba(24, 24, 27, 0.018)),
-      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.06), transparent 72%);
-    background-size: 100% 100%;
+      linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 44%, rgba(24, 24, 27, 0.02)),
+      radial-gradient(80rem 34rem at 50% -6%, rgba(255, 255, 255, 0.07), transparent 72%),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.016) 0 1px, transparent 1px 5px),
+      repeating-linear-gradient(0deg, rgba(24, 24, 27, 0.01) 0 1px, transparent 1px 7px);
+    background-size: 100% 100%, 100% 100%, 5px 5px, 7px 7px;
     mix-blend-mode: soft-light;
   }
 
   .dark .notes-retina-texture {
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.028), transparent 44%, rgba(0, 0, 0, 0.12)),
-      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.05), transparent 72%);
+      linear-gradient(135deg, rgba(255, 255, 255, 0.034), transparent 44%, rgba(0, 0, 0, 0.14)),
+      radial-gradient(80rem 34rem at 50% -6%, rgba(255, 255, 255, 0.062), transparent 72%),
+      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 6px),
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 8px);
   }
 
   .notes-toolbar-surface,
@@ -875,6 +944,9 @@
     }
 
     .notes-retina-texture,
+    .notes-lumen-field,
+    .notes-lumen-field::before,
+    .notes-lumen-field::after,
     .notes-neuroview-backdrop,
     .dashboard-schedule-orbit,
     .dashboard-schedule-scan {

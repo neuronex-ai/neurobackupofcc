@@ -2,6 +2,8 @@
 
 import { PremiumFileIcon } from '@/components/ui/PremiumFileIcons';
 import { useTheme } from '@/hooks/use-theme';
+import { extractMermaidCode } from '@/lib/mermaid-content';
+import { htmlToPlainText } from '@/lib/note-content';
 import { cn } from '@/lib/utils';
 import {
     Activity, Brain, ChevronRight, Clock,
@@ -11,6 +13,8 @@ import {
 } from "lucide-react";
 import { memo, useState } from 'react';
 import { Handle, NodeProps, NodeResizer, Position } from 'reactflow';
+import { MermaidDiagram } from './MermaidDiagram';
+import { NeuroViewPatientEmbed } from './NeuroViewPatientEmbed';
 
 const iconMap = {
     start: Brain,
@@ -82,7 +86,10 @@ const typeLabelMap: Record<string, string> = {
 };
 
 const editableTypes = new Set([
+    'root',
     'free-note',
+    'linked-note',
+    'patient',
     'evidence',
     'trigger',
     'thought',
@@ -101,7 +108,9 @@ const editableTypes = new Set([
     'condition',
     'loop',
     'stop',
+    'neuropulse',
     'mermaid',
+    'neuroview-patient',
     'timeline',
     'item',
 ]);
@@ -123,6 +132,13 @@ const isPreviewable = (fileName: string = '', mimeType: string = '') => {
     return null;
 };
 
+type StructuredField = {
+    key: string;
+    label: string;
+    value?: string;
+    placeholder?: string;
+};
+
 export const NeuralNode = memo(({ id, data, selected, type }: NodeProps) => {
     const Icon = iconMap[type as keyof typeof iconMap] || FileText;
     const [isExpanded, setIsExpanded] = useState(false);
@@ -132,12 +148,94 @@ export const NeuralNode = memo(({ id, data, selected, type }: NodeProps) => {
             data.onUpdateNodeData(id, patch);
         }
     };
+    const structuredFields = Array.isArray(data.fields)
+        ? (data.fields as StructuredField[]).filter((field) => field && typeof field.key === 'string')
+        : [];
+    const checklist = Array.isArray(data.checklist)
+        ? (data.checklist as string[]).filter((item) => typeof item === 'string' && item.trim().length > 0)
+        : [];
+    const updateStructuredField = (fieldKey: string, value: string) => {
+        updateData({
+            fields: structuredFields.map((field) => (
+                field.key === fieldKey ? { ...field, value } : field
+            )),
+        });
+    };
+    const getMermaidSource = () => String(
+        data.mermaidCode ||
+        data.mermaid ||
+        data.diagramCode ||
+        data.content ||
+        data.description ||
+        ''
+    );
+
+    const renderMermaidPreview = (source: string, editable = false) => {
+        const chart = extractMermaidCode(source) || source.trim();
+
+        return (
+            <div className="mt-4 space-y-3">
+                <div className="nodrag nowheel h-[240px] overflow-hidden rounded-[24px] border border-zinc-200 bg-white dark:border-white/5 dark:bg-black/30">
+                    {chart ? (
+                        <MermaidDiagram chart={chart} compact />
+                    ) : (
+                        <div className="flex h-full items-center justify-center px-8 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-600">
+                            Cole ou gere um codigo Mermaid para visualizar o diagrama.
+                        </div>
+                    )}
+                </div>
+
+                {editable && (
+                    <textarea
+                        value={source}
+                        onChange={(event) => updateData({ content: event.target.value, mermaidCode: event.target.value })}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        className="nodrag nowheel min-h-[84px] w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50/80 p-3 font-mono text-[10px] leading-relaxed text-zinc-700 outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-300 focus:bg-white dark:border-white/5 dark:bg-white/[0.025] dark:text-zinc-300 dark:placeholder:text-zinc-700 dark:focus:border-white/15 dark:focus:bg-white/[0.045]"
+                        placeholder={"flowchart TD\n  A[Hipotese] --> B[Evidencia]"}
+                    />
+                )}
+            </div>
+        );
+    };
+
+    const renderImportedNotePreview = () => {
+        const content = String(data.content || '');
+        const mermaidCode = extractMermaidCode(content);
+
+        if (mermaidCode) {
+            return renderMermaidPreview(mermaidCode, false);
+        }
+
+        return (
+            <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-[11px] leading-relaxed text-zinc-600 line-clamp-4 dark:border-white/5 dark:bg-white/[0.02] dark:text-zinc-500">
+                {htmlToPlainText(content).slice(0, 220) || 'Nota sem conteudo textual.'}
+            </div>
+        );
+    };
 
     const renderContent = () => {
+        if (type === 'neuroview-patient') {
+            const patientId = String(data.patientId || data.patient_id || data.linkedPatientId || '');
+            return (
+                <NeuroViewPatientEmbed
+                    patientId={patientId || null}
+                    patientName={typeof data.patientName === 'string' ? data.patientName : undefined}
+                />
+            );
+        }
+
+        if (type === 'mermaid' || type === 'neuropulse') {
+            return renderMermaidPreview(getMermaidSource(), true);
+        }
+
+        if (data.sourceNoteId && data.content) {
+            return renderImportedNotePreview();
+        }
+
         if (editableTypes.has(type || '')) {
             const value = String(data.content || data.description || '');
             return (
-                <div className="mt-3">
+                <div className="mt-3 space-y-3">
                     <textarea
                         value={value}
                         onChange={(event) => updateData({ content: event.target.value })}
@@ -145,14 +243,39 @@ export const NeuralNode = memo(({ id, data, selected, type }: NodeProps) => {
                         className="nodrag nowheel min-h-[92px] w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50/80 p-3 text-[12px] font-medium leading-relaxed text-zinc-700 outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-300 focus:bg-white dark:border-white/5 dark:bg-white/[0.025] dark:text-zinc-300 dark:placeholder:text-zinc-700 dark:focus:border-white/15 dark:focus:bg-white/[0.045]"
                         placeholder="Escreva aqui..."
                     />
-                </div>
-            );
-        }
 
-        if (type === 'neuroview-patient') {
-            return (
-                <div className="mt-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:border-white/5 dark:bg-white/[0.02] dark:text-zinc-600">
-                    NeuroView filtrado por paciente
+                    {structuredFields.length > 0 && (
+                        <div className="grid gap-2">
+                            {structuredFields.map((field) => (
+                                <label
+                                    key={field.key}
+                                    className="nodrag nowheel block rounded-2xl border border-zinc-200 bg-zinc-50/70 px-3 py-2.5 transition-colors focus-within:border-zinc-300 focus-within:bg-white dark:border-white/5 dark:bg-white/[0.025] dark:focus-within:border-white/15 dark:focus-within:bg-white/[0.045]"
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                >
+                                    <span className="mb-1.5 block text-[8px] font-black uppercase tracking-[0.22em] text-zinc-500 dark:text-zinc-600">
+                                        {field.label}
+                                    </span>
+                                    <input
+                                        value={String(field.value || '')}
+                                        onChange={(event) => updateStructuredField(field.key, event.target.value)}
+                                        placeholder={field.placeholder || 'Preencher...'}
+                                        className="w-full border-0 bg-transparent p-0 text-[12px] font-semibold leading-relaxed text-zinc-800 outline-none placeholder:text-zinc-400 dark:text-zinc-300 dark:placeholder:text-zinc-700"
+                                    />
+                                </label>
+                            ))}
+                        </div>
+                    )}
+
+                    {checklist.length > 0 && (
+                        <div className="space-y-1.5 rounded-2xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-white/5 dark:bg-white/[0.025]">
+                            {checklist.map((item) => (
+                                <div key={item} className="flex items-start gap-2 text-[10px] font-bold leading-relaxed text-zinc-500 dark:text-zinc-600">
+                                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400 dark:bg-zinc-700" />
+                                    <span>{item}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             );
         }
@@ -179,13 +302,6 @@ export const NeuralNode = memo(({ id, data, selected, type }: NodeProps) => {
             case 'document':
                 return renderDocumentPreview();
             default:
-                if (data.sourceNoteId && data.content) {
-                    return (
-                        <div className="mt-3 p-3 rounded-xl bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 text-zinc-600 dark:text-zinc-500 text-[11px] line-clamp-3 leading-relaxed">
-                            {data.content.substring(0, 180)}
-                        </div>
-                    );
-                }
                 return null;
         }
     };
@@ -294,18 +410,19 @@ export const NeuralNode = memo(({ id, data, selected, type }: NodeProps) => {
 
     const isDocType = type === 'document';
     const hasImportedNote = data.sourceNoteId;
+    const isEmbedType = type === 'neuroview-patient' || type === 'mermaid' || type === 'neuropulse' || Boolean(data.sourceNoteId && extractMermaidCode(String(data.content || '')));
 
     return (
         <div className={cn(
             "group relative p-1 rounded-[32px] transition-all duration-700",
-            isDocType ? "min-w-[320px]" : "min-w-[280px]",
+            isDocType || isEmbedType ? "min-w-[430px]" : "min-w-[280px]",
             selected
                 ? "bg-gradient-to-br from-black/10 to-transparent dark:from-white/20 dark:to-white/5"
                 : "bg-zinc-100 dark:bg-white/[0.05]"
         )}>
             <NodeResizer
-                minWidth={280}
-                minHeight={100}
+                minWidth={isDocType || isEmbedType ? 420 : 280}
+                minHeight={isEmbedType ? 260 : 100}
                 isVisible={selected}
                 lineClassName="border-zinc-300 dark:border-white/20"
                 handleClassName="h-3 w-3 bg-white border-2 border-zinc-900 dark:border-zinc-950 rounded-full"

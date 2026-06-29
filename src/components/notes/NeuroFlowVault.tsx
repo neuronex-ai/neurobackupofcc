@@ -24,7 +24,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    ArrowUpRight, Brain, Clock, Copy, Edit2, MoreVertical, Plus, Search, Tag, Trash2, User
+    ArrowUpRight, Brain, Clock, Copy, Edit2, Loader2, MoreVertical, Plus, Search, Tag, Trash2, User
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -50,6 +50,7 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
     const [patients, setPatients] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const [isCreatingFlow, setIsCreatingFlow] = useState(false);
     const { theme } = useTheme();
 
     // Edit states
@@ -112,17 +113,25 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
     };
 
     const handleCreateFlow = async () => {
+        if (isCreatingFlow) return;
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
+        setIsCreatingFlow(true);
         try {
             const title = `Novo Fluxo de Pensamento`;
+            const rootNodeId = crypto.randomUUID();
             const workflow = serializeNeuroFlowWorkflow({
                 nodes: [{
-                    id: crypto.randomUUID(),
+                    id: rootNodeId,
                     type: 'root',
-                    position: { x: 250, y: 250 },
-                    data: { label: 'Início da Sessão', description: 'Ponto de partida.' }
+                    position: { x: 0, y: 0 },
+                    data: {
+                        label: 'Início da Sessão',
+                        description: 'Ponto de partida.',
+                        content: 'Objetivo do fluxo, contexto clínico e primeira hipótese.',
+                        blockKind: 'root',
+                    }
                 }],
                 edges: [],
                 viewport: { x: 0, y: 0, zoom: 1 },
@@ -148,7 +157,10 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
             onOpenFlow(flowData.id);
             toast.success("Tudo pronto! Seu novo fluxo foi criado.");
         } catch (error) {
+            console.error("[NeuroFlowVault] Create flow error:", error);
             toast.error("Houve um probleminha ao criar o fluxo.");
+        } finally {
+            setIsCreatingFlow(false);
         }
     };
 
@@ -313,10 +325,11 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
 
                     <Button
                         onClick={handleCreateFlow}
+                        disabled={isCreatingFlow}
                         className="h-14 w-full rounded-[22px] bg-white px-10 text-[11px] font-black uppercase tracking-tight text-black shadow-[0_10px_30px_rgba(255,255,255,0.1)] transition-all hover:bg-zinc-200 md:w-auto [.light_&]:bg-zinc-900 [.light_&]:text-white [.light_&]:shadow-[0_10px_30px_rgba(0,0,0,0.1)] [.light_&]:hover:bg-zinc-800"
                     >
-                        <Plus size={18} className="mr-2" strokeWidth={3} />
-                        Novo Studio
+                        {isCreatingFlow ? <Loader2 size={18} className="mr-2 animate-spin" strokeWidth={3} /> : <Plus size={18} className="mr-2" strokeWidth={3} />}
+                        {isCreatingFlow ? "Criando" : "Novo Studio"}
                     </Button>
                 </div>
             </div>
@@ -334,10 +347,11 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
                             whileHover={{ scale: 1.02, borderColor: theme === 'dark' ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)" }}
                             whileTap={{ scale: 0.98 }}
                             onClick={handleCreateFlow}
+                            disabled={isCreatingFlow}
                             className="group relative flex aspect-[4/5] flex-col items-center justify-center gap-5 rounded-[28px] border border-dashed border-white/[0.07] bg-transparent p-7 text-center transition-all hover:bg-white/[0.02] [.light_&]:border-zinc-200 [.light_&]:hover:bg-zinc-50"
                         >
                             <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/5 bg-white/[0.02] shadow-2xl transition-all duration-700 group-hover:bg-white group-hover:text-black [.light_&]:border-zinc-200 [.light_&]:bg-zinc-100 [.light_&]:group-hover:bg-zinc-900 [.light_&]:group-hover:text-white">
-                                <Brain size={32} strokeWidth={1.5} />
+                                {isCreatingFlow ? <Loader2 size={32} className="animate-spin" strokeWidth={1.8} /> : <Brain size={32} strokeWidth={1.5} />}
                             </div>
                             <div className="space-y-2">
                                 <h3 className="text-sm font-black uppercase tracking-tighter text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">Novo Mapeamento</h3>

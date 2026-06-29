@@ -89,6 +89,214 @@ const nodeCategories: Array<{ id: NodeType; label: string; description: string; 
     { id: 'table', label: 'Tabela de Observações', description: 'Linhas e colunas editáveis.', icon: TableProperties, color: 'text-indigo-300', bg: 'bg-indigo-400/10' },
 ];
 
+type NodeBlueprintField = {
+    key: string;
+    label: string;
+    value: string;
+    placeholder?: string;
+};
+
+type NodeBlueprint = {
+    content?: string;
+    fields?: NodeBlueprintField[];
+    checklist?: string[];
+    clinicalIntent?: string;
+};
+
+const nodeBlueprints: Partial<Record<NodeType, NodeBlueprint>> = {
+    root: {
+        content: 'Objetivo do fluxo, contexto clinico e primeira hipotese.',
+        fields: [
+            { key: 'objective', label: 'Objetivo', value: '', placeholder: 'O que este fluxo precisa esclarecer?' },
+            { key: 'context', label: 'Contexto', value: '', placeholder: 'Paciente, sessao, evento ou recorte.' },
+        ],
+    },
+    'free-note': {
+        content: 'Sintese livre, observacoes e proximos passos.',
+        fields: [
+            { key: 'summary', label: 'Sintese', value: '', placeholder: 'Ideia principal da nota.' },
+            { key: 'next_step', label: 'Proximo passo', value: '', placeholder: 'O que revisar, perguntar ou fazer.' },
+        ],
+        checklist: ['Pode gerar nota em Registros', 'Pode virar evidencia ou intervencao'],
+    },
+    'linked-note': {
+        fields: [
+            { key: 'reason', label: 'Motivo do vinculo', value: '', placeholder: 'Por que esta nota importa para o fluxo?' },
+        ],
+    },
+    patient: {
+        fields: [
+            { key: 'case_focus', label: 'Foco do caso', value: '', placeholder: 'Que parte do caso este fluxo representa?' },
+            { key: 'care_context', label: 'Contexto de cuidado', value: '', placeholder: 'Individual, familia, avaliacao, acompanhamento.' },
+        ],
+    },
+    diagnostic: {
+        content: 'Hipotese clinica em investigacao. Registrar CID, grau de confianca e evidencias.',
+        fields: [
+            { key: 'cid', label: 'CID-10', value: '', placeholder: 'Ex: F41.1' },
+            { key: 'confidence', label: 'Confianca', value: '', placeholder: 'Baixa, media ou alta.' },
+            { key: 'differential', label: 'Diferenciais', value: '', placeholder: 'Hipoteses a comparar.' },
+        ],
+    },
+    evidence: {
+        content: 'Dado observado que sustenta, enfraquece ou contextualiza uma hipotese.',
+        fields: [
+            { key: 'source', label: 'Fonte', value: '', placeholder: 'Sessao, relato, escala, documento.' },
+            { key: 'polarity', label: 'Polaridade', value: '', placeholder: 'Sustenta, enfraquece ou neutra.' },
+            { key: 'strength', label: 'Forca', value: '', placeholder: '0-5' },
+        ],
+    },
+    trigger: {
+        fields: [
+            { key: 'event', label: 'Evento', value: '', placeholder: 'O que dispara o ciclo?' },
+            { key: 'context', label: 'Contexto', value: '', placeholder: 'Onde, quando, com quem?' },
+        ],
+    },
+    thought: {
+        fields: [
+            { key: 'automatic_thought', label: 'Pensamento automatico', value: '', placeholder: 'Frase interna provavel.' },
+            { key: 'interpretation', label: 'Interpretacao', value: '', placeholder: 'Sentido atribuido ao evento.' },
+        ],
+    },
+    emotion: {
+        fields: [
+            { key: 'emotion', label: 'Emocao', value: '', placeholder: 'Raiva, medo, culpa, tristeza...' },
+            { key: 'intensity', label: 'Intensidade', value: '', placeholder: '0-10' },
+        ],
+    },
+    behavior: {
+        fields: [
+            { key: 'response', label: 'Resposta', value: '', placeholder: 'Acao observavel ou evitacao.' },
+            { key: 'consequence', label: 'Consequencia', value: '', placeholder: 'O que mantem ou muda o ciclo?' },
+        ],
+    },
+    'body-sensation': {
+        fields: [
+            { key: 'location', label: 'Local', value: '', placeholder: 'Peito, garganta, estomago...' },
+            { key: 'signal', label: 'Sinal', value: '', placeholder: 'Tensao, dormencia, calor, dor...' },
+        ],
+    },
+    belief: {
+        fields: [
+            { key: 'core_belief', label: 'Crenca central', value: '', placeholder: 'Eu sou..., os outros sao..., o mundo e...' },
+            { key: 'rule', label: 'Regra', value: '', placeholder: 'Se..., entao...' },
+        ],
+    },
+    schema: {
+        fields: [
+            { key: 'pattern', label: 'Padrao', value: '', placeholder: 'Tema recorrente do caso.' },
+            { key: 'origin', label: 'Origem provavel', value: '', placeholder: 'Historia, aprendizagem ou contexto.' },
+        ],
+    },
+    'cognitive-distortion': {
+        fields: [
+            { key: 'distortion', label: 'Distorcao', value: '', placeholder: 'Catastrofizacao, leitura mental...' },
+            { key: 'alternative', label: 'Alternativa', value: '', placeholder: 'Formulacao mais flexivel.' },
+        ],
+    },
+    'defense-mechanism': {
+        fields: [
+            { key: 'defense', label: 'Defesa', value: '', placeholder: 'Intelectualizacao, negacao, isolamento...' },
+            { key: 'protects_from', label: 'Protege de', value: '', placeholder: 'Afeto, memoria ou conflito evitado.' },
+        ],
+    },
+    resource: {
+        fields: [
+            { key: 'resource', label: 'Recurso', value: '', placeholder: 'Rede, habilidade, valor, pratica.' },
+            { key: 'access_plan', label: 'Como acessar', value: '', placeholder: 'Acao concreta para mobilizar.' },
+        ],
+    },
+    risk: {
+        fields: [
+            { key: 'risk', label: 'Risco', value: '', placeholder: 'O que exige atencao?' },
+            { key: 'safety_plan', label: 'Plano de seguranca', value: '', placeholder: 'Conduta, contato, combinado.' },
+        ],
+    },
+    intervention: {
+        fields: [
+            { key: 'intervention', label: 'Intervencao', value: '', placeholder: 'Tecnica, conversa, psicoeducacao.' },
+            { key: 'target', label: 'Alvo', value: '', placeholder: 'Que no do fluxo ela modifica?' },
+        ],
+    },
+    task: {
+        fields: [
+            { key: 'task', label: 'Combinado', value: '', placeholder: 'Exercicio ou tarefa entre sessoes.' },
+            { key: 'review_date', label: 'Revisao', value: '', placeholder: 'Quando revisar?' },
+        ],
+    },
+    timeline: {
+        content: 'Evento 1 -> Evento 2 -> Evento 3',
+        fields: [
+            { key: 'period', label: 'Periodo', value: '', placeholder: 'Infancia, adolescencia, mes atual...' },
+            { key: 'anchor_event', label: 'Evento ancora', value: '', placeholder: 'Marco temporal principal.' },
+        ],
+    },
+    router: {
+        fields: [
+            { key: 'routes', label: 'Rotas', value: '', placeholder: 'Caminhos possiveis a partir daqui.' },
+            { key: 'criterion', label: 'Criterio', value: '', placeholder: 'O que decide o caminho?' },
+        ],
+    },
+    condition: {
+        fields: [
+            { key: 'if', label: 'Se', value: '', placeholder: 'Condicao clinica ou comportamental.' },
+            { key: 'then', label: 'Entao', value: '', placeholder: 'Proximo passo do fluxo.' },
+        ],
+    },
+    loop: {
+        fields: [
+            { key: 'loop_pattern', label: 'Ciclo', value: '', placeholder: 'Como o padrao se repete?' },
+            { key: 'exit_signal', label: 'Sinal de saida', value: '', placeholder: 'O que interrompe o ciclo?' },
+        ],
+    },
+    stop: {
+        fields: [
+            { key: 'stop_type', label: 'Tipo', value: '', placeholder: 'Pausa, defesa, dissociacao, limite.' },
+            { key: 'grounding', label: 'Aterramento', value: '', placeholder: 'Conduta para retomar presenca.' },
+        ],
+    },
+    neuropulse: {
+        fields: [
+            { key: 'pulse_source', label: 'Origem', value: '', placeholder: 'NeuroPulse vinculado.' },
+            { key: 'clinical_use', label: 'Uso no fluxo', value: '', placeholder: 'Como a sintese informa o caso?' },
+        ],
+    },
+    mermaid: {
+        content: 'graph TD\n  A[Hipotese] --> B[Evidencia]\n  B --> C[Intervencao]',
+        fields: [
+            { key: 'diagram_goal', label: 'Objetivo', value: '', placeholder: 'O que este diagrama deve explicar?' },
+        ],
+    },
+    'neuroview-patient': {
+        fields: [
+            { key: 'filter', label: 'Filtro', value: '', placeholder: 'Notas, arquivos ou artefatos do paciente.' },
+        ],
+    },
+    transcription: {
+        fields: [
+            { key: 'speaker', label: 'Fonte', value: '', placeholder: 'Paciente, familiar, sessao, audio.' },
+            { key: 'clinical_marker', label: 'Marcador clinico', value: '', placeholder: 'Tema ou trecho relevante.' },
+        ],
+    },
+    table: {
+        fields: [
+            { key: 'columns', label: 'Colunas', value: 'Observacao | Evidencia | Conduta', placeholder: 'Estrutura da tabela.' },
+            { key: 'use_case', label: 'Uso', value: '', placeholder: 'Comparacao, rastreio, acompanhamento.' },
+        ],
+    },
+};
+
+const cloneBlueprint = (type: NodeType) => {
+    const blueprint = nodeBlueprints[type];
+    if (!blueprint) return {};
+
+    return {
+        ...blueprint,
+        fields: blueprint.fields?.map((field) => ({ ...field })),
+        checklist: blueprint.checklist ? [...blueprint.checklist] : undefined,
+    };
+};
+
 const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
     const k = 1024;
@@ -212,11 +420,13 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
     const handleQuickAdd = (type: NodeType, data?: any) => {
         if (onAddNode) {
             const category = nodeCategories.find((item) => item.id === type);
-            onAddNode(type, data || {
+            const baseData = {
                 label: category?.label || 'Novo Bloco',
                 description: category?.description,
                 blockKind: type,
-            });
+                ...cloneBlueprint(type),
+            };
+            onAddNode(type, data ? { ...baseData, ...data } : baseData);
             onClose();
         }
     };
@@ -291,36 +501,37 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
 
                             <div className="px-10 pt-2 pb-10">
                                 <TabsContent value="components" className="m-0 focus-visible:outline-none">
-                                    <div className="grid grid-cols-2 gap-4 pb-8">
+                                    <div className="grid grid-cols-1 gap-5 pb-8 md:grid-cols-2">
                                         {filteredCategories.map((cat) => (
-                                            <motion.div
+                                            <motion.button
+                                                type="button"
                                                 key={cat.id}
-                                                whileHover={{ scale: 1.01, backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.1)' }}
+                                                whileHover={{ scale: 1.015, y: -2 }}
                                                 whileTap={{ scale: 0.98 }}
                                                 draggable
                                                 onDragStart={(e) => onDragStart(e, cat.id as NodeType)}
                                                 onClick={() => handleQuickAdd(cat.id as NodeType)}
-                                                className="p-6 rounded-[32px] bg-white/[0.015] border border-white/5 cursor-pointer group transition-all duration-300 relative overflow-hidden"
+                                                className="group relative flex min-h-[252px] cursor-pointer flex-col overflow-hidden rounded-[30px] border border-white/[0.075] bg-[#080809]/95 p-7 text-left shadow-[0_28px_80px_-60px_rgba(255,255,255,0.34)] transition-all duration-300 hover:border-white/[0.14] hover:bg-[#0c0c0d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 [.light_&]:border-zinc-200 [.light_&]:bg-white [.light_&]:shadow-[0_28px_80px_-58px_rgba(24,24,27,0.34)] [.light_&]:hover:border-zinc-300"
                                             >
-                                                <div className="absolute top-4 right-6 opacity-20 group-hover:opacity-100 transition-opacity">
-                                                    <Plus size={14} className="text-zinc-500 group-hover:text-primary" />
+                                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_52%_10%,rgba(255,255,255,0.065),transparent_38%),linear-gradient(145deg,rgba(255,255,255,0.026),transparent_48%)] opacity-90 [.light_&]:bg-[radial-gradient(circle_at_52%_10%,rgba(24,24,27,0.055),transparent_38%),linear-gradient(145deg,rgba(24,24,27,0.018),transparent_48%)]" />
+                                                <div className="pointer-events-none absolute inset-px rounded-[29px] ring-1 ring-inset ring-white/[0.035] [.light_&]:ring-zinc-950/[0.04]" />
+
+                                                <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-[24px] bg-white text-zinc-950 shadow-[0_18px_36px_-24px_rgba(255,255,255,0.65)] transition-transform duration-300 group-hover:scale-[1.03] [.light_&]:bg-zinc-950 [.light_&]:text-white [.light_&]:shadow-[0_18px_36px_-24px_rgba(24,24,27,0.55)]">
+                                                    <cat.icon className="h-7 w-7" strokeWidth={2.15} />
                                                 </div>
 
-                                                <div className="flex flex-col gap-4">
-                                                    <div className={cn(
-                                                        "h-12 w-12 rounded-2xl flex items-center justify-center border border-white/5 transition-all duration-500 group-hover:scale-110 group-hover:border-primary/20",
-                                                        cat.bg,
-                                                        "bg-opacity-5"
-                                                    )}>
-                                                        <cat.icon className={cn("h-5 w-5", cat.color)} strokeWidth={1.5} />
-                                                    </div>
-
-                                                    <div className="space-y-1">
-                                                        <h4 className="text-[15px] font-black text-white tracking-tight">{cat.label}</h4>
-                                                        <p className="text-[11px] text-zinc-600 font-bold uppercase tracking-wider leading-relaxed">{cat.description}</p>
-                                                    </div>
+                                                <div className="relative z-10 mt-7 space-y-4">
+                                                    <h4 className="max-w-[12rem] text-[24px] font-black leading-[1.05] tracking-tight text-white [.light_&]:text-zinc-950">{cat.label}</h4>
+                                                    <p className="max-w-[18rem] text-[13px] font-semibold leading-relaxed text-zinc-400 [.light_&]:text-zinc-500">{cat.description}</p>
                                                 </div>
-                                            </motion.div>
+
+                                                <div className="relative z-10 mt-auto flex items-center justify-between border-t border-white/[0.06] pt-5 [.light_&]:border-zinc-200">
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.28em] text-zinc-400 [.light_&]:text-zinc-500">Inserir bloco</span>
+                                                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.07] text-white transition-all duration-300 group-hover:bg-white group-hover:text-zinc-950 [.light_&]:bg-zinc-100 [.light_&]:text-zinc-950 [.light_&]:group-hover:bg-zinc-950 [.light_&]:group-hover:text-white">
+                                                        <ChevronRight size={20} strokeWidth={2.4} />
+                                                    </span>
+                                                </div>
+                                            </motion.button>
                                         ))}
                                     </div>
                                 </TabsContent>

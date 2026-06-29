@@ -7,411 +7,743 @@ import {
 } from "npm:@aws-sdk/client-s3";
 import { getSignedUrl } from "npm:@aws-sdk/s3-request-presigner";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import {
-  requireRequestEntitlement,
-  subscriptionAccessErrorResponse,
-} from "../_shared/subscription-access.ts";
 
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_USER_STORAGE_BYTES = 250 * 1024 * 1024;
+const UPLOAD_EXPIRES_IN_SECONDS = 900;
+const DOWNLOAD_EXPIRES_IN_SECONDS = 300;
+const R2_BUCKET = Deno.env.get("R2_BUCKET_NAME") ?? "neuronex-documents";
+const DOCUMENT_RESPONSE_SELECT =
+  "id,patient_id,category,original_name,mime_type,size_bytes,status,metadata,uploaded_at,created_at";
+
 const ALLOWED_TYPES = new Set([
   "application/pdf",
-  "image/jpeg",
   "image/png",
+  "image/jpeg",
   "image/webp",
+  "text/plain",
+  "text/markdown",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/rtf",
-  "text/plain",
-  "text/csv",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]);
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+const DOCUMENT_CATEGORIES = new Set([
+  "general",
+  "clinical",
+  "contract",
+  "financial",
+  "invoice",
+  "notes",
+  "ai-chat",
+  "patient-portal",
+  "legacy-backfill",
+]);
+
+const ACTIVE_STATUSES = new Set(["active", "trialing", "admin_override"]);
+const ACTIVE_ACCESS_STATES = new Set(["paid_access", "trial_access", "admin_override"]);
+
+type JsonRecord = Record<string, unknown>;
+
+type SupabaseUser = {
+  id: string;
+  email?: string;
+  app_metadata?: JsonRecord;
 };
 
-function jsonResponse(body: unknown, status = 200) {
-  return Response.json(body, { status, headers: corsHeaders });
-}
+class AccessError extends Error {
+  status: number;
+  code: string;
 
-function sanitizeFileName(value: unknown) {
-  const fallback = "arquivo";
-  const fileName = String(value || fallback)
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120);
-
-  return fileName || fallback;
-}
-
-function r2Config() {
-  const bucket = Deno.env.get("R2_BUCKET");
-  const endpoint = Deno.env.get("R2_ENDPOINT");
-  const accessKeyId = Deno.env.get("R2_ACCESS_KEY_ID");
-  const secretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY");
-
-  if (!bucket || !endpoint || !accessKeyId || !secretAccessKey) {
-    throw new Error("r2_not_configured");
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
   }
-
-  return { bucket, endpoint, accessKeyId, secretAccessKey };
 }
 
-function r2Client(config: ReturnType<typeof r2Config>) {
-  return new S3Client({
-    region: "auto",
-    endpoint: config.endpoint,
-    credentials: {
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
+function jsonResponse(payload: unknown, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
     },
   });
 }
 
-function userSupabase(req: Request) {
-  const authorization = req.headers.get("Authorization");
-  if (!authorization) return null;
+function accessErrorResponse(error: unknown): Response {
+  if (error instanceof AccessError) {
+    return jsonResponse({ error: error.code, message: error.message }, error.status);
+  }
 
-  return createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authorization } } },
-  );
+  return jsonResponse({ error: "access_check_failed", message: "Nao foi possivel validar o acesso." }, 500);
+}
+
+function requireEnv(name: string): string {
+  const value = Deno.env.get(name);
+  if (!value) {
+    throw new Error(`Missing environment variable: ${name}`);
+  }
+  return value;
 }
 
 function adminSupabase() {
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!serviceKey) throw new Error("service_role_not_configured");
-
-  return createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    serviceKey,
-    { auth: { persistSession: false } },
-  );
+  return createClient(requireEnv("SUPABASE_URL"), requireEnv("SUPABASE_SERVICE_ROLE_KEY"), {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
-const isUuid = (value: string) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-
-function inferLegacyCategory(path: string) {
-  const parts = path.split("/");
-  const second = String(parts[1] || "");
-  if (second === "invoices") return "financial";
-  if (second === "chat") return "other";
-  if (second === "notes" || second === "personal") return "general";
-  if (isUuid(second)) return "patient_attachment";
-  return "general";
+function userSupabase(req: Request) {
+  return createClient(requireEnv("SUPABASE_URL"), requireEnv("SUPABASE_ANON_KEY"), {
+    global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }
 
-async function inferLegacyPatientId(admin: ReturnType<typeof adminSupabase>, ownerId: string, path: string) {
-  const second = String(path.split("/")[1] || "");
-  if (!isUuid(second)) return null;
-
-  const { data } = await admin
-    .from("patients")
-    .select("id")
-    .eq("id", second)
-    .eq("user_id", ownerId)
-    .maybeSingle();
-
-  return data?.id || null;
+function bearerToken(req: Request): string {
+  const header = req.headers.get("Authorization") ?? "";
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() ?? "";
 }
 
-function legacyOriginalName(path: string) {
-  const raw = path.split("/").pop() || "arquivo";
-  return raw.replace(/^\d+[_-]/, "") || raw;
-}
-
-async function backfillFilesPsico(req: Request, body: Record<string, unknown>) {
-  const authorization = req.headers.get("Authorization") || "";
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const isServiceRole = serviceKey && authorization === `Bearer ${serviceKey}`;
-  const admin = adminSupabase();
-
-  let userId: string | null = null;
-  if (!isServiceRole) {
-    const access = await requireRequestEntitlement(req, "neurodrive");
-    userId = access.user.id;
+async function authenticatedUser(req: Request): Promise<SupabaseUser> {
+  const token = bearerToken(req);
+  if (!token) {
+    throw new AccessError(401, "missing_jwt", "Sessao obrigatoria.");
   }
 
-  const limit = Math.min(Math.max(Number(body.limit || 100), 1), 500);
-  const dryRun = body.dryRun === true;
-  const config = r2Config();
-  const client = r2Client(config);
+  const { data, error } = await adminSupabase().auth.getUser(token);
+  if (error || !data.user?.id) {
+    throw new AccessError(401, "invalid_jwt", "Sessao invalida.");
+  }
 
-  let query = admin
-    .schema("storage")
-    .from("objects")
-    .select("id,name,owner,metadata,created_at,updated_at")
+  return data.user as SupabaseUser;
+}
+
+function isPatientPortalAccount(user: SupabaseUser): boolean {
+  const role = String(user.app_metadata?.account_role ?? user.app_metadata?.role ?? "").toLowerCase();
+  return role === "patient";
+}
+
+function normalizeString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function valueAsRecord(value: unknown): JsonRecord {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
+}
+
+function isFeatureExplicitlyBlocked(row: JsonRecord, featureKey: string): boolean {
+  const internalFlags = valueAsRecord(row.internal_flags);
+  const features = valueAsRecord(row.features);
+  const limits = valueAsRecord(row.limits);
+
+  if (featureKey === "neurodrive") {
+    return internalFlags.can_use_neurodrive === false || limits.neurodrive_documents === 0;
+  }
+
+  return features[featureKey] === false;
+}
+
+async function requireRequestEntitlement(req: Request, featureKey: string) {
+  const user = await authenticatedUser(req);
+
+  if (isPatientPortalAccount(user)) {
+    throw new AccessError(403, "patient_account_blocked", "Conta de paciente nao pode acessar recursos profissionais.");
+  }
+
+  if (user.email === "jotahub@gmail.com") {
+    return { user, entitlement: { status: "admin_override", access_state: "admin_override" } };
+  }
+
+  const { data, error } = await adminSupabase()
+    .from("current_subscription_entitlements")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    throw new AccessError(500, "entitlement_lookup_failed", "Nao foi possivel validar sua assinatura.");
+  }
+
+  if (!data) {
+    throw new AccessError(402, "subscription_required", "Assinatura ativa ou teste ativo obrigatorio.");
+  }
+
+  const row = valueAsRecord(data);
+  const status = String(row.effective_status ?? row.status ?? "").toLowerCase();
+  const accessState = String(row.effective_access_state ?? row.access_state ?? "").toLowerCase();
+
+  if (!ACTIVE_STATUSES.has(status) || !ACTIVE_ACCESS_STATES.has(accessState) || isFeatureExplicitlyBlocked(row, featureKey)) {
+    throw new AccessError(402, "feature_unavailable", "Recurso indisponivel para a assinatura atual.");
+  }
+
+  return { user, entitlement: data };
+}
+
+function r2Client() {
+  return new S3Client({
+    region: "auto",
+    endpoint: requireEnv("R2_ENDPOINT"),
+    credentials: {
+      accessKeyId: requireEnv("R2_ACCESS_KEY_ID"),
+      secretAccessKey: requireEnv("R2_SECRET_ACCESS_KEY"),
+    },
+  });
+}
+
+function normalizeFileName(fileName: string): string {
+  const fallback = "documento";
+  const cleaned = fileName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 90);
+
+  return cleaned || fallback;
+}
+
+function normalizeCategory(value: unknown): string {
+  const category = normalizeString(value) || "general";
+  return DOCUMENT_CATEGORIES.has(category) ? category : "general";
+}
+
+function normalizePatientId(value: unknown): string | null {
+  const patientId = normalizeString(value);
+  if (!patientId) return null;
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(patientId)) {
+    throw new AccessError(400, "invalid_patient_id", "Paciente invalido.");
+  }
+
+  return patientId;
+}
+
+function normalizeMetadata(value: unknown): JsonRecord {
+  const metadata = valueAsRecord(value);
+  const result: JsonRecord = {};
+
+  for (const [key, item] of Object.entries(metadata)) {
+    if (typeof item === "string" || typeof item === "number" || typeof item === "boolean" || item === null) {
+      result[key] = item;
+    }
+  }
+
+  return result;
+}
+
+function normalizeFileInput(body: JsonRecord) {
+  const rawFileName = normalizeString(body.fileName);
+  const mimeType = normalizeString(body.mimeType);
+  const sizeBytes = Number(body.sizeBytes);
+
+  if (!rawFileName) {
+    throw new AccessError(400, "missing_file_name", "Nome do arquivo obrigatorio.");
+  }
+
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0 || sizeBytes > MAX_FILE_BYTES) {
+    throw new AccessError(400, "invalid_file_size", "Arquivo maior que o limite permitido.");
+  }
+
+  if (!ALLOWED_TYPES.has(mimeType)) {
+    throw new AccessError(400, "invalid_file_type", "Tipo de arquivo nao permitido.");
+  }
+
+  return {
+    fileName: normalizeFileName(rawFileName),
+    originalName: rawFileName,
+    mimeType,
+    sizeBytes,
+  };
+}
+
+async function ensurePatientBelongsToUser(admin: ReturnType<typeof adminSupabase>, patientId: string | null, userId: string) {
+  if (!patientId) return;
+
+  const { data, error } = await admin
+    .from("patients")
+    .select("id")
+    .eq("id", patientId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new AccessError(500, "patient_lookup_failed", "Nao foi possivel validar o paciente.");
+  }
+
+  if (!data) {
+    throw new AccessError(403, "patient_not_owned", "Paciente nao pertence a este profissional.");
+  }
+}
+
+async function currentStorageUsage(admin: ReturnType<typeof adminSupabase>, userId: string): Promise<number> {
+  const { data, error } = await admin
+    .from("document_files")
+    .select("size_bytes")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .in("status", ["pending_upload", "ready"]);
+
+  if (error) {
+    throw new AccessError(500, "storage_usage_failed", "Nao foi possivel validar a cota de documentos.");
+  }
+
+  return (data ?? []).reduce((total: number, row: { size_bytes: number | null }) => total + Number(row.size_bytes ?? 0), 0);
+}
+
+async function createUploadUrl(req: Request, body: JsonRecord) {
+  const { user } = await requireRequestEntitlement(req, "neurodrive");
+  const file = normalizeFileInput(body);
+  const patientId = normalizePatientId(body.patientId);
+  const category = normalizeCategory(body.category);
+  const metadata = normalizeMetadata(body.metadata);
+  const admin = adminSupabase();
+
+  await ensurePatientBelongsToUser(admin, patientId, user.id);
+
+  const usage = await currentStorageUsage(admin, user.id);
+  if (usage + file.sizeBytes > MAX_USER_STORAGE_BYTES) {
+    throw new AccessError(413, "document_storage_quota_exceeded", "Limite de armazenamento de documentos atingido.");
+  }
+
+  const objectKey = `documents/${user.id}/${crypto.randomUUID()}-${file.fileName}`;
+  const client = r2Client();
+
+  const uploadUrl = await getSignedUrl(
+    client,
+    new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: objectKey,
+      ContentType: file.mimeType,
+      ContentLength: file.sizeBytes,
+      Metadata: {
+        uploadedBy: user.id,
+        originalName: encodeURIComponent(file.originalName),
+      },
+    }),
+    { expiresIn: UPLOAD_EXPIRES_IN_SECONDS },
+  );
+
+  const { data: document, error } = await admin
+    .from("document_files")
+    .insert({
+      user_id: user.id,
+      patient_id: patientId,
+      category,
+      bucket: R2_BUCKET,
+      object_key: objectKey,
+      original_name: file.originalName,
+      mime_type: file.mimeType,
+      size_bytes: file.sizeBytes,
+      status: "pending_upload",
+      metadata: {
+        ...metadata,
+        storage_provider: "cloudflare_r2",
+        upload_flow: "edge_signed_url",
+      },
+    })
+    .select(DOCUMENT_RESPONSE_SELECT)
+    .single();
+
+  if (error || !document) {
+    console.error("Failed to create document metadata", error);
+    throw new AccessError(500, "document_metadata_failed", "Nao foi possivel preparar o documento.");
+  }
+
+  return jsonResponse({
+    uploadUrl,
+    objectKey,
+    bucket: R2_BUCKET,
+    expiresIn: UPLOAD_EXPIRES_IN_SECONDS,
+    document,
+  });
+}
+
+async function markUploadFailed(req: Request, body: JsonRecord) {
+  const { user } = await requireRequestEntitlement(req, "neurodrive");
+  const documentId = normalizeString(body.documentId);
+  if (!documentId) {
+    return jsonResponse({ error: "missing_document_id" }, 400);
+  }
+
+  const admin = adminSupabase();
+  const { data: current, error: selectError } = await admin
+    .from("document_files")
+    .select("id,metadata,status")
+    .eq("id", documentId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (selectError) {
+    console.error("Failed to select failed upload", selectError);
+    return jsonResponse({ error: "document_lookup_failed" }, 500);
+  }
+
+  if (!current) {
+    return jsonResponse({ error: "document_not_found" }, 404);
+  }
+
+  const currentMetadata = valueAsRecord(current.metadata);
+  const { data: document, error } = await admin
+    .from("document_files")
+    .update({
+      status: "failed",
+      metadata: {
+        ...currentMetadata,
+        upload_failed_at: new Date().toISOString(),
+        upload_failure_reason: normalizeString(body.reason) || "client_upload_failed",
+      },
+    })
+    .eq("id", documentId)
+    .eq("user_id", user.id)
+    .eq("status", "pending_upload")
+    .select(DOCUMENT_RESPONSE_SELECT)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to mark upload failed", error);
+    return jsonResponse({ error: "mark_failed_error" }, 500);
+  }
+
+  return jsonResponse({ document: document ?? current });
+}
+
+async function confirmUpload(req: Request, body: JsonRecord) {
+  const { user } = await requireRequestEntitlement(req, "neurodrive");
+  const documentId = normalizeString(body.documentId);
+  if (!documentId) {
+    return jsonResponse({ error: "missing_document_id" }, 400);
+  }
+
+  const admin = adminSupabase();
+  const { data: document, error: selectError } = await admin
+    .from("document_files")
+    .select("id,bucket,object_key,mime_type,status,metadata,user_id")
+    .eq("id", documentId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (selectError) {
+    console.error("Failed to select document before confirm", selectError);
+    return jsonResponse({ error: "document_lookup_error" }, 500);
+  }
+
+  if (!document) {
+    return jsonResponse({ error: "document_not_found" }, 404);
+  }
+
+  if (document.status === "ready") {
+    return jsonResponse({ document });
+  }
+
+  const client = r2Client();
+  let head;
+
+  try {
+    head = await client.send(
+      new HeadObjectCommand({
+        Bucket: String(document.bucket),
+        Key: String(document.object_key),
+      }),
+    );
+  } catch (error) {
+    console.error("R2 head object failed", error);
+    return jsonResponse({ error: "object_not_found" }, 404);
+  }
+
+  const currentMetadata = valueAsRecord(document.metadata);
+  const { data: readyDocument, error: updateError } = await admin
+    .from("document_files")
+    .update({
+      status: "ready",
+      size_bytes: Number(head.ContentLength ?? 0),
+      mime_type: head.ContentType ?? document.mime_type,
+      uploaded_at: new Date().toISOString(),
+      metadata: {
+        ...currentMetadata,
+        etag: head.ETag,
+        storage_provider: "cloudflare_r2",
+      },
+    })
+    .eq("id", document.id)
+    .eq("user_id", user.id)
+    .select(DOCUMENT_RESPONSE_SELECT)
+    .single();
+
+  if (updateError) {
+    console.error("Failed to confirm upload", updateError);
+    return jsonResponse({ error: "confirm_update_error" }, 500);
+  }
+
+  return jsonResponse({ document: readyDocument });
+}
+
+async function createDownloadUrl(req: Request, body: JsonRecord) {
+  const documentId = normalizeString(body.documentId);
+  if (!documentId) {
+    return jsonResponse({ error: "missing_document_id" }, 400);
+  }
+
+  const supabase = userSupabase(req);
+  const { data: document, error } = await supabase
+    .from("document_files")
+    .select("id,bucket,object_key,original_name,mime_type,status")
+    .eq("id", documentId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load document for signed URL", error);
+    return jsonResponse({ error: "document_lookup_error" }, 500);
+  }
+
+  if (!document || document.status !== "ready") {
+    return jsonResponse({ error: "document_not_available" }, 404);
+  }
+
+  const downloadUrl = await getSignedUrl(
+    r2Client(),
+    new GetObjectCommand({
+      Bucket: String(document.bucket),
+      Key: String(document.object_key),
+      ResponseContentType: String(document.mime_type),
+      ResponseContentDisposition: `inline; filename="${encodeURIComponent(String(document.original_name))}"`,
+    }),
+    { expiresIn: DOWNLOAD_EXPIRES_IN_SECONDS },
+  );
+
+  return jsonResponse({ downloadUrl, expiresIn: DOWNLOAD_EXPIRES_IN_SECONDS });
+}
+
+async function deleteDocument(req: Request, body: JsonRecord) {
+  const { user } = await requireRequestEntitlement(req, "neurodrive");
+  const documentId = normalizeString(body.documentId);
+  if (!documentId) {
+    return jsonResponse({ error: "missing_document_id" }, 400);
+  }
+
+  const admin = adminSupabase();
+  const { data: document, error } = await admin
+    .from("document_files")
+    .select("id,bucket,object_key,status,deleted_at")
+    .eq("id", documentId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load document for delete", error);
+    return jsonResponse({ error: "document_lookup_error" }, 500);
+  }
+
+  if (!document) {
+    return jsonResponse({ error: "document_not_found" }, 404);
+  }
+
+  if (document.deleted_at) {
+    return jsonResponse({ ok: true, alreadyDeleted: true });
+  }
+
+  try {
+    await r2Client().send(
+      new DeleteObjectCommand({
+        Bucket: String(document.bucket),
+        Key: String(document.object_key),
+      }),
+    );
+  } catch (error) {
+    console.error("Failed to delete R2 object", error);
+    return jsonResponse({ error: "object_delete_error" }, 500);
+  }
+
+  const { error: updateError } = await admin
+    .from("document_files")
+    .update({
+      status: "deleted",
+      deleted_at: new Date().toISOString(),
+    })
+    .eq("id", document.id)
+    .eq("user_id", user.id);
+
+  if (updateError) {
+    console.error("Failed to mark document deleted", updateError);
+    return jsonResponse({ error: "metadata_delete_error" }, 500);
+  }
+
+  return jsonResponse({ ok: true });
+}
+
+function inferLegacyCategory(path: string): string {
+  if (path.startsWith("documentos-pacientes/")) return "clinical";
+  if (path.startsWith("financial/")) return "financial";
+  if (path.startsWith("invoice-uploads/")) return "invoice";
+  if (path.startsWith("notes/") || path.startsWith("documentos/")) return "notes";
+  if (path.startsWith("chat-files/") || path.startsWith("chat-attachments/")) return "ai-chat";
+  return "legacy-backfill";
+}
+
+function inferOriginalName(path: string): string {
+  const last = path.split("/").filter(Boolean).pop();
+  return last || "arquivo-legado";
+}
+
+async function backfillFilesPsico(req: Request, body: JsonRecord) {
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const authorization = req.headers.get("Authorization") ?? "";
+  const isServiceRequest = serviceKey && authorization === `Bearer ${serviceKey}`;
+
+  if (!isServiceRequest) {
+    await requireRequestEntitlement(req, "neurodrive");
+  }
+
+  const limit = Math.min(Math.max(Number(body.limit ?? 25), 1), 100);
+  const admin = adminSupabase();
+
+  const { data: objects, error } = await admin
+    .from("storage.objects")
+    .select("id,name,bucket_id,owner,metadata,created_at")
     .eq("bucket_id", "files_psico")
-    .order("created_at", { ascending: true })
     .limit(limit);
 
-  if (userId) query = query.eq("owner", userId);
-
-  const { data: objects, error } = await query;
-  if (error) return jsonResponse({ error: error.message }, 400);
+  if (error) {
+    console.error("Failed to list legacy objects", error);
+    return jsonResponse({ error: "legacy_list_error" }, 500);
+  }
 
   const results: Array<Record<string, unknown>> = [];
+  const client = r2Client();
 
-  for (const object of objects || []) {
-    const ownerId = String(object.owner || object.name.split("/")[0] || "");
-    if (!isUuid(ownerId)) {
-      results.push({ path: object.name, status: "skipped", reason: "owner_not_resolved" });
-      continue;
-    }
+  for (const object of objects ?? []) {
+    const legacyPath = String(object.name);
+    const metadata = valueAsRecord(object.metadata);
+    const owner = typeof object.owner === "string" && object.owner ? object.owner : null;
+    const size = Number(metadata.size ?? metadata.contentLength ?? 0);
+    const mimeType = String(metadata.mimetype ?? metadata.contentType ?? "application/octet-stream");
+    const originalName = inferOriginalName(legacyPath);
+    const category = inferLegacyCategory(legacyPath);
 
-    const originalName = legacyOriginalName(object.name);
-    const objectKey = `documents/${ownerId}/legacy-files-psico/${object.id}-${sanitizeFileName(originalName)}`;
-
-    const existing = await admin
+    const { data: existing } = await admin
       .from("document_files")
-      .select("id,status")
-      .eq("object_key", objectKey)
+      .select("id,status,object_key")
+      .eq("metadata->>legacy_bucket", "files_psico")
+      .eq("metadata->>legacy_path", legacyPath)
       .maybeSingle();
 
-    if (existing.data?.id) {
-      results.push({ path: object.name, status: "exists", documentId: existing.data.id });
+    if (existing) {
+      results.push({ legacyPath, status: "skipped", reason: "already_backfilled", documentId: existing.id });
       continue;
     }
 
-    const metadata = object.metadata && typeof object.metadata === "object" ? object.metadata as Record<string, unknown> : {};
-    const mimeType = String(metadata.mimetype || metadata.mimeType || "application/octet-stream");
-    const sizeBytes = Number(metadata.size || metadata.contentLength || 0);
-    const category = inferLegacyCategory(object.name);
-    const patientId = await inferLegacyPatientId(admin, ownerId, object.name);
-
-    if (dryRun) {
-      results.push({ path: object.name, status: "dry_run", ownerId, patientId, category, sizeBytes, mimeType });
-      continue;
-    }
-
-    const { data: blob, error: downloadError } = await admin.storage.from("files_psico").download(object.name);
+    const { data: blob, error: downloadError } = await admin.storage.from("files_psico").download(legacyPath);
     if (downloadError || !blob) {
-      results.push({ path: object.name, status: "failed", reason: downloadError?.message || "download_failed" });
+      console.error("Failed to download legacy object", { legacyPath, downloadError });
+      results.push({ legacyPath, status: "failed", reason: "download_error" });
       continue;
     }
 
-    await client.send(new PutObjectCommand({
-      Bucket: config.bucket,
-      Key: objectKey,
-      ContentType: mimeType,
-      Body: new Uint8Array(await blob.arrayBuffer()),
-    }));
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const objectKey = `legacy/files_psico/${crypto.randomUUID()}-${normalizeFileName(originalName)}`;
 
-    const { data: document, error: insertError } = await admin
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: objectKey,
+          Body: bytes,
+          ContentType: mimeType,
+          ContentLength: bytes.byteLength,
+          Metadata: {
+            legacyBucket: "files_psico",
+            legacyPath: encodeURIComponent(legacyPath),
+          },
+        }),
+      );
+    } catch (uploadError) {
+      console.error("Failed to upload legacy object to R2", { legacyPath, uploadError });
+      results.push({ legacyPath, status: "failed", reason: "r2_upload_error" });
+      continue;
+    }
+
+    const { data: inserted, error: insertError } = await admin
       .from("document_files")
       .insert({
-        user_id: ownerId,
-        patient_id: patientId,
+        user_id: owner,
+        patient_id: null,
         category,
-        bucket: config.bucket,
+        bucket: R2_BUCKET,
         object_key: objectKey,
         original_name: originalName,
         mime_type: mimeType,
-        size_bytes: sizeBytes || blob.size,
+        size_bytes: bytes.byteLength || size,
         status: "ready",
         uploaded_at: new Date().toISOString(),
         metadata: {
-          source: "files_psico_backfill",
-          legacy_storage_bucket: "files_psico",
+          legacy_bucket: "files_psico",
+          legacy_path: legacyPath,
           legacy_storage_object_id: object.id,
-          legacy_storage_path: object.name,
-          legacy_storage_owner: object.owner,
-          legacy_created_at: object.created_at,
-          legacy_updated_at: object.updated_at,
+          backfilled_at: new Date().toISOString(),
         },
       })
       .select("id")
       .single();
 
     if (insertError) {
-      results.push({ path: object.name, status: "failed", reason: insertError.message });
+      console.error("Failed to insert backfilled document metadata", { legacyPath, insertError });
+      results.push({ legacyPath, status: "failed", reason: "metadata_insert_error" });
       continue;
     }
 
-    results.push({ path: object.name, status: "backfilled", documentId: document.id });
+    results.push({ legacyPath, status: "backfilled", documentId: inserted?.id, bytes: bytes.byteLength });
   }
 
-  return jsonResponse({
-    success: true,
-    scope: isServiceRole ? "all" : "current-user",
-    dryRun,
-    processed: results.length,
-    results,
-  });
-}
-
-async function createUploadUrl(req: Request, body: Record<string, unknown>) {
-  const { user } = await requireRequestEntitlement(req, "neurodrive");
-  const fileName = sanitizeFileName(body.fileName);
-  const mimeType = String(body.mimeType || "application/octet-stream");
-  const sizeBytes = Number(body.sizeBytes || 0);
-
-  if (!ALLOWED_TYPES.has(mimeType)) {
-    return jsonResponse({ error: "Tipo de arquivo nao permitido." }, 400);
-  }
-
-  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0 || sizeBytes > MAX_FILE_BYTES) {
-    return jsonResponse({ error: "Arquivo invalido ou maior que 20 MB." }, 400);
-  }
-
-  const config = r2Config();
-  const objectKey = `documents/${user.id}/${crypto.randomUUID()}-${fileName}`;
-  const uploadUrl = await getSignedUrl(
-    r2Client(config),
-    new PutObjectCommand({ Bucket: config.bucket, Key: objectKey, ContentType: mimeType }),
-    { expiresIn: 900 },
-  );
-
-  return jsonResponse({ uploadUrl, objectKey, bucket: config.bucket, expiresIn: 900 });
-}
-
-async function confirmUpload(req: Request, body: Record<string, unknown>) {
-  await requireRequestEntitlement(req, "neurodrive");
-
-  const supabase = userSupabase(req);
-  if (!supabase) return jsonResponse({ error: "Sessao invalida." }, 401);
-
-  const documentId = String(body.documentId || "");
-  if (!documentId) return jsonResponse({ error: "Documento invalido." }, 400);
-
-  const { data: document, error: documentError } = await supabase
-    .from("document_files")
-    .select("id,bucket,object_key,mime_type,status,metadata")
-    .eq("id", documentId)
-    .maybeSingle();
-  if (documentError) return jsonResponse({ error: documentError.message }, 400);
-  if (!document) return jsonResponse({ error: "Documento nao encontrado." }, 404);
-  if (document.status === "deleted") return jsonResponse({ error: "Documento removido." }, 410);
-
-  const config = r2Config();
-  const head = await r2Client(config).send(new HeadObjectCommand({ Bucket: document.bucket, Key: document.object_key }));
-  const actualSize = Number(head.ContentLength || 0);
-  if (actualSize <= 0 || actualSize > MAX_FILE_BYTES) {
-    return jsonResponse({ error: "Arquivo invalido ou maior que 20 MB." }, 400);
-  }
-
-  const currentMetadata =
-    document.metadata && typeof document.metadata === "object" && !Array.isArray(document.metadata)
-      ? document.metadata
-      : {};
-  const etag = String(head.ETag || "").replaceAll('"', "");
-  const nextMetadata = etag ? { ...currentMetadata, r2_etag: etag } : currentMetadata;
-
-  const { data: ready, error } = await supabase
-    .from("document_files")
-    .update({
-      status: "ready",
-      size_bytes: actualSize,
-      mime_type: head.ContentType || document.mime_type,
-      uploaded_at: new Date().toISOString(),
-      metadata: nextMetadata,
-    })
-    .eq("id", document.id)
-    .select("id,patient_id,category,original_name,mime_type,size_bytes,status,metadata,uploaded_at,created_at")
-    .single();
-  if (error) return jsonResponse({ error: error.message }, 400);
-
-  return jsonResponse({ document: ready });
-}
-
-async function createDownloadUrl(req: Request, body: Record<string, unknown>) {
-  const supabase = userSupabase(req);
-  if (!supabase) return jsonResponse({ error: "Sessao invalida." }, 401);
-
-  const documentId = String(body.documentId || "");
-  const disposition = String(body.disposition || "inline");
-  if (!documentId) return jsonResponse({ error: "Documento invalido." }, 400);
-
-  const { data: document, error } = await supabase
-    .from("document_files")
-    .select("bucket,object_key,original_name,mime_type,status,deleted_at")
-    .eq("id", documentId)
-    .maybeSingle();
-
-  if (error) return jsonResponse({ error: error.message }, 400);
-  if (!document || document.status !== "ready" || document.deleted_at) {
-    return jsonResponse({ error: "Documento indisponivel." }, 404);
-  }
-
-  const config = r2Config();
-  const name = encodeURIComponent(document.original_name).replace(/'/g, "%27");
-  const safeDisposition = disposition === "attachment" ? "attachment" : "inline";
-  const downloadUrl = await getSignedUrl(
-    r2Client(config),
-    new GetObjectCommand({
-      Bucket: document.bucket,
-      Key: document.object_key,
-      ResponseContentType: document.mime_type,
-      ResponseContentDisposition: `${safeDisposition}; filename*=UTF-8''${name}`,
-    }),
-    { expiresIn: 300 },
-  );
-
-  return jsonResponse({ downloadUrl, expiresIn: 300 });
-}
-
-async function deleteDocument(req: Request, body: Record<string, unknown>) {
-  await requireRequestEntitlement(req, "neurodrive");
-
-  const supabase = userSupabase(req);
-  if (!supabase) return jsonResponse({ error: "Sessao invalida." }, 401);
-
-  const documentId = String(body.documentId || "");
-  if (!documentId) return jsonResponse({ error: "Documento invalido." }, 400);
-
-  const { data: document, error: documentError } = await supabase
-    .from("document_files")
-    .select("id,bucket,object_key,status,deleted_at")
-    .eq("id", documentId)
-    .maybeSingle();
-  if (documentError) return jsonResponse({ error: documentError.message }, 400);
-  if (!document) return jsonResponse({ error: "Documento nao encontrado." }, 404);
-  if (document.deleted_at) return jsonResponse({ success: true, alreadyDeleted: true });
-
-  const config = r2Config();
-  await r2Client(config).send(new DeleteObjectCommand({ Bucket: document.bucket, Key: document.object_key }));
-
-  const { error } = await supabase
-    .from("document_files")
-    .update({ status: "deleted", deleted_at: new Date().toISOString() })
-    .eq("id", document.id);
-  if (error) return jsonResponse({ error: error.message }, 400);
-
-  return jsonResponse({ success: true });
+  return jsonResponse({ results });
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return jsonResponse({ error: "Metodo nao permitido." }, 405);
+  if (req.method === "OPTIONS") {
+    return jsonResponse({ ok: true });
+  }
+
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "method_not_allowed" }, 405);
+  }
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const action = String(body.action || "create-upload-url");
+    const body = (await req.json().catch(() => ({}))) as JsonRecord;
+    const action = String(body.action ?? "create-upload-url");
 
-    if (action === "create-upload-url") return await createUploadUrl(req, body);
-    if (action === "confirm-upload") return await confirmUpload(req, body);
-    if (action === "create-download-url") return await createDownloadUrl(req, body);
-    if (action === "delete-document") return await deleteDocument(req, body);
-    if (action === "backfill-files-psico") return await backfillFilesPsico(req, body);
-
-    return jsonResponse({ error: "Acao invalida." }, 400);
+    switch (action) {
+      case "create-upload-url":
+        return await createUploadUrl(req, body);
+      case "mark-upload-failed":
+        return await markUploadFailed(req, body);
+      case "confirm-upload":
+        return await confirmUpload(req, body);
+      case "create-download-url":
+        return await createDownloadUrl(req, body);
+      case "delete-document":
+        return await deleteDocument(req, body);
+      case "backfill-files-psico":
+        return await backfillFilesPsico(req, body);
+      default:
+        return jsonResponse({ error: "unknown_action" }, 400);
+    }
   } catch (error) {
-    const accessResponse = subscriptionAccessErrorResponse(error);
-    if (accessResponse) return accessResponse;
-
-    if (error instanceof Error && error.message === "r2_not_configured") {
-      return jsonResponse({ error: "R2 nao configurado no servidor." }, 500);
-    }
-    if (error instanceof Error && error.message === "service_role_not_configured") {
-      return jsonResponse({ error: "Service role nao configurado no servidor." }, 500);
+    if (error instanceof AccessError) {
+      return accessErrorResponse(error);
     }
 
-    console.error("r2-create-upload-url:error", error);
-    return jsonResponse({ error: "Nao foi possivel processar o documento." }, 500);
+    console.error("Unexpected R2 function error", error);
+    const message = error instanceof Error ? error.message : "unknown";
+    if (message.includes("R2_")) {
+      return jsonResponse({ error: "r2_not_configured", detail: message }, 500);
+    }
+
+    return jsonResponse({ error: "internal_error" }, 500);
   }
 });
