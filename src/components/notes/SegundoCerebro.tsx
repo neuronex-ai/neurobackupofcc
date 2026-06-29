@@ -14,7 +14,9 @@ import {
     Plus, ChevronRight, FolderOpen,
     User, Users, ChevronDown, Loader2,
     Smile, TableProperties, Stethoscope, Mic,
-    Link2, Sparkles
+    Link2, Sparkles, Shield, AlertTriangle,
+    GitBranch, Route, Split, Repeat2, PauseCircle,
+    Network, Activity, HeartPulse, Eye, Sigma
 } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,8 +28,16 @@ import { useAuth } from '@/components/auth/SessionContextProvider';
 import { usePatientsList } from '@/hooks/use-patients-list';
 import { PremiumFileIcon } from '@/components/ui/PremiumFileIcons';
 import { cn } from '@/lib/utils';
+import { getR2DocumentDownloadUrl } from '@/lib/r2-documents-client';
 
-export type NodeType = 'start' | 'category' | 'action' | 'item' | 'logic' | 'quote' | 'document' | 'anamnesis' | 'somatic' | 'timeline' | 'mood' | 'table' | 'diagnostic' | 'transcription' | 'bridge';
+export type NodeType =
+    | 'start' | 'root' | 'free-note' | 'linked-note' | 'patient' | 'diagnostic' | 'evidence'
+    | 'trigger' | 'thought' | 'emotion' | 'behavior' | 'body-sensation'
+    | 'belief' | 'schema' | 'cognitive-distortion' | 'defense-mechanism'
+    | 'resource' | 'risk' | 'intervention' | 'task' | 'timeline'
+    | 'router' | 'condition' | 'loop' | 'stop' | 'neuropulse' | 'mermaid'
+    | 'neuroview-patient' | 'document' | 'transcription' | 'table'
+    | 'category' | 'action' | 'item' | 'logic' | 'quote' | 'anamnesis' | 'somatic' | 'mood' | 'bridge';
 
 interface SegundoCerebroProps {
     isOpen: boolean;
@@ -38,29 +48,45 @@ interface SegundoCerebroProps {
 interface FileItem {
     name: string;
     id: string;
+    documentId: string;
     created_at: string;
     size: number;
     path: string;
     mimetype?: string;
+    signedUrl?: string;
+    storageProvider: 'r2';
 }
 
-const BUCKET_NAME = "files_psico";
-
-
-const nodeCategories = [
-    { id: 'item', label: 'Nota Genérica', icon: FileText, color: 'text-zinc-400', bg: 'bg-zinc-400/10' },
-    { id: 'category', label: 'Categoria/Grupo', icon: Hash, color: 'text-blue-400', bg: 'bg-blue-400/10' },
-    { id: 'action', label: 'Ação / Tarefa', icon: Target, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-    { id: 'logic', label: 'Conclusão Lógica', icon: Brain, color: 'text-purple-400', bg: 'bg-purple-400/10' },
-    { id: 'quote', label: 'Citação Paciente', icon: MessageSquare, color: 'text-amber-400', bg: 'bg-amber-400/10' },
-    { id: 'somatic', label: 'Queixa Somática', icon: Zap, color: 'text-red-400', bg: 'bg-red-400/10' },
-    { id: 'timeline', label: 'Evento Temporal', icon: Clock, color: 'text-cyan-400', bg: 'bg-cyan-400/10' },
-    { id: 'document', label: 'Anexo / Arquivo', icon: BookOpen, color: 'text-zinc-500', bg: 'bg-zinc-500/10' },
-    { id: 'mood', label: 'Mapa de Humor', icon: Smile, color: 'text-pink-500', bg: 'bg-pink-500/10' },
-    { id: 'table', label: 'Tabela Dinmica', icon: TableProperties, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-    { id: 'diagnostic', label: 'Hipótese Diagnóstica', icon: Stethoscope, color: 'text-red-500', bg: 'bg-red-500/10' },
-    { id: 'transcription', label: 'Transcrição de Voz', icon: Mic, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-    { id: 'bridge', label: 'Ponte Terapêutica', icon: Link2, color: 'text-cyan-500', bg: 'bg-cyan-500/10' },
+const nodeCategories: Array<{ id: NodeType; label: string; description: string; icon: any; color: string; bg: string }> = [
+    { id: 'free-note', label: 'Nota Livre', description: 'Texto editável dentro do fluxo.', icon: FileText, color: 'text-zinc-300', bg: 'bg-zinc-400/10' },
+    { id: 'linked-note', label: 'Nota Vinculada', description: 'Referência para uma nota existente.', icon: Link2, color: 'text-cyan-300', bg: 'bg-cyan-400/10' },
+    { id: 'patient', label: 'Paciente', description: 'Âncora clínica do mapeamento.', icon: User, color: 'text-sky-300', bg: 'bg-sky-400/10' },
+    { id: 'diagnostic', label: 'Hipótese Diagnóstica', description: 'Busca CID-10 BR e evidências.', icon: Stethoscope, color: 'text-red-400', bg: 'bg-red-500/10' },
+    { id: 'evidence', label: 'Evidência Clínica', description: 'Dado que sustenta ou questiona uma hipótese.', icon: Sigma, color: 'text-amber-300', bg: 'bg-amber-400/10' },
+    { id: 'trigger', label: 'Gatilho', description: 'Evento que inicia o ciclo.', icon: Zap, color: 'text-orange-300', bg: 'bg-orange-400/10' },
+    { id: 'thought', label: 'Pensamento', description: 'Cognição, interpretação ou narrativa.', icon: Brain, color: 'text-violet-300', bg: 'bg-violet-400/10' },
+    { id: 'emotion', label: 'Emoção', description: 'Afeto principal e intensidade.', icon: HeartPulse, color: 'text-pink-300', bg: 'bg-pink-400/10' },
+    { id: 'behavior', label: 'Comportamento', description: 'Resposta observável ou padrão de ação.', icon: Activity, color: 'text-emerald-300', bg: 'bg-emerald-400/10' },
+    { id: 'body-sensation', label: 'Sensação Corporal', description: 'Marcador somático do processo.', icon: Smile, color: 'text-rose-300', bg: 'bg-rose-400/10' },
+    { id: 'belief', label: 'Crença', description: 'Regra interna ou convicção central.', icon: Hash, color: 'text-indigo-300', bg: 'bg-indigo-400/10' },
+    { id: 'schema', label: 'Esquema', description: 'Padrão recorrente de organização psíquica.', icon: Network, color: 'text-blue-300', bg: 'bg-blue-400/10' },
+    { id: 'cognitive-distortion', label: 'Distorção Cognitiva', description: 'Viés de interpretação ou inferência.', icon: Split, color: 'text-purple-300', bg: 'bg-purple-400/10' },
+    { id: 'defense-mechanism', label: 'Mecanismo de Defesa', description: 'Proteção psíquica ou resposta defensiva.', icon: Shield, color: 'text-teal-300', bg: 'bg-teal-400/10' },
+    { id: 'resource', label: 'Recurso / Proteção', description: 'Fator protetivo, habilidade ou suporte.', icon: Sparkles, color: 'text-lime-300', bg: 'bg-lime-400/10' },
+    { id: 'risk', label: 'Risco / Alerta', description: 'Ponto de atenção clínica.', icon: AlertTriangle, color: 'text-red-300', bg: 'bg-red-400/10' },
+    { id: 'intervention', label: 'Intervenção', description: 'Ação terapêutica planejada.', icon: Target, color: 'text-green-300', bg: 'bg-green-400/10' },
+    { id: 'task', label: 'Tarefa Clínica', description: 'Combinado, exercício ou próximo passo.', icon: Target, color: 'text-emerald-300', bg: 'bg-emerald-400/10' },
+    { id: 'timeline', label: 'Linha do Tempo', description: 'Espinha temporal do caso.', icon: Clock, color: 'text-cyan-300', bg: 'bg-cyan-400/10' },
+    { id: 'router', label: 'Roteador', description: 'Distribui caminhos possíveis.', icon: Route, color: 'text-slate-300', bg: 'bg-slate-400/10' },
+    { id: 'condition', label: 'Condição', description: 'Se isso acontecer, siga por este caminho.', icon: GitBranch, color: 'text-yellow-300', bg: 'bg-yellow-400/10' },
+    { id: 'loop', label: 'Loop', description: 'Ciclo recorrente de manutenção.', icon: Repeat2, color: 'text-fuchsia-300', bg: 'bg-fuchsia-400/10' },
+    { id: 'stop', label: 'Pausa / Stop', description: 'Interrupção, defesa ou dissociação.', icon: PauseCircle, color: 'text-zinc-300', bg: 'bg-zinc-400/10' },
+    { id: 'neuropulse', label: 'NeuroPulse', description: 'Síntese ou diagrama gerado.', icon: Activity, color: 'text-primary', bg: 'bg-primary/10' },
+    { id: 'mermaid', label: 'Mermaid', description: 'Diagrama renderizável no fluxo.', icon: Network, color: 'text-blue-300', bg: 'bg-blue-400/10' },
+    { id: 'neuroview-patient', label: 'NeuroView do Paciente', description: 'Embed do grafo filtrado por paciente.', icon: Eye, color: 'text-white', bg: 'bg-white/10' },
+    { id: 'document', label: 'Arquivo', description: 'PDF, imagem ou documento conectado.', icon: BookOpen, color: 'text-zinc-400', bg: 'bg-zinc-500/10' },
+    { id: 'transcription', label: 'Transcrição', description: 'Registro de fala editável.', icon: Mic, color: 'text-yellow-300', bg: 'bg-yellow-400/10' },
+    { id: 'table', label: 'Tabela de Observações', description: 'Linhas e colunas editáveis.', icon: TableProperties, color: 'text-indigo-300', bg: 'bg-indigo-400/10' },
 ];
 
 const formatFileSize = (bytes: number) => {
@@ -116,50 +142,54 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
         if (!userId) return;
         setIsLoadingFiles(true);
         try {
-            // Fetch personal files
-            const folderPath = `${userId}/personal`;
-            const { data: pFiles, error: pError } = await supabase.storage
-                .from(BUCKET_NAME)
-                .list(folderPath, { limit: 200, sortBy: { column: "created_at", order: "desc" } });
+            const mapDocument = async (item: any): Promise<FileItem> => ({
+                name: item.original_name,
+                id: item.id,
+                documentId: item.id,
+                created_at: item.created_at,
+                size: item.size_bytes || 0,
+                path: `r2:${item.id}`,
+                mimetype: item.mime_type,
+                signedUrl: await getR2DocumentDownloadUrl({ documentId: item.id, disposition: 'inline' }).catch(() => ''),
+                storageProvider: 'r2',
+            });
 
-            if (!pError && pFiles) {
-                setPersonalFiles(
-                    pFiles
-                        .filter(item => item.name !== "" && item.name !== ".emptyFolderPlaceholder")
-                        .map(item => ({
-                            name: item.name,
-                            id: item.id || item.name,
-                            created_at: item.created_at,
-                            size: item.metadata?.size || 0,
-                            path: `${folderPath}/${item.name}`,
-                            mimetype: item.metadata?.mimetype,
-                        }))
-                );
+            const personalResult = await supabase
+                .from('document_files')
+                .select('id,patient_id,original_name,mime_type,size_bytes,created_at,metadata')
+                .is('patient_id', null)
+                .eq('status', 'ready')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false })
+                .limit(200);
+
+            if (!personalResult.error && personalResult.data) {
+                const personalRows = personalResult.data.filter((item: any) => {
+                    const source = String(item.metadata?.source || '');
+                    return source !== 'ai_chat' && source !== 'external_invoice';
+                });
+                setPersonalFiles(await Promise.all(personalRows.map(mapDocument)));
             }
 
-            // Fetch patient files
             if (patients && patients.length > 0) {
+                const patientIds = patients.map((patient) => patient.id);
+                const patientResult = await supabase
+                    .from('document_files')
+                    .select('id,patient_id,original_name,mime_type,size_bytes,created_at')
+                    .in('patient_id', patientIds)
+                    .eq('status', 'ready')
+                    .is('deleted_at', null)
+                    .order('created_at', { ascending: false })
+                    .limit(500);
+
                 const result: Record<string, FileItem[]> = {};
-                for (const patient of patients) {
-                    const patientFolder = `${userId}/${patient.id}`;
-                    try {
-                        const { data } = await supabase.storage
-                            .from(BUCKET_NAME)
-                            .list(patientFolder, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
-                        if (data && data.length > 0) {
-                            const files = data
-                                .filter(item => item.name !== "" && item.name !== ".emptyFolderPlaceholder")
-                                .map(item => ({
-                                    name: item.name,
-                                    id: item.id || item.name,
-                                    created_at: item.created_at,
-                                    size: item.metadata?.size || 0,
-                                    path: `${patientFolder}/${item.name}`,
-                                    mimetype: item.metadata?.mimetype,
-                                }));
-                            if (files.length > 0) result[patient.id] = files;
-                        }
-                    } catch { }
+                if (!patientResult.error && patientResult.data) {
+                    const files = await Promise.all(patientResult.data.map(mapDocument));
+                    files.forEach((file: any) => {
+                        const patientId = String(patientResult.data.find((row: any) => row.id === file.id)?.patient_id || '');
+                        if (!patientId) return;
+                        result[patientId] = [...(result[patientId] || []), file];
+                    });
                 }
                 setPatientFilesMap(result);
             }
@@ -181,14 +211,19 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
 
     const handleQuickAdd = (type: NodeType, data?: any) => {
         if (onAddNode) {
-            onAddNode(type, data);
+            const category = nodeCategories.find((item) => item.id === type);
+            onAddNode(type, data || {
+                label: category?.label || 'Novo Bloco',
+                description: category?.description,
+                blockKind: type,
+            });
             onClose();
         }
     };
 
     const getFilePublicUrl = (path: string) => {
-        const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
-        return data?.publicUrl || '';
+        const allFiles = [...personalFiles, ...Object.values(patientFilesMap).flat()];
+        return allFiles.find((file) => file.path === path)?.signedUrl || '';
     };
 
     const getCleanFileName = (name: string) => {
@@ -196,7 +231,8 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
     };
 
     const filteredCategories = nodeCategories.filter(c =>
-        c.label.toLowerCase().includes(searchTerm.toLowerCase())
+        c.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const filteredNotes = myNotes.filter(n =>
@@ -226,10 +262,10 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
                                 <div className="h-10 w-10 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center shadow-2xl">
                                     <Brain className="h-5 w-5 text-white" />
                                 </div>
-                                <Badge variant="outline" className="text-[9px] font-black uppercase tracking-[0.3em] border-white/10 text-zinc-500 bg-white/[0.02] py-1">Segundo Cérebro</Badge>
+                                <Badge variant="outline" className="text-[9px] font-black uppercase tracking-[0.3em] border-white/10 text-zinc-500 bg-white/[0.02] py-1">Biblioteca de Blocos</Badge>
                             </div>
-                            <DialogTitle className="text-4xl font-black text-white tracking-tighter leading-tight">O que vamos mapear?</DialogTitle>
-                            <DialogDescription className="text-zinc-500 font-bold text-[13px] tracking-tight">Arraste para o canvas ou clique para adicionar instantaneamente.</DialogDescription>
+                            <DialogTitle className="text-4xl font-black text-white tracking-tighter leading-tight">NeuroFlow Studio</DialogTitle>
+                            <DialogDescription className="text-zinc-500 font-bold text-[13px] tracking-tight">Clique em um bloco para adicioná-lo ao centro do canvas.</DialogDescription>
                         </DialogHeader>
 
                         <div className="px-10 mb-8 relative z-10">
@@ -247,7 +283,7 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
                         <Tabs defaultValue="components" className="flex-1 flex flex-col relative z-10">
                             <div className="px-10 mb-6 sticky top-0 bg-[#0A0A0B]/80 backdrop-blur-md py-2 z-50">
                                 <TabsList className="bg-white/[0.02] border border-white/5 h-11 p-1 rounded-2xl gap-1">
-                                    <TabsTrigger value="components" className="flex-1 data-[state=active]:bg-white/[0.05] data-[state=active]:text-white text-zinc-500 font-black text-[9px] uppercase tracking-[0.2em] rounded-xl transition-all duration-500 py-2">Ferramentas</TabsTrigger>
+                                    <TabsTrigger value="components" className="flex-1 data-[state=active]:bg-white/[0.05] data-[state=active]:text-white text-zinc-500 font-black text-[9px] uppercase tracking-[0.2em] rounded-xl transition-all duration-500 py-2">Blocos</TabsTrigger>
                                     <TabsTrigger value="notes" className="flex-1 data-[state=active]:bg-white/[0.05] data-[state=active]:text-white text-zinc-500 font-black text-[9px] uppercase tracking-[0.2em] rounded-xl transition-all duration-500 py-2">Minhas Notas</TabsTrigger>
                                     <TabsTrigger value="files" className="flex-1 data-[state=active]:bg-white/[0.05] data-[state=active]:text-white text-zinc-500 font-black text-[9px] uppercase tracking-[0.2em] rounded-xl transition-all duration-500 py-2">Arquivos</TabsTrigger>
                                 </TabsList>
@@ -264,7 +300,7 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
                                                 draggable
                                                 onDragStart={(e) => onDragStart(e, cat.id as NodeType)}
                                                 onClick={() => handleQuickAdd(cat.id as NodeType)}
-                                                className="p-6 rounded-[32px] bg-white/[0.015] border border-white/5 cursor-grab group transition-all duration-300 relative overflow-hidden"
+                                                className="p-6 rounded-[32px] bg-white/[0.015] border border-white/5 cursor-pointer group transition-all duration-300 relative overflow-hidden"
                                             >
                                                 <div className="absolute top-4 right-6 opacity-20 group-hover:opacity-100 transition-opacity">
                                                     <Plus size={14} className="text-zinc-500 group-hover:text-primary" />
@@ -281,7 +317,7 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
 
                                                     <div className="space-y-1">
                                                         <h4 className="text-[15px] font-black text-white tracking-tight">{cat.label}</h4>
-                                                        <p className="text-[11px] text-zinc-600 font-bold uppercase tracking-wider leading-relaxed">Clique para adicionar ao centro.</p>
+                                                        <p className="text-[11px] text-zinc-600 font-bold uppercase tracking-wider leading-relaxed">{cat.description}</p>
                                                     </div>
                                                 </div>
                                             </motion.div>
@@ -314,7 +350,7 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
                                                         sourceNoteId: note.id,
                                                         content: note.content || '',
                                                     })}
-                                                    className="p-5 rounded-[24px] bg-white/[0.01] border border-white/5 cursor-grab group flex items-center justify-between transition-all duration-300"
+                                                    className="p-5 rounded-[24px] bg-white/[0.01] border border-white/5 cursor-pointer group flex items-center justify-between transition-all duration-300"
                                                 >
                                                     <div className="flex items-center gap-5">
                                                         <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/10 group-hover:bg-primary/20 transition-all duration-500 group-hover:scale-110 group-hover:rotate-6">
@@ -398,7 +434,7 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
                                                             draggable
                                                             onDragStart={(e) => onDragStart(e, 'document', fileData)}
                                                             onClick={() => handleQuickAdd('document', fileData)}
-                                                            className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 cursor-grab group flex items-center justify-between transition-all"
+                                                            className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 cursor-pointer group flex items-center justify-between transition-all"
                                                         >
                                                             <div className="flex items-center gap-4">
                                                                 <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-white/5 flex items-center justify-center shadow-lg">
@@ -484,7 +520,7 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
                                                                                 draggable
                                                                                 onDragStart={(e) => onDragStart(e, 'document', fileData)}
                                                                                 onClick={() => handleQuickAdd('document', fileData)}
-                                                                                className="p-3.5 rounded-xl bg-white/[0.01] border border-white/5 cursor-grab group flex items-center justify-between transition-all"
+                                                                                className="p-3.5 rounded-xl bg-white/[0.01] border border-white/5 cursor-pointer group flex items-center justify-between transition-all"
                                                                             >
                                                                                 <div className="flex items-center gap-3">
                                                                                     <div className="h-9 w-9 rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center shadow-md">
@@ -525,7 +561,7 @@ export const SegundoCerebro = ({ isOpen, onClose, onAddNode }: SegundoCerebroPro
                 <div className="px-10 py-4 border-t border-white/5 bg-white/[0.02] flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-2">
                         <Sparkles className="h-3 w-3 text-primary animate-pulse" />
-                        <span className="text-[8px] text-zinc-500 font-black uppercase tracking-[0.1em]">Dica: Arraste os componentes diretamente para o mapa.</span>
+                        <span className="text-[8px] text-zinc-500 font-black uppercase tracking-[0.1em]">Dica: clique para inserir; arraste somente quando quiser escolher a posição exata.</span>
                     </div>
                     <button
                         onClick={onClose}

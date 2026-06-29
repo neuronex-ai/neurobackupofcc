@@ -82,6 +82,169 @@ function userSupabase(req: Request) {
   );
 }
 
+function adminSupabase() {
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!serviceKey) throw new Error("service_role_not_configured");
+
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    serviceKey,
+    { auth: { persistSession: false } },
+  );
+}
+
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+function inferLegacyCategory(path: string) {
+  const parts = path.split("/");
+  const second = String(parts[1] || "");
+  if (second === "invoices") return "financial";
+  if (second === "chat") return "other";
+  if (second === "notes" || second === "personal") return "general";
+  if (isUuid(second)) return "patient_attachment";
+  return "general";
+}
+
+async function inferLegacyPatientId(admin: ReturnType<typeof adminSupabase>, ownerId: string, path: string) {
+  const second = String(path.split("/")[1] || "");
+  if (!isUuid(second)) return null;
+
+  const { data } = await admin
+    .from("patients")
+    .select("id")
+    .eq("id", second)
+    .eq("user_id", ownerId)
+    .maybeSingle();
+
+  return data?.id || null;
+}
+
+function legacyOriginalName(path: string) {
+  const raw = path.split("/").pop() || "arquivo";
+  return raw.replace(/^\d+[_-]/, "") || raw;
+}
+
+async function backfillFilesPsico(req: Request, body: Record<string, unknown>) {
+  const authorization = req.headers.get("Authorization") || "";
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  const isServiceRole = serviceKey && authorization === `Bearer ${serviceKey}`;
+  const admin = adminSupabase();
+
+  let userId: string | null = null;
+  if (!isServiceRole) {
+    const access = await requireRequestEntitlement(req, "neurodrive");
+    userId = access.user.id;
+  }
+
+  const limit = Math.min(Math.max(Number(body.limit || 100), 1), 500);
+  const dryRun = body.dryRun === true;
+  const config = r2Config();
+  const client = r2Client(config);
+
+  let query = admin
+    .schema("storage")
+    .from("objects")
+    .select("id,name,owner,metadata,created_at,updated_at")
+    .eq("bucket_id", "files_psico")
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (userId) query = query.eq("owner", userId);
+
+  const { data: objects, error } = await query;
+  if (error) return jsonResponse({ error: error.message }, 400);
+
+  const results: Array<Record<string, unknown>> = [];
+
+  for (const object of objects || []) {
+    const ownerId = String(object.owner || object.name.split("/")[0] || "");
+    if (!isUuid(ownerId)) {
+      results.push({ path: object.name, status: "skipped", reason: "owner_not_resolved" });
+      continue;
+    }
+
+    const originalName = legacyOriginalName(object.name);
+    const objectKey = `documents/${ownerId}/legacy-files-psico/${object.id}-${sanitizeFileName(originalName)}`;
+
+    const existing = await admin
+      .from("document_files")
+      .select("id,status")
+      .eq("object_key", objectKey)
+      .maybeSingle();
+
+    if (existing.data?.id) {
+      results.push({ path: object.name, status: "exists", documentId: existing.data.id });
+      continue;
+    }
+
+    const metadata = object.metadata && typeof object.metadata === "object" ? object.metadata as Record<string, unknown> : {};
+    const mimeType = String(metadata.mimetype || metadata.mimeType || "application/octet-stream");
+    const sizeBytes = Number(metadata.size || metadata.contentLength || 0);
+    const category = inferLegacyCategory(object.name);
+    const patientId = await inferLegacyPatientId(admin, ownerId, object.name);
+
+    if (dryRun) {
+      results.push({ path: object.name, status: "dry_run", ownerId, patientId, category, sizeBytes, mimeType });
+      continue;
+    }
+
+    const { data: blob, error: downloadError } = await admin.storage.from("files_psico").download(object.name);
+    if (downloadError || !blob) {
+      results.push({ path: object.name, status: "failed", reason: downloadError?.message || "download_failed" });
+      continue;
+    }
+
+    await client.send(new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: objectKey,
+      ContentType: mimeType,
+      Body: new Uint8Array(await blob.arrayBuffer()),
+    }));
+
+    const { data: document, error: insertError } = await admin
+      .from("document_files")
+      .insert({
+        user_id: ownerId,
+        patient_id: patientId,
+        category,
+        bucket: config.bucket,
+        object_key: objectKey,
+        original_name: originalName,
+        mime_type: mimeType,
+        size_bytes: sizeBytes || blob.size,
+        status: "ready",
+        uploaded_at: new Date().toISOString(),
+        metadata: {
+          source: "files_psico_backfill",
+          legacy_storage_bucket: "files_psico",
+          legacy_storage_object_id: object.id,
+          legacy_storage_path: object.name,
+          legacy_storage_owner: object.owner,
+          legacy_created_at: object.created_at,
+          legacy_updated_at: object.updated_at,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (insertError) {
+      results.push({ path: object.name, status: "failed", reason: insertError.message });
+      continue;
+    }
+
+    results.push({ path: object.name, status: "backfilled", documentId: document.id });
+  }
+
+  return jsonResponse({
+    success: true,
+    scope: isServiceRole ? "all" : "current-user",
+    dryRun,
+    processed: results.length,
+    results,
+  });
+}
+
 async function createUploadUrl(req: Request, body: Record<string, unknown>) {
   const { user } = await requireRequestEntitlement(req, "neurodrive");
   const fileName = sanitizeFileName(body.fileName);
@@ -234,6 +397,7 @@ Deno.serve(async (req) => {
     if (action === "confirm-upload") return await confirmUpload(req, body);
     if (action === "create-download-url") return await createDownloadUrl(req, body);
     if (action === "delete-document") return await deleteDocument(req, body);
+    if (action === "backfill-files-psico") return await backfillFilesPsico(req, body);
 
     return jsonResponse({ error: "Acao invalida." }, 400);
   } catch (error) {
@@ -242,6 +406,9 @@ Deno.serve(async (req) => {
 
     if (error instanceof Error && error.message === "r2_not_configured") {
       return jsonResponse({ error: "R2 nao configurado no servidor." }, 500);
+    }
+    if (error instanceof Error && error.message === "service_role_not_configured") {
+      return jsonResponse({ error: "Service role nao configurado no servidor." }, 500);
     }
 
     console.error("r2-create-upload-url:error", error);

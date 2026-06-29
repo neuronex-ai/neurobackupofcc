@@ -3,6 +3,13 @@
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/integrations/supabase/client';
+import {
+    deserializeNeuroFlowWorkflow,
+    emptyNeuroFlowWorkflow,
+    parseStoredNeuroFlowWorkflow,
+    serializeNeuroFlowWorkflow,
+    workflowFromLegacyJson
+} from '@/lib/neuroflow-workflow';
 import { cn } from '@/lib/utils';
 import {
     ChevronLeft, Layers, Loader2, Lock, Maximize, Plus, Unlock, ZoomIn, ZoomOut
@@ -11,7 +18,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactFlow, {
     addEdge, Background, Connection,
     Edge,
-    Node, OnEdgesDelete, OnNodesDelete, Panel, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow
+    Node, Panel, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { toast } from 'sonner';
@@ -29,6 +36,30 @@ import { NodeType, SegundoCerebro } from './SegundoCerebro';
 const nodeTypes = {
   start: NeuralNode,
   root: NeuralNode,
+  'free-note': NeuralNode,
+  'linked-note': NeuralNode,
+  patient: NeuralNode,
+  evidence: NeuralNode,
+  trigger: NeuralNode,
+  thought: NeuralNode,
+  emotion: NeuralNode,
+  behavior: NeuralNode,
+  'body-sensation': NeuralNode,
+  belief: NeuralNode,
+  schema: NeuralNode,
+  'cognitive-distortion': NeuralNode,
+  'defense-mechanism': NeuralNode,
+  resource: NeuralNode,
+  risk: NeuralNode,
+  intervention: NeuralNode,
+  task: NeuralNode,
+  router: NeuralNode,
+  condition: NeuralNode,
+  loop: NeuralNode,
+  stop: NeuralNode,
+  neuropulse: NeuralNode,
+  mermaid: NeuralNode,
+  'neuroview-patient': NeuralNode,
   category: NeuralNode,
   action: NeuralNode,
   item: NeuralNode,
@@ -49,24 +80,45 @@ const edgeTypes = {
   neural: NeuralEdge,
 };
 
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';
+
 const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => void }) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [patientId, setPatientId] = useState<string | null>(null);
+  const [flowTitle, setFlowTitle] = useState("NeuroFlow Studio");
   const isSavingRef = useRef(false);
   const pendingSaveRef = useRef(false);
+  const retrySaveTimerRef = useRef<number | null>(null);
   const latestGraphRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
-  const { screenToFlowPosition, getViewport, zoomIn, zoomOut, fitView } = useReactFlow();
+  const saveRevisionRef = useRef<number | null>(null);
+  const { screenToFlowPosition, getViewport, setViewport, zoomIn, zoomOut, fitView } = useReactFlow();
   const { theme } = useTheme();
 
   // Modal States
   const [editModalNoteId, setEditModalNoteId] = useState<string | null>(null);
   const [previewModalFileData, setPreviewModalFileData] = useState<any | null>(null);
+
+  const updateNodeData = useCallback((nodeId: string, patch: Record<string, unknown>) => {
+    setNodes((currentNodes) => currentNodes.map((node) =>
+      node.id === nodeId
+        ? { ...node, data: { ...(node.data || {}), ...patch } }
+        : node
+    ));
+  }, [setNodes]);
+
+  const attachRuntimeNodeData = useCallback((node: Node): Node => ({
+    ...node,
+    data: {
+      ...(node.data || {}),
+      onUpdateNodeData: updateNodeData,
+    },
+  }), [updateNodeData]);
 
   useEffect(() => {
     const handleOpenLib = () => setIsLibraryOpen(true);
@@ -78,63 +130,74 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
     if (!flowId) return;
     setIsLoading(true);
     try {
-      const { data: flowData } = await supabase.from('neuro_flows').select('patient_id, nodes, edges').eq('id', flowId).single();
+      const { data: flowData, error: flowError } = await supabase
+        .from('neuro_flows')
+        .select('title, patient_id, workflow, save_revision')
+        .eq('id', flowId)
+        .single();
+
+      if (flowError) throw flowError;
+
       const currentPatientId = flowData?.patient_id;
       setPatientId(currentPatientId);
+      setFlowTitle(flowData?.title || "NeuroFlow Studio");
+      saveRevisionRef.current = typeof flowData?.save_revision === 'number' ? flowData.save_revision : 0;
 
-      const { data: dbNodes } = await supabase.from('flow_nodes').select('*').eq('flow_id', flowId);
-      const { data: dbEdges, error: edgesError } = await supabase.from('flow_edges').select('*').eq('flow_id', flowId);
+      const workflow = parseStoredNeuroFlowWorkflow(flowData?.workflow)
+        || workflowFromLegacyJson({
+          metadata: {
+            title: flowData?.title || "NeuroFlow Studio",
+            patientId: currentPatientId,
+            ownerScope: currentPatientId ? 'patient' : 'none',
+          },
+        })
+        || emptyNeuroFlowWorkflow();
 
-      if (edgesError) {
-        console.error("[NeuroFlow] Erro ao carregar conexões:", edgesError);
-      }
-
-      if (dbNodes && dbNodes.length > 0) {
-        setNodes(dbNodes.map(n => ({
-          id: n.id,
-          type: n.type || 'item',
-          position: { x: n.x, y: n.y },
-          data: { label: n.label || 'Sem título', patientId: currentPatientId, ...(n.content as object) },
-        })));
-      } else if (Array.isArray(flowData?.nodes) && flowData.nodes.length > 0) {
-        setNodes(flowData.nodes.map((node: Node) => ({
+      const restored = deserializeNeuroFlowWorkflow(workflow);
+      const nextNodes = restored.nodes.length > 0
+        ? restored.nodes.map((node) => ({
           ...node,
-          data: { ...(node.data || {}), patientId: currentPatientId },
-        })));
-      } else {
-        setNodes([{
+          data: { ...(node.data || {}), patientId: (node.data as any)?.patientId || currentPatientId },
+        }))
+        : [{
           id: 'root',
           type: 'root',
           position: { x: 250, y: 250 },
-          data: { label: 'Início da Sessão' }
-        }]);
-      }
+          data: { label: 'Início da Sessão', patientId: currentPatientId }
+        }];
 
-      if (dbEdges && !edgesError && dbEdges.length > 0) {
-        setEdges(dbEdges.map(e => ({
-          id: e.id,
-          source: e.source_id,
-          target: e.target_id,
-          sourceHandle: e.source_handle,
-          targetHandle: e.target_handle,
-          type: 'neural',
-          animated: true
-        })));
-      } else if (Array.isArray(flowData?.edges) && flowData.edges.length > 0) {
-        setEdges(flowData.edges.map((edge: Edge) => ({
-          ...edge,
-          type: edge.type || 'neural',
-          animated: edge.animated ?? true,
-        })));
+      setNodes(nextNodes.map(attachRuntimeNodeData));
+      setEdges(restored.edges.map((edge) => ({
+        ...edge,
+        type: edge.type || 'neural',
+        animated: edge.animated ?? true,
+      })));
+
+      if (restored.viewport && typeof restored.viewport.zoom === 'number') {
+        window.setTimeout(() => {
+          void setViewport({
+            x: restored.viewport.x || 0,
+            y: restored.viewport.y || 0,
+            zoom: restored.viewport.zoom || 1,
+          }, { duration: 0 });
+        }, 0);
       }
     } catch (e) {
       console.error(e);
     } finally {
       setIsLoading(false);
     }
-  }, [flowId, setNodes, setEdges]);
+  }, [attachRuntimeNodeData, flowId, setNodes, setEdges, setViewport]);
 
   useEffect(() => { loadFlow(); }, [loadFlow]);
+
+  useEffect(() => {
+    return () => {
+      if (retrySaveTimerRef.current) {
+        window.clearTimeout(retrySaveTimerRef.current);
+      }
+    };
+  }, []);
 
   // Sincronização automática
   useEffect(() => {
@@ -148,89 +211,58 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
       return;
     }
     isSavingRef.current = true;
-    setIsSaving(true);
+    setSaveStatus('saving');
+    let saveFailed = false;
     try {
       const { nodes: nodesToSave, edges: edgesToSave } = latestGraphRef.current;
-      const nodeUpdates = nodesToSave.map(n => ({
-        id: n.id,
-        flow_id: flowId,
-        x: Math.round(n.position.x),
-        y: Math.round(n.position.y),
-        label: n.data.label,
-        type: n.type,
-        content: n.data // content now implicitly includes patientId but thats fine, or we can spread out
-      }));
-      const { error: nodesError } = await supabase.from('flow_nodes').upsert(nodeUpdates);
-      if (nodesError) throw nodesError;
+      const workflow = serializeNeuroFlowWorkflow({
+        nodes: nodesToSave,
+        edges: edgesToSave,
+        viewport: getViewport(),
+        metadata: {
+          title: flowTitle,
+          patientId,
+          ownerScope: patientId ? 'patient' : 'none',
+        },
+      });
 
-      const edgeUpdates = edgesToSave.map(e => ({
-        id: e.id,
-        flow_id: flowId,
-        source_id: e.source,
-        target_id: e.target,
-        source_handle: e.sourceHandle,
-        target_handle: e.targetHandle,
-        type: e.type || 'neural'
-      }));
+      const { data, error } = await supabase.rpc('save_neuroflow_workflow' as any, {
+        p_flow_id: flowId,
+        p_workflow: workflow as any,
+        p_expected_revision: saveRevisionRef.current,
+      });
 
-      if (edgeUpdates.length > 0) {
-        const { error: upsertEdgesError } = await supabase.from('flow_edges').upsert(edgeUpdates);
-        if (upsertEdgesError) throw upsertEdgesError;
+      if (error) throw error;
 
-        const { data: storedEdges, error: storedEdgesError } = await supabase
-          .from('flow_edges')
-          .select('id')
-          .eq('flow_id', flowId);
-
-        if (storedEdgesError) throw storedEdgesError;
-
-        const currentEdgeIds = new Set(edgeUpdates.map((edge) => edge.id));
-        const staleEdgeIds = (storedEdges || [])
-          .map((edge) => edge.id)
-          .filter((id) => !currentEdgeIds.has(id));
-
-        if (staleEdgeIds.length > 0) {
-          const { error: pruneEdgesError } = await supabase
-            .from('flow_edges')
-            .delete()
-            .eq('flow_id', flowId)
-            .in('id', staleEdgeIds);
-
-          if (pruneEdgesError) throw pruneEdgesError;
-        }
-      } else {
-        const { error: clearEdgesError } = await supabase
-          .from('flow_edges')
-          .delete()
-          .eq('flow_id', flowId);
-
-        if (clearEdgesError) throw clearEdgesError;
+      const saved = Array.isArray(data) ? data[0] : data;
+      if (saved && typeof saved.save_revision === 'number') {
+        saveRevisionRef.current = saved.save_revision;
       }
-
-      const { error: flowError } = await supabase
-        .from('neuro_flows')
-        .update({
-          nodes: nodesToSave,
-          edges: edgesToSave,
-          viewport: getViewport(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', flowId);
-
-      if (flowError) throw flowError;
+      setSaveStatus('saved');
 
     } catch (e) {
+      saveFailed = true;
       console.error("[NeuroFlow] Erro ao salvar estado:", e);
-      toast.error("Nao foi possivel salvar o NeuroFlow. Tentaremos novamente na proxima alteracao.");
+      const errorMessage = e instanceof Error ? e.message : String((e as any)?.message || e);
+      setSaveStatus(errorMessage.includes('save_conflict') ? 'conflict' : 'error');
+      pendingSaveRef.current = true;
+      if (!retrySaveTimerRef.current) {
+        retrySaveTimerRef.current = window.setTimeout(() => {
+          retrySaveTimerRef.current = null;
+          if (pendingSaveRef.current) {
+            pendingSaveRef.current = false;
+            void saveState();
+          }
+        }, 2500);
+      }
     } finally {
       isSavingRef.current = false;
-      setIsSaving(false);
-      if (pendingSaveRef.current) {
+      if (pendingSaveRef.current && !saveFailed) {
         pendingSaveRef.current = false;
         window.setTimeout(() => void saveState(), 100);
       }
     }
-  }, [flowId, getViewport, isLoading]);
+  }, [flowId, flowTitle, getViewport, isLoading, patientId]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -258,20 +290,6 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
     }, eds));
   }, [setEdges]);
 
-  const onEdgesDelete: OnEdgesDelete = useCallback(async (deletedEdges) => {
-    const ids = deletedEdges.map(e => e.id);
-    if (ids.length > 0) {
-      await supabase.from('flow_edges').delete().in('id', ids);
-    }
-  }, []);
-
-  const onNodesDelete: OnNodesDelete = useCallback(async (deletedNodes) => {
-    const ids = deletedNodes.map(n => n.id);
-    if (ids.length > 0) {
-      await supabase.from('flow_nodes').delete().in('id', ids);
-    }
-  }, []);
-
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
@@ -298,13 +316,14 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         data: {
           label: extraData.label || `Novo Bloco`,
           patientId, // Pass the patientId context
-          ...extraData
+          ...extraData,
+          onUpdateNodeData: updateNodeData,
         },
       };
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [screenToFlowPosition, setNodes, patientId]
+    [screenToFlowPosition, setNodes, patientId, updateNodeData]
   );
 
   const onAddNode = useCallback((type: NodeType, data: any) => {
@@ -322,13 +341,14 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
       data: {
         label: data.label || `Novo Bloco`,
         patientId,
-        ...data
+        ...data,
+        onUpdateNodeData: updateNodeData,
       },
     };
 
     setNodes((nds) => nds.concat(newNode));
     toast.success(`${data.label || 'Bloco'} adicionado ao mapa.`);
-  }, [getViewport, setNodes, patientId]);
+  }, [getViewport, setNodes, patientId, updateNodeData]);
 
   const onNodeDoubleClick = useCallback((_event: React.MouseEvent, node: Node) => {
     if (node.type === 'document') {
@@ -366,8 +386,6 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onNodesDelete={onNodesDelete}
-        onEdgesDelete={onEdgesDelete}
         onDrop={onDrop}
         onDragOver={onDragOver}
         onNodeDoubleClick={onNodeDoubleClick}
@@ -388,28 +406,29 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
 
         {/* HUD Overlay */}
         <Panel position="top-left" className="m-12">
-          <div className="flex items-center gap-2 p-2 bg-white/80 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/5 rounded-2xl backdrop-blur-3xl shadow-xl dark:shadow-2xl">
+          <div className="notes-toolbar-surface flex items-center gap-2 rounded-2xl border p-2 backdrop-blur-3xl">
             <button
               onClick={onBack}
-              className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-900 dark:text-white transition-all mr-1"
+              className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-muted/70 text-foreground transition-all mr-1"
+              aria-label="Voltar"
             >
               <ChevronLeft size={20} strokeWidth={2.5} />
             </button>
 
-            <div className="w-px h-6 bg-zinc-200 dark:bg-white/5 mx-1" />
+            <div className="w-px h-6 bg-border/70 mx-1" />
 
-            <button onClick={() => zoomIn()} className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-all"><ZoomIn size={18} /></button>
-            <button onClick={() => zoomOut()} className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-all"><ZoomOut size={18} /></button>
-            <button onClick={() => fitView()} className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white transition-all"><Maximize size={18} /></button>
+            <button onClick={() => zoomIn()} className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-muted/70 text-muted-foreground hover:text-foreground transition-all" aria-label="Aproximar"><ZoomIn size={18} /></button>
+            <button onClick={() => zoomOut()} className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-muted/70 text-muted-foreground hover:text-foreground transition-all" aria-label="Afastar"><ZoomOut size={18} /></button>
+            <button onClick={() => fitView()} className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-muted/70 text-muted-foreground hover:text-foreground transition-all" aria-label="Ajustar visualizacao"><Maximize size={18} /></button>
 
-            <div className="w-px h-6 bg-zinc-200 dark:bg-white/5 mx-1" />
+            <div className="w-px h-6 bg-border/70 mx-1" />
 
             <button onClick={() => setIsLocked(!isLocked)} className={cn(
               "h-10 w-10 flex items-center justify-center rounded-xl transition-all",
               isLocked
-                ? "bg-zinc-900 dark:bg-white text-white dark:text-black shadow-lg"
-                : "hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 dark:text-zinc-600 hover:text-zinc-900 dark:hover:text-white"
-            )}>
+                ? "bg-foreground text-background shadow-lg"
+                : "hover:bg-muted/70 text-muted-foreground hover:text-foreground"
+            )} aria-label={isLocked ? "Desbloquear canvas" : "Bloquear canvas"}>
               {isLocked ? <Lock size={18} /> : <Unlock size={18} />}
             </button>
           </div>
@@ -418,7 +437,8 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         <Panel position="top-right" className="m-12">
           <Button
             onClick={() => setIsLibraryOpen(true)}
-            className="h-14 w-14 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-black hover:scale-110 active:scale-95 transition-all shadow-xl dark:shadow-2xl flex items-center justify-center"
+            className="notes-toolbar-surface h-14 w-14 rounded-full border text-foreground hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+            aria-label="Adicionar bloco"
           >
             <Plus size={24} strokeWidth={3} />
           </Button>
@@ -439,17 +459,23 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         />
 
         <Panel position="bottom-center" className="mb-12">
-          <div className="px-10 py-5 bg-white/80 dark:bg-[#0a0a0b]/80 border border-zinc-200 dark:border-white/5 backdrop-blur-[40px] rounded-full flex items-center gap-10 shadow-xl dark:shadow-2xl">
+          <div className="notes-toolbar-surface px-10 py-5 border backdrop-blur-[40px] rounded-full flex items-center gap-10">
             <div className="flex items-center gap-4">
-              <Layers size={14} className="text-zinc-400 dark:text-zinc-600" />
-              <span className="text-[10px] font-black text-zinc-900 dark:text-white uppercase tracking-[0.4em]">{nodes.length} Blocos / {edges.length} Conexões</span>
+              <Layers size={14} className="text-muted-foreground" />
+              <span className="text-[10px] font-black text-foreground uppercase tracking-[0.32em]">{nodes.length} Blocos / {edges.length} Conexões</span>
             </div>
-            {isSaving && (
-              <div className="flex items-center gap-2">
-                <Loader2 size={12} className="animate-spin text-zinc-400 dark:text-zinc-500" />
-                <span className="text-[8px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">Sincronizando</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {saveStatus === 'saving' ? (
+                <Loader2 size={12} className="animate-spin text-primary" />
+              ) : saveStatus === 'error' || saveStatus === 'conflict' ? (
+                <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_12px_hsl(38_92%_50%/0.35)]" />
+              ) : (
+                <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.45)]" />
+              )}
+              <span className="text-[8px] text-muted-foreground font-black uppercase tracking-widest">
+                {saveStatus === 'saving' ? "Salvando" : saveStatus === 'conflict' ? "Conflito" : saveStatus === 'error' ? "Pendente" : "Salvo"}
+              </span>
+            </div>
           </div>
         </Panel>
       </ReactFlow>

@@ -37,9 +37,7 @@ export type FeatureKey =
     | 'telemedicine'
     | 'advanced_finance'
     | 'patient_portal'
-    | 'multiple_professionals'
     | 'admin_dashboard'
-    | 'performance_reports'
     | 'api_access'
     | 'unlimited_patients';
 
@@ -49,9 +47,7 @@ export interface PlanFeatures {
     hasTelemedicine: boolean;
     hasAdvancedFinance: boolean;
     hasPatientPortal: boolean;
-    hasMultipleProfessionals: boolean;
     hasAdminDashboard: boolean;
-    hasPerformanceReports: boolean;
     hasAPIAccess: boolean;
 }
 
@@ -82,9 +78,7 @@ export const PLAN_FEATURES: Record<SubscriptionPlan, PlanFeatures> = {
         hasTelemedicine: false,
         hasAdvancedFinance: false,
         hasPatientPortal: false,
-        hasMultipleProfessionals: false,
         hasAdminDashboard: false,
-        hasPerformanceReports: false,
         hasAPIAccess: false,
     },
     Professional: {
@@ -93,9 +87,7 @@ export const PLAN_FEATURES: Record<SubscriptionPlan, PlanFeatures> = {
         hasTelemedicine: true,
         hasAdvancedFinance: true,
         hasPatientPortal: true,
-        hasMultipleProfessionals: false,
         hasAdminDashboard: false,
-        hasPerformanceReports: false,
         hasAPIAccess: false,
     },
     Enterprise: {
@@ -104,9 +96,7 @@ export const PLAN_FEATURES: Record<SubscriptionPlan, PlanFeatures> = {
         hasTelemedicine: true,
         hasAdvancedFinance: true,
         hasPatientPortal: true,
-        hasMultipleProfessionals: true,
         hasAdminDashboard: true,
-        hasPerformanceReports: true,
         hasAPIAccess: true,
     },
 };
@@ -118,9 +108,7 @@ export const FEATURE_UPSELL_PLANS: Record<FeatureKey, SubscriptionPlan> = {
     advanced_finance: 'Professional',
     patient_portal: 'Professional',
     unlimited_patients: 'Professional',
-    multiple_professionals: 'Enterprise',
     admin_dashboard: 'Enterprise',
-    performance_reports: 'Enterprise',
     api_access: 'Enterprise',
 };
 
@@ -131,8 +119,6 @@ export const FEATURE_NAMES: Record<FeatureKey, string> = {
     advanced_finance: 'Gestão Financeira Avançada',
     patient_portal: 'Portal do Paciente',
     unlimited_patients: 'Pacientes Ilimitados',
-    multiple_professionals: 'Múltiplos Profissionais',
     admin_dashboard: 'Dashboard Administrativo',
-    performance_reports: 'Relatórios de Performance',
     api_access: 'API & Integrações',
 };

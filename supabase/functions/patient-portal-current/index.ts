@@ -102,7 +102,7 @@ async function loadBilling(context: any) {
       .limit(50),
     supabaseAdmin
       .from("invoices")
-      .select("id,invoice_number,amount,status,due_date,created_at,pdf_url,payment_url,nfse_pdf_url,focus_nfe_url,nfse_xml_url")
+      .select("id,invoice_number,amount,status,due_date,created_at,pdf_url,payment_url,nfse_pdf_url,nfse_xml_url")
       .eq("patient_id", context.patient.id)
       .eq("user_id", context.professional.id)
       .order("due_date", { ascending: false })
@@ -121,7 +121,7 @@ async function loadBilling(context: any) {
       due_date: invoice.due_date,
       created_at: invoice.created_at,
       receipt_url: invoice.pdf_url || null,
-      invoice_url: invoice.nfse_pdf_url || invoice.focus_nfe_url || invoice.pdf_url || null,
+      invoice_url: invoice.nfse_pdf_url || invoice.pdf_url || null,
       bank_slip_url: invoice.payment_url || null,
       nfse_xml_url: invoice.nfse_xml_url || null,
     })),

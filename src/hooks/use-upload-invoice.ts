@@ -1,29 +1,23 @@
-import { useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/components/auth/SessionContextProvider';
+import { useMutation } from "@tanstack/react-query";
+import { useAuth } from "@/components/auth/SessionContextProvider";
+import { uploadDocumentToR2 } from "@/lib/r2-documents-client";
 
 interface UploadInvoiceData {
   file: File;
   invoiceId: string;
 }
 
-const BUCKET_NAME = 'files_psico';
+const uploadInvoiceFile = async ({ file, invoiceId }: UploadInvoiceData) => {
+  const document = await uploadDocumentToR2({
+    file,
+    category: "financial",
+    metadata: {
+      source: "external_invoice",
+      invoiceId,
+    },
+  });
 
-const uploadInvoiceFile = async ({ file, invoiceId }: UploadInvoiceData, userId: string) => {
-  const fileExt = file.name.split('.').pop();
-  const filePath = `${userId}/invoices/${invoiceId}.${fileExt}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET_NAME)
-    .upload(filePath, file, { upsert: true });
-
-  if (uploadError) throw uploadError;
-
-  const { data: { publicUrl } } = supabase.storage
-    .from(BUCKET_NAME)
-    .getPublicUrl(filePath);
-
-  return publicUrl;
+  return `neuronex-r2://document/${document.id}`;
 };
 
 export const useUploadInvoice = () => {
@@ -32,8 +26,8 @@ export const useUploadInvoice = () => {
 
   return useMutation({
     mutationFn: (data: UploadInvoiceData) => {
-      if (!userId) throw new Error("Usuário não autenticado.");
-      return uploadInvoiceFile(data, userId);
-    }
+      if (!userId) throw new Error("Usuario nao autenticado.");
+      return uploadInvoiceFile(data);
+    },
   });
 };

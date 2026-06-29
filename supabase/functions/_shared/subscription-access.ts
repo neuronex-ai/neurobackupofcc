@@ -54,9 +54,7 @@ const ESSENTIAL_FEATURES: Record<string, unknown> = {
   telemedicine: false,
   advanced_finance: false,
   patient_portal: false,
-  multiple_professionals: false,
   admin_dashboard: false,
-  performance_reports: false,
   api_access: false,
 };
 
@@ -70,7 +68,6 @@ const ESSENTIAL_LIMITS: Record<string, unknown> = {
   synapse_text_messages: 0,
   synapse_voice_minutes: 0,
   integrations: 0,
-  reports_monthly: 0,
 };
 
 const ESSENTIAL_INTERNAL_FLAGS: Record<string, unknown> = {
@@ -201,9 +198,7 @@ export function reactFeatureShape(features: Record<string, unknown>, limits: Rec
     hasTelemedicine: Boolean(features?.telemedicine),
     hasAdvancedFinance: Boolean(features?.advanced_finance),
     hasPatientPortal: Boolean(features?.patient_portal),
-    hasMultipleProfessionals: Boolean(features?.multiple_professionals),
     hasAdminDashboard: Boolean(features?.admin_dashboard),
-    hasPerformanceReports: Boolean(features?.performance_reports),
     hasAPIAccess: Boolean(features?.api_access),
   };
 }

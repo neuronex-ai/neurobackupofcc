@@ -17,12 +17,11 @@ import { BellRing, Laptop, Loader2, Mail, Monitor, Smartphone } from 'lucide-rea
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-type Key = keyof Pick<NotificationSettings, 'email_enabled' | 'email_appointment_reminders' | 'email_payment_confirmations' | 'email_monthly_reports' | 'email_security_alerts' | 'in_app_enabled' | 'in_app_new_patients' | 'in_app_overdue_invoices' | 'in_app_system_updates'>;
+type Key = keyof Pick<NotificationSettings, 'email_enabled' | 'email_appointment_reminders' | 'email_payment_confirmations' | 'email_security_alerts' | 'in_app_enabled' | 'in_app_new_patients' | 'in_app_overdue_invoices' | 'in_app_system_updates'>;
 
 const rows: Array<{ key: Key; label: string; description: string; channel: 'email' | 'panel' }> = [
   { key: 'email_appointment_reminders', label: 'Lembretes de consulta', description: 'Avisos sobre agendamentos proximos.', channel: 'email' },
   { key: 'email_payment_confirmations', label: 'Fluxo financeiro', description: 'Pagamentos, faturas e repasses.', channel: 'email' },
-  { key: 'email_monthly_reports', label: 'Relatorios mensais', description: 'Resumo periodico da clinica.', channel: 'email' },
   { key: 'email_security_alerts', label: 'Seguranca', description: 'Mudancas importantes na conta.', channel: 'email' },
   { key: 'in_app_new_patients', label: 'Prontuario e pacientes', description: 'Anamneses, documentos e revisoes pendentes.', channel: 'panel' },
   { key: 'in_app_overdue_invoices', label: 'Financeiro', description: 'Gestao financeira e NeuroFinance.', channel: 'panel' },

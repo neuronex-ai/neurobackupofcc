@@ -2,7 +2,7 @@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFiscalSettings } from "@/hooks/use-fiscal-settings";
-import { useFocusNfe } from "@/hooks/use-focus-nfe";
+import { useAsaasNfse } from "@/hooks/use-asaas-nfse";
 import { useGenerateInvoice } from "@/hooks/use-generate-invoice";
 import { useInvoices } from "@/hooks/use-invoices";
 import { usePatients } from "@/hooks/use-patients";
@@ -24,7 +24,7 @@ export const GenerateRPSForm = ({ onBack, onSuccess }: GenerateRPSFormProps) => 
     const { data: patients } = usePatients();
     const { data: invoices } = useInvoices();
     const { settings: fiscalSettings, isLoading: isLoadingSettings } = useFiscalSettings();
-    const { issueInvoice, isIssuing } = useFocusNfe();
+    const { issueInvoice, isIssuing } = useAsaasNfse();
     const { mutate: createInvoice, isPending: isCreatingInvoice } = useGenerateInvoice();
 
     const [patientId, setPatientId] = useState("");

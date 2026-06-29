@@ -31,9 +31,7 @@ const FEATURE_ICONS: Record<FeatureKey, ElementType<{ className?: string }>> = {
   advanced_finance: DollarSign,
   patient_portal: Users,
   unlimited_patients: Users,
-  multiple_professionals: Users,
   admin_dashboard: BarChart3,
-  performance_reports: BarChart3,
   api_access: Key,
 };
 

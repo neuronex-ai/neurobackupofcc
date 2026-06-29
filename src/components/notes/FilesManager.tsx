@@ -49,6 +49,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePatientsList } from "@/hooks/use-patients-list";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
 import {
+    deleteR2Document,
+    getR2DocumentDownloadUrl,
+    uploadDocumentToR2,
+} from "@/lib/r2-documents-client";
+import {
     Select,
     SelectTrigger,
     SelectValue,
@@ -66,16 +71,19 @@ import { ptBR } from "date-fns/locale";
 import { DocumentPreviewModal } from "@/components/patients/DocumentPreviewModal";
 import { PremiumFileIcon } from "@/components/ui/PremiumFileIcons";
 
-const BUCKET_NAME = "files_psico";
 const SUPABASE_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co";
 
 interface FileItem {
     name: string;
     id: string;
+    documentId: string;
     created_at: string;
     size: number;
     path: string;
     mimetype?: string;
+    patientId?: string | null;
+    storageProvider: "r2";
+    metadata?: Record<string, unknown>;
 }
 
 interface GoogleDriveFile {
@@ -99,6 +107,8 @@ const formatFileSize = (bytes: number) => {
 const getFileIcon = (name: string, className?: string) => {
     return <PremiumFileIcon filename={name} className={cn("w-6 h-8 drop-shadow-md", className)} />;
 };
+
+const getDocumentIdFromPath = (path: string) => path.replace(/^r2:/, "");
 
 export const FilesManager = () => {
     const { user, session } = useAuth();
@@ -138,21 +148,33 @@ export const FilesManager = () => {
         queryKey: ["personalFiles", userId],
         queryFn: async () => {
             if (!userId) return [];
-            const folderPath = `${userId}/personal`;
-            const { data, error } = await supabase.storage
-                .from(BUCKET_NAME)
-                .list(folderPath, { limit: 200, sortBy: { column: "created_at", order: "desc" } });
+            const { data, error } = await supabase
+                .from("document_files")
+                .select("id,patient_id,category,original_name,mime_type,size_bytes,created_at,metadata")
+                .is("patient_id", null)
+                .eq("status", "ready")
+                .is("deleted_at", null)
+                .order("created_at", { ascending: false })
+                .limit(200);
 
             if (error) throw error;
             return (data || [])
-                .filter((item) => item.name !== "" && item.name !== ".emptyFolderPlaceholder")
+                .filter((item) => {
+                    const metadata = (item.metadata || {}) as Record<string, unknown>;
+                    const source = String(metadata.source || "");
+                    return source !== "ai_chat" && source !== "external_invoice";
+                })
                 .map((item) => ({
-                    name: item.name,
-                    id: item.id || item.name,
+                    name: item.original_name,
+                    id: item.id,
+                    documentId: item.id,
                     created_at: item.created_at,
-                    size: item.metadata?.size || 0,
-                    path: `${folderPath}/${item.name}`,
-                    mimetype: item.metadata?.mimetype,
+                    size: item.size_bytes || 0,
+                    path: `r2:${item.id}`,
+                    mimetype: item.mime_type,
+                    patientId: item.patient_id,
+                    storageProvider: "r2" as const,
+                    metadata: (item.metadata || {}) as Record<string, unknown>,
                 }));
         },
         enabled: !!userId,
@@ -169,29 +191,35 @@ export const FilesManager = () => {
         queryFn: async () => {
             if (!userId || !patients) return {};
             const result: Record<string, FileItem[]> = {};
-            for (const patient of patients) {
-                const folderPath = `${userId}/${patient.id}`;
-                try {
-                    const { data } = await supabase.storage
-                        .from(BUCKET_NAME)
-                        .list(folderPath, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
-                    if (data && data.length > 0) {
-                        const files = data
-                            .filter((item) => item.name !== "" && item.name !== ".emptyFolderPlaceholder")
-                            .map((item) => ({
-                                name: item.name,
-                                id: item.id || item.name,
-                                created_at: item.created_at,
-                                size: item.metadata?.size || 0,
-                                path: `${folderPath}/${item.name}`,
-                                mimetype: item.metadata?.mimetype,
-                            }));
-                        if (files.length > 0) result[patient.id] = files;
-                    }
-                } catch {
-                    // skip patients with no files
-                }
-            }
+            const patientIds = patients.map((patient) => patient.id);
+            if (!patientIds.length) return result;
+
+            const { data, error } = await supabase
+                .from("document_files")
+                .select("id,patient_id,category,original_name,mime_type,size_bytes,created_at,metadata")
+                .in("patient_id", patientIds)
+                .eq("status", "ready")
+                .is("deleted_at", null)
+                .order("created_at", { ascending: false })
+                .limit(500);
+            if (error) throw error;
+
+            (data || []).forEach((item) => {
+                if (!item.patient_id) return;
+                const file = {
+                    name: item.original_name,
+                    id: item.id,
+                    documentId: item.id,
+                    created_at: item.created_at,
+                    size: item.size_bytes || 0,
+                    path: `r2:${item.id}`,
+                    mimetype: item.mime_type,
+                    patientId: item.patient_id,
+                    storageProvider: "r2" as const,
+                    metadata: (item.metadata || {}) as Record<string, unknown>,
+                };
+                result[item.patient_id] = [...(result[item.patient_id] || []), file];
+            });
             return result;
         },
         enabled: !!userId && !!patients && patients.length > 0,
@@ -205,9 +233,11 @@ export const FilesManager = () => {
         setIsUploading(true);
         try {
             for (const file of Array.from(files)) {
-                const filePath = `${userId}/personal/${Date.now()}_${file.name}`;
-                const { error } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file);
-                if (error) throw error;
+                await uploadDocumentToR2({
+                    file,
+                    category: "general",
+                    metadata: { source: "notes_files_manager", area: "personal" },
+                });
             }
             toast.success(`${files.length} arquivo(s) enviado(s) com sucesso.`);
             queryClient.invalidateQueries({ queryKey: ["personalFiles"] });
@@ -238,9 +268,12 @@ export const FilesManager = () => {
         setShowPatientLinkDialog(false);
         try {
             for (const file of pendingUploadFiles) {
-                const filePath = `${userId}/${selectedPatientForUpload}/${Date.now()}_${file.name}`;
-                const { error } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file);
-                if (error) throw error;
+                await uploadDocumentToR2({
+                    file,
+                    patientId: selectedPatientForUpload,
+                    category: "patient_attachment",
+                    metadata: { source: "notes_files_manager", area: "patient" },
+                });
             }
             const patientName = patients?.find(p => p.id === selectedPatientForUpload)?.name || "paciente";
             toast.success(`${pendingUploadFiles.length} arquivo(s) vinculado(s) a ${patientName}.`);
@@ -258,11 +291,26 @@ export const FilesManager = () => {
         setPendingDeletePath(path);
     };
 
+    const confirmDeleteR2 = async () => {
+        if (!pendingDeletePath) return;
+        const path = pendingDeletePath;
+        setPendingDeletePath(null);
+        try {
+            await deleteR2Document(getDocumentIdFromPath(path));
+            toast.success("Arquivo excluido.");
+            queryClient.invalidateQueries({ queryKey: ["personalFiles"] });
+            queryClient.invalidateQueries({ queryKey: ["allPatientFiles"] });
+        } catch (error) {
+            console.error("Erro ao excluir arquivo R2:", error);
+            toast.error("Erro ao excluir arquivo.");
+        }
+    };
+
     const confirmDelete = async () => {
         if (!pendingDeletePath) return;
         const path = pendingDeletePath;
         setPendingDeletePath(null);
-        const { error } = await supabase.storage.from(BUCKET_NAME).remove([path]);
+        const error = await deleteR2Document(getDocumentIdFromPath(path)).then(() => null).catch((value) => value);
         if (error) {
             toast.error("Erro ao excluir arquivo.");
         } else {
@@ -274,17 +322,34 @@ export const FilesManager = () => {
 
     // ─── DOWNLOAD ──────────────────────────────────────────────
     const handleDownload = async (path: string, name: string) => {
-        const { data, error } = await supabase.storage.from(BUCKET_NAME).download(path);
+        const url = await getR2DocumentDownloadUrl({ documentId: getDocumentIdFromPath(path), disposition: "attachment" }).catch(() => "");
+        const data = url ? new Blob() : null;
+        const error = url ? null : new Error("download_failed");
         if (error || !data) {
             toast.error("Erro ao baixar arquivo.");
             return;
         }
-        const url = URL.createObjectURL(data);
         const a = document.createElement("a");
         a.href = url;
         a.download = name.replace(/^\d+_/, "");
         a.click();
         URL.revokeObjectURL(url);
+    };
+
+    const handleDownloadR2 = async (path: string, name: string) => {
+        try {
+            const url = await getR2DocumentDownloadUrl({
+                documentId: getDocumentIdFromPath(path),
+                disposition: "attachment",
+            });
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = name.replace(/^\d+_/, "");
+            a.click();
+        } catch (error) {
+            console.error("Erro ao baixar arquivo R2:", error);
+            toast.error("Erro ao baixar arquivo.");
+        }
     };
 
     // ─── RENAME ────────────────────────────────────────────────
@@ -295,24 +360,7 @@ export const FilesManager = () => {
 
     const handleRenameConfirm = async (file: FileItem) => {
         if (!renameValue.trim() || !userId) return;
-        const oldPath = file.path;
-        const dirPath = oldPath.substring(0, oldPath.lastIndexOf("/") + 1);
-        const timestampPrefix = file.name.match(/^(\d+_)/)?.[1] || `${Date.now()}_`;
-        const newPath = `${dirPath}${timestampPrefix}${renameValue}`;
-
-        try {
-            // Supabase doesn't have a rename, we copy+delete
-            const { data: downloadData } = await supabase.storage.from(BUCKET_NAME).download(oldPath);
-            if (!downloadData) throw new Error("Erro ao carregar arquivo para renomear.");
-            const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(newPath, downloadData);
-            if (uploadError) throw uploadError;
-            await supabase.storage.from(BUCKET_NAME).remove([oldPath]);
-            toast.success("Arquivo renomeado.");
-            queryClient.invalidateQueries({ queryKey: ["personalFiles"] });
-            queryClient.invalidateQueries({ queryKey: ["allPatientFiles"] });
-        } catch (err: any) {
-            toast.error(`Erro ao renomear: ${err.message}`);
-        }
+        toast.info("Renomear arquivos R2 exige uma acao server-side. Mantive o arquivo original por seguranca.");
         setRenamingFileId(null);
     };
 
@@ -370,11 +418,18 @@ export const FilesManager = () => {
                 .normalize("NFD").replace(/[\u0300-\u036f]/g, "")   // remove accents
                 .replace(/\s+/g, "_")                                // spaces → underscores
                 .replace(/[^a-zA-Z0-9_.\-]/g, "");                  // keep only safe chars
-            const filePath = `${userId}/personal/${Date.now()}_${sanitizedName}`;
-            const { error } = await supabase.storage.from(BUCKET_NAME).upload(filePath, blob, {
-                contentType: blob.type || "application/octet-stream",
+            const importedFile = new File([blob], sanitizedName || driveFile.name, {
+                type: blob.type || driveFile.mimeType || "application/octet-stream",
             });
-            if (error) throw error;
+            await uploadDocumentToR2({
+                file: importedFile,
+                category: "general",
+                metadata: {
+                    source: "google_drive_import",
+                    googleDriveFileId: driveFile.id,
+                    googleDriveMimeType: driveFile.mimeType,
+                },
+            });
             toast.success(`"${driveFile.name}" importado do Google Drive.`);
             queryClient.invalidateQueries({ queryKey: ["personalFiles"] });
         } catch (err: any) {

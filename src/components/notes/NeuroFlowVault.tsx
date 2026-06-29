@@ -15,6 +15,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTheme } from "@/hooks/use-theme";
 import { supabase } from "@/integrations/supabase/client";
+import {
+    emptyNeuroFlowWorkflow,
+    parseStoredNeuroFlowWorkflow,
+    serializeNeuroFlowWorkflow
+} from "@/lib/neuroflow-workflow";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
@@ -33,6 +38,7 @@ export interface NeuroFlow {
     tags: string[];
     is_template: boolean;
     patient_id?: string | null;
+    workflow?: any;
 }
 
 interface NeuroFlowVaultProps {
@@ -110,28 +116,34 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
         if (!user) return;
 
         try {
+            const title = `Novo Fluxo de Pensamento`;
+            const workflow = serializeNeuroFlowWorkflow({
+                nodes: [{
+                    id: crypto.randomUUID(),
+                    type: 'root',
+                    position: { x: 250, y: 250 },
+                    data: { label: 'Início da Sessão', description: 'Ponto de partida.' }
+                }],
+                edges: [],
+                viewport: { x: 0, y: 0, zoom: 1 },
+                metadata: { title, ownerScope: 'none' },
+            });
+
             const { data: flowData, error: flowError } = await supabase
                 .from('neuro_flows')
                 .insert({
                     user_id: user.id,
-                    title: `Novo Fluxo de Pensamento`,
+                    title,
                     description: 'Começando um novo mapeamento...',
                     tags: ['Recente'],
-                    is_template: false
+                    is_template: false,
+                    workflow,
+                    workflow_schema_version: workflow.schema,
                 })
                 .select()
                 .single();
 
             if (flowError) throw flowError;
-
-            await supabase.from('flow_nodes').insert({
-                flow_id: flowData.id,
-                type: 'start',
-                x: 250,
-                y: 250,
-                label: 'Início da Sessão',
-                content: { description: 'Ponto de partida.' }
-            });
 
             onOpenFlow(flowData.id);
             toast.success("Tudo pronto! Seu novo fluxo foi criado.");
@@ -145,6 +157,52 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
+            const sourceWorkflow = parseStoredNeuroFlowWorkflow(flow.workflow) || emptyNeuroFlowWorkflow({
+                title: flow.title,
+                patientId: flow.patient_id,
+                ownerScope: flow.patient_id ? 'patient' : 'none',
+            });
+            const nodeIdMap = new Map<string, string>();
+            const clonedNodes = sourceWorkflow.nodes.map((node) => {
+                const newNodeId = crypto.randomUUID();
+                nodeIdMap.set(node.id, newNodeId);
+                return {
+                    id: newNodeId,
+                    type: node.type || 'item',
+                    position: { ...node.position, x: node.position.x + 48, y: node.position.y + 48 },
+                    data: { ...(node.data || {}) },
+                };
+            });
+            const clonedEdges = sourceWorkflow.edges
+                .map((edge) => {
+                    const source = nodeIdMap.get(edge.source);
+                    const target = nodeIdMap.get(edge.target);
+                    if (!source || !target) return null;
+                    return {
+                        id: `edge-${crypto.randomUUID()}`,
+                        source,
+                        target,
+                        sourceHandle: edge.sourceHandle || undefined,
+                        targetHandle: edge.targetHandle || undefined,
+                        type: edge.type || 'neural',
+                        label: edge.label || undefined,
+                        animated: edge.animated ?? true,
+                        data: edge.data || {},
+                    };
+                })
+                .filter(Boolean) as any[];
+            const clonedWorkflow = serializeNeuroFlowWorkflow({
+                nodes: clonedNodes,
+                edges: clonedEdges,
+                viewport: sourceWorkflow.viewport,
+                metadata: {
+                    ...sourceWorkflow.metadata,
+                    title: `${flow.title} (Cópia)`,
+                    patientId: flow.patient_id,
+                    ownerScope: flow.patient_id ? 'patient' : 'none',
+                },
+            });
+
             const { data: newFlow, error: flowError } = await supabase
                 .from('neuro_flows')
                 .insert({
@@ -153,50 +211,14 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
                     description: flow.description,
                     tags: flow.tags,
                     is_template: false,
-                    patient_id: flow.patient_id
+                    patient_id: flow.patient_id,
+                    workflow: clonedWorkflow,
+                    workflow_schema_version: clonedWorkflow.schema,
                 })
                 .select()
                 .single();
 
             if (flowError) throw flowError;
-
-            const { data: nodes } = await supabase.from('flow_nodes').select('*').eq('flow_id', flow.id);
-            const nodeIdMap = new Map<string, string>();
-            if (nodes && nodes.length > 0) {
-                const newNodes = nodes.map(n => {
-                    const newNodeId = crypto.randomUUID();
-                    nodeIdMap.set(n.id, newNodeId);
-                    return {
-                        ...n,
-                        id: newNodeId,
-                        flow_id: newFlow.id
-                    };
-                });
-                await supabase.from('flow_nodes').insert(newNodes);
-            }
-
-            const { data: edges } = await supabase.from('flow_edges').select('*').eq('flow_id', flow.id);
-            if (edges && edges.length > 0) {
-                const newEdges = edges
-                    .map((edge) => {
-                        const sourceId = nodeIdMap.get(edge.source_id);
-                        const targetId = nodeIdMap.get(edge.target_id);
-                        if (!sourceId || !targetId) return null;
-
-                        return {
-                            ...edge,
-                            id: `edge-${crypto.randomUUID()}`,
-                            flow_id: newFlow.id,
-                            source_id: sourceId,
-                            target_id: targetId,
-                        };
-                    })
-                    .filter(Boolean);
-
-                if (newEdges.length > 0) {
-                    await supabase.from('flow_edges').insert(newEdges);
-                }
-            }
 
             toast.success("Fluxo duplicado com sucesso!");
             fetchFlows();

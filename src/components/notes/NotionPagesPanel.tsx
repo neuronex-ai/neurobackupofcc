@@ -747,7 +747,7 @@ export const NotionPagesPanel = ({
                         variant="ghost"
                         onClick={handleRefresh}
                         disabled={isRefreshing}
-                        className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
+                        className="h-8 w-8 rounded-xl border border-border/45 bg-background/35 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                     >
                         <RefreshCw
                             className={cn("h-4 w-4", isRefreshing && "animate-spin")}
@@ -764,13 +764,13 @@ export const NotionPagesPanel = ({
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Buscar páginas..."
-                        className="w-full pl-9 h-9 bg-muted/40 border-transparent rounded-xl text-[13px] font-medium focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:bg-muted transition-all placeholder:text-muted-foreground/50 hover:bg-muted/60 border outline-none px-3"
+                        className="w-full pl-9 h-10 bg-background/55 border-border/45 rounded-xl text-[13px] font-medium focus-visible:ring-1 focus-visible:ring-primary/25 focus-visible:bg-background/80 transition-all placeholder:text-muted-foreground/50 hover:bg-muted/50 border outline-none px-3 text-foreground"
                     />
                 </div>
             </div>
 
             {/* Pages List */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2 custom-scrollbar [scrollbar-gutter:stable]">
                 {isLoading ? (
                     <div className="space-y-3 pt-2">
                         {[1, 2, 3, 4].map((i) => (
@@ -799,8 +799,8 @@ export const NotionPagesPanel = ({
                                 className={cn(
                                     "group relative rounded-2xl cursor-pointer transition-colors duration-200 border overflow-hidden [content-visibility:auto] [contain-intrinsic-size:88px]",
                                     selectedPageId === page.id
-                                        ? "bg-card shadow-lg shadow-black/5 border-border/50 z-10"
-                                        : "bg-transparent hover:bg-card/60 border-transparent hover:border-border/30"
+                                        ? "notes-liquid-surface border-border/65 z-10"
+                                        : "border-border/0 bg-background/[0.18] hover:bg-card/72 hover:border-border/45"
                                 )}
                             >
                                 {/* Cover image strip */}
@@ -899,12 +899,12 @@ export const NotionPagesPanel = ({
                                         {page.import?.is_imported ? "Atualizar" : "Importar"}
                                     </Button>
 
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-all group-hover:translate-x-0.5 shrink-0 mt-0.5" />
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-all group-hover:translate-x-0.5 shrink-0 mt-0.5" />
                                 </div>
 
-                                {/* Active stripe */}
+                                {/* Active indicator */}
                                 {selectedPageId === page.id && (
-                                    <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r-full" />
+                                    <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r-full shadow-[0_0_18px_hsl(var(--primary)/0.45)]" />
                                 )}
                             </div>
                         ))}
@@ -914,7 +914,7 @@ export const NotionPagesPanel = ({
                                     type="button"
                                     variant="ghost"
                                     onClick={() => setVisibleCount((current) => Math.min(current + NOTION_PAGE_BATCH_SIZE, filteredPages.length))}
-                                    className="h-10 w-full rounded-xl text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+                                    className="notes-liquid-surface h-11 w-full rounded-xl border text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
                                 >
                                     Carregar mais {Math.min(NOTION_PAGE_BATCH_SIZE, filteredPages.length - visibleCount)} paginas
                                 </Button>

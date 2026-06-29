@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { User, MessageSquare, Building, CreditCard, LogOut, Bell, CheckCircle2, ChevronRight, FileBarChart, Monitor, Moon, Sun, Shield, Wallet, Settings, ArrowLeft, Sparkles, Link2 } from "lucide-react";
+import { User, MessageSquare, Building, CreditCard, LogOut, Bell, CheckCircle2, ChevronRight, Monitor, Moon, Sun, Shield, Wallet, Settings, ArrowLeft, Sparkles, Link2 } from "lucide-react";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { TodoistIcon } from "@/components/icons/TodoistIcon";
 import { NotionIcon } from "@/components/icons/NotionIcon";
@@ -32,13 +32,10 @@ import { CallbackStatus } from "@/components/integrations/CallbackStatus";
 import { supabase } from "@/integrations/supabase/client";
 
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
-import { MonthlyReportSettings } from "@/components/settings/MonthlyReportSettings";
 import { SecuritySettingsPanel } from "@/components/settings/SecuritySettingsPanel";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileSettings } from "@/mobile/pages/MobileSettings";
-import { OrganizationSettings } from "@/components/clinic/OrganizationSettings";
-import { useOrganizations } from "@/hooks/use-organization";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { UpgradePlanModal } from "@/components/dashboard/UpgradePlanModal";
 
@@ -53,8 +50,6 @@ const Ajustes = () => {
     const { preferences, updatePreferences, isSaving: isSavingPreferences } = useUserPreferences();
     const { data: profile } = useProfile();
     const { canAccess, plan, status } = useSubscription();
-    const { data: organizations } = useOrganizations();
-    const currentOrganization = organizations?.[0];
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -67,6 +62,7 @@ const Ajustes = () => {
     const getTabFromParams = () => {
         const requestedTab = params.get('tab') || 'profile';
         if (requestedTab === 'google') return 'integrations';
+        if (requestedTab === 'reports' || requestedTab === 'organization') return 'profile';
         return requestedTab;
     };
     const [activeTab, setActiveTab] = useState(getTabFromParams);
@@ -140,14 +136,9 @@ const Ajustes = () => {
             { val: "payments", label: "Pagamentos", icon: Wallet },
         ] : []),
         { val: "notifications", label: "Notificações", icon: Bell },
-        { val: "reports", label: "Relatórios", icon: FileBarChart },
         { val: "integrations", label: "Integrações", icon: Link2 },
         { val: "communication", label: "Comunicação", icon: MessageSquare },
         { val: "fiscal", label: "Dados Fiscais", icon: Building },
-        // Enterprise plan only
-        ...(canAccess('multiple_professionals') ? [
-            { val: "organization", label: "Equipe/Clínica", icon: Building },
-        ] : []),
     ];
 
     if (isMobile) return <MobileSettings />;
@@ -471,7 +462,6 @@ const Ajustes = () => {
                                         <TabsContent value="fiscal" className="mt-0 animate-in fade-in zoom-in-95 duration-500 relative z-10"><FiscalConfigPanel /></TabsContent>
 
                                         <TabsContent value="notifications" className="mt-0 animate-in fade-in zoom-in-95 duration-500 relative z-10"><NotificationSettings /></TabsContent>
-                                        <TabsContent value="reports" className="mt-0 animate-in fade-in zoom-in-95 duration-500 relative z-10"><MonthlyReportSettings /></TabsContent>
 
                                         <TabsContent value="payments" className="mt-0 animate-in fade-in zoom-in-95 duration-500 relative z-10">
                                             <NeuroNexPayWizard />
@@ -674,12 +664,6 @@ const Ajustes = () => {
                                             </div>
                                         </TabsContent>
 
-                                        {/* Organization Settings - Clinic plan only */}
-                                        {canAccess('multiple_professionals') && (
-                                            <TabsContent value="organization" className="mt-0 animate-in fade-in zoom-in-95 duration-500 relative z-10">
-                                                <OrganizationSettings organizationId={currentOrganization?.id} />
-                                            </TabsContent>
-                                        )}
                                     </div>
                                 </AnimatePresence>
                             </div>

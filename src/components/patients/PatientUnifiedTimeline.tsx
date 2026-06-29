@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePatientTimeline } from "@/hooks/use-patient-timeline";
-import { supabase } from "@/integrations/supabase/client";
+import { getR2DocumentDownloadUrl } from "@/lib/r2-documents-client";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -80,10 +80,17 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
         return items.sort((a, b) => b.date.getTime() - a.date.getTime());
     }, [timelinePages]);
 
-    const handleDownload = useCallback(async (path: string) => {
-        const { data } = await supabase.storage.from('files_psico').getPublicUrl(path);
-        if (data?.publicUrl) window.open(data.publicUrl, '_blank');
-        else toast.error("Erro ao abrir arquivo.");
+    const handleDownload = useCallback(async (documentId?: string) => {
+        if (!documentId) {
+            toast.error("Documento sem referencia segura.");
+            return;
+        }
+        try {
+            const url = await getR2DocumentDownloadUrl({ documentId, disposition: "inline" });
+            window.open(url, "_blank", "noopener,noreferrer");
+        } catch (error) {
+            toast.error("Erro ao abrir arquivo.");
+        }
     }, []);
 
     if (isLoading) {
@@ -300,7 +307,7 @@ export const PatientUnifiedTimeline = ({ patientId }: PatientUnifiedTimelineProp
                                         variant="ghost"
                                         size="icon"
                                         className="h-10 w-10 rounded-xl border border-border/70 bg-muted/55 text-muted-foreground transition-colors hover:bg-foreground hover:text-background dark:border-white/[0.075] dark:bg-[#141415] dark:hover:bg-white dark:hover:text-black"
-                                        onClick={() => handleDownload(item.data.path)}
+                                        onClick={() => handleDownload(item.data.documentId)}
                                     >
                                         <Download className="h-4 w-4" />
                                     </Button>

@@ -317,10 +317,10 @@ export const NoteEditor = ({
             exit={isFocusMode ? { opacity: 0, y: -20, x: "-50%" } : { opacity: 1 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className={cn(
-              "h-14 px-5 md:px-7 flex items-center justify-between z-50 transition-all duration-700",
+              "notes-toolbar-surface h-14 px-5 md:px-7 flex items-center justify-between z-50 transition-all duration-700 backdrop-blur-3xl",
               isFocusMode
-                ? "fixed top-8 left-1/2 w-[90%] max-w-4xl h-14 rounded-2xl bg-white/60 dark:bg-zinc-900/60 backdrop-blur-3xl border border-zinc-200 dark:border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.05)] ring-1 ring-zinc-100 dark:ring-white/5"
-                : "border-b border-zinc-100 dark:border-white/5 bg-white/60 dark:bg-black/60 backdrop-blur-xl sticky top-0"
+                ? "fixed top-8 left-1/2 w-[90%] max-w-4xl h-14 rounded-2xl border ring-1 ring-foreground/[0.025] dark:ring-white/[0.035]"
+                : "sticky top-0 border-b"
             )}
           >
             <div className="flex items-center gap-2 md:gap-4">
@@ -333,8 +333,8 @@ export const NoteEditor = ({
                     className={cn(
                       "h-9 px-3 rounded-xl border transition-all duration-200 gap-2",
                       selectedPatient
-                        ? "bg-zinc-900 border-transparent text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-                        : "bg-zinc-100 border-transparent text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-white"
+                        ? "border-transparent bg-foreground text-background hover:bg-foreground/90"
+                        : "border-border/45 bg-background/45 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                     )}
                   >
                     <User className="h-3.5 w-3.5" />
@@ -344,7 +344,7 @@ export const NoteEditor = ({
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xl" align="start">
+                <PopoverContent className="notes-liquid-surface w-[300px] p-0 backdrop-blur-3xl rounded-2xl overflow-hidden shadow-xl" align="start">
                   <Command className="bg-transparent">
                     <CommandInput placeholder="Buscar paciente..." className="h-10 border-none focus:ring-0 text-sm dark:text-white dark:placeholder:text-zinc-500" />
                     <CommandList className="max-h-[300px] custom-scrollbar p-1">
@@ -386,7 +386,7 @@ export const NoteEditor = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-9 px-3 rounded-xl bg-zinc-100 dark:bg-white/5 border border-transparent text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-white transition-all duration-200 gap-2"
+                    className="h-9 px-3 rounded-xl bg-background/45 border border-border/45 text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all duration-200 gap-2"
                   >
                     <CalendarDays className="h-3.5 w-3.5" />
                     <span className="text-xs font-semibold tracking-tight">
@@ -394,7 +394,7 @@ export const NoteEditor = ({
                     </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-4 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl" align="start">
+                <PopoverContent className="notes-liquid-surface w-auto p-4 backdrop-blur-3xl rounded-2xl shadow-xl" align="start">
                   <div className="space-y-4">
                     <Calendar
                       mode="single"
@@ -406,7 +406,7 @@ export const NoteEditor = ({
                           void handleMetadataUpdate({ reference_date: newDate.toISOString() });
                         }
                       }}
-                      className="rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm dark:bg-black dark:text-zinc-200"
+                      className="rounded-xl border border-border/60 bg-background/70 shadow-sm text-foreground"
                     />
                     <div className="flex items-center gap-3 px-2 pt-2 border-t border-zinc-200 dark:border-white/10">
                       <Clock className="h-4 w-4 text-muted-foreground" />
@@ -419,7 +419,7 @@ export const NoteEditor = ({
                           newDate.setHours(parseInt(hours), parseInt(minutes));
                           void handleMetadataUpdate({ reference_date: newDate.toISOString() });
                         }}
-                        className="h-8 w-full bg-zinc-100 dark:bg-white/5 border-transparent rounded-md text-xs dark:text-white"
+                        className="h-8 w-full bg-background/60 border-border/50 rounded-lg text-xs text-foreground"
                       />
                     </div>
                   </div>
@@ -427,14 +427,14 @@ export const NoteEditor = ({
               </Popover>
 
               {(saveStatus === 'saving' || saveStatus === 'saved' || saveStatus === 'error') && (
-                <div className="flex items-center gap-2 px-3 h-7 rounded-full border border-white/[0.06] bg-white/[0.035] transition-all duration-300 [.light_&]:border-zinc-200/70 [.light_&]:bg-zinc-100/80">
+                <div className="flex items-center gap-2 px-3 h-7 rounded-full border border-border/45 bg-background/35 transition-all duration-300">
                   <div className={cn(
                     "h-1.5 w-1.5 rounded-full",
-                    saveStatus === 'saving' && "animate-pulse bg-zinc-300",
+                    saveStatus === 'saving' && "animate-pulse bg-primary",
                     saveStatus === 'saved' && "bg-emerald-400",
                     saveStatus === 'error' && "bg-red-400",
                   )} />
-                  <span className="text-[8px] font-black uppercase tracking-[0.18em] leading-none text-zinc-400 [.light_&]:text-zinc-600">
+                  <span className="text-[8px] font-black uppercase tracking-[0.18em] leading-none text-muted-foreground">
                     {saveStatus === 'saving' ? 'Salvando' : saveStatus === 'error' ? 'Não foi salvo' : 'Salvo'}
                   </span>
                 </div>
@@ -450,7 +450,7 @@ export const NoteEditor = ({
                   "h-9 w-9 rounded-lg transition-all duration-200",
                   isFocusMode
                     ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/5"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
                 )}
                 title={isFocusMode ? "Sair do modo foco" : "Modo foco"}
               >
@@ -462,39 +462,39 @@ export const NoteEditor = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/5 transition-all"
+                    className="h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all"
                     title="Compartilhar"
                   >
                     <Share2 className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64 p-2 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl">
+                <DropdownMenuContent align="end" className="notes-liquid-surface w-64 p-2 backdrop-blur-3xl rounded-2xl shadow-2xl">
                   <DropdownMenuLabel className="text-[9px] font-black text-muted-foreground/50 uppercase tracking-[0.2em] px-3 py-2">Exportar Nota Para</DropdownMenuLabel>
                   <DropdownMenuItem
                     onClick={handleShareGoogleDocs}
-                    className="rounded-xl cursor-pointer text-zinc-700 dark:text-zinc-300 text-xs font-semibold py-3 px-3 gap-3 hover:bg-zinc-50 dark:hover:bg-white/5 transition-all"
+                    className="rounded-xl cursor-pointer text-foreground/82 text-xs font-semibold py-3 px-3 gap-3 hover:bg-muted/65 transition-all"
                   >
                     <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-500/10"><FileTextIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" /></div>
                     Google Docs
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={handleShareWhatsApp}
-                    className="rounded-xl cursor-pointer text-zinc-700 dark:text-zinc-300 text-xs font-semibold py-3 px-3 gap-3 hover:bg-zinc-50 dark:hover:bg-white/5 transition-all"
+                    className="rounded-xl cursor-pointer text-foreground/82 text-xs font-semibold py-3 px-3 gap-3 hover:bg-muted/65 transition-all"
                   >
                     <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10"><MessageCircleIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /></div>
                     WhatsApp
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={handleShareGmail}
-                    className="rounded-xl cursor-pointer text-zinc-700 dark:text-zinc-300 text-xs font-semibold py-3 px-3 gap-3 hover:bg-zinc-50 dark:hover:bg-white/5 transition-all"
+                    className="rounded-xl cursor-pointer text-foreground/82 text-xs font-semibold py-3 px-3 gap-3 hover:bg-muted/65 transition-all"
                   >
                     <div className="p-1.5 rounded-lg bg-red-50 dark:bg-red-500/10"><Mail className="h-4 w-4 text-red-600 dark:text-red-400" /></div>
                     Gmail
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-zinc-100 dark:bg-white/5 my-1" />
+                  <DropdownMenuSeparator className="bg-border/60 my-1" />
                   <DropdownMenuItem
                     onClick={handleCopyToClipboard}
-                    className="rounded-xl cursor-pointer text-zinc-500 dark:text-zinc-400 text-xs font-semibold py-3 px-3 gap-3 hover:bg-zinc-50 dark:hover:bg-white/5 transition-all"
+                    className="rounded-xl cursor-pointer text-muted-foreground text-xs font-semibold py-3 px-3 gap-3 hover:bg-muted/65 hover:text-foreground transition-all"
                   >
                     <div className="p-1.5 rounded-lg bg-zinc-100 dark:bg-white/5"><Share2 className="h-4 w-4" /></div>
                     Copiar Texto
@@ -504,16 +504,16 @@ export const NoteEditor = ({
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-zinc-400 hover:text-foreground hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/5 transition-all">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 p-1.5 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-3xl border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl">
+                <DropdownMenuContent align="end" className="notes-liquid-surface w-56 p-1.5 backdrop-blur-3xl rounded-2xl shadow-xl">
                   <DropdownMenuLabel className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-wider px-2 py-1.5">Tags</DropdownMenuLabel>
                   <div className="px-2 pb-2 space-y-2">
                     <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto custom-scrollbar">
                       {note.tags?.map((tag: string) => (
-                        <Badge key={tag} variant="secondary" className="bg-zinc-100 hover:bg-zinc-200 text-[10px] py-0.5 px-1.5 gap-1 border-transparent rounded-md text-foreground/80 font-medium dark:bg-white/5 dark:hover:bg-white/10 dark:text-zinc-300">
+                        <Badge key={tag} variant="secondary" className="bg-muted/75 hover:bg-muted text-[10px] py-0.5 px-1.5 gap-1 border-transparent rounded-md text-foreground/80 font-medium">
                           {getDisplayTag(tag)}
                           <X className="h-2.5 w-2.5 cursor-pointer opacity-50 hover:opacity-100" onClick={() => handleRemoveTag(tag)} />
                         </Badge>
@@ -528,14 +528,14 @@ export const NoteEditor = ({
                         value={newTag}
                         onChange={(e) => setNewTag(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-                        className="h-7 bg-zinc-100 border-transparent text-xs rounded shadow-none focus-visible:ring-1 focus-visible:bg-zinc-200 dark:bg-white/5 dark:focus-visible:bg-white/10 dark:text-zinc-300"
+                        className="h-7 bg-background/55 border-border/45 text-xs rounded shadow-none focus-visible:ring-1 focus-visible:ring-primary/20 text-foreground"
                       />
-                      <Button size="icon" variant="ghost" className="h-7 w-7 rounded hover:bg-zinc-100 dark:hover:bg-white/5" onClick={handleAddTag}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 rounded hover:bg-muted/70" onClick={handleAddTag}>
                         <Plus className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
-                  <DropdownMenuSeparator className="bg-zinc-200 my-1" />
+                  <DropdownMenuSeparator className="bg-border/60 my-1" />
                   <DropdownMenuItem
                     className="rounded-lg px-2 py-2 text-xs font-medium gap-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
                     onClick={() => setIsDeleteDialogOpen(true)}
@@ -548,7 +548,7 @@ export const NoteEditor = ({
               <Button
                 onClick={() => void flushSave()}
                 size="sm"
-                className="ml-2 h-9 px-4 rounded-lg font-semibold text-xs shadow-sm active:scale-95 transition-all gap-2 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                className="ml-2 h-9 px-4 rounded-lg font-semibold text-xs shadow-sm active:scale-95 transition-all gap-2 bg-foreground text-background hover:bg-foreground/90"
               >
                 <Save className="h-3.5 w-3.5" />
                 Salvar
@@ -589,25 +589,23 @@ export const NoteEditor = ({
             />
 
             <div className={cn(
-              "flex flex-wrap items-center gap-6 text-zinc-400 text-[10px] font-black uppercase tracking-[0.3em] dark:text-zinc-500",
+              "flex flex-wrap items-center gap-4 text-muted-foreground text-[10px] font-black uppercase tracking-[0.24em]",
               isFocusMode ? "justify-center" : ""
             )}>
-              <div className="flex items-center gap-2 hover:text-foreground transition-colors cursor-default group dark:hover:text-white">
+              <div className="flex items-center gap-2 rounded-full border border-border/45 bg-background/35 px-3 py-1.5 hover:text-foreground transition-colors cursor-default group">
                 <CalendarIcon className="h-3.5 w-3.5 group-hover:text-primary transition-colors" />
                 <span>{format(new Date(note.created_at), "dd 'de' MMM, yyyy", { locale: ptBR })}</span>
               </div>
-              <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
-              <div className="flex items-center gap-2 hover:text-foreground transition-colors cursor-default group dark:hover:text-white">
+              <div className="flex items-center gap-2 rounded-full border border-border/45 bg-background/35 px-3 py-1.5 hover:text-foreground transition-colors cursor-default group">
                 <Clock className="h-3.5 w-3.5 group-hover:text-primary transition-colors" />
                 <span>{format(new Date(note.updated_at), "HH:mm")}</span>
               </div>
 
               {note.tags && note.tags.length > 0 && (
                 <>
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                     {note.tags.map((tag: string) => (
-                      <span key={tag} className="flex items-center gap-2 text-primary hover:text-white transition-all cursor-pointer">
+                      <span key={tag} className="flex items-center gap-2 rounded-full border border-primary/18 bg-primary/8 px-3 py-1.5 text-primary transition-colors cursor-default">
                         <Tag className="h-3 w-3" />
                         {getDisplayTag(tag)}
                       </span>
@@ -618,10 +616,11 @@ export const NoteEditor = ({
             </div>
           </div>
 
-          <div className="w-full h-px bg-gradient-to-r from-transparent via-zinc-100 to-transparent dark:via-zinc-800" />
+          <div className="w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
           {/* Rich Text Editor */}
-          <div className="min-h-[480px] pb-28 animate-in fade-in duration-500 delay-100">
+          <div className="relative min-h-[480px] pb-28 animate-in fade-in duration-500 delay-100">
+            <div className="pointer-events-none absolute -inset-x-4 -top-4 h-32 rounded-[32px] bg-gradient-to-b from-primary/[0.035] to-transparent opacity-80" />
             <RichTextEditor
               content={content}
               onChange={(html) => updateDraft({ content: html })}

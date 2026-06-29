@@ -13,11 +13,20 @@ O projeto compila, mas tem sinais fortes de acumulacao historica:
 - Supabase local: 112 Edge Functions locais, 52 declaradas em `supabase/config.toml`, 53 nomes de funcoes chamados pelo frontend/servidores.
 - Supabase Cloud: o projeto correto esta conectado e tem muitas Edge Functions ativas, incluindo varias com `verify_jwt=false`.
 - Banco: todas as tabelas publicas retornadas na consulta estao com RLS ligado, mas ha grants muito amplos para `anon` e `authenticated`.
-- Storage: ha buckets Supabase publicos com objetos reais. `files_psico` tem 21 objetos e esta publico. Isso e o maior risco de privacidade encontrado.
-- R2: existe uma fundacao de R2, mas ela esta parcialmente conectada. A aba principal de documentos ainda usa Supabase Storage.
+- Storage: no inicio da auditoria havia buckets Supabase publicos com objetos reais; `files_psico` era o maior risco. Em 2026-06-29, `files_psico` foi tornado privado e bloqueado para acesso comum.
+- R2: a fundacao foi consolidada via Edge Function `r2-create-upload-url`; documentos principais, AI chat e notas foram migrados para R2. Resta backfill dos objetos antigos.
 - Testes: `npm run build` passa; `npm run test` falha em 1 teste de boleto.
 
 ## Critico ou alto risco
+
+Atualizacao 2026-06-29:
+
+- `files_psico` foi tornado privado no Cloud e perdeu policies de acesso para usuarios autenticados.
+- O frontend ativo nao referencia mais `files_psico`.
+- AI chat, notas, documentos do prontuario, portal paciente, timeline/preview e hooks legados de documentos foram migrados para R2/metadados.
+- O bucket legado ainda contem 23 objetos antigos, cerca de 5.6 MB, e o backfill global para R2 ainda nao foi executado por falta de `SUPABASE_SERVICE_ROLE_KEY` ou JWT profissional local.
+- Edge Functions legadas removidas nesta rodada: `jitsi-token`, `jitsi-webhook`, `issue-focus-nfe`, `verify-financial-pin`, `asaas-proxy`, `gemini-sdr-chat`, `issue-invoice-focusnfe`, `jitsi-branding`, `jitsi-guest-token`.
+- Functions autenticadas sensiveis foram redeployadas para sincronizar `verify_jwt=true` no Cloud conforme `supabase/config.toml`.
 
 ### 1. Supabase Storage publico com documentos
 
@@ -26,7 +35,7 @@ Buckets encontrados:
 - `avatars`: publico, 6 objetos.
 - `chat_attachments`: publico, 0 objetos no momento da consulta, sem limite de tamanho/mime.
 - `downloads`: publico, limite 500 MB, MIME executavel/instalador.
-- `files_psico`: publico, 21 objetos, cerca de 5.3 MB.
+- `files_psico`: privado desde 2026-06-29, 23 objetos legados, cerca de 5.6 MB, aguardando backfill para R2.
 
 Classificacao:
 
@@ -34,7 +43,7 @@ Classificacao:
 - `chat_attachments`: risco futuro. Publico e sem restricao de MIME/tamanho.
 - `downloads`: aceitavel se for somente distribuicao publica do app, mas precisa isolamento claro.
 
-Uso legado no codigo:
+Uso legado no codigo no momento da primeira auditoria:
 
 - `src/components/patients/PatientDocumentsTab.tsx` usa `files_psico`.
 - `src/hooks/use-upload-document.ts` usa `files_psico`.
@@ -43,6 +52,8 @@ Uso legado no codigo:
 - `src/hooks/use-patient-shared-documents.ts` usa `files_psico`.
 - `src/pages/desktop/DesktopAIChat.tsx` e `src/mobile/pages/MobileAIChat.tsx` fazem upload para `files_psico`.
 - `src/components/notes/FilesManager.tsx` e `src/components/notes/SegundoCerebro.tsx` usam `files_psico`.
+
+Atualizacao: esses usos foram migrados para R2 ou removidos do frontend ativo em 2026-06-29.
 
 Decisao recomendada:
 
@@ -130,11 +141,11 @@ Existe fundacao R2:
 Problemas encontrados:
 
 - `DocumentUploadPanel` so aparece em `src/components/patients/anamnesis/AnamnesisTab.tsx`.
-- A aba principal de documentos do paciente ainda usa Supabase Storage (`files_psico`), nao R2.
-- O portal do paciente ainda baixa arquivos pelo Supabase Storage.
+- A aba principal de documentos do paciente usava Supabase Storage (`files_psico`), nao R2.
+- O portal do paciente ainda baixava arquivos pelo Supabase Storage.
 - Existem dois desenhos concorrentes para assinar upload: Vercel API `/api/r2-sign` e Edge Function `r2-create-upload-url`.
-- `document_files` esta vazia no Cloud, enquanto `files_psico` tem objetos. Isso sugere que R2 ainda nao e o fluxo principal.
-- `patient-portal-current` ainda tenta gerar signed URL via `supabaseAdmin.storage.from(doc.bucket)`, o que nao serve para R2 se `bucket` for Cloudflare.
+- `document_files` estava vazia no Cloud, enquanto `files_psico` tinha objetos. Isso sugeria que R2 ainda nao era o fluxo principal.
+- `patient-portal-current` ainda tentava gerar signed URL via `supabaseAdmin.storage.from(doc.bucket)`, o que nao serve para R2 se `bucket` for Cloudflare.
 
 Decisao recomendada:
 
@@ -148,8 +159,8 @@ Depois migrar:
 - Patient documents tab para `DocumentUploadPanel`/R2.
 - Portal do paciente para download via `r2-create-download-url`.
 - Anexos de teleconsulta e AI chat para R2, se forem privados.
-- Backfill dos 21 objetos de `files_psico` para R2.
-- Tornar `files_psico` privado ou descontinuar.
+- Backfill dos 23 objetos de `files_psico` para R2.
+- Manter `files_psico` privado e descontinuado; nao reabrir uploads comuns.
 
 Atualizacao 2026-06-29:
 
@@ -157,7 +168,8 @@ Atualizacao 2026-06-29:
 - `src/lib/r2-upload-signing.ts` deixou de chamar `/api/r2-sign` e passou a chamar Supabase Edge Function.
 - Por limite de Edge Functions no projeto Cloud, o ciclo R2 foi consolidado em `r2-create-upload-url` com `action` no body.
 - `patient-portal-current` ja assina downloads R2 server-side para documentos compartilhados com o paciente.
-- Ainda continuam pendentes AI chat, notas, hooks legados, timeline/preview antigos, backfill e privacidade final do bucket `files_psico`.
+- AI chat, notas, hooks legados, timeline/preview antigos e painel de documentos do portal paciente foram migrados para R2.
+- `files_psico` esta privado e bloqueado para acesso comum; permanece pendente apenas o backfill dos 23 objetos antigos.
 - Detalhes da rodada: `docs/audits/2026-06-29-rodada-2-seguranca-r2-portal.md`.
 
 ## Frontend: candidatos a orfaos
@@ -332,7 +344,7 @@ Isso nao e o mesmo que vazar `service_role`, mas e ruim porque se `.env` faltar 
 
 ## Prioridade de saneamento
 
-1. Privacidade de documentos: migrar `files_psico` para R2 privado, configurar CORS correto e assinar download.
+1. Privacidade de documentos: concluir backfill dos objetos legados de `files_psico` para R2 privado e manter downloads por URL assinada.
 2. Hardening Supabase: revogar grants amplos, revisar `SECURITY DEFINER`, revisar policies `true`.
 3. Edge Functions: matriz de inventario e `verify_jwt=false` justificado uma a uma.
 4. Corrigir bug de boleto.
@@ -352,7 +364,7 @@ Segunda PR:
 
 - Migrar portal do paciente para download assinado R2.
 - Backfill de `files_psico` para R2.
-- Tornar `files_psico` privado ou bloquear novos uploads.
+- Manter `files_psico` privado/bloqueado e remover dependencias restantes se alguma reaparecer.
 
 Terceira PR:
 

@@ -32,9 +32,6 @@ export interface FiscalSettings {
   asaas_municipal_options?: Record<string, unknown> | null;
   asaas_municipal_service_id?: string | null;
   asaas_municipal_service_name?: string | null;
-  // Focus NFe fields
-  focus_nfe_api_key?: string | null;
-  focus_nfe_environment?: 'homologacao' | 'producao';
   municipal_code?: string | null;
 }
 

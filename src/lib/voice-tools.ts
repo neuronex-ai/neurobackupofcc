@@ -30,7 +30,7 @@ export async function executeVoiceTool(
                 attachments: [],
                 context: {
                     route: 'voice',
-                    source: 'elevenlabs-voice',
+                    source: 'synapse-voice',
                     voiceToolCall: {
                         name: toolName,
                         parameters: params,

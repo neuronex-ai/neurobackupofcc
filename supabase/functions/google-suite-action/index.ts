@@ -48,7 +48,7 @@ serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
     if (!user) throw new Error('Invalid token');
 
-    const { action, title, content, dataRows } = await req.json();
+    const { action, title, content } = await req.json();
 
     // Get Google Token
     const { data: tokenData } = await supabase.from('user_google_tokens').select('*').eq('user_id', user.id).single();
@@ -99,34 +99,11 @@ serve(async (req) => {
         };
     }
 
-    // --- ACTION: CREATE SHEET ---
-    else if (action === 'create_sheet') {
-        const sheetBody: any = {
-            properties: { title: title }
-        };
-        
-        const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(sheetBody)
+    else {
+        return new Response(JSON.stringify({ error: 'Unsupported Google action' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
-        
-        const sheet = await createRes.json();
-
-        if (dataRows && Array.isArray(dataRows)) {
-             await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheet.spreadsheetId}/values/A1:append?valueInputOption=USER_ENTERED`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ values: dataRows })
-            });
-        }
-
-        result = { 
-            id: sheet.spreadsheetId, 
-            url: sheet.spreadsheetUrl, 
-            name: title,
-            type: 'sheet' 
-        };
     }
 
     return new Response(JSON.stringify(result), { 

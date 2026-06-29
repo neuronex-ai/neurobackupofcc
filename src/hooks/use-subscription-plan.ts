@@ -112,9 +112,7 @@ export const useSubscriptionPlan = (): UseSubscriptionPlanReturn => {
             telemedicine: 'hasTelemedicine',
             advanced_finance: 'hasAdvancedFinance',
             patient_portal: 'hasPatientPortal',
-            multiple_professionals: 'hasMultipleProfessionals',
             admin_dashboard: 'hasAdminDashboard',
-            performance_reports: 'hasPerformanceReports',
             api_access: 'hasAPIAccess',
             unlimited_patients: 'maxPatients',
         };

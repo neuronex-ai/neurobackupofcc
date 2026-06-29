@@ -246,11 +246,7 @@ export interface Invoice {
   payment_url?: string | null; // Payment links / checkout URL
   metadata?: Record<string, any> | null;
 
-  // Focus NFe Integration
-  focus_nfe_ref?: string | null;
-  focus_nfe_status?: string | null;
-
-  // NFSe Data (from webhook)
+  // NFS-e data from NeuroFinance/Asaas
   nfse_reference?: string | null;
   nfse_status?: string | null;
   nfse_number?: string | null;

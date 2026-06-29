@@ -73,7 +73,7 @@ export const TaskItem = ({ task, onToggle, onDelete, onShare }: TaskItemProps) =
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
       )}
 
-      {/* Priority Stripe */}
+      {/* Priority bar */}
       {!task.is_completed && task.category === 'Urgente' && (
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-rose-500 shadow-[0_0_10px_#f43f5e]" />
       )}

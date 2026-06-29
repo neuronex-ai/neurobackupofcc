@@ -125,11 +125,6 @@ entrypoint = "./functions/neurofinance-post-onboarding/index.ts"
 
 # ─── COMMUNICATION / REPORTS ──────────────────────────────────
 
-[functions.send-monthly-report]
-enabled = true
-verify_jwt = true
-entrypoint = "./functions/send-monthly-report/index.ts"
-
 # ─── AUTH EMAIL TEMPLATES ─────────────────────────────────────
 
 [auth.email.template.confirmation]
@@ -300,3 +295,70 @@ entrypoint = "./functions/notion-webhook/index.ts"
 enabled = true
 verify_jwt = true
 entrypoint = "./functions/r2-create-upload-url/index.ts"
+
+# Additional authenticated Edge Functions hardened during the R2/security audit.
+
+[functions.send-document-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-document-email/index.ts"
+
+[functions.send-document-email-safe]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-document-email-safe/index.ts"
+
+[functions.send-google-invite]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-google-invite/index.ts"
+
+[functions.send-reminder-email]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-reminder-email/index.ts"
+
+[functions.send-session-invite]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/send-session-invite/index.ts"
+
+[functions.generate-jitsi-token]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/generate-jitsi-token/index.ts"
+
+[functions.generate-summary]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/generate-summary/index.ts"
+
+[functions.neuroscan-extract]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/neuroscan-extract/index.ts"
+
+[functions.check-invoice-status]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/check-invoice-status/index.ts"
+
+[functions.delete-user-account]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/delete-user-account/index.ts"
+
+[functions.validate-crp]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/validate-crp/index.ts"
+
+[functions.google-drive-files]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/google-drive-files/index.ts"
+
+[functions.google-suite-action]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/google-suite-action/index.ts"

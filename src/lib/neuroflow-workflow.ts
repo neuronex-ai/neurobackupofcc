@@ -1,0 +1,292 @@
+import type { Edge, Node, Viewport } from 'reactflow';
+
+export const NEUROFLOW_WORKFLOW_SCHEMA = 'neuroflow.workflow.v2' as const;
+
+export type NeuroFlowWorkflowSchema = typeof NEUROFLOW_WORKFLOW_SCHEMA;
+
+export type NeuroFlowLinkType = 'patient' | 'note' | 'file' | 'neuropulse' | 'neuroflow' | 'mermaid';
+
+export interface NeuroFlowWorkflowNode {
+  id: string;
+  type?: string;
+  position: { x: number; y: number };
+  width?: number | null;
+  height?: number | null;
+  selected?: boolean;
+  data: Record<string, unknown>;
+}
+
+export interface NeuroFlowWorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
+  type?: string;
+  label?: string | null;
+  animated?: boolean;
+  data?: {
+    relation?: string;
+    strength?: number;
+    polarity?: 'supports' | 'challenges' | 'neutral' | string;
+    hypothesis?: string;
+    [key: string]: unknown;
+  };
+}
+
+export interface NeuroFlowWorkflowLink {
+  type: NeuroFlowLinkType;
+  id: string;
+  nodeId?: string;
+  label?: string;
+}
+
+export interface NeuroFlowWorkflow {
+  schema: NeuroFlowWorkflowSchema;
+  nodes: NeuroFlowWorkflowNode[];
+  edges: NeuroFlowWorkflowEdge[];
+  viewport: Partial<Viewport>;
+  metadata: {
+    title?: string;
+    patientId?: string | null;
+    ownerScope?: 'patient' | 'professional' | 'none';
+    updatedAt?: string;
+    migratedFrom?: 'workflow' | 'neuro_flows_json' | 'flow_tables';
+    [key: string]: unknown;
+  };
+  links: NeuroFlowWorkflowLink[];
+}
+
+export interface LegacyFlowTables {
+  nodes?: Array<{
+    id: string;
+    type?: string | null;
+    x?: number | null;
+    y?: number | null;
+    label?: string | null;
+    content?: Record<string, unknown> | null;
+  }> | null;
+  edges?: Array<{
+    id: string;
+    source_id?: string | null;
+    target_id?: string | null;
+    source_handle?: string | null;
+    target_handle?: string | null;
+    type?: string | null;
+  }> | null;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const finiteNumber = (value: unknown, fallback = 0) =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+const sanitizeJsonValue = (value: unknown): unknown => {
+  if (value === undefined || typeof value === 'function' || typeof value === 'symbol') return undefined;
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+  if (Array.isArray(value)) return value.map(sanitizeJsonValue).filter((item) => item !== undefined);
+  if (!isRecord(value)) return undefined;
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, item]) => [key, sanitizeJsonValue(item)] as const)
+      .filter(([, item]) => item !== undefined)
+  );
+};
+
+const sanitizeJsonRecord = (value: unknown): Record<string, unknown> => {
+  const sanitized = sanitizeJsonValue(value);
+  return isRecord(sanitized) ? sanitized : {};
+};
+
+export const emptyNeuroFlowWorkflow = (metadata: NeuroFlowWorkflow['metadata'] = {}): NeuroFlowWorkflow => ({
+  schema: NEUROFLOW_WORKFLOW_SCHEMA,
+  nodes: [],
+  edges: [],
+  viewport: {},
+  metadata,
+  links: [],
+});
+
+export const serializeNeuroFlowWorkflow = ({
+  nodes,
+  edges,
+  viewport,
+  metadata = {},
+}: {
+  nodes: Node[];
+  edges: Edge[];
+  viewport: Partial<Viewport>;
+  metadata?: NeuroFlowWorkflow['metadata'];
+}): NeuroFlowWorkflow => {
+  const workflow: NeuroFlowWorkflow = {
+    schema: NEUROFLOW_WORKFLOW_SCHEMA,
+    nodes: nodes.map((node) => ({
+      id: node.id,
+      type: node.type || 'item',
+      position: {
+        x: Math.round(finiteNumber(node.position?.x)),
+        y: Math.round(finiteNumber(node.position?.y)),
+      },
+      width: typeof node.width === 'number' ? node.width : null,
+      height: typeof node.height === 'number' ? node.height : null,
+      selected: false,
+      data: sanitizeJsonRecord(node.data),
+    })),
+    edges: edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle || null,
+      targetHandle: edge.targetHandle || null,
+      type: edge.type || 'neural',
+      label: typeof edge.label === 'string' ? edge.label : null,
+      animated: edge.animated ?? true,
+      data: sanitizeJsonRecord(edge.data),
+    })),
+    viewport: {
+      x: finiteNumber(viewport.x),
+      y: finiteNumber(viewport.y),
+      zoom: finiteNumber(viewport.zoom, 1),
+    },
+    metadata: {
+      ...metadata,
+      updatedAt: new Date().toISOString(),
+    },
+    links: collectWorkflowLinks(nodes),
+  };
+
+  return validateNeuroFlowWorkflow(workflow);
+};
+
+export const deserializeNeuroFlowWorkflow = (workflow: NeuroFlowWorkflow): { nodes: Node[]; edges: Edge[]; viewport: Partial<Viewport> } => ({
+  nodes: workflow.nodes.map((node) => ({
+    id: node.id,
+    type: node.type || 'item',
+    position: node.position,
+    width: node.width || undefined,
+    height: node.height || undefined,
+    data: { ...(node.data || {}) },
+  })),
+  edges: workflow.edges.map((edge) => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    sourceHandle: edge.sourceHandle || undefined,
+    targetHandle: edge.targetHandle || undefined,
+    type: edge.type || 'neural',
+    label: edge.label || undefined,
+    animated: edge.animated ?? true,
+    data: edge.data || {},
+  })),
+  viewport: workflow.viewport || {},
+});
+
+export const validateNeuroFlowWorkflow = (workflow: NeuroFlowWorkflow): NeuroFlowWorkflow => {
+  if (workflow.schema !== NEUROFLOW_WORKFLOW_SCHEMA) {
+    throw new Error('NeuroFlow workflow schema invalido.');
+  }
+
+  const nodeIds = new Set(workflow.nodes.map((node) => node.id).filter(Boolean));
+  if (nodeIds.size !== workflow.nodes.length) {
+    throw new Error('NeuroFlow workflow contem nodes sem id ou ids duplicados.');
+  }
+
+  const invalidEdge = workflow.edges.find((edge) => !nodeIds.has(edge.source) || !nodeIds.has(edge.target));
+  if (invalidEdge) {
+    throw new Error(`NeuroFlow workflow contem conexao invalida: ${invalidEdge.id}.`);
+  }
+
+  return workflow;
+};
+
+export const parseStoredNeuroFlowWorkflow = (value: unknown): NeuroFlowWorkflow | null => {
+  if (!isRecord(value) || value.schema !== NEUROFLOW_WORKFLOW_SCHEMA) return null;
+
+  return validateNeuroFlowWorkflow({
+    schema: NEUROFLOW_WORKFLOW_SCHEMA,
+    nodes: Array.isArray(value.nodes) ? value.nodes as NeuroFlowWorkflowNode[] : [],
+    edges: Array.isArray(value.edges) ? value.edges as NeuroFlowWorkflowEdge[] : [],
+    viewport: isRecord(value.viewport) ? value.viewport : {},
+    metadata: isRecord(value.metadata) ? value.metadata : {},
+    links: Array.isArray(value.links) ? value.links as NeuroFlowWorkflowLink[] : [],
+  });
+};
+
+export const workflowFromLegacyJson = ({
+  nodes,
+  edges,
+  viewport,
+  metadata = {},
+}: {
+  nodes?: unknown;
+  edges?: unknown;
+  viewport?: unknown;
+  metadata?: NeuroFlowWorkflow['metadata'];
+}) => serializeNeuroFlowWorkflow({
+  nodes: Array.isArray(nodes) ? nodes as Node[] : [],
+  edges: Array.isArray(edges) ? edges as Edge[] : [],
+  viewport: isRecord(viewport) ? viewport : {},
+  metadata: { ...metadata, migratedFrom: 'neuro_flows_json' },
+});
+
+export const workflowFromLegacyTables = ({
+  nodes,
+  edges,
+  viewport = {},
+  metadata = {},
+}: LegacyFlowTables & {
+  viewport?: Partial<Viewport>;
+  metadata?: NeuroFlowWorkflow['metadata'];
+}) => {
+  const reactFlowNodes: Node[] = (nodes || []).map((node) => ({
+    id: node.id,
+    type: node.type || 'item',
+    position: { x: finiteNumber(node.x), y: finiteNumber(node.y) },
+    data: {
+      label: node.label || 'Sem titulo',
+      ...(isRecord(node.content) ? node.content : {}),
+    },
+  }));
+
+  const reactFlowEdges: Edge[] = (edges || [])
+    .filter((edge) => edge.source_id && edge.target_id)
+    .map((edge) => ({
+      id: edge.id,
+      source: edge.source_id!,
+      target: edge.target_id!,
+      sourceHandle: edge.source_handle || undefined,
+      targetHandle: edge.target_handle || undefined,
+      type: edge.type || 'neural',
+      animated: true,
+    }));
+
+  return serializeNeuroFlowWorkflow({
+    nodes: reactFlowNodes,
+    edges: reactFlowEdges,
+    viewport,
+    metadata: { ...metadata, migratedFrom: 'flow_tables' },
+  });
+};
+
+const collectWorkflowLinks = (nodes: Node[]): NeuroFlowWorkflowLink[] => {
+  const links = new Map<string, NeuroFlowWorkflowLink>();
+
+  const add = (link: NeuroFlowWorkflowLink) => {
+    links.set(`${link.type}:${link.id}:${link.nodeId || ''}`, link);
+  };
+
+  nodes.forEach((node) => {
+    const data = isRecord(node.data) ? node.data : {};
+    if (typeof data.patientId === 'string') add({ type: 'patient', id: data.patientId, nodeId: node.id });
+    if (typeof data.sourceNoteId === 'string') add({ type: 'note', id: data.sourceNoteId, nodeId: node.id, label: String(data.label || '') });
+    if (typeof data.linkedNoteId === 'string') add({ type: 'note', id: data.linkedNoteId, nodeId: node.id, label: String(data.label || '') });
+    if (typeof data.filePath === 'string') add({ type: 'file', id: data.filePath, nodeId: node.id, label: String(data.fileName || data.label || '') });
+    if (typeof data.neuroPulseId === 'string') add({ type: 'neuropulse', id: data.neuroPulseId, nodeId: node.id, label: String(data.label || '') });
+    if (typeof data.mermaidCode === 'string') add({ type: 'mermaid', id: node.id, nodeId: node.id, label: String(data.label || 'Mermaid') });
+    if (typeof data.flowId === 'string') add({ type: 'neuroflow', id: data.flowId, nodeId: node.id, label: String(data.label || '') });
+  });
+
+  return Array.from(links.values());
+};

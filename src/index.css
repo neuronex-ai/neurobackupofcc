@@ -390,6 +390,57 @@
       radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.05), transparent 72%);
   }
 
+  .notes-toolbar-surface,
+  .notes-liquid-surface {
+    position: relative;
+    overflow: hidden;
+    border-color: rgba(24, 24, 27, 0.085);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.58)),
+      rgba(255, 255, 255, 0.62);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      0 22px 60px -44px rgba(24, 24, 27, 0.55);
+  }
+
+  .dark .notes-toolbar-surface,
+  .dark .notes-liquid-surface {
+    border-color: rgba(255, 255, 255, 0.065);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.058), rgba(255, 255, 255, 0.022)),
+      rgba(8, 8, 10, 0.78);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      0 24px 70px -45px rgba(0, 0, 0, 0.9);
+  }
+
+  .notes-toolbar-surface::before,
+  .notes-liquid-surface::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.26), transparent 42%, rgba(24, 24, 27, 0.025)),
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.34), transparent 76%);
+    opacity: 0.28;
+    mix-blend-mode: soft-light;
+  }
+
+  .dark .notes-toolbar-surface::before,
+  .dark .notes-liquid-surface::before {
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 48%, rgba(0, 0, 0, 0.2)),
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.08), transparent 76%);
+    opacity: 0.42;
+  }
+
+  .notes-toolbar-surface > *,
+  .notes-liquid-surface > * {
+    position: relative;
+    z-index: 1;
+  }
+
   .notes-neuroview-backdrop {
     background:
       radial-gradient(ellipse at center, rgba(255, 255, 255, 0) 0%, rgba(24, 24, 27, 0.046) 100%),
@@ -982,6 +1033,22 @@
 .ProseMirror {
   color: hsl(var(--foreground));
   caret-color: hsl(var(--primary));
+  --tw-prose-body: hsl(var(--foreground) / 0.86);
+  --tw-prose-headings: hsl(var(--foreground));
+  --tw-prose-lead: hsl(var(--foreground) / 0.78);
+  --tw-prose-links: hsl(var(--primary));
+  --tw-prose-bold: hsl(var(--foreground));
+  --tw-prose-counters: hsl(var(--muted-foreground));
+  --tw-prose-bullets: hsl(var(--primary));
+  --tw-prose-hr: hsl(var(--border));
+  --tw-prose-quotes: hsl(var(--foreground));
+  --tw-prose-quote-borders: hsl(var(--primary) / 0.45);
+  --tw-prose-captions: hsl(var(--muted-foreground));
+  --tw-prose-code: hsl(var(--foreground));
+  --tw-prose-pre-code: hsl(var(--foreground));
+  --tw-prose-pre-bg: hsl(var(--muted) / 0.72);
+  --tw-prose-th-borders: hsl(var(--border));
+  --tw-prose-td-borders: hsl(var(--border));
 }
 
 .ProseMirror ::selection {
@@ -991,6 +1058,30 @@
 
 .dark .ProseMirror ::selection {
   background: hsl(var(--primary) / 0.34);
+}
+
+.ProseMirror p,
+.ProseMirror li,
+.ProseMirror td,
+.ProseMirror th {
+  color: hsl(var(--foreground) / 0.86);
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror strong {
+  color: hsl(var(--foreground));
+}
+
+.ProseMirror a,
+.ProseMirror span[data-type="mention"] {
+  color: hsl(var(--primary));
+}
+
+.ProseMirror span[data-type="mention"]::before {
+  content: none !important;
 }
 
 .ProseMirror mark {

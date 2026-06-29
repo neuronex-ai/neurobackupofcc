@@ -62,8 +62,6 @@ const selectLegacy = `
     patient_id,
     payment_url,
     pdf_url,
-    focus_nfe_ref,
-    focus_nfe_status,
     nfse_reference,
     nfse_status,
     nfse_number,

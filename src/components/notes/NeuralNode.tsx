@@ -5,13 +5,41 @@ import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 import {
     Activity, Brain, ChevronRight, Clock,
-    Database, Download, ExternalLink, FileText, GitBranch, Maximize2, Minimize2, Quote, Zap
+    AlertTriangle, Database, Download, ExternalLink, Eye, FileText, GitBranch,
+    HeartPulse, Maximize2, Minimize2, Network, PauseCircle, Quote, Repeat2,
+    Route, Shield, Split, Stethoscope, Target, Zap
 } from "lucide-react";
 import { memo, useState } from 'react';
 import { Handle, NodeProps, NodeResizer, Position } from 'reactflow';
 
 const iconMap = {
     start: Brain,
+    root: Brain,
+    'free-note': FileText,
+    'linked-note': ExternalLink,
+    patient: Activity,
+    diagnostic: Stethoscope,
+    evidence: GitBranch,
+    trigger: Zap,
+    thought: Brain,
+    emotion: HeartPulse,
+    behavior: Activity,
+    'body-sensation': HeartPulse,
+    belief: Quote,
+    schema: Network,
+    'cognitive-distortion': Split,
+    'defense-mechanism': Shield,
+    resource: Target,
+    risk: AlertTriangle,
+    intervention: Target,
+    task: Target,
+    router: Route,
+    condition: GitBranch,
+    loop: Repeat2,
+    stop: PauseCircle,
+    neuropulse: Activity,
+    mermaid: Network,
+    'neuroview-patient': Eye,
     logic: GitBranch,
     action: Zap,
     quote: Quote,
@@ -21,6 +49,62 @@ const iconMap = {
     timeline: Clock,
     item: FileText,
 };
+
+const typeLabelMap: Record<string, string> = {
+    root: 'Início',
+    'free-note': 'Nota Livre',
+    'linked-note': 'Nota Vinculada',
+    patient: 'Paciente',
+    diagnostic: 'Hipótese',
+    evidence: 'Evidência',
+    trigger: 'Gatilho',
+    thought: 'Pensamento',
+    emotion: 'Emoção',
+    behavior: 'Comportamento',
+    'body-sensation': 'Sensação Corporal',
+    belief: 'Crença',
+    schema: 'Esquema',
+    'cognitive-distortion': 'Distorção Cognitiva',
+    'defense-mechanism': 'Mecanismo de Defesa',
+    resource: 'Recurso',
+    risk: 'Risco',
+    intervention: 'Intervenção',
+    task: 'Tarefa Clínica',
+    timeline: 'Linha do Tempo',
+    router: 'Roteador',
+    condition: 'Condição',
+    loop: 'Loop',
+    stop: 'Pausa / Stop',
+    neuropulse: 'NeuroPulse',
+    mermaid: 'Mermaid',
+    'neuroview-patient': 'NeuroView',
+    item: 'Bloco Livre',
+};
+
+const editableTypes = new Set([
+    'free-note',
+    'evidence',
+    'trigger',
+    'thought',
+    'emotion',
+    'behavior',
+    'body-sensation',
+    'belief',
+    'schema',
+    'cognitive-distortion',
+    'defense-mechanism',
+    'resource',
+    'risk',
+    'intervention',
+    'task',
+    'router',
+    'condition',
+    'loop',
+    'stop',
+    'mermaid',
+    'timeline',
+    'item',
+]);
 
 const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
@@ -39,12 +123,40 @@ const isPreviewable = (fileName: string = '', mimeType: string = '') => {
     return null;
 };
 
-export const NeuralNode = memo(({ data, selected, type }: NodeProps) => {
+export const NeuralNode = memo(({ id, data, selected, type }: NodeProps) => {
     const Icon = iconMap[type as keyof typeof iconMap] || FileText;
     const [isExpanded, setIsExpanded] = useState(false);
     const { theme: _theme } = useTheme();
+    const updateData = (patch: Record<string, unknown>) => {
+        if (typeof data.onUpdateNodeData === 'function') {
+            data.onUpdateNodeData(id, patch);
+        }
+    };
 
     const renderContent = () => {
+        if (editableTypes.has(type || '')) {
+            const value = String(data.content || data.description || '');
+            return (
+                <div className="mt-3">
+                    <textarea
+                        value={value}
+                        onChange={(event) => updateData({ content: event.target.value })}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        className="nodrag nowheel min-h-[92px] w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50/80 p-3 text-[12px] font-medium leading-relaxed text-zinc-700 outline-none transition-all placeholder:text-zinc-400 focus:border-zinc-300 focus:bg-white dark:border-white/5 dark:bg-white/[0.025] dark:text-zinc-300 dark:placeholder:text-zinc-700 dark:focus:border-white/15 dark:focus:bg-white/[0.045]"
+                        placeholder="Escreva aqui..."
+                    />
+                </div>
+            );
+        }
+
+        if (type === 'neuroview-patient') {
+            return (
+                <div className="mt-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:border-white/5 dark:bg-white/[0.02] dark:text-zinc-600">
+                    NeuroView filtrado por paciente
+                </div>
+            );
+        }
+
         switch (type) {
             case 'quote':
                 return (
@@ -257,7 +369,7 @@ export const NeuralNode = memo(({ data, selected, type }: NodeProps) => {
                             {data.label}
                         </p>
                         <p className="text-[9px] font-bold uppercase text-zinc-600 tracking-[0.2em] mt-0.5">
-                            {isDocType ? 'Documento' : hasImportedNote ? 'Nota Importada' : type === 'item' ? 'Bloco Livre' : type}
+                            {isDocType ? 'Documento' : hasImportedNote ? 'Nota Importada' : typeLabelMap[type || ''] || type}
                         </p>
                     </div>
 

@@ -1,11 +1,9 @@
 "use client";
 
 import { useAuth } from "@/components/auth/SessionContextProvider";
-import { OrganizationSettings } from "@/components/clinic/OrganizationSettings";
 import { GoogleIcon } from "@/components/icons/GoogleIcon";
 import { useTour } from "@/components/onboarding/TourContext";
 import { FiscalConfigPanel } from "@/components/settings/FiscalConfigPanel";
-import { MonthlyReportSettings } from "@/components/settings/MonthlyReportSettings";
 import { MobileNeuroFinanceAccountStatusPanel } from "@/apps/professional-mobile/neurofinance/components/MobileNeuroFinanceAccountStatusPanel";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { ProfessionalProfileForm } from "@/components/settings/ProfessionalProfileForm";
@@ -14,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useGoogleAuth } from "@/hooks/use-google-auth";
-import { useOrganizations } from "@/hooks/use-organization";
 import { useProfile } from "@/hooks/use-profile";
 import { useTheme } from "@/hooks/use-theme";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
@@ -28,7 +25,6 @@ import {
     Building,
     ChevronRight,
     CreditCard,
-    FileBarChart,
     Loader2,
     LogOut,
     Mail,
@@ -62,11 +58,9 @@ type SettingsView =
     | "prefs"
     | "payments"
     | "notifications"
-    | "reports"
     | "google"
     | "communication"
-    | "fiscal"
-    | "organization";
+    | "fiscal";
 
 type MenuItem = {
     value: SettingsView;
@@ -208,7 +202,6 @@ export const MobileSettings = () => {
     const { theme, toggleTheme } = useTheme();
     const { startTour } = useTour();
     const { canAccess } = useSubscription();
-    const { data: organizations } = useOrganizations();
     const { data: profile } = useProfile();
     const { isConnected: isGoogleConnected, isLoading: googleLoading, connectGoogle, disconnectGoogle } = useGoogleAuth();
     const { preferences, updatePreferences, isSaving: preferencesSaving } = useUserPreferences();
@@ -219,7 +212,6 @@ export const MobileSettings = () => {
     const [communicationTemplate, setCommunicationTemplate] = useState("");
     const [communicationLoading, setCommunicationLoading] = useState(false);
 
-    const currentOrganization = organizations?.[0];
     const professionalPlan = canAccess("advanced_finance");
     const isDarkTheme = theme === "dark";
     const logoSrc = isDarkTheme ? "/favicon-light.png" : "/favicon-dark.png";
@@ -314,9 +306,7 @@ export const MobileSettings = () => {
             title: "Clínica e financeiro",
             items: [
                 { value: "payments", label: "NeuroFinance", description: "Status da conta e acesso às operações.", icon: Wallet },
-                { value: "reports", label: "Relatórios clínicos", description: "Configuração dos relatórios mensais.", icon: FileBarChart },
                 { value: "fiscal", label: "Configuração fiscal", description: "Dados utilizados na emissão fiscal.", icon: Building },
-                ...(canAccess("multiple_professionals") ? [{ value: "organization" as SettingsView, label: "Clínica e equipe", description: "Profissionais, organização e permissões.", icon: Building }] : []),
             ],
         },
     ];
@@ -343,9 +333,7 @@ export const MobileSettings = () => {
             title: "Clinica e financeiro",
             items: [
                 { value: "payments", label: "NeuroFinance", description: "Conta, status e operacoes.", icon: Wallet },
-                { value: "reports", label: "Relatorios", description: "Resumo clinico mensal.", icon: FileBarChart },
                 { value: "fiscal", label: "Fiscal", description: "Dados para emissao fiscal.", icon: Building },
-                ...(canAccess("multiple_professionals") ? [{ value: "organization" as SettingsView, label: "Clinica e equipe", description: "Profissionais e permissoes.", icon: Building }] : []),
             ],
         },
     ];
@@ -433,24 +421,10 @@ export const MobileSettings = () => {
                             </>
                         ) : null}
 
-                        {view === "reports" ? (
-                            <>
-                                <SubviewHeader title="Relatórios" description="Preferências dos relatórios clínicos mensais." onBack={() => setView("main")} />
-                                <SettingsPanel><MonthlyReportSettings /></SettingsPanel>
-                            </>
-                        ) : null}
-
                         {view === "fiscal" ? (
                             <>
                                 <SubviewHeader title="Fiscal" description="Dados usados em documentos e emissões fiscais." onBack={() => setView("main")} />
                                 <SettingsPanel><FiscalConfigPanel /></SettingsPanel>
-                            </>
-                        ) : null}
-
-                        {view === "organization" ? (
-                            <>
-                                <SubviewHeader title="Clínica e equipe" description="Organização, profissionais e permissões." onBack={() => setView("main")} />
-                                <SettingsPanel><OrganizationSettings organizationId={currentOrganization?.id} /></SettingsPanel>
                             </>
                         ) : null}
 

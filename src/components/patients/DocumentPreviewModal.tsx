@@ -2,7 +2,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, Printer, X, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getR2DocumentDownloadUrl } from "@/lib/r2-documents-client";
 
 interface DocumentPreviewModalProps {
     isOpen: boolean;
@@ -11,10 +11,10 @@ interface DocumentPreviewModalProps {
         path: string;
         name: string;
         mimetype?: string;
+        documentId?: string;
+        signedUrl?: string | null;
     } | null;
 }
-
-const BUCKET_NAME = 'files_psico';
 
 export const DocumentPreviewModal = ({ isOpen, onClose, file }: DocumentPreviewModalProps) => {
     const [signedUrl, setSignedUrl] = useState<string | null>(null);
@@ -24,11 +24,18 @@ export const DocumentPreviewModal = ({ isOpen, onClose, file }: DocumentPreviewM
         if (isOpen && file?.path) {
             const fetchSignedUrl = async () => {
                 setIsLoading(true);
-                const { data, error } = await supabase.storage.from(BUCKET_NAME).createSignedUrl(file.path, 3600); // 1 hour
-                if (data?.signedUrl) {
-                    setSignedUrl(data.signedUrl);
-                } else {
-                    console.error("Error signing URL:", error);
+                try {
+                    const documentId = file.documentId || (file.path.startsWith("r2:") ? file.path.slice(3) : "");
+                    if (file.signedUrl) {
+                        setSignedUrl(file.signedUrl);
+                    } else if (documentId) {
+                        setSignedUrl(await getR2DocumentDownloadUrl({ documentId, disposition: "inline" }));
+                    } else {
+                        throw new Error("Documento sem referencia R2.");
+                    }
+                } catch (error) {
+                    console.error("Error signing R2 URL:", error);
+                    setSignedUrl(null);
                 }
                 setIsLoading(false);
             };

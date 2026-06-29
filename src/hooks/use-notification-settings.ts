@@ -9,7 +9,6 @@ export interface NotificationSettings {
   email_enabled: boolean;
   email_appointment_reminders: boolean;
   email_payment_confirmations: boolean;
-  email_monthly_reports: boolean;
   email_security_alerts: boolean;
   in_app_enabled: boolean;
   in_app_new_patients: boolean;
@@ -26,7 +25,6 @@ export const DEFAULT_NOTIFICATION_SETTINGS: Omit<NotificationSettings, 'id' | 'u
   email_enabled: true,
   email_appointment_reminders: true,
   email_payment_confirmations: true,
-  email_monthly_reports: true,
   email_security_alerts: true,
   in_app_enabled: true,
   in_app_new_patients: true,

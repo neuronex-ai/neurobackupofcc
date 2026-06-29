@@ -31,7 +31,6 @@ const fetchPatientTimelinePage = async (
   const timeline: TimelineItem[] = [];
   const from = offset;
   const to = offset + TIMELINE_SOURCE_PAGE_SIZE - 1;
-  const folderPath = `${userId}/${patientId}`;
 
   const [notesResult, goalsResult, moodResult, filesResult] = await Promise.all([
     supabase
@@ -53,13 +52,15 @@ const fetchPatientTimelinePage = async (
       .eq('patient_id', patientId)
       .order('created_at', { ascending: false })
       .range(from, to),
-    supabase.storage
-      .from('files_psico')
-      .list(folderPath, {
-        limit: TIMELINE_SOURCE_PAGE_SIZE,
-        offset,
-        sortBy: { column: 'created_at', order: 'desc' },
-      }),
+    supabase
+      .from('document_files')
+      .select('id, original_name, mime_type, size_bytes, category, created_at')
+      .eq('user_id', userId)
+      .eq('patient_id', patientId)
+      .eq('status', 'ready')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .range(from, to),
   ]);
 
   warnTimelineSource('notas de sessão', notesResult.error);
@@ -94,13 +95,21 @@ const fetchPatientTimelinePage = async (
     });
   });
 
-  const visibleFiles = filesResult.data?.filter((file) => file.name !== '.emptyFolderPlaceholder') ?? [];
+  const visibleFiles = filesResult.data ?? [];
   visibleFiles.forEach((file) => {
     timeline.push({
-      id: file.id || file.name,
+      id: file.id,
       type: 'document',
       date: new Date(file.created_at || new Date().toISOString()),
-      data: { ...file, path: `${folderPath}/${file.name}` },
+      data: {
+        ...file,
+        name: file.original_name,
+        path: `r2:${file.id}`,
+        documentId: file.id,
+        mimetype: file.mime_type,
+        size: file.size_bytes || 0,
+        storageProvider: 'r2',
+      },
     });
   });
 

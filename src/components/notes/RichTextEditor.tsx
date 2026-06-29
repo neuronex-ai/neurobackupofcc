@@ -30,7 +30,6 @@ import {
 import { useEffect, useRef } from "react";
 import { toast } from 'sonner';
 import tippy from 'tippy.js';
-import { BlockActionsMenu } from './BlockActionsMenu';
 import { createSlashSuggestion, MentionList, SlashCommands } from './editor-extensions';
 import {
   ClinicalChartNode,
@@ -152,7 +151,7 @@ export const RichTextEditor = ({
       }),
       Mention.configure({
         HTMLAttributes: {
-          class: 'bg-primary/10 text-primary px-3 py-1 rounded-full font-black border border-primary/20 text-[0.85em] whitespace-nowrap inline-flex items-center gap-1.5 before:content-["@"] shadow-[0_5px_15px_rgba(var(--primary),0.1)] transition-transform hover:scale-105',
+          class: 'bg-primary/10 text-primary px-3 py-1 rounded-full font-black border border-primary/20 text-[0.85em] whitespace-nowrap inline-flex items-center gap-1.5 shadow-[0_5px_15px_hsl(var(--primary)/0.1)] transition-transform hover:scale-105',
         },
         suggestion: {
           items: ({ query }) => {
@@ -323,9 +322,6 @@ export const RichTextEditor = ({
 
       {/* Table Context Menu */}
       {editable && <TableMenu editor={editor} />}
-
-      {/* Block Actions Menu (Notion-style) */}
-      {editable && <BlockActionsMenu editor={editor} />}
 
       {/* Formatting Menu (Bubble) - Ultra Premium Immersive Liquid Glass */}
       {editable && (

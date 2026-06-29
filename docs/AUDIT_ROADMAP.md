@@ -1,3 +1,10 @@
+# Nota de atualizacao 2026-06-29
+
+Este roadmap e historico e contem provedores que foram abandonados. Stripe, C6,
+ElevenLabs, Synapse Heartbeat/Moltbook, Twilio e Google Sheets foram
+classificados como legado definitivo. Consulte a auditoria atualizada em
+`docs/audits/2026-06-29-rodada-2-seguranca-r2-portal.md`.
+
 # 🧠 NeuroNex — Auditoria Completa & Roadmap Estrutural
 
 > **Data da auditoria:** 15 de Março de 2026  

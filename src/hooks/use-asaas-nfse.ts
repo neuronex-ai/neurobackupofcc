@@ -13,7 +13,7 @@ interface IssueInvoiceParams {
   taxes?: Record<string, unknown>;
 }
 
-export const useFocusNfe = () => {
+export const useAsaasNfse = () => {
   const mutation = useMutation({
     mutationFn: async (params: IssueInvoiceParams) => {
       const { data, error } = await supabase.functions.invoke('asaas-invoices', {
@@ -36,10 +36,10 @@ export const useFocusNfe = () => {
       return data;
     },
     onSuccess: () => {
-      toast.success("Solicitação de NFS-e enviada à Asaas.");
+      toast.success('Solicitacao de NFS-e enviada ao NeuroFinance.');
     },
     onError: (error) => {
-      toast.error(`Erro na emissão: ${error.message}`);
+      toast.error(`Erro na emissao: ${error.message}`);
     }
   });
 

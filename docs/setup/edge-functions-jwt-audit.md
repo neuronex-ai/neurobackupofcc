@@ -1,3 +1,19 @@
+# Atualizacao 2026-06-29
+
+Este documento e historico. A classificacao operacional atual esta em
+`docs/audits/2026-06-29-rodada-2-seguranca-r2-portal.md`.
+
+Foram removidas do Cloud/local as functions `jitsi-token`, `jitsi-webhook`,
+`issue-focus-nfe`, `verify-financial-pin`, `asaas-proxy`, `gemini-sdr-chat`,
+`issue-invoice-focusnfe`, `jitsi-branding`, `jitsi-guest-token` e `twilio-sms`.
+
+Tambem foram redeployadas com `verify_jwt=true` as functions autenticadas de
+Asaas/NeuroFinance, PIN, voz, documentos/email, Google Drive/Suite, Jitsi
+profissional, CRP, OCR e exclusao de conta.
+
+Stripe, C6, ElevenLabs, Synapse Heartbeat/Moltbook, Twilio e Google Sheets
+foram classificados como legado definitivo.
+
 # Edge Functions — JWT Verification Status
 
 ## ⚠️ Functions that MUST keep `verify_jwt: false` (webhooks/public access)
