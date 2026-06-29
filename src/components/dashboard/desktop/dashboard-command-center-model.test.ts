@@ -18,7 +18,7 @@ const appointment = (overrides: Partial<Appointment>): Appointment => ({
   start_time: "2026-06-28T12:00:00.000Z",
   end_time: "2026-06-28T13:00:00.000Z",
   type: "presencial",
-  status: "scheduled",
+  status: "unscored",
   notes: null,
   location: null,
   created_at: "2026-06-20T00:00:00.000Z",

@@ -117,7 +117,7 @@ export const CalendarView = ({ date, onDateChange, appointments, isLoading, view
     };
 
     const handleDragOver = (event: DragOverEvent) => {
-        setOverId(event.over?.id ?? null);
+        setOverId(event.over ? String(event.over.id) : null);
     };
 
     const handleDragEnd = async (event: DragEndEvent) => {

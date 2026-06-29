@@ -1,27 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getSignedR2Upload } from "@/lib/r2-upload-signing";
+import {
+  deleteR2Document,
+  getR2DocumentDownloadUrl,
+  uploadDocumentToR2,
+  type DocumentCategory,
+  type DocumentFile,
+} from "@/lib/r2-documents-client";
 
-export type DocumentCategory =
-  | "general"
-  | "patient_attachment"
-  | "anamnesis_import"
-  | "session_document"
-  | "financial"
-  | "other";
-
-export interface DocumentFile {
-  id: string;
-  patient_id: string | null;
-  category: DocumentCategory;
-  original_name: string;
-  mime_type: string;
-  size_bytes: number;
-  status: "pending_upload" | "ready" | "failed" | "deleted";
-  metadata: Record<string, unknown>;
-  uploaded_at: string | null;
-  created_at: string;
-}
+export type { DocumentCategory, DocumentFile } from "@/lib/r2-documents-client";
 
 interface UploadInput {
   file: File;
@@ -30,23 +17,10 @@ interface UploadInput {
   metadata?: Record<string, unknown>;
 }
 
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
-const ALLOWED_TYPES = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/rtf",
-  "text/plain",
-  "text/csv",
-]);
-
-const firstDocument = (value: unknown): DocumentFile | null => {
-  if (Array.isArray(value)) return (value[0] as DocumentFile | undefined) ?? null;
-  return value && typeof value === "object" ? (value as DocumentFile) : null;
-};
+interface DownloadInput {
+  documentId: string;
+  disposition?: "inline" | "attachment";
+}
 
 export function useR2DocumentsV2(patientId?: string | null) {
   const queryClient = useQueryClient();
@@ -87,48 +61,23 @@ export function useR2DocumentsV2(patientId?: string | null) {
 
   const upload = useMutation({
     mutationFn: async ({ file, patientId: targetPatientId, category = "general", metadata = {} }: UploadInput) => {
-      if (!ALLOWED_TYPES.has(file.type)) throw new Error("Este tipo de arquivo ainda não é permitido.");
-      if (file.size <= 0 || file.size > MAX_FILE_BYTES) throw new Error("O arquivo deve ter no máximo 20 MB.");
-
-      const signed = await getSignedR2Upload(file);
-      const { data: preparedValue, error: prepareError } = await supabase.rpc("prepare_document_upload", {
-        p_patient_id: targetPatientId ?? null,
-        p_category: category,
-        p_bucket: signed.bucket,
-        p_object_key: signed.objectKey,
-        p_original_name: file.name,
-        p_mime_type: file.type,
-        p_size_bytes: file.size,
-        p_metadata: metadata,
-      });
-      const prepared = firstDocument(preparedValue);
-      if (prepareError || !prepared) throw prepareError ?? new Error("Não foi possível registrar o documento.");
-
-      const uploadResponse = await fetch(signed.uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!uploadResponse.ok) {
-        await supabase.from("document_files").update({ status: "failed" }).eq("id", prepared.id);
-        throw new Error("O armazenamento recusou o arquivo. Verifique a política CORS do bucket R2.");
-      }
-
-      const { data: ready, error: readyError } = await supabase
-        .from("document_files")
-        .update({
-          status: "ready",
-          uploaded_at: new Date().toISOString(),
-          metadata: { ...metadata, r2_etag: uploadResponse.headers.get("etag") },
-        })
-        .eq("id", prepared.id)
-        .select("id,patient_id,category,original_name,mime_type,size_bytes,status,metadata,uploaded_at,created_at")
-        .single();
-      if (readyError) throw readyError;
-      return ready as DocumentFile;
+      return uploadDocumentToR2({ file, patientId: targetPatientId ?? null, category, metadata });
     },
     onSuccess: refresh,
   });
 
-  return { documents, usage, upload };
+  const getDownloadUrl = useMutation({
+    mutationFn: async ({ documentId, disposition = "inline" }: DownloadInput) => {
+      return getR2DocumentDownloadUrl({ documentId, disposition });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: async (documentId: string) => {
+      return deleteR2Document(documentId);
+    },
+    onSuccess: refresh,
+  });
+
+  return { documents, usage, upload, getDownloadUrl, remove };
 }

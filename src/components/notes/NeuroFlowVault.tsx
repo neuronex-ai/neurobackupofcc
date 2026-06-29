@@ -161,13 +161,41 @@ export const NeuroFlowVault = ({ onOpenFlow }: NeuroFlowVaultProps) => {
             if (flowError) throw flowError;
 
             const { data: nodes } = await supabase.from('flow_nodes').select('*').eq('flow_id', flow.id);
+            const nodeIdMap = new Map<string, string>();
             if (nodes && nodes.length > 0) {
-                const newNodes = nodes.map(n => ({
-                    ...n,
-                    id: crypto.randomUUID(),
-                    flow_id: newFlow.id
-                }));
+                const newNodes = nodes.map(n => {
+                    const newNodeId = crypto.randomUUID();
+                    nodeIdMap.set(n.id, newNodeId);
+                    return {
+                        ...n,
+                        id: newNodeId,
+                        flow_id: newFlow.id
+                    };
+                });
                 await supabase.from('flow_nodes').insert(newNodes);
+            }
+
+            const { data: edges } = await supabase.from('flow_edges').select('*').eq('flow_id', flow.id);
+            if (edges && edges.length > 0) {
+                const newEdges = edges
+                    .map((edge) => {
+                        const sourceId = nodeIdMap.get(edge.source_id);
+                        const targetId = nodeIdMap.get(edge.target_id);
+                        if (!sourceId || !targetId) return null;
+
+                        return {
+                            ...edge,
+                            id: `edge-${crypto.randomUUID()}`,
+                            flow_id: newFlow.id,
+                            source_id: sourceId,
+                            target_id: targetId,
+                        };
+                    })
+                    .filter(Boolean);
+
+                if (newEdges.length > 0) {
+                    await supabase.from('flow_edges').insert(newEdges);
+                }
             }
 
             toast.success("Fluxo duplicado com sucesso!");

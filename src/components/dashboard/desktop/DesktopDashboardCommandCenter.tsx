@@ -448,6 +448,8 @@ const AppointmentScheduleArtifact = ({
     }
   };
 
+  const subtleFloatingEase = [0.42, 0, 0.58, 1] as const;
+
   const scheduleCardMotion = prefersReducedMotion
     ? {}
     : {
@@ -456,8 +458,8 @@ const AppointmentScheduleArtifact = ({
           rotateX: summaryOpen ? 0 : [0, 0.25, 0],
         },
         transition: {
-          y: { duration: 6.4, repeat: Infinity, ease: "easeInOut" },
-          rotateX: { duration: 7.2, repeat: Infinity, ease: "easeInOut" },
+          y: { duration: 6.4, repeat: Infinity, ease: subtleFloatingEase },
+          rotateX: { duration: 7.2, repeat: Infinity, ease: subtleFloatingEase },
         },
       };
 

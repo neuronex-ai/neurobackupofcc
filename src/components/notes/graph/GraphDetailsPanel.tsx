@@ -7,6 +7,7 @@ import { PersonalNote, Patient } from "@/types";
 import { useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { htmlToPlainText, plainTextToNoteHtml, noteExcerpt } from "@/lib/note-content";
 
 interface GraphDetailsPanelProps {
   selectedNote: PersonalNote | null;
@@ -56,14 +57,14 @@ export const GraphDetailsPanel = ({
   useEffect(() => {
     if (selectedNote) {
       setEditTitle(selectedNote.title);
-      setEditContent(selectedNote.content);
+      setEditContent(htmlToPlainText(selectedNote.content));
       setIsEditing(false);
     }
   }, [selectedNote]);
 
   const handleSave = () => {
     if (selectedNote) {
-      onUpdateNote(selectedNote.id, { title: editTitle, content: editContent });
+      onUpdateNote(selectedNote.id, { title: editTitle, content: plainTextToNoteHtml(editContent) });
       setIsEditing(false);
     }
   };
@@ -203,7 +204,7 @@ export const GraphDetailsPanel = ({
                         <h4 className="text-sm font-bold text-foreground dark:text-zinc-200 group-hover:text-primary dark:group-hover:text-white transition-colors line-clamp-1">{note.title}</h4>
                         <ArrowLeft className="h-3 w-3 text-muted-foreground dark:text-zinc-600 rotate-180 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                      <p className="text-xs text-muted-foreground dark:text-zinc-500 line-clamp-2 leading-relaxed">{note.content.replace(/<[^>]*>?/gm, '')}</p>
+                      <p className="text-xs text-muted-foreground dark:text-zinc-500 line-clamp-2 leading-relaxed">{noteExcerpt(note.content)}</p>
                       <p className="text-[9px] text-muted-foreground/60 dark:text-zinc-600 mt-2 font-mono">
                         {format(new Date(note.created_at), "dd MMM yyyy", { locale: ptBR })}
                       </p>

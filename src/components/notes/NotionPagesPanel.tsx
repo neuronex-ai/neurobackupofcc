@@ -2,18 +2,20 @@ import { NotionIcon } from "@/components/icons/NotionIcon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NotionBlock, useNotionPages } from "@/hooks/use-notion-pages";
+import { useNotionAuth } from "@/hooks/use-notion-auth";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-    ArrowLeft, BookOpen, CheckCircle2, ChevronRight, Clock, Download, ExternalLink, FileText, Loader2, RefreshCw, Search
+    AlertTriangle, ArrowLeft, BookOpen, CheckCircle2, ChevronRight, Clock, Database, Download, ExternalLink, FileText, Loader2, RefreshCw, Search, Table2, Video
 } from "lucide-react";
-import { useCallback, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 // ─── Notion Block Renderer ─────────────────────────────────────
+
+const NOTION_PAGE_BATCH_SIZE = 40;
 
 function extractRichText(richTextArray: any[]): string {
     if (!richTextArray || !Array.isArray(richTextArray)) return "";
@@ -167,6 +169,15 @@ function NotionBlockRenderer({
                     {renderChildren()}
                 </div>
             );
+        case "heading_4":
+            return (
+                <div className="mt-3 mb-2">
+                    <h4 className="text-[14px] font-black uppercase tracking-[0.16em] text-foreground/75">
+                        <EditableText initialText={data.rich_text} onSave={handleTextUpdate} />
+                    </h4>
+                    {renderChildren()}
+                </div>
+            );
         case "bulleted_list_item":
             return (
                 <div className="ml-5 group relative">
@@ -313,8 +324,135 @@ function NotionBlockRenderer({
                 </div>
             );
         }
+        case "embed":
+        case "link_preview": {
+            const externalUrl = data?.url;
+            if (!externalUrl) return null;
+            return (
+                <div className="my-4 rounded-2xl border border-border/50 bg-card/80 p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <ExternalLink className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[12px] font-black uppercase tracking-[0.14em] text-foreground">
+                                {type === "embed" ? "Embed" : "Preview de link"}
+                            </p>
+                            <a href={externalUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-[12px] text-muted-foreground hover:text-primary">
+                                {externalUrl}
+                            </a>
+                        </div>
+                    </div>
+                    {renderChildren()}
+                </div>
+            );
+        }
+        case "video":
+        case "audio":
+        case "file":
+        case "pdf": {
+            const fileUrl = data?.file?.url || data?.external?.url || data?.url;
+            const label = type === "video" ? "Video" : type === "audio" ? "Audio" : type === "pdf" ? "PDF" : "Arquivo";
+            return (
+                <div className="my-4 rounded-2xl border border-border/50 bg-card/80 p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            {type === "video" ? <Video className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[12px] font-black uppercase tracking-[0.14em] text-foreground">{label} do Notion</p>
+                            {fileUrl ? (
+                                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="block truncate text-[12px] text-muted-foreground hover:text-primary">
+                                    Abrir origem
+                                </a>
+                            ) : (
+                                <p className="text-[12px] text-muted-foreground">URL indisponivel no payload.</p>
+                            )}
+                        </div>
+                    </div>
+                    {data?.caption?.length > 0 && (
+                        <p className="mt-3 text-[11px] italic text-muted-foreground">
+                            <RichTextSpan richText={data.caption} />
+                        </p>
+                    )}
+                    {renderChildren()}
+                </div>
+            );
+        }
+        case "table":
+            return (
+                <div className="my-5 overflow-hidden rounded-2xl border border-border/50 bg-card/70">
+                    <div className="flex items-center gap-2 border-b border-border/40 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                        <Table2 className="h-4 w-4" />
+                        Tabela do Notion
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-[12px]">
+                            <tbody>
+                                {children.map((row) => (
+                                    <tr key={row.id} className="border-b border-border/30 last:border-0">
+                                        {(row.table_row?.cells || []).map((cell: any[], index: number) => (
+                                            <td key={index} className="min-w-32 px-4 py-3 text-foreground/80">
+                                                <RichTextSpan richText={cell} />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        case "child_database":
+        case "child_page":
+            return (
+                <div className="my-4 rounded-2xl border border-border/50 bg-muted/30 p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            {type === "child_database" ? <Database className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                        </div>
+                        <div>
+                            <p className="text-[12px] font-black uppercase tracking-[0.14em] text-foreground">
+                                {type === "child_database" ? "Banco do Notion" : "Subpagina do Notion"}
+                            </p>
+                            <p className="text-[12px] text-muted-foreground">{data?.title || "Referencia vinculada"}</p>
+                        </div>
+                    </div>
+                    {renderChildren()}
+                </div>
+            );
+        case "equation":
+            return (
+                <pre className="my-4 overflow-x-auto rounded-2xl border border-border/50 bg-muted/50 p-4 text-[13px]">
+                    <code>{data?.expression || ""}</code>
+                </pre>
+            );
+        case "synced_block":
+        case "template":
+        case "transcription":
+        case "meeting_notes":
+            return (
+                <div className="my-4 rounded-2xl border border-border/50 bg-muted/30 p-4">
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                        {type === "synced_block" ? "Bloco sincronizado" : type === "template" ? "Template" : "Notas de reuniao"}
+                    </p>
+                    {renderChildren() || <p className="text-[12px] text-muted-foreground">Sem conteudo filho retornado.</p>}
+                </div>
+            );
+        case "unsupported":
         default:
-            return null;
+            return (
+                <div className="my-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-amber-700 dark:text-amber-300">
+                    <div className="flex items-center gap-3">
+                        <AlertTriangle className="h-5 w-5 shrink-0" />
+                        <div>
+                            <p className="text-[12px] font-black uppercase tracking-[0.14em]">Bloco Notion preservado</p>
+                            <p className="text-[12px] opacity-80">{data?.block_type || type} sera mantido no payload bruto.</p>
+                        </div>
+                    </div>
+                    {renderChildren()}
+                </div>
+            );
     }
 }
 
@@ -332,6 +470,7 @@ export const NotionPagesPanel = ({
     onImportedNote,
 }: NotionPagesPanelProps) => {
     const { pages, isLoading, isConnected, refetch, fetchPageContent, updateBlock, importPage, isImportingPage } = useNotionPages();
+    const { connectNotion, isLoading: isAuthLoading } = useNotionAuth();
     const [viewingPage, setViewingPage] = useState<{
         id: string;
         title: string;
@@ -349,6 +488,7 @@ export const NotionPagesPanel = ({
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [importingPageId, setImportingPageId] = useState<string | null>(null);
+    const [visibleCount, setVisibleCount] = useState(NOTION_PAGE_BATCH_SIZE);
 
     const handleOpenPage = useCallback(
         async (page: any) => {
@@ -410,6 +550,9 @@ export const NotionPagesPanel = ({
             try {
                 const result = await importPage(page.id);
                 toast.success(result.created ? "Página importada como nota." : "Nota do Notion atualizada.");
+                if (result.unsupported_blocks?.length) {
+                    toast.info(`${result.unsupported_blocks.length} bloco(s) foram preservados como fallback.`);
+                }
                 onImportedNote?.(result.note.id);
             } catch (error) {
                 console.error("Falha ao importar página do Notion:", error);
@@ -421,8 +564,18 @@ export const NotionPagesPanel = ({
         [importPage, onImportedNote]
     );
 
-    const filteredPages = pages.filter((p) =>
-        p.title.toLowerCase().includes(searchQuery.toLowerCase())
+    useEffect(() => {
+        setVisibleCount(NOTION_PAGE_BATCH_SIZE);
+    }, [searchQuery, pages.length]);
+
+    const filteredPages = useMemo(
+        () => pages.filter((p) => p.title.toLowerCase().includes(searchQuery.toLowerCase())),
+        [pages, searchQuery]
+    );
+
+    const visiblePages = useMemo(
+        () => filteredPages.slice(0, visibleCount),
+        [filteredPages, visibleCount]
     );
 
     // ─── Not Connected State ─────────────────────────────────
@@ -448,11 +601,16 @@ export const NotionPagesPanel = ({
                             diretamente aqui.
                         </p>
                     </div>
-                    <Button asChild variant="outline" className="rounded-xl font-bold gap-2">
-                        <Link to="/ajustes?tab=integrations">
-                            Conectar Notion
-                            <ChevronRight className="h-4 w-4" />
-                        </Link>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={connectNotion}
+                        disabled={isAuthLoading}
+                        className="rounded-xl font-bold gap-2"
+                    >
+                        {isAuthLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <NotionIcon className="h-4 w-4" />}
+                        Conectar Notion
+                        <ChevronRight className="h-4 w-4" />
                     </Button>
                 </motion.div>
             </div>
@@ -633,20 +791,15 @@ export const NotionPagesPanel = ({
                         </p>
                     </div>
                 ) : (
-                    <AnimatePresence initial={false}>
-                        {filteredPages.map((page, index) => (
-                            <motion.div
-                                layout
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ delay: index * 0.03 }}
+                    <>
+                        {visiblePages.map((page) => (
+                            <div
                                 key={page.id}
                                 onClick={() => handleOpenPage(page)}
                                 className={cn(
-                                    "group relative rounded-2xl cursor-pointer transition-all duration-300 border overflow-hidden",
+                                    "group relative rounded-2xl cursor-pointer transition-colors duration-200 border overflow-hidden [content-visibility:auto] [contain-intrinsic-size:88px]",
                                     selectedPageId === page.id
-                                        ? "bg-card shadow-lg shadow-black/5 border-border/50 z-10 scale-[1.01]"
+                                        ? "bg-card shadow-lg shadow-black/5 border-border/50 z-10"
                                         : "bg-transparent hover:bg-card/60 border-transparent hover:border-border/30"
                                 )}
                             >
@@ -656,6 +809,8 @@ export const NotionPagesPanel = ({
                                         <img
                                             src={page.cover}
                                             alt=""
+                                            loading="lazy"
+                                            decoding="async"
                                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80" />
@@ -685,6 +840,8 @@ export const NotionPagesPanel = ({
                                             <img
                                                 src={page.icon.value}
                                                 alt=""
+                                                loading="lazy"
+                                                decoding="async"
                                                 className="w-5 h-5 object-contain"
                                             />
                                         ) : (
@@ -693,10 +850,25 @@ export const NotionPagesPanel = ({
                                     </div>
 
                                     {/* Content */}
-                                    <div className="flex-1 min-w-0 space-y-1">
-                                        <h3 className="text-[13px] font-semibold leading-snug tracking-tight line-clamp-1 text-foreground/90 group-hover:text-foreground transition-colors">
-                                            {page.title}
-                                        </h3>
+                                    <div className="flex-1 min-w-0 space-y-1.5">
+                                        <div className="flex min-w-0 items-center gap-2">
+                                            <h3 className="line-clamp-1 min-w-0 flex-1 text-[13px] font-semibold leading-snug tracking-tight text-foreground/90 transition-colors group-hover:text-foreground">
+                                                {page.title}
+                                            </h3>
+                                            {page.import?.is_imported && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        "h-5 shrink-0 rounded-full border px-2 text-[8px] font-black uppercase tracking-[0.12em]",
+                                                        page.import.import_is_stale
+                                                            ? "border-amber-400/30 bg-amber-400/10 text-amber-500"
+                                                            : "border-emerald-400/25 bg-emerald-400/10 text-emerald-500"
+                                                    )}
+                                                >
+                                                    {page.import.import_is_stale ? "Atualizar" : "Importada"}
+                                                </Badge>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60 font-medium">
                                             <Clock className="h-3 w-3" />
                                             <span>
@@ -717,14 +889,14 @@ export const NotionPagesPanel = ({
                                             event.stopPropagation();
                                             void handleImportPage(page);
                                         }}
-                                        className="h-8 shrink-0 rounded-xl px-2.5 text-[9px] font-black uppercase tracking-[0.14em] opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                                        className="h-8 shrink-0 rounded-xl px-2.5 text-[9px] font-black uppercase tracking-[0.14em]"
                                     >
                                         {isImportingPage && importingPageId === page.id ? (
                                             <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                                         ) : (
                                             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                                         )}
-                                        Importar
+                                        {page.import?.is_imported ? "Atualizar" : "Importar"}
                                     </Button>
 
                                     <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-all group-hover:translate-x-0.5 shrink-0 mt-0.5" />
@@ -734,9 +906,21 @@ export const NotionPagesPanel = ({
                                 {selectedPageId === page.id && (
                                     <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r-full" />
                                 )}
-                            </motion.div>
+                            </div>
                         ))}
-                    </AnimatePresence>
+                        {visibleCount < filteredPages.length && (
+                            <div className="px-1 pt-2">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => setVisibleCount((current) => Math.min(current + NOTION_PAGE_BATCH_SIZE, filteredPages.length))}
+                                    className="h-10 w-full rounded-xl text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground hover:text-foreground"
+                                >
+                                    Carregar mais {Math.min(NOTION_PAGE_BATCH_SIZE, filteredPages.length - visibleCount)} paginas
+                                </Button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

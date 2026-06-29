@@ -151,6 +151,15 @@ Depois migrar:
 - Backfill dos 21 objetos de `files_psico` para R2.
 - Tornar `files_psico` privado ou descontinuar.
 
+Atualizacao 2026-06-29:
+
+- A aba principal `PatientDocumentsTab` foi migrada para `DocumentUploadPanel`/R2.
+- `src/lib/r2-upload-signing.ts` deixou de chamar `/api/r2-sign` e passou a chamar Supabase Edge Function.
+- Por limite de Edge Functions no projeto Cloud, o ciclo R2 foi consolidado em `r2-create-upload-url` com `action` no body.
+- `patient-portal-current` ja assina downloads R2 server-side para documentos compartilhados com o paciente.
+- Ainda continuam pendentes AI chat, notas, hooks legados, timeline/preview antigos, backfill e privacidade final do bucket `files_psico`.
+- Detalhes da rodada: `docs/audits/2026-06-29-rodada-2-seguranca-r2-portal.md`.
+
 ## Frontend: candidatos a orfaos
 
 Metodo: grafo estatico de imports a partir de `src/main.tsx`. Limites: pode haver falso positivo se um arquivo for importado por string dinamica ou usado fora do bundle principal.

@@ -44,12 +44,11 @@ export const BlockActionsMenu = ({ editor }: BlockActionsMenuProps) => {
         <BubbleMenu
             editor={editor}
             pluginKey="blockActionsMenu"
-            shouldShow={({ state }) => {
+            shouldShow={({ state, editor }) => {
                 const { selection } = state;
                 const { empty } = selection;
 
-                // Only show if there is an actual text selection (not just a cursor)
-                return !empty;
+                return empty && !editor.isActive('table') && editor.isEditable;
             }}
             tippyOptions={{
                 duration: 200,

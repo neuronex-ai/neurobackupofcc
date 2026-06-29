@@ -29,6 +29,13 @@ export interface NotionBlock {
 export interface NotionImportResult {
     note: PersonalNote;
     created: boolean;
+    unsupported_blocks?: Array<{
+        id: string | null;
+        type: string;
+        block_type?: string | null;
+        reason: string;
+    }>;
+    render_version?: string;
     source: {
         page_id: string;
         title: string;

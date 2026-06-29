@@ -10,12 +10,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { NotionIcon } from "@/components/icons/NotionIcon";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Clock, FileText, ListFilter, Plus, Search, Sparkles, Trash2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface NotesListPanelProps {
   searchQuery: string;
@@ -40,6 +41,11 @@ const toPlainText = (content = "") =>
     .replace(/\s+/g, " ")
     .trim();
 
+const NOTES_PAGE_SIZE = 40;
+
+const hasNotionOrigin = (tags?: string[]) =>
+  (tags || []).some((tag) => tag.trim().toLowerCase() === "notion");
+
 export const NotesListPanel = ({
   searchQuery,
   setSearchQuery,
@@ -54,6 +60,7 @@ export const NotesListPanel = ({
   isCreatingNote = false,
 }: NotesListPanelProps) => {
   const [noteToDelete, setNoteToDelete] = useState<{ id: string; title: string } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const excerptCacheRef = useRef(new Map<string, { content: string; excerpt: string }>());
   const preparedItems = useMemo(() => {
     const activeIds = new Set(items.map((item) => item.id));
@@ -71,6 +78,22 @@ export const NotesListPanel = ({
       return { ...item, excerpt };
     });
   }, [items]);
+
+  const totalPages = Math.max(1, Math.ceil(preparedItems.length / NOTES_PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStart = (safeCurrentPage - 1) * NOTES_PAGE_SIZE;
+  const pageEnd = Math.min(pageStart + NOTES_PAGE_SIZE, preparedItems.length);
+  const paginatedItems = preparedItems.slice(pageStart, pageEnd);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, items.length]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handleDragStart = (event: React.DragEvent, noteId: string) => {
     event.dataTransfer.setData("noteId", noteId);
@@ -144,7 +167,7 @@ export const NotesListPanel = ({
           </div>
         </div>
 
-        <div className="notes-scroll-surface relative z-10 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-3 pb-8 pt-3 custom-scrollbar [scrollbar-gutter:stable]">
+        <div className="notes-scroll-surface relative z-10 min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain px-3 pb-4 pt-3 custom-scrollbar [scrollbar-gutter:stable]">
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4].map((item) => (
@@ -163,8 +186,9 @@ export const NotesListPanel = ({
             </div>
           ) : (
             <>
-              {preparedItems.map((item) => {
+              {paginatedItems.map((item) => {
                 const isActive = selectedId === item.id;
+                const isNotionNote = hasNotionOrigin(item.tags);
                 return (
                   <div
                     key={item.id}
@@ -184,6 +208,19 @@ export const NotesListPanel = ({
                         <h3 className="line-clamp-1 text-[13px] font-black leading-tight tracking-tight">
                           {item.title || "Nota sem título"}
                         </h3>
+                        {isNotionNote && (
+                          <span
+                            className={cn(
+                              "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2 text-[8px] font-black uppercase tracking-[0.14em]",
+                              isActive
+                                ? "border-black/10 bg-black/[0.04] text-zinc-700 [.light_&]:border-white/10 [.light_&]:bg-white/10 [.light_&]:text-zinc-200"
+                                : "border-white/[0.055] bg-white/[0.035] text-zinc-400 [.light_&]:border-zinc-200/70 [.light_&]:bg-white [.light_&]:text-zinc-600"
+                            )}
+                          >
+                            <NotionIcon className="h-3 w-3" />
+                            Notion
+                          </span>
+                        )}
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
@@ -222,6 +259,39 @@ export const NotesListPanel = ({
             </>
           )}
         </div>
+
+        {preparedItems.length > 0 && (
+          <div className="relative z-10 shrink-0 border-t border-white/[0.045] px-4 py-3 [.light_&]:border-zinc-200/60">
+            <div className="flex items-center justify-between gap-3 rounded-[18px] border border-white/[0.045] bg-white/[0.025] px-3 py-2 shadow-[0_16px_42px_-34px_rgba(0,0,0,0.75)] backdrop-blur-xl [.light_&]:border-zinc-200/70 [.light_&]:bg-white/78 [.light_&]:shadow-[0_16px_42px_-34px_rgba(0,0,0,0.35)]">
+              <p className="min-w-0 text-[9px] font-black uppercase tracking-[0.16em] text-zinc-600 [.light_&]:text-zinc-500">
+                {pageStart + 1}-{pageEnd} de {preparedItems.length}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={safeCurrentPage <= 1}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/[0.055] bg-white/[0.035] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-35 [.light_&]:border-zinc-200/70 [.light_&]:bg-white [.light_&]:text-zinc-500 [.light_&]:hover:bg-zinc-100 [.light_&]:hover:text-zinc-950"
+                  title="Página anterior"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+                <span className="flex h-8 min-w-12 items-center justify-center rounded-xl bg-white/[0.035] px-2 text-[9px] font-black tabular-nums text-zinc-500 [.light_&]:bg-zinc-100 [.light_&]:text-zinc-600">
+                  {safeCurrentPage}/{totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/[0.055] bg-white/[0.035] text-zinc-400 transition-colors hover:bg-white/[0.08] hover:text-white disabled:pointer-events-none disabled:opacity-35 [.light_&]:border-zinc-200/70 [.light_&]:bg-white [.light_&]:text-zinc-500 [.light_&]:hover:bg-zinc-100 [.light_&]:hover:text-zinc-950"
+                  title="Próxima página"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <AlertDialog open={!!noteToDelete} onOpenChange={(open) => !open && setNoteToDelete(null)}>

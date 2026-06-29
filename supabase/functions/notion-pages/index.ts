@@ -1,7 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  notionRichTextPlain,
+  renderNotionBlocksForImport,
+} from "../_shared/notion-import-renderer.ts";
 
 const NOTION_VERSION = "2022-06-28";
+const MAX_BLOCK_DEPTH = 12;
+const MAX_BLOCKS_PER_PAGE = 1500;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,9 +26,13 @@ interface NotionPage {
   id: string;
   url: string;
   last_edited_time: string;
+  created_time?: string;
   properties: Record<string, any>;
   icon: { type: string; emoji?: string; file?: { url: string }; external?: { url: string } } | null;
   cover: { file?: { url: string }; external?: { url: string } } | null;
+  parent?: { type: string; [key: string]: any };
+  archived?: boolean;
+  in_trash?: boolean;
 }
 
 interface NotionImport {
@@ -46,26 +56,6 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 
-const richTextPlain = (richText: any[] = []) =>
-  richText.map((part) => part?.plain_text || "").join("");
-
-const richTextHtml = (richText: any[] = []) =>
-  richText
-    .map((part) => {
-      let value = escapeHtml(part?.plain_text || "");
-      const annotations = part?.annotations || {};
-
-      if (annotations.code) value = `<code>${value}</code>`;
-      if (annotations.bold) value = `<strong>${value}</strong>`;
-      if (annotations.italic) value = `<em>${value}</em>`;
-      if (annotations.underline) value = `<u>${value}</u>`;
-      if (annotations.strikethrough) value = `<s>${value}</s>`;
-      if (part?.href) value = `<a href="${escapeHtml(part.href)}" target="_blank" rel="noopener noreferrer">${value}</a>`;
-
-      return value;
-    })
-    .join("");
-
 const notionRequest = async (token: string, path: string, init: RequestInit = {}) => {
   const response = await fetch(`https://api.notion.com/v1${path}`, {
     ...init,
@@ -88,7 +78,7 @@ const notionRequest = async (token: string, path: string, init: RequestInit = {}
 
 const getPageTitle = (page: NotionPage) => {
   const titleProperty = Object.values(page.properties || {}).find((property: any) => property?.type === "title") as any;
-  return richTextPlain(titleProperty?.title).trim() || "Página do Notion";
+  return notionRichTextPlain(titleProperty?.title).trim() || "Pagina do Notion";
 };
 
 const getPageIcon = (page: NotionPage) =>
@@ -129,9 +119,18 @@ const getImportState = (page: NotionPage, importLookup: Map<string, NotionImport
   };
 };
 
-const fetchBlockChildren = async (token: string, blockId: string, depth = 0): Promise<NotionBlock[]> => {
+const fetchBlockChildren = async (
+  token: string,
+  blockId: string,
+  depth = 0,
+  state = { count: 0 },
+): Promise<NotionBlock[]> => {
   const blocks: NotionBlock[] = [];
   let cursor: string | null = null;
+
+  if (depth > MAX_BLOCK_DEPTH || state.count >= MAX_BLOCKS_PER_PAGE) {
+    return blocks;
+  }
 
   do {
     const query = new URLSearchParams({ page_size: "100" });
@@ -141,59 +140,56 @@ const fetchBlockChildren = async (token: string, blockId: string, depth = 0): Pr
     const results = (data.results || []) as NotionBlock[];
 
     for (const block of results) {
-      if (block.has_children && depth < 3) {
-        block.children = await fetchBlockChildren(token, block.id, depth + 1);
+      state.count += 1;
+      if (block.has_children && depth < MAX_BLOCK_DEPTH && state.count < MAX_BLOCKS_PER_PAGE) {
+        block.children = await fetchBlockChildren(token, block.id, depth + 1, state);
       }
       blocks.push(block);
+
+      if (state.count >= MAX_BLOCKS_PER_PAGE) break;
     }
 
     cursor = data.has_more ? data.next_cursor : null;
-  } while (cursor);
+  } while (cursor && state.count < MAX_BLOCKS_PER_PAGE);
 
   return blocks;
 };
 
-const renderChildren = (block: NotionBlock) =>
-  block.children?.length ? `<div>${renderBlocks(block.children)}</div>` : "";
+const searchNotionPages = async (token: string): Promise<NotionPage[]> => {
+  const pages: NotionPage[] = [];
+  let cursor: string | null = null;
 
-const renderBlock = (block: NotionBlock): string => {
-  const type = block.type;
-  const data = block[type] || {};
-  const text = richTextHtml(data.rich_text || data.title || []);
-  const children = renderChildren(block);
+  do {
+    const data = await notionRequest(token, "/search", {
+      method: "POST",
+      body: JSON.stringify({
+        filter: { property: "object", value: "page" },
+        sort: { direction: "descending", timestamp: "last_edited_time" },
+        page_size: 100,
+        ...(cursor ? { start_cursor: cursor } : {}),
+      }),
+    });
 
-  switch (type) {
-    case "heading_1":
-      return `<h1>${text}</h1>${children}`;
-    case "heading_2":
-      return `<h2>${text}</h2>${children}`;
-    case "heading_3":
-      return `<h3>${text}</h3>${children}`;
-    case "bulleted_list_item":
-      return `<ul><li>${text}${children}</li></ul>`;
-    case "numbered_list_item":
-      return `<ol><li>${text}${children}</li></ol>`;
-    case "to_do":
-      return `<p>${data.checked ? "☑" : "☐"} ${text}</p>${children}`;
-    case "quote":
-      return `<blockquote>${text}</blockquote>${children}`;
-    case "code":
-      return `<pre><code>${escapeHtml(richTextPlain(data.rich_text || []))}</code></pre>`;
-    case "divider":
-      return "<hr />";
-    case "callout":
-      return `<blockquote>${text}</blockquote>${children}`;
-    case "image": {
-      const url = data.file?.url || data.external?.url;
-      return url ? `<p><img src="${escapeHtml(url)}" alt="" /></p>` : "";
-    }
-    case "paragraph":
-    default:
-      return text || children ? `<p>${text}</p>${children}` : "";
-  }
+    pages.push(...((data.results || []) as NotionPage[]));
+    cursor = data.has_more ? data.next_cursor : null;
+  } while (cursor);
+
+  return pages;
 };
 
-const renderBlocks = (blocks: NotionBlock[]) => blocks.map(renderBlock).filter(Boolean).join("\n");
+const buildSourceMeta = (page: NotionPage, workspaceId: string | null, importedAt: string) => ({
+  page_id: page.id,
+  workspace_id: workspaceId,
+  url: page.url || null,
+  title: getPageTitle(page),
+  parent: page.parent || null,
+  icon: page.icon || null,
+  cover: page.cover || null,
+  created_time: page.created_time || null,
+  last_edited_time: page.last_edited_time || null,
+  imported_at: importedAt,
+  api_version: NOTION_VERSION,
+});
 
 const shouldIgnoreMissingTable = (error: any) =>
   error?.code === "42P01" || String(error?.message || "").toLowerCase().includes("does not exist");
@@ -206,7 +202,7 @@ serve(async (req: Request) => {
   try {
     const supabaseService = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
     const authHeader = req.headers.get("Authorization");
@@ -225,9 +221,10 @@ serve(async (req: Request) => {
       .eq("user_id", user.id)
       .single();
 
-    if (tokenError || !tokenData) throw new Error("Notion not connected");
+    if (tokenError || !tokenData?.access_token) throw new Error("Notion not connected");
 
     const notionToken = tokenData.access_token;
+    const workspaceId = tokenData.workspace_id || null;
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
 
@@ -236,7 +233,8 @@ serve(async (req: Request) => {
       if (!pageId) throw new Error("Missing page_id");
 
       const blocks = await fetchBlockChildren(notionToken, pageId, 0);
-      return json({ blocks });
+      const rendered = renderNotionBlocksForImport(blocks);
+      return json({ blocks, rendered });
     }
 
     if (action === "update-block") {
@@ -259,13 +257,14 @@ serve(async (req: Request) => {
 
       const page = (await notionRequest(notionToken, `/pages/${pageId}`)) as NotionPage;
       const blocks = await fetchBlockChildren(notionToken, pageId, 0);
+      const rendered = renderNotionBlocksForImport(blocks);
       const title = getPageTitle(page);
-      const renderedBlocks = renderBlocks(blocks);
       const sourceUrl = page.url || null;
       const importedAt = new Date().toISOString();
+      const sourceMeta = buildSourceMeta(page, workspaceId, importedAt);
       const content = [
         `<p><strong>Origem:</strong> ${sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Notion</a>` : "Notion"}</p>`,
-        renderedBlocks || "<p>Esta página não possui conteúdo visível no Notion.</p>",
+        rendered.contentHtml || "<p>Esta pagina nao possui conteudo visivel no Notion.</p>",
       ].join("\n");
 
       const { data: existingImport, error: existingImportError } = await supabaseService
@@ -285,7 +284,7 @@ serve(async (req: Request) => {
         module_id: null,
         title,
         content,
-        tags: ["notion", "importado"],
+        tags: ["Notion", "importado"],
         reference_date: page.last_edited_time || importedAt,
         updated_at: importedAt,
       };
@@ -309,7 +308,7 @@ serve(async (req: Request) => {
         .upsert(
           {
             user_id: user.id,
-            workspace_id: tokenData.workspace_id || null,
+            workspace_id: workspaceId,
             notion_page_id: pageId,
             note_id: note.id,
             title,
@@ -317,8 +316,14 @@ serve(async (req: Request) => {
             last_edited_time: page.last_edited_time || null,
             imported_at: importedAt,
             updated_at: importedAt,
+            raw_page: page,
+            raw_blocks: blocks,
+            unsupported_blocks: rendered.unsupportedBlocks,
+            api_version: NOTION_VERSION,
+            render_version: rendered.renderVersion,
+            source_meta: sourceMeta,
           },
-          { onConflict: "user_id,notion_page_id" }
+          { onConflict: "user_id,notion_page_id" },
         );
 
       if (importError && !shouldIgnoreMissingTable(importError)) {
@@ -328,6 +333,8 @@ serve(async (req: Request) => {
       return json({
         note,
         created: !existingImport?.note_id,
+        unsupported_blocks: rendered.unsupportedBlocks,
+        render_version: rendered.renderVersion,
         source: {
           page_id: pageId,
           title,
@@ -337,13 +344,7 @@ serve(async (req: Request) => {
       });
     }
 
-    const searchData = await notionRequest(notionToken, "/search", {
-      method: "POST",
-      body: JSON.stringify({
-        filter: { property: "object", value: "page" },
-        sort: { direction: "descending", timestamp: "last_edited_time" },
-      }),
-    });
+    const searchResults = await searchNotionPages(notionToken);
 
     const { data: imports, error: importsError } = await supabaseService
       .from("notion_imports")
@@ -356,14 +357,14 @@ serve(async (req: Request) => {
 
     const importLookup = buildImportLookup((imports || []) as NotionImport[]);
 
-    const pages = (searchData.results || []).map((page: NotionPage) => ({
+    const pages = searchResults.map((page: NotionPage) => ({
       id: page.id,
       title: getPageTitle(page),
       icon: getPageIcon(page),
       cover: page.cover?.external?.url || page.cover?.file?.url || null,
       url: page.url,
       last_edited_time: page.last_edited_time,
-      parent_type: (page as any).parent?.type || "workspace",
+      parent_type: page.parent?.type || "workspace",
       import: getImportState(page, importLookup),
     }));
 

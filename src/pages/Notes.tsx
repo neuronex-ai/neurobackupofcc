@@ -3,7 +3,7 @@
 import { lazy, Suspense, useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
-import { motion, AnimatePresence, type Transition } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion, type Transition } from "framer-motion";
 
 import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import { useReminders } from "@/hooks/use-reminders";
@@ -70,6 +70,7 @@ const NoteEditorSkeleton = () => (
 
 export default function Notes() {
     const isMobile = useIsMobile();
+    const shouldReduceMotion = useReducedMotion();
     const [searchParams] = useSearchParams();
     const noteIdParam = searchParams.get("noteId");
 
@@ -154,7 +155,8 @@ export default function Notes() {
 
             const matchesSearch =
                 note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                note.content.toLowerCase().includes(searchQuery.toLowerCase());
+                note.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (note.tags || []).some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
 
             return matchesModule && matchesSearch;
         });
@@ -192,7 +194,7 @@ export default function Notes() {
 
     const renderMainContent = () => {
         const contentTransition: Transition = {
-            duration: 0.4,
+            duration: shouldReduceMotion ? 0 : 0.4,
             ease: [0.23, 1, 0.32, 1],
         };
 
@@ -297,6 +299,7 @@ export default function Notes() {
                                 initial={false}
                                 animate={{ width: isListCollapsed ? 52 : 330 }}
                                 transition={{
+                                    duration: shouldReduceMotion ? 0 : undefined,
                                     type: "spring",
                                     stiffness: 320,
                                     damping: 34,
@@ -351,6 +354,11 @@ export default function Notes() {
                                                 }}
                                                 isFocusMode={isFocusMode}
                                                 onToggleFocus={() => setIsFocusMode(!isFocusMode)}
+                                                linkableNotes={(notes || []).map((note) => ({
+                                                    id: note.id,
+                                                    title: note.title,
+                                                    content: note.content,
+                                                }))}
                                             />
                                         </Suspense>
                                     </motion.div>
@@ -401,20 +409,22 @@ export default function Notes() {
     };
 
     return (
-        <div className="relative z-0 flex h-full min-h-0 w-full flex-col overflow-hidden bg-transparent font-sans text-foreground selection:bg-white/10 [.light_&]:selection:bg-zinc-900/10">
+        <div className="relative z-0 flex h-screen min-h-0 w-full flex-col overflow-hidden bg-background font-sans text-foreground selection:bg-primary/20">
+            <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_50%_10%,hsl(var(--foreground)/0.035),transparent_34%)] dark:bg-[radial-gradient(circle_at_50%_10%,hsl(var(--foreground)/0.045),transparent_34%)]" />
             <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-[2200px] flex-1 items-stretch px-5 pb-5 pt-28">
-                <div className="relative z-10 flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[30px] ring-1 ring-zinc-950/[0.025] dark:ring-white/[0.025]">
+                <div className="relative z-10 flex h-full min-h-0 min-w-0 flex-1 overflow-hidden rounded-[34px] border border-border/45 bg-card/42 shadow-[0_22px_90px_-76px_hsl(var(--foreground)/0.7)] ring-1 ring-foreground/[0.025] backdrop-blur-sm dark:border-white/[0.04] dark:bg-white/[0.02] dark:ring-white/[0.035]">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                        className="group/main-window pointer-events-auto relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent shadow-none"
+                        transition={{ duration: shouldReduceMotion ? 0 : 1, ease: [0.16, 1, 0.3, 1] }}
+                        className="group/main-window pointer-events-auto relative flex h-full min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent shadow-none"
                     >
                         {!isFocusMode && (
                             <motion.div
                                 initial={false}
                                 animate={{ width: isSidebarCollapsed ? 66 : 226 }}
                                 transition={{
+                                    duration: shouldReduceMotion ? 0 : undefined,
                                     type: "spring",
                                     stiffness: 320,
                                     damping: 34,

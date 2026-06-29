@@ -1,7 +1,7 @@
 "use client";
 
 
-export const NotionIcon = ({ className = "h-8 w-8" }: { className?: string }) => {
+export const NotionIcon = ({ className = "h-8 w-8" }: { className?: string; strokeWidth?: number }) => {
   return (
     <div className={`${className} relative group transition-all duration-500`}>
       {/* Modo Claro: Começa cinza, acende para preto */}

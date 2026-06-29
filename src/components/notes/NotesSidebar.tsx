@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { NotionIcon } from "@/components/icons/NotionIcon";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,7 @@ interface NotesSidebarProps {
 const mainItems = [
   { id: 'notes', label: 'Notas', icon: StickyNote, mode: 'notes' as const },
   { id: 'tasks', label: 'Tarefas', icon: ListTodo, mode: 'tasks' as const },
+  { id: 'notion', label: 'Notion', icon: NotionIcon, mode: 'notion' as const },
   { id: 'files', label: 'Drive', icon: FolderOpen, mode: 'files' as const },
 ];
 

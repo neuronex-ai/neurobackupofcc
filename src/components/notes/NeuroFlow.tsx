@@ -58,6 +58,9 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [patientId, setPatientId] = useState<string | null>(null);
+  const isSavingRef = useRef(false);
+  const pendingSaveRef = useRef(false);
+  const latestGraphRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
   const { screenToFlowPosition, getViewport, zoomIn, zoomOut, fitView } = useReactFlow();
   const { theme } = useTheme();
 
@@ -75,12 +78,16 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
     if (!flowId) return;
     setIsLoading(true);
     try {
-      const { data: flowData } = await supabase.from('neuro_flows').select('patient_id').eq('id', flowId).single();
+      const { data: flowData } = await supabase.from('neuro_flows').select('patient_id, nodes, edges').eq('id', flowId).single();
       const currentPatientId = flowData?.patient_id;
       setPatientId(currentPatientId);
 
       const { data: dbNodes } = await supabase.from('flow_nodes').select('*').eq('flow_id', flowId);
-      const { data: dbEdges } = await supabase.from('flow_edges').select('*').eq('flow_id', flowId);
+      const { data: dbEdges, error: edgesError } = await supabase.from('flow_edges').select('*').eq('flow_id', flowId);
+
+      if (edgesError) {
+        console.error("[NeuroFlow] Erro ao carregar conexões:", edgesError);
+      }
 
       if (dbNodes && dbNodes.length > 0) {
         setNodes(dbNodes.map(n => ({
@@ -88,6 +95,11 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
           type: n.type || 'item',
           position: { x: n.x, y: n.y },
           data: { label: n.label || 'Sem título', patientId: currentPatientId, ...(n.content as object) },
+        })));
+      } else if (Array.isArray(flowData?.nodes) && flowData.nodes.length > 0) {
+        setNodes(flowData.nodes.map((node: Node) => ({
+          ...node,
+          data: { ...(node.data || {}), patientId: currentPatientId },
         })));
       } else {
         setNodes([{
@@ -98,7 +110,7 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         }]);
       }
 
-      if (dbEdges) {
+      if (dbEdges && !edgesError && dbEdges.length > 0) {
         setEdges(dbEdges.map(e => ({
           id: e.id,
           source: e.source_id,
@@ -107,6 +119,12 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
           targetHandle: e.target_handle,
           type: 'neural',
           animated: true
+        })));
+      } else if (Array.isArray(flowData?.edges) && flowData.edges.length > 0) {
+        setEdges(flowData.edges.map((edge: Edge) => ({
+          ...edge,
+          type: edge.type || 'neural',
+          animated: edge.animated ?? true,
         })));
       }
     } catch (e) {
@@ -120,16 +138,20 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
 
   // Sincronização automática
   useEffect(() => {
-    if (isLoading) return;
-    const timer = setTimeout(() => { saveState(); }, 2000);
-    return () => clearTimeout(timer);
+    latestGraphRef.current = { nodes, edges };
   }, [nodes, edges]);
 
-  const saveState = async () => {
-    if (!flowId || isSaving) return;
+  const saveState = useCallback(async () => {
+    if (!flowId || isLoading) return;
+    if (isSavingRef.current) {
+      pendingSaveRef.current = true;
+      return;
+    }
+    isSavingRef.current = true;
     setIsSaving(true);
     try {
-      const nodeUpdates = nodes.map(n => ({
+      const { nodes: nodesToSave, edges: edgesToSave } = latestGraphRef.current;
+      const nodeUpdates = nodesToSave.map(n => ({
         id: n.id,
         flow_id: flowId,
         x: Math.round(n.position.x),
@@ -138,9 +160,10 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         type: n.type,
         content: n.data // content now implicitly includes patientId but thats fine, or we can spread out
       }));
-      await supabase.from('flow_nodes').upsert(nodeUpdates);
+      const { error: nodesError } = await supabase.from('flow_nodes').upsert(nodeUpdates);
+      if (nodesError) throw nodesError;
 
-      const edgeUpdates = edges.map(e => ({
+      const edgeUpdates = edgesToSave.map(e => ({
         id: e.id,
         flow_id: flowId,
         source_id: e.source,
@@ -151,15 +174,79 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
       }));
 
       if (edgeUpdates.length > 0) {
-        await supabase.from('flow_edges').upsert(edgeUpdates);
+        const { error: upsertEdgesError } = await supabase.from('flow_edges').upsert(edgeUpdates);
+        if (upsertEdgesError) throw upsertEdgesError;
+
+        const { data: storedEdges, error: storedEdgesError } = await supabase
+          .from('flow_edges')
+          .select('id')
+          .eq('flow_id', flowId);
+
+        if (storedEdgesError) throw storedEdgesError;
+
+        const currentEdgeIds = new Set(edgeUpdates.map((edge) => edge.id));
+        const staleEdgeIds = (storedEdges || [])
+          .map((edge) => edge.id)
+          .filter((id) => !currentEdgeIds.has(id));
+
+        if (staleEdgeIds.length > 0) {
+          const { error: pruneEdgesError } = await supabase
+            .from('flow_edges')
+            .delete()
+            .eq('flow_id', flowId)
+            .in('id', staleEdgeIds);
+
+          if (pruneEdgesError) throw pruneEdgesError;
+        }
+      } else {
+        const { error: clearEdgesError } = await supabase
+          .from('flow_edges')
+          .delete()
+          .eq('flow_id', flowId);
+
+        if (clearEdgesError) throw clearEdgesError;
       }
+
+      const { error: flowError } = await supabase
+        .from('neuro_flows')
+        .update({
+          nodes: nodesToSave,
+          edges: edgesToSave,
+          viewport: getViewport(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', flowId);
+
+      if (flowError) throw flowError;
 
     } catch (e) {
       console.error("[NeuroFlow] Erro ao salvar estado:", e);
+      toast.error("Nao foi possivel salvar o NeuroFlow. Tentaremos novamente na proxima alteracao.");
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
+      if (pendingSaveRef.current) {
+        pendingSaveRef.current = false;
+        window.setTimeout(() => void saveState(), 100);
+      }
     }
-  };
+  }, [flowId, getViewport, isLoading]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    pendingSaveRef.current = true;
+    const timer = window.setTimeout(() => {
+      pendingSaveRef.current = false;
+      void saveState();
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [nodes, edges, isLoading, saveState]);
+
+  useEffect(() => {
+    return () => {
+      if (!isLoading) void saveState();
+    };
+  }, [isLoading, saveState]);
 
   const onConnect = useCallback((params: Connection | Edge) => {
     const edgeId = `edge-${crypto.randomUUID()}`;

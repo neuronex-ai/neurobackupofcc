@@ -1,5 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
+import { ReactNodeViewRenderer, NodeViewContent, NodeViewWrapper } from '@tiptap/react';
 import { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { cn } from '@/lib/utils';
@@ -15,7 +15,7 @@ import {
   Trash2, Link2, Globe, Share2,
   Zap, Brain, Code, Activity,
   FileIcon, Download, Video,
-  MoveDiagonal2, ExternalLink
+  MoveDiagonal2, ExternalLink, FileText, Lightbulb, ChevronRight, Sigma
 } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -412,6 +412,274 @@ export const LinkCardNode = Node.create({
     return ReactNodeViewRenderer(LinkCardComponent);
   },
 });
+
+// --- Extension: Linked Note / Sub-page Card ---
+export const NoteLinkNode = Node.create({
+  name: 'noteLink',
+  group: 'block',
+  atom: true,
+
+  addAttributes() {
+    return {
+      noteId: { default: '' },
+      notionPageId: { default: '' },
+      title: { default: 'Nota vinculada' },
+      description: { default: 'Abra a nota vinculada para continuar a leitura.' },
+      href: { default: '' },
+      source: { default: 'NeuroDrive' },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'note-link' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['note-link', mergeAttributes(HTMLAttributes)];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(NoteLinkComponent);
+  },
+});
+
+const NoteLinkComponent = ({ node, deleteNode }: any) => {
+  const { noteId, title, description, href, source } = node.attrs;
+
+  const handleOpen = (event: React.MouseEvent) => {
+    event.preventDefault();
+    if (noteId) {
+      window.history.pushState({}, '', `/notes?noteId=${noteId}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      return;
+    }
+    if (href) window.open(href, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <NodeViewWrapper className="my-7 group/note-link">
+      <button
+        type="button"
+        onClick={handleOpen}
+        className="flex w-full items-center gap-4 rounded-2xl border border-border/65 bg-card/82 p-4 text-left shadow-[0_18px_55px_-42px_hsl(var(--foreground)/0.8)] transition-all duration-200 hover:border-primary/35 hover:bg-primary/[0.035] dark:bg-white/[0.035]"
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+          <FileText className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-black tracking-tight text-foreground">{title || 'Nota vinculada'}</span>
+            <span className="shrink-0 rounded-full border border-border/60 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+              {source || 'NeuroDrive'}
+            </span>
+          </div>
+          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{description}</p>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover/note-link:translate-x-0.5" />
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            deleteNode();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              event.stopPropagation();
+              deleteNode();
+            }
+          }}
+          className="ml-1 hidden rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive group-hover/note-link:inline-flex"
+          aria-label="Remover link de nota"
+        >
+          <Trash2 className="h-4 w-4" />
+        </span>
+      </button>
+    </NodeViewWrapper>
+  );
+};
+
+// --- Extension: Notion-style Callout ---
+export const NotionCalloutNode = Node.create({
+  name: 'notionCallout',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+
+  addAttributes() {
+    return {
+      icon: { default: '!' },
+      color: { default: 'default' },
+      label: { default: 'Observacao' },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'notion-callout' }, { tag: 'div[data-type="notion-callout"]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['notion-callout', mergeAttributes(HTMLAttributes), 0];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(NotionCalloutComponent);
+  },
+});
+
+const NotionCalloutComponent = ({ node, deleteNode }: any) => {
+  const { icon, color, label } = node.attrs;
+
+  return (
+    <NodeViewWrapper
+      data-notion-color={color}
+      className="my-6 group/callout rounded-2xl border border-primary/18 bg-primary/[0.055] p-4 shadow-[0_18px_55px_-48px_hsl(var(--foreground)/0.8)]"
+    >
+      <div className="flex items-start gap-3">
+        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-sm font-black text-primary">
+          {icon || <Lightbulb className="h-4 w-4" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-primary/80">{label || 'Observacao'}</span>
+            <button
+              type="button"
+              onClick={deleteNode}
+              className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover/callout:opacity-100"
+              aria-label="Remover callout"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <NodeViewContent className="notion-callout-content space-y-2 text-foreground" />
+        </div>
+      </div>
+    </NodeViewWrapper>
+  );
+};
+
+// --- Extension: Notion-style Toggle ---
+export const NotionToggleNode = Node.create({
+  name: 'notionToggle',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+
+  addAttributes() {
+    return {
+      title: { default: 'Detalhes' },
+      open: {
+        default: true,
+        parseHTML: (element) => element.getAttribute('open') !== 'false',
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'notion-toggle' }, { tag: 'details[data-type="notion-toggle"]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['notion-toggle', mergeAttributes(HTMLAttributes), 0];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(NotionToggleComponent);
+  },
+});
+
+const NotionToggleComponent = ({ node, updateAttributes, deleteNode }: any) => {
+  const { title, open } = node.attrs;
+  const [isOpen, setIsOpen] = useState(Boolean(open));
+
+  const toggle = () => {
+    const next = !isOpen;
+    setIsOpen(next);
+    updateAttributes({ open: next });
+  };
+
+  return (
+    <NodeViewWrapper className="my-5 group/toggle rounded-2xl border border-border/60 bg-card/70 dark:bg-white/[0.025]">
+      <div className="flex items-center gap-2 border-b border-border/40 px-4 py-3">
+        <button
+          type="button"
+          onClick={toggle}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
+          <ChevronRight className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
+          <span className="truncate text-sm font-bold text-foreground">{title || 'Detalhes'}</span>
+        </button>
+        <button
+          type="button"
+          onClick={deleteNode}
+          className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover/toggle:opacity-100"
+          aria-label="Remover toggle"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <NodeViewContent
+        className={cn("space-y-2 px-5 py-4 text-foreground", !isOpen && "hidden")}
+      />
+    </NodeViewWrapper>
+  );
+};
+
+// --- Extension: Equation Card ---
+export const NotionEquationNode = Node.create({
+  name: 'notionEquation',
+  group: 'block',
+  atom: true,
+
+  addAttributes() {
+    return {
+      expression: { default: '' },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'notion-equation' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['notion-equation', mergeAttributes(HTMLAttributes)];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(NotionEquationComponent);
+  },
+});
+
+const NotionEquationComponent = ({ node, updateAttributes, deleteNode }: any) => {
+  const { expression } = node.attrs;
+
+  return (
+    <NodeViewWrapper className="my-6 group/equation rounded-2xl border border-border/60 bg-muted/35 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+          <Sigma className="h-4 w-4 text-primary" />
+          Equacao
+        </div>
+        <button
+          type="button"
+          onClick={deleteNode}
+          className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover/equation:opacity-100"
+          aria-label="Remover equacao"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <input
+        value={expression}
+        onChange={(event) => updateAttributes({ expression: event.target.value })}
+        className="w-full rounded-xl border border-border/50 bg-background/80 px-3 py-2 font-mono text-sm text-foreground outline-none selection:bg-primary/25 selection:text-foreground focus:border-primary/40"
+        placeholder="x^2 + y^2 = z^2"
+      />
+    </NodeViewWrapper>
+  );
+};
 
 const LinkCardComponent = ({ node, deleteNode }: any) => {
   const { url, title, description, image, siteName } = node.attrs;

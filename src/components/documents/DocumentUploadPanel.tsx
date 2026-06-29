@@ -1,10 +1,11 @@
 import { useRef } from "react";
-import { FileText, HardDrive, Loader2, UploadCloud } from "lucide-react";
+import { Download, Eye, FileText, HardDrive, Loader2, Trash2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   type DocumentCategory,
+  type DocumentFile,
   useR2Documents,
 } from "@/hooks/use-r2-documents";
 
@@ -28,12 +29,12 @@ export function DocumentUploadPanel({
   patientId,
   category = "general",
   title = "Documentos",
-  description = "PDF, imagens, Word ou texto. Até 20 MB por arquivo.",
+  description = "PDF, imagens, Word ou texto. Ate 20 MB por arquivo.",
   className,
   onUploaded,
 }: DocumentUploadPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { documents, usage, upload } = useR2Documents(patientId);
+  const { documents, usage, upload, getDownloadUrl, remove } = useR2Documents(patientId);
   const totalBytes = usage.data?.totalBytes ?? 0;
   const quotaBytes = 250 * 1024 * 1024;
   const usagePercent = Math.min((totalBytes / quotaBytes) * 100, 100);
@@ -42,14 +43,43 @@ export function DocumentUploadPanel({
     if (!file) return;
     try {
       const document = await upload.mutateAsync({ file, patientId, category });
-      toast.success("Documento enviado com segurança.");
+      toast.success("Documento enviado com seguranca.");
       onUploaded?.(document.id);
     } catch (error) {
-      toast.error("Não foi possível enviar o documento.", {
+      toast.error("Nao foi possivel enviar o documento.", {
         description: error instanceof Error ? error.message : "Tente novamente.",
       });
     } finally {
       if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const openDocument = async (document: DocumentFile, disposition: "inline" | "attachment") => {
+    try {
+      const url = await getDownloadUrl.mutateAsync({ documentId: document.id, disposition });
+      if (disposition === "attachment") {
+        window.location.assign(url);
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      toast.error("Nao foi possivel abrir o documento.", {
+        description: error instanceof Error ? error.message : "Tente novamente.",
+      });
+    }
+  };
+
+  const removeDocument = async (document: DocumentFile) => {
+    const confirmed = window.confirm(`Excluir "${document.original_name}"?`);
+    if (!confirmed) return;
+
+    try {
+      await remove.mutateAsync(document.id);
+      toast.success("Documento removido.");
+    } catch (error) {
+      toast.error("Nao foi possivel remover o documento.", {
+        description: error instanceof Error ? error.message : "Tente novamente.",
+      });
     }
   };
 
@@ -98,9 +128,11 @@ export function DocumentUploadPanel({
           <div className="flex items-center justify-between gap-3 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
             <span className="flex items-center gap-2">
               <HardDrive className="h-3.5 w-3.5" />
-              Uso inicial
+              NeuroDrive privado
             </span>
-            <span>{formatBytes(totalBytes)} de {formatBytes(quotaBytes)}</span>
+            <span>
+              {formatBytes(totalBytes)} de {formatBytes(quotaBytes)}
+            </span>
           </div>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-white/[0.08]">
             <div
@@ -116,24 +148,64 @@ export function DocumentUploadPanel({
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
           ) : documents.data?.length ? (
-            documents.data.map((document) => (
-              <div
-                key={document.id}
-                className="flex items-center gap-3 rounded-2xl border border-zinc-200/70 px-4 py-3 dark:border-white/[0.06]"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300">
-                  <FileText className="h-4 w-4" />
+            documents.data.map((document) => {
+              const isReady = document.status === "ready";
+              const isBusy = getDownloadUrl.isPending || remove.isPending;
+
+              return (
+                <div
+                  key={document.id}
+                  className="flex items-center gap-3 rounded-2xl border border-zinc-200/70 px-4 py-3 dark:border-white/[0.06]"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                      {document.original_name}
+                    </p>
+                    <p className="mt-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
+                      {formatBytes(document.size_bytes)} - {isReady ? "Disponivel" : "Processando"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl"
+                      disabled={!isReady || isBusy}
+                      onClick={() => openDocument(document, "inline")}
+                      title="Visualizar"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl"
+                      disabled={!isReady || isBusy}
+                      onClick={() => openDocument(document, "attachment")}
+                      title="Baixar"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl text-zinc-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
+                      disabled={isBusy}
+                      onClick={() => removeDocument(document)}
+                      title="Excluir"
+                    >
+                      {remove.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                    {document.original_name}
-                  </p>
-                  <p className="mt-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
-                    {formatBytes(document.size_bytes)} · {document.status === "ready" ? "Disponível" : "Processando"}
-                  </p>
-                </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="flex min-h-24 flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-200 text-center dark:border-white/[0.08]">
               <FileText className="h-5 w-5 text-zinc-300 dark:text-zinc-600" />

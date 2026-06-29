@@ -53,14 +53,19 @@ interface NoteEditorProps {
   onDelete: (id: string) => void;
   isFocusMode: boolean;
   onToggleFocus: () => void;
+  linkableNotes?: { id: string; title?: string | null; content?: string | null }[];
 }
+
+const getDisplayTag = (tag: string) =>
+  tag.trim().toLowerCase() === "notion" ? "Notion" : tag;
 
 export const NoteEditor = ({
   note,
   onUpdate,
   onDelete,
   isFocusMode,
-  onToggleFocus
+  onToggleFocus,
+  linkableNotes = []
 }: NoteEditorProps) => {
   const [title, setTitle] = useState(note.title || "");
   const [content, setContent] = useState(note.content || "");
@@ -300,7 +305,7 @@ export const NoteEditor = ({
 
   return (
     <div className={cn(
-      "flex flex-col h-full w-full bg-transparent font-sans relative transition-all duration-700",
+      "flex min-h-0 flex-col h-full w-full bg-transparent font-sans relative transition-all duration-700",
       isFocusMode ? "z-[60] fixed inset-0 overflow-hidden bg-transparent" : ""
     )}>
       {/* Editor Toolbar */}
@@ -509,7 +514,7 @@ export const NoteEditor = ({
                     <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto custom-scrollbar">
                       {note.tags?.map((tag: string) => (
                         <Badge key={tag} variant="secondary" className="bg-zinc-100 hover:bg-zinc-200 text-[10px] py-0.5 px-1.5 gap-1 border-transparent rounded-md text-foreground/80 font-medium dark:bg-white/5 dark:hover:bg-white/10 dark:text-zinc-300">
-                          {tag}
+                          {getDisplayTag(tag)}
                           <X className="h-2.5 w-2.5 cursor-pointer opacity-50 hover:opacity-100" onClick={() => handleRemoveTag(tag)} />
                         </Badge>
                       ))}
@@ -555,7 +560,7 @@ export const NoteEditor = ({
 
       {/* Editor Content Area */}
       <div className={cn(
-        "notes-scroll-surface relative z-10 flex-1 overflow-y-auto overscroll-contain bg-transparent custom-scrollbar [scrollbar-gutter:stable]",
+        "notes-scroll-surface relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain bg-transparent custom-scrollbar [scrollbar-gutter:stable]",
         isFocusMode ? "pt-40 pb-60" : ""
       )}>
         <div className={cn(
@@ -577,8 +582,8 @@ export const NoteEditor = ({
               onBlur={() => void flushSave()}
               placeholder="Nota sem título"
               className={cn(
-                "w-full bg-transparent border-none focus:ring-0 font-black tracking-tighter text-zinc-900 placeholder:text-zinc-300 focus:outline-none py-2 selection:bg-zinc-900/10 leading-[1.1] transition-all dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:selection:bg-white/10",
-                isFocusMode ? "text-6xl md:text-8xl text-center" : "text-3xl md:text-4xl text-zinc-900 dark:text-zinc-100",
+                "w-full bg-transparent border-none focus:ring-0 font-black tracking-tighter text-foreground placeholder:text-muted-foreground/45 focus:outline-none py-2 selection:bg-primary/25 selection:text-foreground leading-[1.1] transition-all dark:selection:bg-primary/35",
+                isFocusMode ? "text-6xl md:text-8xl text-center" : "text-3xl md:text-4xl",
                 !title && "animate-shimmer"
               )}
             />
@@ -604,7 +609,7 @@ export const NoteEditor = ({
                     {note.tags.map((tag: string) => (
                       <span key={tag} className="flex items-center gap-2 text-primary hover:text-white transition-all cursor-pointer">
                         <Tag className="h-3 w-3" />
-                        {tag}
+                        {getDisplayTag(tag)}
                       </span>
                     ))}
                   </div>
@@ -621,9 +626,10 @@ export const NoteEditor = ({
               content={content}
               onChange={(html) => updateDraft({ content: html })}
               placeholder="Comece a escrever... Digite '/' para comandos."
-              className="prose-lg focus:outline-none max-w-none text-zinc-800 leading-relaxed font-sans dark:text-zinc-100"
+              className="prose-lg focus:outline-none max-w-none text-foreground leading-relaxed font-sans"
               editable={true}
               patients={patients?.map(p => ({ id: p.id, name: p.name }))}
+              linkableNotes={linkableNotes.filter((item) => item.id !== note.id)}
               isFocusMode={isFocusMode}
             />
           </div>

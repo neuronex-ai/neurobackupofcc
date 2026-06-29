@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils';
-import ExtensionBubbleMenu from '@tiptap/extension-bubble-menu';
 import CharacterCount from '@tiptap/extension-character-count';
 import Color from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
@@ -23,7 +22,7 @@ import { BubbleMenu, EditorContent, ReactRenderer, useEditor } from '@tiptap/rea
 import StarterKit from '@tiptap/starter-kit';
 import {
     AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, CheckSquare, Code, Heading1,
-    Heading2, Highlighter, Italic, Link as LinkIcon,
+    Heading2, Heading3, Highlighter, Italic, Link as LinkIcon,
     List, Quote,
     Strikethrough, Subscript as SubscriptIcon,
     Superscript as SuperscriptIcon, Underline as UnderlineIcon
@@ -32,8 +31,20 @@ import { useEffect, useRef } from "react";
 import { toast } from 'sonner';
 import tippy from 'tippy.js';
 import { BlockActionsMenu } from './BlockActionsMenu';
-import { MentionList, SlashCommands, slashSuggestion } from './editor-extensions';
-import { ClinicalChartNode, EmbeddedDocNode, LinkCardNode, MermaidNode, SentimentPulseNode, SnippetCardNode, VideoEmbedNode } from './editor-nodes';
+import { createSlashSuggestion, MentionList, SlashCommands } from './editor-extensions';
+import {
+  ClinicalChartNode,
+  EmbeddedDocNode,
+  LinkCardNode,
+  MermaidNode,
+  NoteLinkNode,
+  NotionCalloutNode,
+  NotionEquationNode,
+  NotionToggleNode,
+  SentimentPulseNode,
+  SnippetCardNode,
+  VideoEmbedNode,
+} from './editor-nodes';
 import { TableMenu } from './TableMenu';
 
 interface RichTextEditorProps {
@@ -44,6 +55,7 @@ interface RichTextEditorProps {
   className?: string;
   onUploadImage?: (file: File) => Promise<string>;
   patients?: { id: string, name: string }[];
+  linkableNotes?: { id: string; title?: string | null; content?: string | null }[];
   isFocusMode?: boolean;
 }
 
@@ -74,6 +86,7 @@ export const RichTextEditor = ({
   className,
   onUploadImage,
   patients = [],
+  linkableNotes = [],
   isFocusMode = false
 }: RichTextEditorProps) => {
   const onChangeRef = useRef(onChange);
@@ -86,7 +99,7 @@ export const RichTextEditor = ({
     extensions: [
       StarterKit.configure({
         heading: {
-          levels: [1, 2, 3],
+          levels: [1, 2, 3, 4],
         },
       }),
       Underline,
@@ -106,14 +119,15 @@ export const RichTextEditor = ({
       EmbeddedDocNode,
       VideoEmbedNode,
       LinkCardNode,
+      NoteLinkNode,
+      NotionCalloutNode,
+      NotionToggleNode,
+      NotionEquationNode,
       MermaidNode,
       SentimentPulseNode,
       SnippetCardNode,
       Placeholder.configure({
         placeholder: placeholder || 'Comece a escrever... Digite "/" para comandos.',
-      }),
-      ExtensionBubbleMenu.configure({
-        pluginKey: 'bubbleMenu',
       }),
       Table.configure({
         resizable: true,
@@ -134,7 +148,7 @@ export const RichTextEditor = ({
         }
       }),
       SlashCommands.configure({
-        suggestion: slashSuggestion,
+        suggestion: createSlashSuggestion(linkableNotes),
       }),
       Mention.configure({
         HTMLAttributes: {
@@ -194,18 +208,19 @@ export const RichTextEditor = ({
     editorProps: {
       attributes: {
         class: cn(
-          "prose max-w-none focus:outline-none text-zinc-900 dark:text-zinc-100 font-sans min-h-[54vh] pb-48 selection:bg-zinc-900/10 dark:selection:bg-white/10",
+          "prose max-w-none focus:outline-none text-foreground font-sans min-h-[54vh] pb-48 selection:bg-primary/25 selection:text-foreground dark:selection:bg-primary/35",
           isFocusMode
-            ? "prose-p:leading-[1.9] prose-p:my-8 prose-p:text-xl prose-p:text-zinc-900/90 dark:prose-p:text-zinc-100/90 prose-p:tracking-tight font-light"
-            : "prose-p:leading-[1.75] prose-p:my-4 prose-p:font-normal prose-p:text-[17px] prose-p:text-zinc-900/80 dark:prose-p:text-zinc-100/80",
-          "prose-headings:font-black prose-headings:tracking-tighter prose-headings:text-zinc-900 dark:prose-headings:text-white",
+            ? "prose-p:leading-[1.9] prose-p:my-8 prose-p:text-xl prose-p:text-foreground/90 prose-p:tracking-tight font-light"
+            : "prose-p:leading-[1.75] prose-p:my-4 prose-p:font-normal prose-p:text-[17px] prose-p:text-foreground/82",
+          "prose-headings:font-black prose-headings:tracking-tighter prose-headings:text-foreground",
           "prose-h1:text-4xl prose-h1:mt-16 prose-h1:mb-7 prose-h1:leading-none",
           "prose-h2:text-3xl prose-h2:mt-12 prose-h2:mb-5 prose-h2:leading-tight",
           "prose-h3:text-2xl prose-h3:mt-10 prose-h3:mb-4",
-          "prose-blockquote:border-l-4 prose-blockquote:border-zinc-900 dark:prose-blockquote:border-zinc-100 prose-blockquote:bg-zinc-50 dark:prose-blockquote:bg-zinc-900/50 prose-blockquote:py-6 prose-blockquote:px-7 prose-blockquote:rounded-2xl prose-blockquote:not-italic prose-blockquote:my-10 prose-blockquote:text-xl prose-blockquote:font-semibold prose-blockquote:shadow-sm dark:prose-blockquote:text-zinc-100",
-          "prose-li:marker:text-zinc-900 dark:prose-li:marker:text-zinc-100 prose-li:my-2 prose-li:text-[17px] dark:text-zinc-200",
-          "prose-hr:border-zinc-100 dark:prose-hr:border-zinc-800 prose-hr:my-14",
-          "prose-table:border-collapse prose-table:w-full prose-table:my-12 prose-table:rounded-3xl prose-table:overflow-hidden dark:prose-table:border-zinc-800",
+          "prose-h4:text-base prose-h4:mt-8 prose-h4:mb-3 prose-h4:uppercase prose-h4:tracking-[0.16em] prose-h4:text-muted-foreground",
+          "prose-blockquote:border-l-4 prose-blockquote:border-primary/45 prose-blockquote:bg-muted/45 prose-blockquote:py-6 prose-blockquote:px-7 prose-blockquote:rounded-2xl prose-blockquote:not-italic prose-blockquote:my-10 prose-blockquote:text-xl prose-blockquote:font-semibold prose-blockquote:shadow-sm prose-blockquote:text-foreground",
+          "prose-li:marker:text-primary prose-li:my-2 prose-li:text-[17px] prose-li:text-foreground/85",
+          "prose-hr:border-border prose-hr:my-14",
+          "prose-table:border-collapse prose-table:w-full prose-table:my-12 prose-table:rounded-2xl prose-table:overflow-hidden prose-table:border-border",
           className
         ),
       },
@@ -316,6 +331,7 @@ export const RichTextEditor = ({
       {editable && (
         <BubbleMenu
           editor={editor}
+          pluginKey="notesFormattingBubbleMenu"
           tippyOptions={{
             duration: 200,
             animation: 'shift-away',
@@ -325,7 +341,7 @@ export const RichTextEditor = ({
           }}
           className="flex items-center gap-1 p-1.5 rounded-[20px] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-3xl border border-zinc-200 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] overflow-hidden max-w-[95vw] flex-nowrap z-[1000] animate-in zoom-in-95 slide-in-from-bottom-2 ring-1 ring-black/5 dark:ring-white/5"
           shouldShow={({ editor, from, to }) => {
-            return from !== to && !editor.isActive('image') && !editor.isActive('table') && !editor.isActive('clinicalChart') && !editor.isActive('sentimentPulse') && !editor.isActive('embeddedDoc');
+            return editor.view.hasFocus() && from !== to && !editor.isActive('image') && !editor.isActive('table') && !editor.isActive('clinicalChart') && !editor.isActive('sentimentPulse') && !editor.isActive('embeddedDoc') && !editor.isActive('noteLink');
           }}
         >
           <div className="flex items-center gap-0.5 px-0.5">
@@ -349,6 +365,7 @@ export const RichTextEditor = ({
           <div className="flex items-center gap-0.5 px-0.5">
             <MenuButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} isActive={editor.isActive('heading', { level: 1 })} icon={Heading1} title="Título 1" />
             <MenuButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} isActive={editor.isActive('heading', { level: 2 })} icon={Heading2} title="Título 2" />
+            <MenuButton onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} isActive={editor.isActive('heading', { level: 3 })} icon={Heading3} title="Título 3" />
           </div>
 
           <div className="w-px h-6 bg-zinc-200 dark:bg-white/10 mx-1.5" />

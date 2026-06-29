@@ -3,21 +3,92 @@ import Suggestion from '@tiptap/suggestion';
 import { ReactRenderer } from '@tiptap/react';
 import tippy from 'tippy.js';
 import {
+  BrainCircuit,
+  Calendar,
+  CheckSquare,
+  ChevronRightSquare,
+  Code2,
   Heading1,
   Heading2,
-  CheckSquare,
-  Quote,
-  Minus,
-  BrainCircuit,
-  Table,
-  List,
+  Heading3,
   Info,
-  Calendar,
+  Link2,
+  List,
+  ListOrdered,
+  Minus,
+  Quote,
+  Sigma,
+  Table,
 } from 'lucide-react';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+type LinkableNote = {
+  id: string;
+  title?: string | null;
+  content?: string | null;
+};
+
+const stripHtml = (value: string) =>
+  value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const escapeAttribute = (value: unknown) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+const renderSuggestionPopup = () => {
+  let component: ReactRenderer;
+  let popup: any;
+
+  return {
+    onStart: (props: any) => {
+      component = new ReactRenderer(CommandList, {
+        props,
+        editor: props.editor,
+      });
+
+      if (!props.clientRect) return;
+
+      popup = tippy('body', {
+        getReferenceClientRect: props.clientRect,
+        appendTo: () => document.body,
+        content: component.element,
+        showOnCreate: true,
+        interactive: true,
+        trigger: 'manual',
+        placement: 'bottom-start',
+        theme: 'dark',
+      });
+    },
+    onUpdate(props: any) {
+      component.updateProps(props);
+      if (!props.clientRect) return;
+      popup[0].setProps({
+        getReferenceClientRect: props.clientRect,
+      });
+    },
+    onKeyDown(props: any) {
+      if (props.event.key === 'Escape') {
+        popup[0].hide();
+        return true;
+      }
+      // @ts-ignore
+      return component.ref?.onKeyDown(props);
+    },
+    onExit() {
+      if (popup && popup[0]) popup[0].destroy();
+      if (component) component.destroy();
+    },
+  };
+};
 
 // --- Visual Component: Command List ---
 export const CommandList = forwardRef((props: any, ref) => {
@@ -25,9 +96,7 @@ export const CommandList = forwardRef((props: any, ref) => {
 
   const selectItem = (index: number) => {
     const item = props.items[index];
-    if (item) {
-      props.command(item);
-    }
+    if (item) props.command(item);
   };
 
   useEffect(() => setSelectedIndex(0), [props.items]);
@@ -51,39 +120,39 @@ export const CommandList = forwardRef((props: any, ref) => {
   }));
 
   return (
-    <div className="bg-[#0F0F10]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_40px_100px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden min-w-[340px] p-2 animate-in fade-in zoom-in-95 duration-200 z-[1000] ring-1 ring-white/5">
-      <div className="px-3 py-2 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] border-b border-white/5 mb-2 flex items-center justify-between opacity-50">
-        <span>Ações Rápidas</span>
-        <span className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded border border-white/5">ESC para sair</span>
+    <div className="min-w-[340px] overflow-hidden rounded-2xl border border-border/70 bg-popover/95 p-2 text-popover-foreground shadow-[0_32px_90px_-40px_hsl(var(--foreground)/0.7)] ring-1 ring-foreground/5 backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-150">
+      <div className="mb-2 flex items-center justify-between border-b border-border/50 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+        <span>Acoes rapidas</span>
+        <span className="rounded border border-border/60 bg-muted/60 px-1.5 py-0.5 text-[9px]">ESC</span>
       </div>
-      <div className="max-h-[350px] overflow-y-auto custom-scrollbar space-y-1 pr-1">
+      <div className="max-h-[350px] space-y-1 overflow-y-auto pr-1 custom-scrollbar">
         {props.items.length ? (
           props.items.map((item: any, index: number) => (
             <button
-              key={index}
+              key={item.title}
               className={cn(
-                "flex items-center gap-3 w-full px-3 py-3 rounded-xl text-left transition-all duration-300 group relative",
-                index === selectedIndex ? "bg-white/5 shadow-inner" : "hover:bg-white/5 text-white/50"
+                'group relative flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors',
+                index === selectedIndex ? 'bg-primary/10 text-foreground' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
               )}
               onClick={() => selectItem(index)}
             >
-              {index === selectedIndex && (
-                <div className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-primary shadow-[0_0_12px_rgba(var(--primary),0.8)]" />
-              )}
-              <div className={cn(
-                "p-2.5 rounded-xl border transition-all duration-300 shadow-sm",
-                index === selectedIndex ? "bg-primary/20 border-primary/30 text-primary rotate-3 scale-110 shadow-[0_0_20px_rgba(var(--primary),0.2)]" : "bg-white/5 border-white/5 text-muted-foreground group-hover:text-white group-hover:bg-white/10 group-hover:border-white/10"
-              )}>
+              {index === selectedIndex && <div className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-primary" />}
+              <div
+                className={cn(
+                  'rounded-xl border p-2.5 transition-colors',
+                  index === selectedIndex ? 'border-primary/30 bg-primary/15 text-primary' : 'border-border/60 bg-background/60'
+                )}
+              >
                 <item.icon className="h-4 w-4" />
               </div>
-              <div className="flex flex-col flex-1 gap-0.5">
-                <span className={cn("text-sm font-bold tracking-tight transition-colors", index === selectedIndex ? "text-white" : "text-white/70 block")}>{item.title}</span>
-                {item.description && <span className="text-[10px] text-muted-foreground font-medium transition-colors opacity-70 group-hover:opacity-100">{item.description}</span>}
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="text-sm font-bold tracking-tight">{item.title}</span>
+                {item.description && <span className="line-clamp-1 text-[10px] font-medium text-muted-foreground">{item.description}</span>}
               </div>
             </button>
           ))
         ) : (
-          <div className="px-4 py-8 text-xs text-muted-foreground text-center font-medium italic flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center text-xs font-medium italic text-muted-foreground">
             <BrainCircuit className="h-8 w-8 opacity-20" />
             <span>Nenhum comando encontrado...</span>
           </div>
@@ -99,9 +168,7 @@ export const MentionList = forwardRef((props: any, ref) => {
 
   const selectItem = (index: number) => {
     const item = props.items[index];
-    if (item) {
-      props.command({ id: item.id, label: item.name });
-    }
+    if (item) props.command({ id: item.id, label: item.name });
   };
 
   useEffect(() => setSelectedIndex(0), [props.items]);
@@ -125,35 +192,37 @@ export const MentionList = forwardRef((props: any, ref) => {
   }));
 
   return (
-    <div className="bg-[#0F0F10]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-[0_40px_100px_rgba(0,0,0,0.8)] overflow-hidden min-w-[280px] p-2 animate-in fade-in zoom-in-95 duration-200 z-[1000]">
-      <div className="px-3 py-2 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] border-b border-white/5 mb-2 opacity-50 flex items-center gap-2">
-        <span>Vincular Paciente</span>
+    <div className="min-w-[280px] overflow-hidden rounded-2xl border border-border/70 bg-popover/95 p-2 text-popover-foreground shadow-[0_32px_90px_-40px_hsl(var(--foreground)/0.7)] backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-150">
+      <div className="mb-2 flex items-center gap-2 border-b border-border/50 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
+        <span>Vincular paciente</span>
       </div>
-      <div className="max-h-[250px] overflow-y-auto custom-scrollbar space-y-1">
+      <div className="max-h-[250px] space-y-1 overflow-y-auto custom-scrollbar">
         {props.items.length ? (
           props.items.map((item: any, index: number) => (
             <button
-              key={index}
+              key={item.id}
               className={cn(
-                "flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-left transition-all duration-200",
-                index === selectedIndex ? "bg-primary/10" : "hover:bg-white/5"
+                'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors',
+                index === selectedIndex ? 'bg-primary/10' : 'hover:bg-muted/70'
               )}
               onClick={() => selectItem(index)}
             >
-              <div className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center text-[10px] font-bold border shadow-lg transition-all",
-                index === selectedIndex ? "bg-primary text-white border-primary shadow-[0_0_15px_rgba(var(--primary),0.4)]" : "bg-white/5 border-white/10 text-muted-foreground"
-              )}>
+              <div
+                className={cn(
+                  'flex h-8 w-8 items-center justify-center rounded-full border text-[10px] font-bold',
+                  index === selectedIndex ? 'border-primary bg-primary text-primary-foreground' : 'border-border/70 bg-background text-muted-foreground'
+                )}
+              >
                 {item.name.charAt(0)}
               </div>
               <div className="flex flex-col">
-                <span className={cn("text-sm font-semibold tracking-tight transition-colors", index === selectedIndex ? "text-white" : "text-white/80")}>{item.name}</span>
-                <span className="text-[9px] text-muted-foreground uppercase tracking-widest">Paciente</span>
+                <span className="text-sm font-semibold tracking-tight text-foreground">{item.name}</span>
+                <span className="text-[9px] uppercase tracking-widest text-muted-foreground">Paciente</span>
               </div>
             </button>
           ))
         ) : (
-          <div className="px-4 py-4 text-xs text-muted-foreground text-center italic">Nenhum paciente encontrado...</div>
+          <div className="px-4 py-4 text-center text-xs italic text-muted-foreground">Nenhum paciente encontrado...</div>
         )}
       </div>
     </div>
@@ -161,27 +230,64 @@ export const MentionList = forwardRef((props: any, ref) => {
 });
 
 // --- Command Definitions ---
-const getSuggestionItems = ({ query }: { query: string }) => {
+const getSuggestionItems = ({ query, linkableNotes = [] }: { query: string; linkableNotes?: LinkableNote[] }) => {
   return [
     {
-      title: 'Tabela Inteligente',
-      description: 'Estrutura de dados premium para observações',
+      title: 'Tabela',
+      description: 'Estrutura editavel com linhas e colunas',
       icon: Table,
       command: ({ editor, range }: any) => {
         editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
       },
     },
     {
-      title: 'Destaque / Insight',
-      description: 'Caixa de observação importante',
+      title: 'Callout',
+      description: 'Caixa de observacao ou insight',
       icon: Info,
       command: ({ editor, range }: any) => {
-        editor.chain().focus().deleteRange(range).insertContent(`
-            <div style="padding: 24px; background: rgba(var(--primary), 0.05); border: 1px solid rgba(var(--primary), 0.1); border-left: 4px solid rgba(var(--primary), 1); border-radius: 12px; margin: 24px 0;">
-                <p style="margin: 0; font-weight: 500; color: rgba(255,255,255,0.9);">💡 <strong>Insight:</strong>&nbsp;Digite aqui...</p>
-            </div>
-            <p></p>
-        `).run();
+        editor.chain().focus().deleteRange(range).insertContent('<notion-callout icon="!" label="Insight"><p><strong>Insight:</strong>&nbsp;Digite aqui...</p></notion-callout><p></p>').run();
+      },
+    },
+    {
+      title: 'Toggle',
+      description: 'Bloco recolhivel com conteudo filho',
+      icon: ChevronRightSquare,
+      command: ({ editor, range }: any) => {
+        editor.chain().focus().deleteRange(range).insertContent('<notion-toggle title="Detalhes" open="true"><p>Digite aqui...</p></notion-toggle><p></p>').run();
+      },
+    },
+    {
+      title: 'Vincular Nota',
+      description: 'Crie um card para outra nota',
+      icon: Link2,
+      command: ({ editor, range }: any) => {
+        const search = window.prompt('Digite parte do titulo da nota para vincular:');
+        if (!search) return;
+        const match = linkableNotes.find((note) =>
+          `${note.title || 'Nota sem titulo'} ${stripHtml(note.content || '')}`.toLowerCase().includes(search.toLowerCase())
+        );
+        if (!match) {
+          window.alert('Nenhuma nota encontrada com esse termo.');
+          return;
+        }
+        const title = match.title || 'Nota sem titulo';
+        const description = stripHtml(match.content || '').slice(0, 160) || 'Nota vinculada no NeuroDrive.';
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .insertContent(`<note-link noteId="${escapeAttribute(match.id)}" title="${escapeAttribute(title)}" description="${escapeAttribute(description)}" source="NeuroDrive"></note-link><p></p>`)
+          .run();
+      },
+    },
+    {
+      title: 'Equacao',
+      description: 'Expressao matematica preservada',
+      icon: Sigma,
+      command: ({ editor, range }: any) => {
+        const expression = window.prompt('Expressao:', 'x^2 + y^2 = z^2');
+        if (!expression) return;
+        editor.chain().focus().deleteRange(range).insertContent(`<notion-equation expression="${escapeAttribute(expression)}"></notion-equation><p></p>`).run();
       },
     },
     {
@@ -194,17 +300,31 @@ const getSuggestionItems = ({ query }: { query: string }) => {
       },
     },
     {
-      title: 'Título Principal',
+      title: 'Titulo 1',
       icon: Heading1,
       command: ({ editor, range }: any) => {
         editor.chain().focus().deleteRange(range).setNode('heading', { level: 1 }).run();
       },
     },
     {
-      title: 'Subtítulo',
+      title: 'Titulo 2',
       icon: Heading2,
       command: ({ editor, range }: any) => {
         editor.chain().focus().deleteRange(range).setNode('heading', { level: 2 }).run();
+      },
+    },
+    {
+      title: 'Titulo 3',
+      icon: Heading3,
+      command: ({ editor, range }: any) => {
+        editor.chain().focus().deleteRange(range).setNode('heading', { level: 3 }).run();
+      },
+    },
+    {
+      title: 'Titulo 4',
+      icon: Heading3,
+      command: ({ editor, range }: any) => {
+        editor.chain().focus().deleteRange(range).setNode('heading', { level: 4 }).run();
       },
     },
     {
@@ -222,6 +342,20 @@ const getSuggestionItems = ({ query }: { query: string }) => {
       },
     },
     {
+      title: 'Lista Numerada',
+      icon: ListOrdered,
+      command: ({ editor, range }: any) => {
+        editor.chain().focus().deleteRange(range).toggleOrderedList().run();
+      },
+    },
+    {
+      title: 'Bloco de Codigo',
+      icon: Code2,
+      command: ({ editor, range }: any) => {
+        editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+      },
+    },
+    {
       title: 'Divisor',
       icon: Minus,
       command: ({ editor, range }: any) => {
@@ -229,13 +363,13 @@ const getSuggestionItems = ({ query }: { query: string }) => {
       },
     },
     {
-      title: 'Citação',
+      title: 'Citacao',
       icon: Quote,
       command: ({ editor, range }: any) => {
         editor.chain().focus().deleteRange(range).toggleBlockquote().run();
       },
     },
-  ].filter(item => item.title.toLowerCase().includes(query.toLowerCase()));
+  ].filter((item) => item.title.toLowerCase().includes(query.toLowerCase()));
 };
 
 export const SlashCommands = Extension.create({
@@ -261,54 +395,11 @@ export const SlashCommands = Extension.create({
 });
 
 export const slashSuggestion = {
-  items: getSuggestionItems,
-  render: () => {
-    let component: ReactRenderer;
-    let popup: any;
-
-    return {
-      onStart: (props: any) => {
-        component = new ReactRenderer(CommandList, {
-          props,
-          editor: props.editor,
-        });
-
-        if (!props.clientRect) return;
-
-        popup = tippy('body', {
-          getReferenceClientRect: props.clientRect,
-          appendTo: () => document.body,
-          content: component.element,
-          showOnCreate: true,
-          interactive: true,
-          trigger: 'manual',
-          placement: 'bottom-start',
-          theme: 'dark',
-        });
-      },
-      onUpdate(props: any) {
-        component.updateProps(props);
-        if (!props.clientRect) return;
-        popup[0].setProps({
-          getReferenceClientRect: props.clientRect,
-        });
-      },
-      onKeyDown(props: any) {
-        if (props.event.key === 'Escape') {
-          popup[0].hide();
-          return true;
-        }
-        // @ts-ignore
-        return component.ref?.onKeyDown(props);
-      },
-      onExit() {
-        if (popup && popup[0]) {
-          popup[0].destroy();
-        }
-        if (component) {
-          component.destroy();
-        }
-      },
-    };
-  },
+  items: ({ query }: { query: string }) => getSuggestionItems({ query }),
+  render: renderSuggestionPopup,
 };
+
+export const createSlashSuggestion = (linkableNotes: LinkableNote[] = []) => ({
+  ...slashSuggestion,
+  items: ({ query }: { query: string }) => getSuggestionItems({ query, linkableNotes }),
+});
