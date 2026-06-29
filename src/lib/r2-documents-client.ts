@@ -83,15 +83,20 @@ export function withAllowedR2MimeType(file: File) {
   return new File([file], file.name, { type: mimeType, lastModified: file.lastModified });
 }
 
-const firstDocument = (value: unknown): DocumentFile | null => {
-  if (Array.isArray(value)) return (value[0] as DocumentFile | undefined) ?? null;
-  return value && typeof value === "object" ? (value as DocumentFile) : null;
-};
-
 const throwFunctionError = (error: unknown, fallback: string): never => {
   if (error instanceof Error && error.message) throw error;
   throw new Error(fallback);
 };
+
+async function markR2UploadFailed(documentId: string, reason: string) {
+  try {
+    await supabase.functions.invoke("r2-create-upload-url", {
+      body: { action: "mark-upload-failed", documentId, reason },
+    });
+  } catch (error) {
+    console.warn("Nao foi possivel marcar upload R2 como falho.", error);
+  }
+}
 
 export async function uploadDocumentToR2({
   file,
@@ -108,19 +113,12 @@ export async function uploadDocumentToR2({
     throw new Error("O arquivo deve ter no maximo 20 MB.");
   }
 
-  const signed = await getSignedR2Upload(safeFile);
-  const { data: preparedValue, error: prepareError } = await supabase.rpc("prepare_document_upload", {
-    p_patient_id: patientId ?? null,
-    p_category: category,
-    p_bucket: signed.bucket,
-    p_object_key: signed.objectKey,
-    p_original_name: safeFile.name,
-    p_mime_type: safeFile.type,
-    p_size_bytes: safeFile.size,
-    p_metadata: metadata,
+  const signed = await getSignedR2Upload(safeFile, {
+    patientId: patientId ?? null,
+    category,
+    metadata,
   });
-  const prepared = firstDocument(preparedValue);
-  if (prepareError || !prepared) throw prepareError ?? new Error("Nao foi possivel registrar o documento.");
+  const prepared = signed.document as DocumentFile;
 
   const uploadResponse = await fetch(signed.uploadUrl, {
     method: "PUT",
@@ -129,7 +127,7 @@ export async function uploadDocumentToR2({
   });
 
   if (!uploadResponse.ok) {
-    await supabase.from("document_files").update({ status: "failed" }).eq("id", prepared.id);
+    await markR2UploadFailed(prepared.id, "r2_put_failed");
     throw new Error("O armazenamento recusou o arquivo. Verifique a politica CORS do bucket R2.");
   }
 
@@ -139,7 +137,7 @@ export async function uploadDocumentToR2({
   );
 
   if (confirmError || !confirmed?.document) {
-    await supabase.from("document_files").update({ status: "failed" }).eq("id", prepared.id);
+    await markR2UploadFailed(prepared.id, "confirm_upload_failed");
     throwFunctionError(confirmError, "Nao foi possivel confirmar o upload.");
   }
 

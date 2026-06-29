@@ -61,7 +61,7 @@ Historical migrations may still mention old providers because migration history 
 
 - R2 credentials are server-only Edge Function secrets. They must never appear in Vite/browser env vars or frontend bundles.
 - R2 object access uses authenticated Edge Functions such as upload confirmation, download URL creation, and deletion.
-- `files_psico` is legacy storage and should remain private/blocked for new uploads. Existing objects should be backfilled to R2 before removal planning.
+- Supabase Storage is not used for private documents. The remaining active Storage bucket is `avatars` for profile images; legacy sandbox buckets such as `files_psico`, `chat_attachments`, and `downloads` were removed after R2 validation/backfill.
 - Edge Functions must default to `verify_jwt = true`. Exceptions must be explicitly classified as webhook, OAuth callback, public invite/availability endpoint, or maintenance endpoint with its own shared secret.
 - Security-definer functions must not be public accidental APIs. Prefer owner checks, restricted grants, and advisor verification.
 
