@@ -139,7 +139,7 @@ content_path = "./supabase/templates/magic-link.html"
 
 [functions.gemini-text-chat]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 entrypoint = "./functions/gemini-text-chat/index.ts"
 
 [functions.get-voice-config]

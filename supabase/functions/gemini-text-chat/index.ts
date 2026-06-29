@@ -8,8 +8,9 @@ Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
   if (request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Método não permitido." }), {
+    return new Response(JSON.stringify({ error: "Metodo nao permitido." }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
     });
@@ -18,14 +19,15 @@ Deno.serve(async (request: Request) => {
   try {
     const authorization = request.headers.get("Authorization") || "";
     if (!authorization.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Sessão ausente." }), {
+      return new Response(JSON.stringify({ error: "Sessao ausente." }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
       });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/+$/, "");
-    if (!supabaseUrl) throw new Error("SUPABASE_URL não configurada.");
+    if (!supabaseUrl) throw new Error("SUPABASE_URL nao configurada.");
+
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
     const body = await request.text();
     const response = await fetch(`${supabaseUrl}/functions/v1/synapse-text-fallback`, {
@@ -37,6 +39,7 @@ Deno.serve(async (request: Request) => {
       },
       body,
     });
+
     const payload = await response.text();
     return new Response(payload, {
       status: response.status,
@@ -44,11 +47,14 @@ Deno.serve(async (request: Request) => {
     });
   } catch (error) {
     console.error("[gemini-text-chat compatibility proxy]", error);
-    return new Response(JSON.stringify({
-      error: error instanceof Error ? error.message : "Falha ao acionar o Synapse.",
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Falha ao acionar o Synapse.",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
+      },
+    );
   }
 });

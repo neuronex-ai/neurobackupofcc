@@ -208,7 +208,10 @@ const parsePatientList = (content: string): { patients: PatientCardData[], raw: 
 };
 
 const parseMarkdownTable = (content: string) => {
-    const tablePattern = /\|(.+)\|\n\|[-:\s|]+\|\n((?:\|.+\|\n?)+)/g;
+    const tablePattern = new RegExp(
+        "\\|(.+)\\|\\n\\|" + "[" + "\\-:\\s|" + "]+" + "\\|\\n((?:\\|.+\\|\\n?)+)",
+        "g",
+    );
     const match = tablePattern.exec(content);
     if (match) {
         const headers = match[1].split('|').map(h => h.trim()).filter(Boolean);

@@ -79,7 +79,7 @@ const edgeTypes = {
   neural: NeuralEdge,
 };
 
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';
+type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error' | 'conflict';
 
 const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => void }) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -94,14 +94,33 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
   const isSavingRef = useRef(false);
   const pendingSaveRef = useRef(false);
   const retrySaveTimerRef = useRef<number | null>(null);
+  const saveTimerRef = useRef<number | null>(null);
   const latestGraphRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
   const saveRevisionRef = useRef<number | null>(null);
+  const isLoadingRef = useRef(true);
+  const isHydratingRef = useRef(false);
+  const hasAutoFittedRef = useRef(false);
+  const flowTitleRef = useRef(flowTitle);
+  const patientIdRef = useRef(patientId);
+  const saveStateRef = useRef<() => Promise<void>>(async () => undefined);
   const { screenToFlowPosition, getViewport, setViewport, zoomIn, zoomOut, fitView } = useReactFlow();
   const { theme } = useTheme();
 
   // Modal States
   const [editModalNoteId, setEditModalNoteId] = useState<string | null>(null);
   const [previewModalFileData, setPreviewModalFileData] = useState<any | null>(null);
+
+  useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
+
+  useEffect(() => {
+    flowTitleRef.current = flowTitle;
+  }, [flowTitle]);
+
+  useEffect(() => {
+    patientIdRef.current = patientId;
+  }, [patientId]);
 
   const updateNodeData = useCallback((nodeId: string, patch: Record<string, unknown>) => {
     setNodes((currentNodes) => currentNodes.map((node) =>
@@ -127,6 +146,8 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
 
   const loadFlow = useCallback(async () => {
     if (!flowId) return;
+    isHydratingRef.current = true;
+    hasAutoFittedRef.current = false;
     setIsLoading(true);
     try {
       const { data: flowData, error: flowError } = await supabase
@@ -181,7 +202,11 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
     } catch (e) {
       console.error(e);
     } finally {
-      setIsLoading(false);
+      window.setTimeout(() => {
+        isHydratingRef.current = false;
+        setIsLoading(false);
+        setSaveStatus('saved');
+      }, 0);
     }
   }, [attachRuntimeNodeData, flowId, setNodes, setEdges, setViewport]);
 
@@ -192,6 +217,9 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
       if (retrySaveTimerRef.current) {
         window.clearTimeout(retrySaveTimerRef.current);
       }
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+      }
     };
   }, []);
 
@@ -201,10 +229,14 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
   }, [nodes, edges]);
 
   const saveState = useCallback(async () => {
-    if (!flowId || isLoading) return;
+    if (!flowId || isLoadingRef.current || isHydratingRef.current) return;
     if (isSavingRef.current) {
       pendingSaveRef.current = true;
       return;
+    }
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
     }
     isSavingRef.current = true;
     setSaveStatus('saving');
@@ -216,9 +248,9 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         edges: edgesToSave,
         viewport: getViewport(),
         metadata: {
-          title: flowTitle,
-          patientId,
-          ownerScope: patientId ? 'patient' : 'none',
+          title: flowTitleRef.current,
+          patientId: patientIdRef.current,
+          ownerScope: patientIdRef.current ? 'patient' : 'none',
         },
       });
 
@@ -240,7 +272,19 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
       saveFailed = true;
       console.error("[NeuroFlow] Erro ao salvar estado:", e);
       const errorMessage = e instanceof Error ? e.message : String((e as any)?.message || e);
-      setSaveStatus(errorMessage.includes('save_conflict') ? 'conflict' : 'error');
+      const isConflict = errorMessage.includes('save_conflict');
+      setSaveStatus(isConflict ? 'conflict' : 'error');
+      if (isConflict) {
+        const { data: currentFlow } = await supabase
+          .from('neuro_flows')
+          .select('save_revision')
+          .eq('id', flowId)
+          .maybeSingle();
+
+        if (typeof currentFlow?.save_revision === 'number') {
+          saveRevisionRef.current = currentFlow.save_revision;
+        }
+      }
       pendingSaveRef.current = true;
       if (!retrySaveTimerRef.current) {
         retrySaveTimerRef.current = window.setTimeout(() => {
@@ -258,23 +302,42 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         window.setTimeout(() => void saveState(), 100);
       }
     }
-  }, [flowId, flowTitle, getViewport, isLoading, patientId]);
+  }, [flowId, getViewport]);
 
   useEffect(() => {
-    if (isLoading) return;
-    pendingSaveRef.current = true;
-    const timer = window.setTimeout(() => {
-      pendingSaveRef.current = false;
-      void saveState();
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [nodes, edges, isLoading, saveState]);
+    saveStateRef.current = saveState;
+  }, [saveState]);
+
+  const scheduleSave = useCallback((delay = 1200) => {
+    if (!flowId || isLoadingRef.current || isHydratingRef.current) return;
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    setSaveStatus((current) => current === 'saving' ? current : 'pending');
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      void saveStateRef.current();
+    }, delay);
+  }, [flowId]);
+
+  useEffect(() => {
+    if (isLoading || isHydratingRef.current) return;
+    scheduleSave(1100);
+  }, [nodes, edges, isLoading, scheduleSave]);
 
   useEffect(() => {
     return () => {
-      if (!isLoading) void saveState();
+      void saveStateRef.current();
     };
-  }, [isLoading, saveState]);
+  }, []);
+
+  const handleInit = useCallback((instance: any) => {
+    if (hasAutoFittedRef.current) return;
+    hasAutoFittedRef.current = true;
+    window.requestAnimationFrame(() => {
+      instance.fitView({ padding: 0.32, duration: 0, minZoom: 0.35, maxZoom: 1.15 });
+    });
+  }, []);
 
   const onConnect = useCallback((params: Connection | Edge) => {
     const edgeId = `edge-${crypto.randomUUID()}`;
@@ -384,13 +447,14 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
         onConnect={onConnect}
         onDrop={onDrop}
         onDragOver={onDragOver}
+        onInit={handleInit}
+        onMoveEnd={() => scheduleSave(1800)}
         onNodeDoubleClick={onNodeDoubleClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         nodesDraggable={!isLocked}
         nodesConnectable={!isLocked}
         elementsSelectable={!isLocked}
-        fitView
         className="bg-transparent"
       >
         <Background
@@ -469,7 +533,7 @@ const NeuroFlowContent = ({ flowId, onBack }: { flowId?: string, onBack?: () => 
                 <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.45)]" />
               )}
               <span className="text-[8px] text-muted-foreground font-black uppercase tracking-widest">
-                {saveStatus === 'saving' ? "Salvando" : saveStatus === 'conflict' ? "Conflito" : saveStatus === 'error' ? "Pendente" : "Salvo"}
+                {saveStatus === 'saving' ? "Salvando" : saveStatus === 'pending' ? "Pendente" : saveStatus === 'conflict' ? "Conflito" : saveStatus === 'error' ? "Pendente" : "Salvo"}
               </span>
             </div>
           </div>
