@@ -8,6 +8,7 @@ import { Edit3, Loader2, Mail, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { edgeFunctionUrl } from "@/lib/supabase-config";
 
 interface EmailDraftModalProps {
   open: boolean;
@@ -42,7 +43,7 @@ export const EmailDraftModal = ({ open, onOpenChange, initialData, onSent }: Ema
     setIsSending(true);
 
     try {
-      const response = await fetch('https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/send-document-email', {
+      const response = await fetch(edgeFunctionUrl("send-document-email"), {
           method: 'POST',
           headers: {
               'Authorization': `Bearer ${session.access_token}`,

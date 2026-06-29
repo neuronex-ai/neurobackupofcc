@@ -6,6 +6,7 @@ import { CheckCircle2, Mail, Send, Wallet } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { edgeFunctionUrl } from "@/lib/supabase-config";
 import {
   mobileSynapseInputClassName,
   MobileSynapseButton,
@@ -61,7 +62,7 @@ export function MobileSynapseEmailDraftSheet({
 
     setSending(true);
     try {
-      const response = await fetch("https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/send-document-email", {
+      const response = await fetch(edgeFunctionUrl("send-document-email"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,

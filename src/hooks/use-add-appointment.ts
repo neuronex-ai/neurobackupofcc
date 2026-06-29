@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 import { createAppointmentFinancialEntryIfEnabled } from '@/lib/financial-appointment-automation';
+import { edgeFunctionUrl } from '@/lib/supabase-config';
 
 interface NewAppointmentData {
   id?: string;
@@ -18,7 +19,7 @@ interface NewAppointmentData {
   metadata?: AppointmentMetadata;
 }
 
-const GOOGLE_CALENDAR_SYNC_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/google-calendar-sync";
+const GOOGLE_CALENDAR_SYNC_URL = edgeFunctionUrl("google-calendar-sync");
 
 const toLogMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;

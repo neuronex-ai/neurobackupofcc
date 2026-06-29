@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
+import { edgeFunctionUrl } from '@/lib/supabase-config';
 
-const POLL_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/google-calendar-poll";
+const POLL_URL = edgeFunctionUrl("google-calendar-poll");
 
 export const useGoogleCalendarSync = () => {
   const { session } = useAuth();

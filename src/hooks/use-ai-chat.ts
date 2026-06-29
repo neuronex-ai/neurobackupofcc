@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
 import { Message } from '@/types';
+import { edgeFunctionUrl } from '@/lib/supabase-config';
 
 // --- Types ---
 export interface ChatSession {
@@ -12,7 +13,7 @@ export interface ChatSession {
   updated_at: string;
 }
 
-const GEMINI_CHAT_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/gemini-text-chat";
+const GEMINI_CHAT_URL = edgeFunctionUrl("gemini-text-chat");
 
 // --- Fetch Sessions ---
 const fetchChatSessions = async (userId: string): Promise<ChatSession[]> => {

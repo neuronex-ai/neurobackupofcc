@@ -7,6 +7,7 @@ import { addWeeks, addMonths, isBefore, setHours, setMinutes, addMinutes, isSame
 import { buildSessionMetadata } from '@/lib/appointment-metadata';
 import { createAppointmentFinancialEntryIfEnabled } from '@/lib/financial-appointment-automation';
 import type { Appointment } from '@/types';
+import { edgeFunctionUrl } from '@/lib/supabase-config';
 
 interface RecurringAppointmentData {
   patient_id: string;
@@ -18,7 +19,7 @@ interface RecurringAppointmentData {
 }
 
 // URL da Edge Function para sincronizar com Google Calendar (a mesma usada para agendamento único)
-const GOOGLE_CALENDAR_SYNC_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/google-calendar-sync";
+const GOOGLE_CALENDAR_SYNC_URL = edgeFunctionUrl("google-calendar-sync");
 
 // Função auxiliar para sincronizar (simulada para recorrência)
 const syncAppointmentToGoogle = async (appointment: any, patient: any, accessToken: string) => {

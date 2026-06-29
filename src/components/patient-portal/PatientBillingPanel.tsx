@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_ANON_KEY, edgeFunctionUrl } from "@/lib/supabase-config";
 
 // NeuroFinance: payment sessions routed through create-payment Edge Function
 const createPaymentSession = async (invoice: Invoice): Promise<{ url: string }> => {
@@ -17,9 +18,6 @@ const createPaymentSession = async (invoice: Invoice): Promise<{ url: string }> 
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error("Sessão expirada. Faça login novamente.");
 
-  const baseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://krewdaklcyzqfxkkgvqr.supabase.co';
-  const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
   // Buscar dados reais do paciente do DB
   const { data: invoiceRecord } = await supabase.from('invoices').select('patient_id').eq('id', invoice.id).single();
   const { data: patient } = await supabase.from('patients').select('name, email, cpf').eq('id', invoiceRecord?.patient_id).single();
@@ -27,13 +25,13 @@ const createPaymentSession = async (invoice: Invoice): Promise<{ url: string }> 
   // Try NeuroFinance checkout payment link
   try {
     const asaasResponse = await fetch(
-      `${baseUrl}/functions/v1/asaas-create-payment`,
+      edgeFunctionUrl('asaas-create-payment'),
       {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
-          'apikey': apiKey,
+          'apikey': SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
           amount: Math.round(invoice.amount * 100), // Convert to cents

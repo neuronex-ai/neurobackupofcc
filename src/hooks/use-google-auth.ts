@@ -3,9 +3,11 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
+import { edgeFunctionUrl } from '@/lib/supabase-config';
 
 // URL da Edge Function para iniciar o fluxo OAuth
-const GOOGLE_AUTH_INIT_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/google-auth-init";
+const GOOGLE_AUTH_INIT_URL = edgeFunctionUrl("google-auth-init");
+const GOOGLE_AUTH_STATUS_URL = edgeFunctionUrl("google-auth-status");
 const SPREADSHEET_ID_KEY = 'neuro_nex_spreadsheet_id';
 
 export const useGoogleAuth = () => {
@@ -27,7 +29,7 @@ export const useGoogleAuth = () => {
     try {
       // Try fetching via edge function first (bypasses RLS issues)
       const response = await fetch(
-        `https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/google-auth-status`,
+        GOOGLE_AUTH_STATUS_URL,
         {
           method: 'GET',
           headers: {

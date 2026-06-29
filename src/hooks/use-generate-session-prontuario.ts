@@ -2,9 +2,10 @@ import { useAuth } from '@/components/auth/SessionContextProvider';
 import { SessionNote } from '@/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { edgeFunctionUrl } from '@/lib/supabase-config';
 
 // URL da Edge Function para gerar o prontuário
-const GENERATE_PRONTUARIO_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/generate-session-prontuario";
+const GENERATE_PRONTUARIO_URL = edgeFunctionUrl("generate-session-prontuario");
 
 interface ChatMessage {
   text: string;

@@ -61,6 +61,14 @@ Thumbs.db
 .claude/settings.local.json
 .aios/install-log.txt
 .aider*
+.agent/
+.antigravity/
+.gemini/
+scratch/
+docs/internal/
+
+# Legacy serverless/API experiments
+api/
 
 # Temporary build artifacts
 vite.config.ts.timestamp-*
@@ -75,4 +83,5 @@ python-installer.exe
 # Lock files (project uses npm)
 bun.lockb
 pnpm-lock.yaml
+pnpm-workspace.yaml
 .dyad/

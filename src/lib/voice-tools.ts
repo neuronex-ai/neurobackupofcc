@@ -1,4 +1,6 @@
-const GEMINI_CHAT_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/gemini-text-chat";
+import { edgeFunctionUrl } from "@/lib/supabase-config";
+
+const GEMINI_CHAT_URL = edgeFunctionUrl("gemini-text-chat");
 
 export async function executeVoiceTool(
     toolName: string,

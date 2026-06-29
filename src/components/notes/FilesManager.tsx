@@ -70,8 +70,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DocumentPreviewModal } from "@/components/patients/DocumentPreviewModal";
 import { PremiumFileIcon } from "@/components/ui/PremiumFileIcons";
-
-const SUPABASE_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co";
+import { edgeFunctionUrl } from "@/lib/supabase-config";
 
 interface FileItem {
     name: string;
@@ -380,7 +379,7 @@ export const FilesManager = () => {
         if (!session) return;
         setIsDriveLoading(true);
         try {
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/google-drive-files`, {
+            const response = await fetch(edgeFunctionUrl("google-drive-files"), {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${session.access_token}`,
@@ -402,7 +401,7 @@ export const FilesManager = () => {
         if (!session || !userId) return;
         setImportingDriveFileId(driveFile.id);
         try {
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/google-drive-files`, {
+            const response = await fetch(edgeFunctionUrl("google-drive-files"), {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${session.access_token}`,

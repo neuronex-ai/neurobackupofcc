@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { MonthlyReportTemplate } from "./MonthlyReportTemplate";
 import { NewPackageModal } from "./NewPackageModal";
 import { PackageCard } from "./PackageCard";
+import { edgeFunctionUrl } from "@/lib/supabase-config";
 
 interface PatientPackagesTabProps {
     patientId: string;
@@ -82,7 +83,7 @@ export const PatientPackagesTab = ({ patientId }: PatientPackagesTabProps) => {
         setIsSending(true);
         try {
             const html = printRef.current?.innerHTML || "";
-            await fetch('https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/send-document-email', {
+            await fetch(edgeFunctionUrl("send-document-email"), {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({

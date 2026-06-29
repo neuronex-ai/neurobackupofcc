@@ -6,6 +6,7 @@ import { useAuth } from '@/components/auth/SessionContextProvider';
 import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
 import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 import { syncAppointmentFinancialEntryAfterUpdate } from '@/lib/financial-appointment-automation';
+import { edgeFunctionUrl } from '@/lib/supabase-config';
 
 interface UpdateAppointmentData {
   id: string;
@@ -19,7 +20,7 @@ const syncGoogleUpdate = async (
   accessToken: string
 ) => {
   try {
-    await fetch("https://krewdaklcyzqfxkkgvqr.supabase.co/functions/v1/google-calendar-manage", {
+    await fetch(edgeFunctionUrl("google-calendar-manage"), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,

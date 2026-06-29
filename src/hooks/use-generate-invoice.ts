@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toUserFacingError } from '@/lib/user-facing-error';
+import { SUPABASE_ANON_KEY, edgeFunctionUrl } from '@/lib/supabase-config';
 
 interface GenerateInvoiceData {
   patientId: string;
@@ -48,9 +49,6 @@ export const useGenerateInvoice = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("Sessão expirada. Faça login novamente.");
 
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://krewdaklcyzqfxkkgvqr.supabase.co';
-      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
       // Call the Edge Function directly - it handles DB insertion into nb_payments
       // Resolve payment methods
       const selectedMethods = data.paymentMethodType?.length
@@ -59,12 +57,12 @@ export const useGenerateInvoice = () => {
       const methods = selectedMethods.map(normalizePaymentMethod);
       const primaryMethod = methods.length === 1 ? methods[0] : "undefined";
 
-      const asaasResponse = await fetch(`${baseUrl}/functions/v1/asaas-create-payment`, {
+      const asaasResponse = await fetch(edgeFunctionUrl('asaas-create-payment'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
-          'apikey': apiKey,
+          'apikey': SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
           amount: Math.round(data.amount * 100), // Em centavos — Edge Function divide por 100 para Asaas

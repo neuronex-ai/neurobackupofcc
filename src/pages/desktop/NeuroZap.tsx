@@ -27,6 +27,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Navbar } from "@/components/layout/Navbar";
+import { edgeFunctionUrl } from "@/lib/supabase-config";
 
 // Premium color palette for labels
 const LABEL_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -252,7 +253,7 @@ const WhatsAppAgent = () => {
         syncMessages.mutate({ remoteJid: conv.remote_jid });
     };
 
-    const webhookUrl = `https://[SEU-PROJETO].supabase.co/functions/v1/whatsapp-agent?professionalId=${currentSettings?.user_id || 'ID-PROFISSIONAL'}`;
+    const webhookUrl = `${edgeFunctionUrl("whatsapp-agent")}?professionalId=${currentSettings?.user_id || 'ID-PROFISSIONAL'}`;
 
     // Group messages by date
     const groupedMessages: Record<string, WAMessage[]> = (messages || []).reduce((groups, msg) => {

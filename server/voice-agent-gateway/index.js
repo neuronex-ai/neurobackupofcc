@@ -27,8 +27,6 @@ loadLocalEnv();
 const PORT = Number(process.env.SYNAPSE_VOICE_GATEWAY_PORT || process.env.PORT || "8789");
 const PATHNAME = process.env.SYNAPSE_VOICE_GATEWAY_PATH || "/v1/synapse/voice";
 const DEFAULT_DEEPGRAM_URL = "wss://agent.deepgram.com/v1/agent/converse";
-const DEFAULT_SUPABASE_URL = "https://krewdaklcyzqfxkkgvqr.supabase.co";
-const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyZXdkYWtsY3l6cWZ4a2tndnFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE4NjA3NDMsImV4cCI6MjA3NzQzNjc0M30.4UF003hI4Cn5denbdsSFPgYiacS_RGNkRQP_9JSOpbI";
 
 const clean = (value, max = 5000) => String(value ?? "").trim().slice(0, max);
 
@@ -38,11 +36,11 @@ function jsonResponse(res, status, payload) {
 }
 
 function getSupabaseUrl() {
-  return process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  return process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 }
 
 function getSupabaseAnonKey() {
-  return process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
+  return process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
 }
 
 function getFunctionsUrl() {
@@ -228,8 +226,8 @@ class SynapseVoiceSession {
       return buildLocalSessionConfig(payload, "forced_local_settings");
     }
 
-    if (!getGatewaySecret()) {
-      return buildLocalSessionConfig(payload, "missing_gateway_secret");
+    if (!getGatewaySecret() || !getSupabaseUrl() || !getSupabaseAnonKey()) {
+      return buildLocalSessionConfig(payload, "missing_secure_supabase_gateway_config");
     }
 
     const response = await fetch(`${getFunctionsUrl()}/synapse-voice-agent-session`, {
