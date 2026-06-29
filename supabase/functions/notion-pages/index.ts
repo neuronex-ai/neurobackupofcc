@@ -25,6 +25,13 @@ interface NotionPage {
   cover: { file?: { url: string }; external?: { url: string } } | null;
 }
 
+interface NotionImport {
+  notion_page_id: string;
+  note_id: string | null;
+  imported_at: string;
+  last_edited_time: string | null;
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -91,6 +98,36 @@ const getPageIcon = (page: NotionPage) =>
         value: page.icon.type === "emoji" ? page.icon.emoji : page.icon.file?.url || page.icon.external?.url,
       }
     : null;
+
+const buildImportLookup = (imports: NotionImport[] = []) => {
+  const lookup = new Map<string, NotionImport>();
+  for (const item of imports) {
+    lookup.set(item.notion_page_id, item);
+  }
+  return lookup;
+};
+
+const getImportState = (page: NotionPage, importLookup: Map<string, NotionImport>) => {
+  const imported = importLookup.get(page.id);
+  if (!imported) {
+    return {
+      is_imported: false,
+      imported_note_id: null,
+      imported_at: null,
+      import_is_stale: false,
+    };
+  }
+
+  const sourceEditedAt = page.last_edited_time ? new Date(page.last_edited_time).getTime() : 0;
+  const importedEditedAt = imported.last_edited_time ? new Date(imported.last_edited_time).getTime() : 0;
+
+  return {
+    is_imported: true,
+    imported_note_id: imported.note_id,
+    imported_at: imported.imported_at,
+    import_is_stale: sourceEditedAt > importedEditedAt,
+  };
+};
 
 const fetchBlockChildren = async (token: string, blockId: string, depth = 0): Promise<NotionBlock[]> => {
   const blocks: NotionBlock[] = [];
@@ -262,7 +299,7 @@ serve(async (req: Request) => {
         : supabaseService.from("personal_notes").insert(notePayload);
 
       const { data: note, error: noteError } = await noteQuery
-        .select("id, title, content, updated_at")
+        .select("id, user_id, module_id, patient_id, title, content, tags, reference_date, updated_at, created_at")
         .single();
 
       if (noteError) throw noteError;
@@ -308,6 +345,17 @@ serve(async (req: Request) => {
       }),
     });
 
+    const { data: imports, error: importsError } = await supabaseService
+      .from("notion_imports")
+      .select("notion_page_id, note_id, imported_at, last_edited_time")
+      .eq("user_id", user.id);
+
+    if (importsError && !shouldIgnoreMissingTable(importsError)) {
+      throw importsError;
+    }
+
+    const importLookup = buildImportLookup((imports || []) as NotionImport[]);
+
     const pages = (searchData.results || []).map((page: NotionPage) => ({
       id: page.id,
       title: getPageTitle(page),
@@ -316,6 +364,7 @@ serve(async (req: Request) => {
       url: page.url,
       last_edited_time: page.last_edited_time,
       parent_type: (page as any).parent?.type || "workspace",
+      import: getImportState(page, importLookup),
     }));
 
     return json({ pages });

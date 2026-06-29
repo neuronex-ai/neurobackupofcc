@@ -1,4 +1,5 @@
 import { NotionIcon } from "@/components/icons/NotionIcon";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NotionBlock, useNotionPages } from "@/hooks/use-notion-pages";
 import { cn } from "@/lib/utils";
@@ -6,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-    ArrowLeft, BookOpen, CheckCircle2, ChevronRight, Clock, Download, ExternalLink, FileText, Loader2, RefreshCw
+    ArrowLeft, BookOpen, CheckCircle2, ChevronRight, Clock, Download, ExternalLink, FileText, Loader2, RefreshCw, Search
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
@@ -336,6 +337,12 @@ export const NotionPagesPanel = ({
         title: string;
         icon: any;
         url: string;
+        import?: {
+            is_imported: boolean;
+            imported_note_id: string | null;
+            imported_at: string | null;
+            import_is_stale: boolean;
+        };
     } | null>(null);
     const [blocks, setBlocks] = useState<NotionBlock[]>([]);
     const [isLoadingContent, setIsLoadingContent] = useState(false);
@@ -507,7 +514,7 @@ export const NotionPagesPanel = ({
                                 ) : (
                                     <Download className="mr-2 h-3.5 w-3.5" />
                                 )}
-                                Importar
+                                {viewingPage.import?.is_imported ? "Atualizar nota" : "Importar"}
                             </Button>
                         </div>
                     </div>
@@ -593,19 +600,7 @@ export const NotionPagesPanel = ({
                 {/* Search */}
                 <div className="relative group">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                        <svg
-                            className="h-3.5 w-3.5 text-muted-foreground group-focus-within:text-foreground transition-colors"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                            />
-                        </svg>
+                        <Search className="h-3.5 w-3.5 text-muted-foreground transition-colors group-focus-within:text-foreground" />
                     </div>
                     <input
                         value={searchQuery}

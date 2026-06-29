@@ -276,6 +276,26 @@ entrypoint = "./functions/initial-settings-save/index.ts"
 
 # ─── DOCUMENT STORAGE / CLOUDFLARE R2 ─────────────────────────
 
+[functions.notion-auth-init]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/notion-auth-init/index.ts"
+
+[functions.notion-auth-callback]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/notion-auth-callback/index.ts"
+
+[functions.notion-pages]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/notion-pages/index.ts"
+
+[functions.notion-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/notion-webhook/index.ts"
+
 [functions.r2-create-upload-url]
 enabled = true
 verify_jwt = true

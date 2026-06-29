@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { PersonalNote } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotionAuth } from "./use-notion-auth";
 
@@ -8,9 +9,15 @@ export interface NotionPage {
     icon: { type: "emoji" | "url"; value: string } | null;
     cover: string | null;
     url: string;
-    created_time: string;
+    created_time?: string;
     last_edited_time: string;
     parent_type: string;
+    import?: {
+        is_imported: boolean;
+        imported_note_id: string | null;
+        imported_at: string | null;
+        import_is_stale: boolean;
+    };
 }
 
 export interface NotionBlock {
@@ -20,12 +27,7 @@ export interface NotionBlock {
 }
 
 export interface NotionImportResult {
-    note: {
-        id: string;
-        title: string;
-        content: string;
-        updated_at: string;
-    };
+    note: PersonalNote;
     created: boolean;
     source: {
         page_id: string;
@@ -34,6 +36,15 @@ export interface NotionImportResult {
         last_edited_time?: string | null;
     };
 }
+
+const getSessionOrThrow = async () => {
+    const {
+        data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) throw new Error("Usuario nao autenticado");
+    return session;
+};
 
 export const useNotionPages = () => {
     const { isConnected } = useNotionAuth();
@@ -47,9 +58,7 @@ export const useNotionPages = () => {
     } = useQuery<NotionPage[], Error>({
         queryKey: ["notion-pages"],
         queryFn: async (): Promise<NotionPage[]> => {
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
+            const session = await getSessionOrThrow().catch(() => null);
             if (!session) return [];
 
             const { data, error } = await supabase.functions.invoke("notion-pages", {
@@ -66,14 +75,12 @@ export const useNotionPages = () => {
             return data?.pages || [];
         },
         enabled: isConnected,
-        staleTime: 1000 * 60 * 5, // 5 min
+        staleTime: 1000 * 60 * 5,
         refetchOnWindowFocus: false,
     });
 
     const fetchPageContent = async (pageId: string): Promise<NotionBlock[]> => {
-        const {
-            data: { session },
-        } = await supabase.auth.getSession();
+        const session = await getSessionOrThrow().catch(() => null);
         if (!session) return [];
 
         const { data, error } = await supabase.functions.invoke(
@@ -94,9 +101,7 @@ export const useNotionPages = () => {
     };
 
     const updateBlock = async (blockId: string, payload: any): Promise<boolean> => {
-        const {
-            data: { session },
-        } = await supabase.auth.getSession();
+        const session = await getSessionOrThrow().catch(() => null);
         if (!session) return false;
 
         const { error } = await supabase.functions.invoke(
@@ -120,10 +125,7 @@ export const useNotionPages = () => {
 
     const importPageMutation = useMutation({
         mutationFn: async (pageId: string): Promise<NotionImportResult> => {
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
-            if (!session) throw new Error("Usuário não autenticado");
+            const session = await getSessionOrThrow();
 
             const { data, error } = await supabase.functions.invoke(
                 "notion-pages?action=import-page",
@@ -141,7 +143,21 @@ export const useNotionPages = () => {
 
             return data as NotionImportResult;
         },
-        onSuccess: () => {
+        onSuccess: (result) => {
+            queryClient.setQueriesData<PersonalNote[]>(
+                { queryKey: ["personalNotes"] },
+                (current = []) => {
+                    const noteWithPatient: PersonalNote = { ...result.note, patient_name: undefined };
+                    return [
+                        noteWithPatient,
+                        ...current.filter((note) => note.id !== result.note.id),
+                    ].sort(
+                        (left, right) =>
+                            new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime()
+                    );
+                }
+            );
+
             queryClient.invalidateQueries({ queryKey: ["personalNotes"] });
             queryClient.invalidateQueries({ queryKey: ["notion-pages"] });
         },
