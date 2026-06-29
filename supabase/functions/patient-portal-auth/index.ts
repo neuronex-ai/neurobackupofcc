@@ -343,7 +343,7 @@ const handleResetPassword = async (body: Record<string, unknown>) => {
       body: "Recebemos uma solicitação para redefinir sua senha do Portal do Paciente. Clique abaixo para criar uma nova senha.",
       ctaLabel: "Redefinir senha",
       actionUrl: actionLink,
-      helper: "Depois de salvar a nova senha, você voltará para a ativação do Portal do Paciente.",
+      helper: "Depois de salvar a nova senha, você voltará para o Portal do Paciente.",
     });
 
     await auditPortal({

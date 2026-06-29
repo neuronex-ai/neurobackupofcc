@@ -67,8 +67,8 @@ const ResetPasswordPage = () => {
             toast.success("Senha redefinida com sucesso!");
 
             if (next === "portal") {
-                const inviteToken = window.localStorage.getItem("neuronex_patient_portal_invite_token");
-                navigate(inviteToken ? `/portal/ativar?token=${encodeURIComponent(inviteToken)}` : "/portal/ativar", { replace: true });
+                window.localStorage.removeItem("neuronex_patient_portal_invite_token");
+                navigate("/portal", { replace: true });
                 return;
             }
 

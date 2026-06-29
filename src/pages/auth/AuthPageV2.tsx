@@ -12,6 +12,8 @@ import { getAccountAssurance } from '@/hooks/use-account-security';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/integrations/supabase/client';
+import type { PatientPortalContext } from '@/hooks/use-patient-portal';
+import { isPatientAccount } from '@/lib/auth-account-role';
 import {
   disableBiometricSignIn,
   enableBiometricSignIn,
@@ -31,9 +33,6 @@ import { ArrowRight, Eye, EyeOff, Fingerprint, Loader2, ShieldCheck, Stethoscope
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-
-const PUBLIC_SIGNUP_PAUSED_MESSAGE =
-  'Novas contas estão temporariamente pausadas enquanto aprimoramos funcionalidades. Quem já tem conta pode entrar normalmente.';
 
 type BiometricPromptDialogProps = {
   open: boolean;
@@ -144,11 +143,9 @@ const AuthPageV2 = () => {
   const showRoleChoice = !roleParam;
   const [email, setEmail] = useState(localStorage.getItem('neuronex_remembered_email') || '');
   const [password, setPassword] = useState('');
-  const [patientAuthMode, setPatientAuthMode] = useState<'login' | 'signup'>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(localStorage.getItem('neuronex_remember_me') === 'true');
   const [loading, setLoading] = useState(false);
-  const [accessLinkLoading, setAccessLinkLoading] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [biometricStatus, setBiometricStatus] = useState<BiometricStatus | null>(null);
   const [biometricAccount, setBiometricAccount] = useState<StoredBiometricAccount | null>(null);
@@ -158,15 +155,37 @@ const AuthPageV2 = () => {
   const [mfaOpen, setMfaOpen] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
 
-  const redirect = async () => {
-    const session = await supabase.auth.getSession();
-    const user = session.data.session?.user;
-    if (!user) return;
-    if (role === 'patient') {
-      const inviteToken = window.localStorage.getItem('neuronex_patient_portal_invite_token');
-      return navigate(inviteToken ? `/portal/ativar?token=${encodeURIComponent(inviteToken)}` : '/portal', { replace: true });
+  const redirectPatientSession = async () => {
+    const { data, error } = await supabase.functions.invoke<PatientPortalContext>('patient-portal-current', {
+      body: { action: 'current' },
+    });
+    if (error) {
+      throw new Error(await readSupabaseFunctionError(error, 'Nao foi possivel carregar o Portal do Paciente.'));
     }
+
+    const inviteToken = window.localStorage.getItem('neuronex_patient_portal_invite_token');
+    if (data?.status === 'active') {
+      window.localStorage.removeItem('neuronex_patient_portal_invite_token');
+      navigate('/portal', { replace: true });
+      return;
+    }
+
+    if (data?.status === 'needs_activation') {
+      navigate(inviteToken ? `/portal/ativar?token=${encodeURIComponent(inviteToken)}` : '/portal/ativar', { replace: true });
+      return;
+    }
+
+    navigate('/portal', { replace: true });
+  };
+
+  const redirect = async (sessionOverride?: Session | null) => {
+    const currentSession = sessionOverride ?? (await supabase.auth.getSession()).data.session;
+    const user = currentSession?.user;
+    if (!user) return;
+    if (isPatientAccount(user)) return redirectPatientSession();
+
     const profile = await supabase.from('profiles').select('setup_completed').eq('id', user.id).maybeSingle();
+    if (role === 'patient') toast.error('Esta conta pertence ao acesso profissional.');
     navigate(profile.data?.setup_completed ? '/dashboard' : '/initial-settings', { replace: true });
   };
 
@@ -180,7 +199,7 @@ const AuthPageV2 = () => {
   };
 
   const shouldOfferBiometric = async (session: Session | null) => {
-    if (!session?.user || role === 'patient') return false;
+    if (!session?.user || role === 'patient' || isPatientAccount(session.user)) return false;
     const status = biometricStatus || await getBiometricStatus();
     const account = getStoredBiometricAccount();
     const preference = getBiometricPreferenceForUser(session.user.id);
@@ -201,6 +220,10 @@ const AuthPageV2 = () => {
   const evaluateSession = async () => {
     const session = await supabase.auth.getSession();
     if (!session.data.session) return;
+    if (isPatientAccount(session.data.session.user)) {
+      await redirect(session.data.session);
+      return;
+    }
     const assurance = await getAccountAssurance();
     if (assurance.error) throw assurance.error;
     if (assurance.data.nextLevel === 'aal2' && assurance.data.currentLevel !== 'aal2') setMfaOpen(true);
@@ -218,44 +241,6 @@ const AuthPageV2 = () => {
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      if (role === 'patient' && patientAuthMode === 'signup') {
-        toast.info(PUBLIC_SIGNUP_PAUSED_MESSAGE);
-        setPatientAuthMode('login');
-        return;
-      }
-
-      if (role === 'patient' && patientAuthMode === 'signup') {
-        const inviteToken = window.localStorage.getItem('neuronex_patient_portal_invite_token') || undefined;
-        const { data, error } = await supabase.functions.invoke<{
-          status?: 'created' | 'existing_user' | 'access_link_sent';
-          message?: string;
-        }>('patient-portal-auth', {
-          body: {
-            action: 'signup',
-            email: normalizedEmail,
-            password,
-            inviteToken,
-          },
-        });
-
-        if (error) {
-          throw new Error(await readSupabaseFunctionError(error, 'Não foi possível criar o acesso do paciente.'));
-        }
-
-        if (remember) {
-          localStorage.setItem('neuronex_remember_me', 'true');
-          localStorage.setItem('neuronex_remembered_email', normalizedEmail);
-        }
-
-        if (data?.status === 'existing_user') {
-          toast.info(data.message || 'Essa conta já existe. Enviamos um novo link de acesso ao Portal.');
-        } else {
-          toast.success(data?.message || 'Conta criada. Enviamos um e-mail de ativação do Portal do Paciente.');
-        }
-        setPatientAuthMode('login');
-        return;
-      }
-
       const result = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
       if (result.error) throw result.error;
@@ -273,37 +258,6 @@ const AuthPageV2 = () => {
       toast.error(cause instanceof Error ? cause.message : 'Não foi possível entrar.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const requestPortalAccessLink = async () => {
-    if (role !== 'patient') return;
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) {
-      toast.error('Digite seu e-mail para receber o link de acesso.');
-      return;
-    }
-
-    setAccessLinkLoading(true);
-    try {
-      const inviteToken = window.localStorage.getItem('neuronex_patient_portal_invite_token') || undefined;
-      const { data, error } = await supabase.functions.invoke<{ message?: string }>('patient-portal-auth', {
-        body: {
-          action: 'send_access_link',
-          email: normalizedEmail,
-          inviteToken,
-        },
-      });
-
-      if (error) {
-        throw new Error(await readSupabaseFunctionError(error, 'Não foi possível enviar o link de acesso.'));
-      }
-
-      toast.success(data?.message || 'Se houver uma conta de paciente com este e-mail, enviaremos um link de acesso.');
-    } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : 'Não foi possível enviar o link de acesso.');
-    } finally {
-      setAccessLinkLoading(false);
     }
   };
 
@@ -448,7 +402,7 @@ const AuthPageV2 = () => {
               authPrimaryButtonClass,
             )}
           >
-            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : role === 'patient' && patientAuthMode === 'signup' ? 'Criar conta de paciente' : role === 'patient' ? 'Entrar no Portal' : 'Login'}
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : role === 'patient' ? 'Entrar no Portal' : 'Login'}
           </Button>
         </form>
 
@@ -470,26 +424,6 @@ const AuthPageV2 = () => {
         ) : null}
 
         <div className="mt-7 space-y-3 text-center">
-          {role === 'patient' && (
-            <button
-              type="button"
-              onClick={() => setPatientAuthMode((mode) => mode === 'login' ? 'signup' : 'login')}
-              className="w-full text-xs font-semibold text-current/80 transition-colors hover:text-current"
-            >
-              {patientAuthMode === 'login' ? 'Criar conta de paciente' : 'Já tenho conta'}
-            </button>
-          )}
-          {role === 'patient' && (
-            <button
-              type="button"
-              onClick={() => void requestPortalAccessLink()}
-              disabled={accessLinkLoading || loading}
-              className="inline-flex w-full items-center justify-center gap-2 text-xs font-semibold text-current/80 transition-colors hover:text-current disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {accessLinkLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              Receber novo link de acesso
-            </button>
-          )}
           <button
             type="button"
             onClick={() => navigate(role === 'patient' ? '/auth?role=pro' : '/auth?role=patient')}

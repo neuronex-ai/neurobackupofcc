@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useActivatePatientPortal, usePatientPortalInvitePreview } from "@/hooks/use-patient-portal";
+import { useActivatePatientPortal, usePatientPortalCurrent, usePatientPortalInvitePreview } from "@/hooks/use-patient-portal";
 import { KeyRound, Loader2, MailCheck, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -17,8 +17,15 @@ const PatientPortalActivate = () => {
     return window.localStorage.getItem(TOKEN_STORAGE_KEY) || "";
   }, [searchParams]);
   const [code, setCode] = useState("");
+  const current = usePatientPortalCurrent();
   const preview = usePatientPortalInvitePreview(token);
   const activate = useActivatePatientPortal();
+
+  useEffect(() => {
+    if (current.data?.status !== "active") return;
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    navigate("/portal", { replace: true });
+  }, [current.data?.status, navigate]);
 
   useEffect(() => {
     if (token) window.localStorage.setItem(TOKEN_STORAGE_KEY, token);

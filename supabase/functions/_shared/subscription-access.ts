@@ -83,6 +83,7 @@ const ESSENTIAL_INTERNAL_FLAGS: Record<string, unknown> = {
 type SupabaseUser = {
   id: string;
   email?: string | null;
+  app_metadata?: Record<string, unknown>;
   user_metadata?: Record<string, unknown>;
 };
 
@@ -130,6 +131,10 @@ export function statusRequiresUpsell(status: string) {
 
 export function canUseCurrentAccess(status: string, accessState: string) {
   return PAID_ACCESS_STATUSES.has(status) && USABLE_ACCESS_STATES.has(accessState);
+}
+
+export function isPatientPortalAccount(user?: SupabaseUser | null) {
+  return String(user?.app_metadata?.account_role || "").trim().toLowerCase() === "patient";
 }
 
 function hasPaymentBackedPaidAccess(row: any, status: string, accessState: string) {
@@ -276,6 +281,8 @@ export async function getUserSubscription(userId: string) {
 }
 
 export async function startTrialIfMissing(user: SupabaseUser) {
+  if (isPatientPortalAccount(user)) return null;
+
   const existing = await getUserSubscription(user.id);
   if (existing) return existing;
 
@@ -316,6 +323,23 @@ export async function startTrialIfMissing(user: SupabaseUser) {
   });
 
   return data;
+}
+
+async function resolveUserAppMetadata(user: SupabaseUser): Promise<SupabaseUser> {
+  if (user.app_metadata) return user;
+
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(user.id);
+  if (error || !data?.user) {
+    if (error) console.warn("[subscription-access] auth user lookup failed:", error);
+    return user;
+  }
+
+  return {
+    ...user,
+    email: user.email || data.user.email,
+    app_metadata: data.user.app_metadata || {},
+    user_metadata: user.user_metadata || data.user.user_metadata || {},
+  };
 }
 
 export async function expireTrialIfNeeded(subscription: any) {
@@ -390,20 +414,35 @@ export async function getOpenCheckoutSession(userId: string, planCode = PROFESSI
 }
 
 export async function readCurrentEntitlement(user: SupabaseUser) {
-  let subscription = await startTrialIfMissing(user);
+  const resolvedUser = await resolveUserAppMetadata(user);
+  if (isPatientPortalAccount(resolvedUser)) {
+    return {
+      ...buildEntitlementResponse(null, resolvedUser, null),
+      status: "patient_portal",
+      accessState: "patient_portal",
+      isTrial: false,
+      hasPaidAccess: false,
+      paymentBackedAccess: false,
+      canUseCurrentAccess: false,
+      requiresUpsell: false,
+      message: "Conta destinada ao Portal do Paciente.",
+    };
+  }
+
+  let subscription = await startTrialIfMissing(resolvedUser);
   subscription = await expireTrialIfNeeded(subscription);
 
   const { data: row, error } = await supabaseAdmin
     .from("current_subscription_entitlements")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", resolvedUser.id)
     .maybeSingle();
   if (error) throw error;
 
   const checkout =
-    await getOpenCheckoutSession(user.id, String(row?.plan_code || PROFESSIONAL_PLAN_CODE)) ||
-    await getOpenCheckoutSession(user.id, PROFESSIONAL_PLAN_CODE);
-  return buildEntitlementResponse(row, user, checkout);
+    await getOpenCheckoutSession(resolvedUser.id, String(row?.plan_code || PROFESSIONAL_PLAN_CODE)) ||
+    await getOpenCheckoutSession(resolvedUser.id, PROFESSIONAL_PLAN_CODE);
+  return buildEntitlementResponse(row, resolvedUser, checkout);
 }
 
 export async function markProfilePlan(userId: string, plan: string) {
@@ -557,6 +596,7 @@ export async function requireRequestEntitlement(req: Request, featureKey: string
     {
       id: user.id,
       email: user.email,
+      app_metadata: user.app_metadata,
       user_metadata: user.user_metadata,
     },
     featureKey,

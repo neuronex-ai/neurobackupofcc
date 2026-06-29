@@ -29,15 +29,6 @@ async function loadAppointments(context: any) {
 }
 
 async function loadDocuments(context: any) {
-  const r2 = new S3Client({
-    region: "auto",
-    endpoint: Deno.env.get("R2_ENDPOINT")!,
-    credentials: {
-      accessKeyId: Deno.env.get("R2_ACCESS_KEY_ID")!,
-      secretAccessKey: Deno.env.get("R2_SECRET_ACCESS_KEY")!,
-    },
-  });
-
   const { data, error } = await supabaseAdmin
     .from("document_files")
     .select("id,bucket,object_key,original_name,mime_type,size_bytes,created_at,shared_with_patient_at")
@@ -49,9 +40,30 @@ async function loadDocuments(context: any) {
     .order("created_at", { ascending: false });
   if (error) throw error;
 
-  const documents = await Promise.all((data || []).map(async (doc: any) => {
+  const rows = data || [];
+  const needsSignedUrls = rows.some((doc: any) => doc.bucket && doc.object_key);
+  const r2Endpoint = Deno.env.get("R2_ENDPOINT");
+  const r2AccessKeyId = Deno.env.get("R2_ACCESS_KEY_ID");
+  const r2SecretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY");
+
+  if (needsSignedUrls && (!r2Endpoint || !r2AccessKeyId || !r2SecretAccessKey)) {
+    throw new Error("R2 nao configurado para assinar documentos do portal.");
+  }
+
+  const r2 = needsSignedUrls
+    ? new S3Client({
+        region: "auto",
+        endpoint: r2Endpoint!,
+        credentials: {
+          accessKeyId: r2AccessKeyId!,
+          secretAccessKey: r2SecretAccessKey!,
+        },
+      })
+    : null;
+
+  const documents = await Promise.all(rows.map(async (doc: any) => {
     let signedUrl: string | null = null;
-    if (doc.bucket && doc.object_key) {
+    if (r2 && doc.bucket && doc.object_key) {
       const name = encodeURIComponent(doc.original_name || "documento").replace(/'/g, "%27");
       signedUrl = await getSignedUrl(
         r2,
@@ -90,7 +102,7 @@ async function loadBilling(context: any) {
       .limit(50),
     supabaseAdmin
       .from("invoices")
-      .select("id,invoice_number,amount,status,due_date,created_at,receipt_url,invoice_url,bank_slip_url")
+      .select("id,invoice_number,amount,status,due_date,created_at,pdf_url,payment_url,nfse_pdf_url,focus_nfe_url,nfse_xml_url")
       .eq("patient_id", context.patient.id)
       .eq("user_id", context.professional.id)
       .order("due_date", { ascending: false })
@@ -101,7 +113,18 @@ async function loadBilling(context: any) {
 
   return {
     entries: entriesResult.data || [],
-    invoices: invoicesResult.data || [],
+    invoices: (invoicesResult.data || []).map((invoice: any) => ({
+      id: invoice.id,
+      invoice_number: invoice.invoice_number,
+      amount: invoice.amount,
+      status: invoice.status,
+      due_date: invoice.due_date,
+      created_at: invoice.created_at,
+      receipt_url: invoice.pdf_url || null,
+      invoice_url: invoice.nfse_pdf_url || invoice.focus_nfe_url || invoice.pdf_url || null,
+      bank_slip_url: invoice.payment_url || null,
+      nfse_xml_url: invoice.nfse_xml_url || null,
+    })),
   };
 }
 

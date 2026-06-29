@@ -224,6 +224,8 @@ export async function getPatientPortalContext(patientUser: {
     features: {
       appointments: true,
       mood: true,
+      goals: true,
+      progress: true,
       documents: true,
       billing: true,
       profile: true,

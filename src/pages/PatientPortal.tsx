@@ -54,7 +54,6 @@ const dateTime = new Intl.DateTimeFormat("pt-BR", {
   minute: "2-digit",
 });
 const dateOnly = new Intl.DateTimeFormat("pt-BR");
-const shortDate = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
 const dayOnly = new Intl.DateTimeFormat("pt-BR", { day: "2-digit" });
 const monthOnly = new Intl.DateTimeFormat("pt-BR", { month: "short" });
 
@@ -737,6 +736,10 @@ const PatientPortal = () => {
         return <AppointmentsView appointments={appointments.data} />;
       case "diario":
         return <DiaryView mood={mood} />;
+      case "metas":
+        return <GoalsView goals={goals.data} />;
+      case "progresso":
+        return <ProgressView appointments={appointments.data} goals={goals.data} mood={mood} />;
       case "documentos":
         return <DocumentsView documents={documents.data} />;
       case "financeiro":
@@ -837,7 +840,7 @@ const PatientPortal = () => {
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/50 bg-background/94 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 backdrop-blur-xl lg:hidden">
-        <div className="mx-auto grid max-w-[560px] grid-cols-6 gap-1">
+        <div className="mx-auto grid max-w-[640px] grid-cols-4 gap-1 sm:grid-cols-8">
           {navItems.map((item) => (
             <button
               key={item.value}

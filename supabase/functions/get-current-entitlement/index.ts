@@ -18,6 +18,7 @@ Deno.serve(async (req: Request) => {
     const entitlement = await readCurrentEntitlement({
       id: user.id,
       email: user.email,
+      app_metadata: user.app_metadata,
       user_metadata: user.user_metadata,
     });
 
