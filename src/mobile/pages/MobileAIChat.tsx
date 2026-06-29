@@ -5,7 +5,7 @@ import { useChatSessions, useCreateChatSession, useDeleteChatSession, useSendCha
 import { useGeminiVoice } from "@/hooks/use-gemini-voice";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useVoiceConfig } from "@/hooks/use-voice-config";
-import { supabase } from "@/integrations/supabase/client";
+import { getR2DocumentDownloadUrl, uploadDocumentToR2 } from "@/lib/r2-documents-client";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -55,7 +55,7 @@ const INITIAL_SUGGESTIONS = [
 ] as const;
 
 type SynapseMode = "chat" | "voice";
-type UploadedFile = { name: string; url: string };
+type UploadedFile = { name: string; url: string; documentId?: string; storageProvider?: "r2" };
 type SynapseClientAction = {
   type: string;
   payload?: unknown;
@@ -199,21 +199,17 @@ export const MobileAIChat = () => {
       setIsUploading(true);
       try {
         for (const file of attachments) {
-          const fileExt = file.name.split(".").pop();
-          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-          const filePath = `${user?.id}/chat/${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-            .from("files_psico")
-            .upload(filePath, file);
-
-          if (uploadError) throw uploadError;
-
-          const { data: { publicUrl } } = supabase.storage
-            .from("files_psico")
-            .getPublicUrl(filePath);
-
-          uploadedFiles.push({ name: file.name, url: publicUrl });
+          const document = await uploadDocumentToR2({
+            file,
+            category: "other",
+            metadata: {
+              source: "ai_chat",
+              chatSessionId: sessionId,
+              client: "mobile",
+            },
+          });
+          const url = await getR2DocumentDownloadUrl({ documentId: document.id, disposition: "inline" });
+          uploadedFiles.push({ name: file.name, url, documentId: document.id, storageProvider: "r2" });
         }
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Falha ao enviar anexo.";
@@ -224,7 +220,7 @@ export const MobileAIChat = () => {
       setIsUploading(false);
     }
 
-    sendMessage({ message: messageText, sessionId, attachments: uploadedFiles }, {
+    sendMessage({ message: messageText || "Anexo enviado para analise.", sessionId, attachments: uploadedFiles }, {
       onSuccess: (payload: unknown) => {
         const data = toSynapseResponse(payload);
 

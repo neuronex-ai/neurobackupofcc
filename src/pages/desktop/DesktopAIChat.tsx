@@ -5,7 +5,7 @@ import { useAI } from "@/context/AIContext";
 import { useChatSessions, useCreateChatSession, useDeleteChatSession, useSendChatMessage, useSessionMessages } from "@/hooks/use-ai-chat";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { useTextToSpeech } from "@/hooks/use-text-to-speech";
-import { supabase } from "@/integrations/supabase/client";
+import { getR2DocumentDownloadUrl, uploadDocumentToR2 } from "@/lib/r2-documents-client";
 import { AnimatePresence, motion } from "framer-motion";
 import { History, Phone, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -116,18 +116,24 @@ export default function DesktopAIChat() {
 
         if (isListening) stopListening();
 
-        let uploadedFiles: { name: string, url: string }[] = [];
+        const outboundText = text.trim() || "Anexo enviado para analise.";
+        let uploadedFiles: { name: string, url: string, documentId?: string, storageProvider?: "r2" }[] = [];
         if (attachments.length > 0) {
             setIsUploading(true);
             try {
                 for (const file of attachments) {
-                    const fileExt = file.name.split('.').pop();
-                    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-                    const filePath = `${user?.id}/chat/${fileName}`;
-                    const { error: uploadError } = await supabase.storage.from('files_psico').upload(filePath, file);
-                    if (uploadError) throw uploadError;
-                    const { data: { publicUrl } } = supabase.storage.from('files_psico').getPublicUrl(filePath);
-                    uploadedFiles.push({ name: file.name, url: publicUrl });
+                    const document = await uploadDocumentToR2({
+                        file,
+                        category: "other",
+                        metadata: {
+                            source: "ai_chat",
+                            chatSessionId: activeSessionId,
+                            context: currentContext ?? null,
+                            patientId: activePatientId ?? null,
+                        },
+                    });
+                    const url = await getR2DocumentDownloadUrl({ documentId: document.id, disposition: "inline" });
+                    uploadedFiles.push({ name: file.name, url, documentId: document.id, storageProvider: "r2" });
                 }
             } catch (e: any) {
                 console.error("[DesktopAIChat] Falha no envio de anexo", e);
@@ -142,7 +148,7 @@ export default function DesktopAIChat() {
 
         if (!activeSessionId) return;
 
-        sendMessage({ message: text, sessionId: activeSessionId, attachments: uploadedFiles, context: contextData }, {
+        sendMessage({ message: outboundText, sessionId: activeSessionId, attachments: uploadedFiles, context: contextData }, {
             onSuccess: (data: any) => {
                 resetTranscript();
                 if (isVoiceModeOpen && data.response) {
