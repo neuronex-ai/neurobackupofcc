@@ -1,6 +1,9 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
+import { useAuth } from "@/components/auth/SessionContextProvider";
 import { usePersonalNotes } from "@/hooks/use-personal-notes";
 import { usePatients } from "@/hooks/use-patients";
+import { supabase } from "@/integrations/supabase/client";
+import { parseStoredNeuroFlowWorkflow } from "@/lib/neuroflow-workflow";
 import { GraphNode, GraphLink, GRAPH_COLORS } from "./graph-types";
 import { NeuroConfig } from "../NeuroViewControls";
 
@@ -16,12 +19,58 @@ const normalizeSearchText = (value?: string | null) =>
     .replace(/[\u0300-\u036f]/g, "");
 
 export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
+  const { user } = useAuth();
   const { notes, isLoading: loadingNotes } = usePersonalNotes();
   const { data: patients, isLoading: loadingPatients } = usePatients();
+  const [flows, setFlows] = useState<any[]>([]);
+  const [loadingFlows, setLoadingFlows] = useState(false);
   
   // Cache images and previous node positions
   const imagesRef = useRef<Record<string, HTMLImageElement>>({});
   const nodePositions = useRef<Record<string, { x: number, y: number, vx: number, vy: number }>>({});
+
+  useEffect(() => {
+    if (!user?.id) {
+      setFlows([]);
+      return;
+    }
+
+    let isMounted = true;
+    setLoadingFlows(true);
+
+    const fetchFlows = async () => {
+      const { data, error } = await supabase
+        .from("neuro_flows")
+        .select("id,title,description,tags,is_template,patient_id,workflow,updated_at,created_at")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false });
+
+      if (!isMounted) return;
+      if (error) {
+        console.error("[NeuroView] Falha ao carregar fluxos:", error);
+        setFlows([]);
+      } else {
+        setFlows(data || []);
+      }
+      setLoadingFlows(false);
+    };
+
+    void fetchFlows();
+
+    const channel = supabase
+      .channel(`public:neuro_flows_graph_${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "neuro_flows", filter: `user_id=eq.${user.id}` },
+        () => void fetchFlows()
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const { graphData, nodeMap } = useMemo(() => {
     if (!notes || !patients) {
@@ -60,14 +109,15 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
       if (n.type === 'patient' && !config.showPatients) return;
       if (n.type === 'note' && !config.showNotes) return;
       if (n.type === 'tag' && !config.showTags) return;
+      if (n.type === 'flow' && !config.showNotes) return;
 
-      const baseRadius = n.type === 'patient' ? 6 : (n.type === 'note' ? 4.2 : 2.8);
-      const baseGlow = n.type === 'patient' ? 24 : (n.type === 'note' ? 16 : 10);
+      const baseRadius = n.type === 'patient' ? 6 : (n.type === 'flow' ? 5.2 : (n.type === 'note' ? 4.2 : 2.8));
+      const baseGlow = n.type === 'patient' ? 24 : (n.type === 'flow' ? 22 : (n.type === 'note' ? 16 : 10));
       const pulseSeed = Array.from(String(n.id)).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 997;
 
       const node: GraphNode = {
         ...n,
-        val: n.type === 'patient' ? 22 : (n.type === 'note' ? 11 : 5),
+        val: n.type === 'patient' ? 22 : (n.type === 'flow' ? 15 : (n.type === 'note' ? 11 : 5)),
         neighbors: [],
         links: [],
         imgObj: n.imgUrl ? getOrLoadImage(n.imgUrl) : undefined,
@@ -104,9 +154,22 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
         Boolean(normalizeSearchText(patient?.name).includes(normalizedSearch));
     });
 
+    const visibleFlows = flows.filter(flow => {
+      if (!normalizedSearch) return true;
+
+      const patient = flow.patient_id ? patients.find(p => p.id === flow.patient_id) : null;
+      return normalizeSearchText(flow.title).includes(normalizedSearch) ||
+        normalizeSearchText(flow.description).includes(normalizedSearch) ||
+        flow.tags?.some((tag: string) => normalizeSearchText(tag).includes(normalizedSearch)) ||
+        Boolean(normalizeSearchText(patient?.name).includes(normalizedSearch));
+    });
+
     const visiblePatientIds = new Set<string>(matchedPatientIds);
     visibleNotes.forEach((note) => {
       if (note.patient_id) visiblePatientIds.add(note.patient_id);
+    });
+    visibleFlows.forEach((flow) => {
+      if (flow.patient_id) visiblePatientIds.add(flow.patient_id);
     });
 
     // Add Patients
@@ -152,6 +215,43 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
       });
     });
 
+    // Add NeuroFlow Studio artifacts
+    visibleFlows.forEach(flow => {
+      const flowId = `flow-${flow.id}`;
+      const workflow = parseStoredNeuroFlowWorkflow(flow.workflow);
+
+      addNode({
+        id: flowId,
+        label: flow.title,
+        type: 'flow',
+        color: GRAPH_COLORS.flow,
+        data: { ...flow, origin: 'NeuroFlow' }
+      });
+
+      if (flow.patient_id && addedIds.has(`pat-${flow.patient_id}`) && addedIds.has(flowId)) {
+        links.push({ source: `pat-${flow.patient_id}`, target: flowId, value: 2.6, revealProgress: 1, revealTarget: 1 });
+      }
+
+      flow.tags?.forEach((tag: string) => {
+        const tagId = `tag-${tag}`;
+        if (!addedIds.has(tagId)) {
+          addNode({ id: tagId, label: `#${tag}`, type: 'tag', color: GRAPH_COLORS.tag });
+        }
+        if (addedIds.has(flowId) && addedIds.has(tagId)) {
+          links.push({ source: flowId, target: tagId, value: 1, revealProgress: 1, revealTarget: 1 });
+        }
+      });
+
+      workflow?.links
+        .filter((link) => link.type === 'note')
+        .forEach((link) => {
+          const noteId = `note-${link.id}`;
+          if (addedIds.has(flowId) && addedIds.has(noteId)) {
+            links.push({ source: flowId, target: noteId, value: 1.8, revealProgress: 1, revealTarget: 1 });
+          }
+        });
+    });
+
     // Compute Neighbors for highlighting logic
     links.forEach(link => {
       const a = map[link.source as string];
@@ -166,7 +266,7 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
     });
 
     return { graphData: { nodes, links }, nodeMap: map };
-  }, [notes, patients, config, searchQuery]);
+  }, [notes, patients, flows, config, searchQuery]);
 
   // Continuously save positions to ref to persist across re-renders
   useEffect(() => {
@@ -193,6 +293,7 @@ export const useGraphData = ({ config, searchQuery }: UseGraphDataProps) => {
     nodeMap, 
     notes,
     patients,
-    isLoading: loadingNotes || loadingPatients 
+    flows,
+    isLoading: loadingNotes || loadingPatients || loadingFlows
   };
 };

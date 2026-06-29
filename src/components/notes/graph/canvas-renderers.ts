@@ -48,6 +48,7 @@ const quadraticPoint = (
 
 const getNodeBase = (node: GraphNode) => {
   if (node.type === "patient") return { radius: 6, glow: 26 };
+  if (node.type === "flow") return { radius: 5.2, glow: 22 };
   if (node.type === "note") return { radius: 4.2, glow: 18 };
   return { radius: 2.8, glow: 12 };
 };
@@ -181,10 +182,20 @@ export const drawNode = (
     ctx.arc(x, y, radius + 0.35 / globalScale, 0, Math.PI * 2);
     ctx.stroke();
 
-    if (node.type === "note" && (isConnectedChain || globalScale > 1.8)) {
+    if ((node.type === "note" || node.type === "flow") && (isConnectedChain || globalScale > 1.8)) {
       ctx.fillStyle = isDarkMode ? "rgba(255,255,255,0.58)" : "rgba(255,255,255,0.72)";
       ctx.beginPath();
-      ctx.arc(x - radius * 0.18, y - radius * 0.2, Math.max(0.7 / globalScale, radius * 0.22), 0, Math.PI * 2);
+      if (node.type === "flow") {
+        ctx.roundRect(
+          x - radius * 0.42,
+          y - radius * 0.42,
+          radius * 0.84,
+          radius * 0.84,
+          radius * 0.18
+        );
+      } else {
+        ctx.arc(x - radius * 0.18, y - radius * 0.2, Math.max(0.7 / globalScale, radius * 0.22), 0, Math.PI * 2);
+      }
       ctx.fill();
     }
   }

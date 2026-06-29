@@ -30,7 +30,6 @@ import { CashFlowScenarios } from "@/components/financeiro/CashFlowScenarios";
 import { InvoicesListPanel } from "@/components/financeiro/InvoicesListPanel";
 import { NeuroNexBankPanel } from "@/components/financeiro/NeuroNexBankPanel";
 import { FinancialStatement } from "@/components/financeiro/FinancialStatement";
-import { SmartSplit } from "@/components/financeiro/SmartSplit";
 import { InvoicesHistoryList } from "@/components/financeiro/invoice/InvoicesHistoryList";
 import { GenerateRPSForm } from "@/components/financeiro/invoice/GenerateRPSForm";
 import { BankTransferView } from "@/components/financeiro/BankTransferView";
@@ -103,9 +102,7 @@ export type FinanceView =
     | "fiscal-dados"
     | "fiscal-nova"
     | "fiscal-lista"
-    | "repasses-convenio"
     | "repasses-profissional"
-    | "repasses-salas"
     | "tarifas";
 
 const SectionHeader = ({
@@ -355,7 +352,7 @@ export function FinancialDashboard({
         case "fiscal-lista":
             return <motion.div {...motionProps} className="px-6 py-6"><SectionHeader icon={FileText} title="Minhas Notas Fiscais" subtitle="Histórico fiscal" onBack={handleGoBack} /><ContentWrapper><InvoicesHistoryList fiscalOnly /></ContentWrapper></motion.div>;
         case "repasses-profissional":
-            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Users} title="Split & Repasses" subtitle="Destino bancário e regras de divisão" onBack={handleGoBack} /><ContentWrapper><BankAccountsView /></ContentWrapper><ContentWrapper><SmartSplit /></ContentWrapper></motion.div>;
+            return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Users} title="Repasses" subtitle="Conta bancária de destino para saques e recebimentos" onBack={handleGoBack} /><ContentWrapper><BankAccountsView /></ContentWrapper></motion.div>;
         case "tarifas":
             return <motion.div {...motionProps} className="space-y-6 px-6 py-6"><SectionHeader icon={Receipt} title="Tarifas" subtitle="Custos e prazos, sem letras miúdas" onBack={handleGoBack} /><NeuroFinanceTariffs /></motion.div>;
         default:

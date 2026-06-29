@@ -200,3 +200,70 @@ O advisor de performance ainda aponta:
 2. Classificar os endpoints publicos remanescentes por segredo/rate-limit e mover para `verify_jwt=true` quando nao forem realmente publicos.
 3. Corrigir advisors restantes: RLS sem policy, policies permissivas, `search_path` mutavel em funcoes nao tratadas e buckets publicos com listagem.
 4. Iniciar a reintegracao visual/funcional do portal paciente desktop sobre o shell atual, usando R2 como fonte de documentos.
+
+## Atualizacao da continuacao - limpeza Plano Clinica e SECURITY DEFINER
+
+### Plano Clinica / split legado
+
+- Removida a opcao ativa `clinic_admin` do cadastro profissional desktop.
+- `signup-start` foi atualizado e redeployado no Supabase Cloud para aceitar apenas:
+  - `individual_professional`;
+  - `psychology_student`.
+- Migration aplicada no Cloud:
+  - `supabase/migrations/20260629062247_remove_clinic_admin_signup_context.sql`.
+- O unico perfil remoto com `professional_context = clinic_admin` foi normalizado para `individual_professional`.
+- O check constraint remoto `profiles_professional_context_check` agora rejeita `clinic_admin`.
+- Confirmado no Cloud:
+  - `profiles_clinic_admin = 0`;
+  - tabelas `organizations`, `organization_members`, `organization_invitations` nao existem no banco remoto atual.
+
+### NeuroFinance split/repasses
+
+- Removido o componente legado `SmartSplit`.
+- Removida a chamada ativa para a tabela inexistente `payment_split_configs`.
+- Confirmado no Cloud que `payment_split_configs` nao existe.
+- A rota interna `repasses-profissional` deixou de exibir regras manuais de split e passou a mostrar apenas conta bancaria/destino de repasse.
+- Removidas do tipo de rota financeiro as entradas sem implementacao ativa:
+  - `repasses-convenio`;
+  - `repasses-salas`.
+
+### SECURITY DEFINER
+
+- Migration aplicada no Cloud:
+  - `supabase/migrations/20260629062925_harden_remaining_security_definer_execute.sql`.
+- `app_core.emit_event(text, jsonb)` deixou de ser executavel por `public`, `anon` e `authenticated`; ficou limitado a `service_role`.
+- `app_core.emit_event` recebeu `search_path = app_core, pg_temp`.
+- Funcoes publicas por token perderam o grant generico `PUBLIC`, mas mantiveram `anon/authenticated` explicitamente porque sao usadas por links publicos:
+  - `get_public_anamnesis`;
+  - `update_public_anamnesis`;
+  - `emit_public_anamnesis_notification`;
+  - `emit_public_appointment_notification`.
+- Confirmado no Cloud que nenhuma funcao `SECURITY DEFINER` restante nessa lista tem `public_execute = true`.
+
+### Verificacoes
+
+- `npx tsc -p tsconfig.app.json --noEmit`: passou.
+- `npm run build`: passou.
+- Busca ativa em `src`, `supabase/functions` e `docs/ARCHITECTURE.md` nao encontrou mais:
+  - `SmartSplit`;
+  - `payment_split_configs`;
+  - `clinic_admin`;
+  - `repasses-convenio`;
+  - `repasses-salas`.
+
+### Observacao de worktree
+
+Durante esta continuacao havia alteracoes paralelas em NeuroView/NeuroFlow e migrations de NeuroFlow. Elas nao foram alteradas nesta limpeza e devem ser tratadas como outra trilha de trabalho.
+
+### Storage publico
+
+- Migration aplicada no Cloud:
+  - `supabase/migrations/20260629063226_harden_public_storage_bucket_listing.sql`.
+- Removidas policies amplas de `SELECT` que permitiam listagem publica dos buckets:
+  - `avatars`;
+  - `chat_attachments`;
+  - `downloads`.
+- `chat_attachments` foi marcado como privado (`public = false`) e ficou sem policies de acesso para novos uploads/listagens.
+- `avatars` continua publico para URLs de avatar, mas sem policy ampla de listagem.
+- `downloads` continua publico para arquivos publicos do app, mas o upload agora usa policy explicita `to authenticated`, sem `auth.role()`.
+- Busca ativa nao encontrou uso de `chat_attachments` no frontend/functions; anexos novos seguem o caminho R2.

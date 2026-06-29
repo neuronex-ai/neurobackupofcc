@@ -12,7 +12,6 @@ import { toast } from "sonner";
 
 export type ProfessionalContext =
   | "individual_professional"
-  | "clinic_admin"
   | "psychology_student";
 
 export type GenderIdentity =

@@ -15,29 +15,43 @@ create index if not exists neuro_flows_user_patient_idx
   on public.neuro_flows(user_id, patient_id)
   where patient_id is not null;
 
+update public.neuro_flows
+set
+  tags = coalesce(tags, '{}'::text[]),
+  is_template = coalesce(is_template, false);
+
+alter table public.neuro_flows
+  alter column tags set default '{}'::text[],
+  alter column tags set not null,
+  alter column is_template set default false,
+  alter column is_template set not null;
+
+create table if not exists public.neuro_pulse_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text,
+  data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 do $$
 begin
   if to_regclass('public.flow_nodes') is not null
     and to_regclass('public.flow_edges') is not null
-    and exists (
-      select 1
-      from information_schema.columns
-      where table_schema = 'public'
-        and table_name = 'neuro_flows'
-        and column_name in ('nodes', 'edges', 'viewport')
-    )
   then
     execute $sql$
       with flow_table_nodes as (
         select
           fn.flow_id,
           jsonb_agg(
-            jsonb_build_object(
+            jsonb_strip_nulls(jsonb_build_object(
               'id', fn.id,
               'type', coalesce(fn.type, 'item'),
               'position', jsonb_build_object('x', fn.x, 'y', fn.y),
+              'width', fn.width,
+              'height', fn.height,
               'data', coalesce(fn.content, '{}'::jsonb) || jsonb_build_object('label', coalesce(fn.label, fn.content->>'label', 'Sem titulo'))
-            )
+            ))
             order by fn.created_at, fn.id
           ) as nodes
         from public.flow_nodes fn
@@ -51,11 +65,10 @@ begin
               'id', fe.id,
               'source', fe.source_id,
               'target', fe.target_id,
-              'sourceHandle', fe.source_handle,
-              'targetHandle', fe.target_handle,
               'type', coalesce(fe.type, 'neural'),
+              'label', fe.label,
               'animated', true,
-              'data', '{}'::jsonb
+              'data', jsonb_strip_nulls(jsonb_build_object('relation', fe.label))
             ))
             order by fe.created_at, fe.id
           ) as edges
@@ -66,15 +79,9 @@ begin
       set
         workflow = jsonb_build_object(
           'schema', 'neuroflow.workflow.v2',
-          'nodes', case
-            when jsonb_array_length(coalesce(ftn.nodes, '[]'::jsonb)) > 0 then coalesce(ftn.nodes, '[]'::jsonb)
-            else coalesce(nf.nodes, '[]'::jsonb)
-          end,
-          'edges', case
-            when jsonb_array_length(coalesce(fte.edges, '[]'::jsonb)) > 0 then coalesce(fte.edges, '[]'::jsonb)
-            else coalesce(nf.edges, '[]'::jsonb)
-          end,
-          'viewport', coalesce(nf.viewport, '{}'::jsonb),
+          'nodes', coalesce(ftn.nodes, '[]'::jsonb),
+          'edges', coalesce(fte.edges, '[]'::jsonb),
+          'viewport', '{}'::jsonb,
           'metadata', jsonb_strip_nulls(jsonb_build_object(
             'title', nf.title,
             'patientId', nf.patient_id,
@@ -165,6 +172,35 @@ create policy "Users can delete own flows"
   using ((select auth.uid()) = user_id);
 
 grant select, insert, update, delete on public.neuro_flows to authenticated;
+
+alter table public.neuro_pulse_entries enable row level security;
+
+drop policy if exists "Users can view own pulse entries" on public.neuro_pulse_entries;
+create policy "Users can view own pulse entries"
+  on public.neuro_pulse_entries for select
+  to authenticated
+  using ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can insert own pulse entries" on public.neuro_pulse_entries;
+create policy "Users can insert own pulse entries"
+  on public.neuro_pulse_entries for insert
+  to authenticated
+  with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can update own pulse entries" on public.neuro_pulse_entries;
+create policy "Users can update own pulse entries"
+  on public.neuro_pulse_entries for update
+  to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can delete own pulse entries" on public.neuro_pulse_entries;
+create policy "Users can delete own pulse entries"
+  on public.neuro_pulse_entries for delete
+  to authenticated
+  using ((select auth.uid()) = user_id);
+
+grant select, insert, update, delete on public.neuro_pulse_entries to authenticated;
 
 create or replace function public.save_neuroflow_workflow(
   p_flow_id uuid,

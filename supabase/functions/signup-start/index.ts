@@ -14,7 +14,6 @@ import {
 
 const PROFESSIONAL_CONTEXTS = new Set([
   "individual_professional",
-  "clinic_admin",
   "psychology_student",
 ]);
 

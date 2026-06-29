@@ -56,9 +56,7 @@ const FINANCE_ROUTE_LABELS: Partial<Record<FinanceView, { groupLabel: string; vi
   "fiscal-dados": { groupLabel: "NeuroFinance", viewLabel: "Dados fiscais" },
   "fiscal-nova": { groupLabel: "NeuroFinance", viewLabel: "Emitir nova nota fiscal" },
   "fiscal-lista": { groupLabel: "NeuroFinance", viewLabel: "Minhas notas fiscais" },
-  "repasses-convenio": { groupLabel: "NeuroFinance", viewLabel: "Convênios" },
-  "repasses-profissional": { groupLabel: "NeuroFinance", viewLabel: "Profissionais" },
-  "repasses-salas": { groupLabel: "NeuroFinance", viewLabel: "Salas" },
+  "repasses-profissional": { groupLabel: "NeuroFinance", viewLabel: "Repasses" },
   "tarifas": { groupLabel: "NeuroFinance", viewLabel: "Custos e prazos" },
 };
 

@@ -270,8 +270,8 @@ export const NeuroView = () => {
             const lerpFactor = 0.15;
 
             graphData.nodes.forEach((n) => {
-                const baseRadius = n.type === 'patient' ? 6 : (n.type === 'note' ? 4.2 : 2.8);
-                const baseGlow = n.type === 'patient' ? 26 : (n.type === 'note' ? 18 : 12);
+                const baseRadius = n.type === 'patient' ? 6 : (n.type === 'flow' ? 5.2 : (n.type === 'note' ? 4.2 : 2.8));
+                const baseGlow = n.type === 'patient' ? 26 : (n.type === 'flow' ? 22 : (n.type === 'note' ? 18 : 12));
 
                 // Determine targets based on hover state
                 let targetRadius = baseRadius;
@@ -323,6 +323,12 @@ export const NeuroView = () => {
         } else if (node.type === 'note') {
             setSelectedNote(node.data);
             setSelectedPatient(null);
+        } else if (node.type === 'flow') {
+            setSelectedNote(null);
+            setSelectedPatient(null);
+            window.dispatchEvent(new CustomEvent("neuroflow:navigate", {
+                detail: { flowId: node.data?.id },
+            }));
         }
     }, []);
 
@@ -375,8 +381,8 @@ export const NeuroView = () => {
 
         // 1. Reset all to zero/hidden state
         graphData.nodes.forEach((n) => {
-            const baseRadius = n.type === 'patient' ? 6 : (n.type === 'note' ? 4.2 : 2.8);
-            const baseGlow = n.type === 'patient' ? 26 : (n.type === 'note' ? 18 : 12);
+            const baseRadius = n.type === 'patient' ? 6 : (n.type === 'flow' ? 5.2 : (n.type === 'note' ? 4.2 : 2.8));
+            const baseGlow = n.type === 'patient' ? 26 : (n.type === 'flow' ? 22 : (n.type === 'note' ? 18 : 12));
 
             n.currentRadius = 0;
             n.currentGlow = 0;
@@ -397,8 +403,8 @@ export const NeuroView = () => {
 
         graphData.nodes.forEach((n, index) => {
             const delay = delays.get(n.id) ?? (index * 70);
-            const baseRadius = n.type === 'patient' ? 6 : (n.type === 'note' ? 4.2 : 2.8);
-            const baseGlow = n.type === 'patient' ? 26 : (n.type === 'note' ? 18 : 12);
+            const baseRadius = n.type === 'patient' ? 6 : (n.type === 'flow' ? 5.2 : (n.type === 'note' ? 4.2 : 2.8));
+            const baseGlow = n.type === 'patient' ? 26 : (n.type === 'flow' ? 22 : (n.type === 'note' ? 18 : 12));
 
             const timeout = setTimeout(() => {
                 const angle = ((n.pulseSeed || index * 97) % 360) * (Math.PI / 180);
@@ -459,6 +465,7 @@ export const NeuroView = () => {
                     .strength((node: any) => {
                         if (node.type === "patient") return config.repulsion * 1.05;
                         if (node.type === "tag") return config.repulsion * 0.42;
+                        if (node.type === "flow") return config.repulsion * 0.9;
                         return config.repulsion * 0.82;
                     })
                     .distanceMin(18)
@@ -478,13 +485,14 @@ export const NeuroView = () => {
             fg.d3Force('y', forceY(0).strength(config.centerForce * 0.22));
             fg.d3Force('radial', forceRadial((node: any) => {
                 if (node.type === "patient") return 72;
+                if (node.type === "flow") return 132;
                 if (node.type === "note") return 165;
                 return 240;
             }).strength(config.centerForce * 0.055));
 
             // Collision to prevent overlap
             fg.d3Force('collide', forceCollide((node: any) => {
-                const radius = node.type === 'patient' ? 15 : (node.type === 'note' ? 10 : 7);
+                const radius = node.type === 'patient' ? 15 : (node.type === 'flow' ? 12 : (node.type === 'note' ? 10 : 7));
                 return radius + Math.max(0, node.currentRadius || 0);
             }).strength(0.66).iterations(2));
 

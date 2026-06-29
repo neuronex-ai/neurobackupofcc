@@ -61,7 +61,6 @@ const fadeSlide: Variants = {
 
 const contextOptions: Array<{ value: ProfessionalContext; label: string; description: string }> = [
   { value: "individual_professional", label: "Sou profissional individual", description: "Atendo com agenda e pacientes próprios." },
-  { value: "clinic_admin", label: "Sou administrador(a) de clínica", description: "Cuido da operação de uma equipe clínica." },
   { value: "psychology_student", label: "Sou estudante de psicologia", description: "Quero organizar estudos, prática e evolução." },
 ];
 
