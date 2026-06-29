@@ -619,7 +619,7 @@ export const MobileNeuroView = ({ onBack }: MobileNeuroViewProps) => {
               dragTransition={{ bounceStiffness: 300, bounceDamping: 30 }}
               onDragEnd={handleSheetDragEnd}
               style={{ y: sheetY, height: sheetHeightVh }}
-              className="fixed bottom-0 left-0 right-0 z-[120] bg-background rounded-t-[28px] shadow-[0_-8px_40px_rgba(0,0,0,0.3)] flex flex-col will-change-transform overflow-hidden transition-[height] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+              className="fixed bottom-0 left-0 right-0 z-[120] bg-background rounded-t-[28px] shadow-[0_-8px_40px_rgba(0,0,0,0.3)] flex flex-col will-change-transform overflow-hidden transition-[height] duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]"
             >
               {/* Handle */}
               <div className="flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing touch-none select-none">

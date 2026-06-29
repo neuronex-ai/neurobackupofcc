@@ -62,7 +62,7 @@ export const LocationBreadcrumb = () => {
   return (
     <div
       className={cn(
-        "fixed top-6 left-6 z-[40] hidden xl:flex items-center transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+        "fixed top-6 left-6 z-[40] hidden xl:flex items-center transition-all duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]",
         isHidden ? "-translate-y-[200%] opacity-0 filter blur-md" : "translate-y-0 opacity-100 blur-0"
       )}
     >

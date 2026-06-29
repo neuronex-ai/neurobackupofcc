@@ -744,7 +744,7 @@ export const MobileAgenda = () => {
                   y: sheetY,
                   height: sheetHeightVh,
                 }}
-                className="fixed bottom-0 left-0 right-0 z-[80] bg-background rounded-t-[28px] shadow-[0_-8px_40px_rgba(0,0,0,0.25)] flex flex-col will-change-transform overflow-hidden transition-[height] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                className="fixed bottom-0 left-0 right-0 z-[80] bg-background rounded-t-[28px] shadow-[0_-8px_40px_rgba(0,0,0,0.25)] flex flex-col will-change-transform overflow-hidden transition-[height] duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]"
               >
                 {/* Drag Handle Area €” generous touch target */}
                 <div

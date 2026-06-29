@@ -363,7 +363,7 @@ export const NeuroSystemsVisual = () => {
 
                             {/* Connecting Lines Glow (Pseudo) */}
                             {node.type === "patient" && (
-                                <div className="absolute -inset-4 border border-foreground/5 rounded-full animate-ping opacity-20 duration-[3s]" />
+                                <div className="absolute -inset-4 border border-foreground/5 rounded-full animate-ping opacity-20 duration-[3000ms]" />
                             )}
                         </motion.div>
                     ))}

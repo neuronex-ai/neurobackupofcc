@@ -290,7 +290,7 @@ export const TaskBoard = ({
                 ref={setNodeRef}
                 style={{ ...style, width: 320, flexShrink: 0 }}
                 className={cn(
-                    "flex flex-col rounded-[32px] p-2 self-stretch transition-all duration-700 ease-[cubic-bezier(0.2,0,0,1)] relative group/column",
+                    "flex flex-col rounded-[32px] p-2 self-stretch transition-all duration-700 [transition-timing-function:cubic-bezier(0.2,0,0,1)] relative group/column",
                     isTarget
                         ? "bg-white/40 dark:bg-white/[0.02] ring-1 ring-zinc-200/50 dark:ring-white/10"
                         : "bg-transparent hover:bg-zinc-50/20 dark:hover:bg-white/[0.005]"

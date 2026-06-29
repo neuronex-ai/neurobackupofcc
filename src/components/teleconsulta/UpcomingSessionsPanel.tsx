@@ -179,7 +179,7 @@ export const UpcomingSessionsPanel = ({
                                         key={session.id}
                                         onClick={() => setSelectedSession(session)}
                                         className={cn(
-                                            "group p-4 rounded-[24px] border flex items-center justify-between transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer relative overflow-hidden",
+                                            "group p-4 rounded-[24px] border flex items-center justify-between transition-all duration-500 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] cursor-pointer relative overflow-hidden",
                                             selectedSession?.id === session.id
                                                 ? "bg-black/5 dark:bg-white/10 border-black/10 dark:border-white/20 opacity-100 scale-[1.02] shadow-lg"
                                                 : "bg-white/20 dark:bg-[#050505]/20 border-white/10 dark:border-white/5 opacity-60 hover:opacity-100 hover:bg-white/40 dark:hover:bg-[#050505]/40 hover:border-white/20 dark:hover:border-white/10 hover:scale-[1.01] shadow-[0_4px_16px_0_rgba(0,0,0,0.02)]"

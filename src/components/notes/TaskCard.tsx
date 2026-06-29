@@ -42,7 +42,7 @@ export const TaskCard = ({ task, onToggle, onDelete, onUpdate, isKanban = false,
     const cardContent = (
         <div
             className={cn(
-                "rounded-[28px] border group relative transition-all duration-700 ease-[cubic-bezier(0.2,0,0,1)]",
+                "rounded-[28px] border group relative transition-all duration-700 [transition-timing-function:cubic-bezier(0.2,0,0,1)]",
                 // Base state
                 "bg-white/80 dark:bg-white/[0.03] backdrop-blur-xl border-zinc-200/50 dark:border-white/[0.08]",
                 "shadow-[0_8px_20px_-6px_rgba(0,0,0,0.02)] dark:shadow-none",

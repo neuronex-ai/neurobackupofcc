@@ -119,7 +119,7 @@ export const TaskDetailModal = ({
                                 </div>
                                 <div className="flex gap-2">
                                     <Button size="icon" variant="ghost" onClick={() => setIsEditing(!isEditing)} className={cn(
-                                        "rounded-[20px] border h-14 w-14 shadow-sm transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                                        "rounded-[20px] border h-14 w-14 shadow-sm transition-all duration-700 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]",
                                         isEditing
                                             ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-white scale-105 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.3)]"
                                             : "bg-zinc-50 dark:bg-white/5 border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-white/10 hover:scale-105"
@@ -136,7 +136,7 @@ export const TaskDetailModal = ({
                                     <button
                                         onClick={handleToggle}
                                         className={cn(
-                                            "w-16 h-16 rounded-[24px] flex items-center justify-center shadow-[0_24px_48px_-12px_rgba(0,0,0,0.25)] transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0",
+                                            "w-16 h-16 rounded-[24px] flex items-center justify-center shadow-[0_24px_48px_-12px_rgba(0,0,0,0.25)] transition-all duration-700 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] shrink-0",
                                             task.is_completed
                                                 ? "bg-zinc-100 dark:bg-zinc-800/80 text-zinc-400 dark:text-zinc-500 scale-95 opacity-60"
                                                 : "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:scale-110 hover:rotate-6 active:scale-90"
