@@ -69,7 +69,7 @@ import {
   UserRound,
   Video,
 } from "lucide-react";
-import { motion, useMotionTemplate, useMotionValue, useSpring } from "framer-motion";
+import { motion } from "framer-motion";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -259,6 +259,25 @@ const LockedPortalState = ({
 );
 
 const getFirstName = (name: string) => name.trim().split(/\s+/)[0] || name;
+const splitPatientName = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || "",
+    lastName: parts.slice(1).join(" "),
+  };
+};
+
+const genderOptions = [
+  { value: "", label: "Prefiro não informar" },
+  { value: "female", label: "Feminino" },
+  { value: "male", label: "Masculino" },
+  { value: "non_binary", label: "Não binário" },
+  { value: "agender", label: "Agênero" },
+  { value: "gender_fluid", label: "Gênero fluido" },
+  { value: "transgender", label: "Transgênero" },
+  { value: "prefer_not_to_say", label: "Prefiro não dizer" },
+  { value: "other", label: "Outro" },
+];
 
 const PortalModuleRail = ({
   activeView,
@@ -294,30 +313,6 @@ const PortalModuleRail = ({
       })}
     </div>
   </DesktopWorkspacePanel>
-);
-
-const PortalHeroStat = ({
-  label,
-  value,
-  detail,
-  tone = "default",
-}: {
-  label: string;
-  value: string | number;
-  detail?: string;
-  tone?: "default" | "success" | "warning";
-}) => (
-  <div
-    className={cn(
-      "rounded-[22px] border border-background/18 bg-background/[0.08] p-4 shadow-sm dark:border-zinc-950/12 dark:bg-zinc-950/[0.05]",
-      tone === "success" && "border-emerald-400/28 bg-emerald-400/[0.10] dark:border-emerald-700/20 dark:bg-emerald-700/[0.08]",
-      tone === "warning" && "border-amber-400/32 bg-amber-400/[0.12] dark:border-amber-700/22 dark:bg-amber-700/[0.08]",
-    )}
-  >
-    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-background/58 dark:text-zinc-950/55">{label}</p>
-    <p className="mt-2 truncate text-2xl font-black leading-none tracking-tight text-background tabular-nums dark:text-zinc-950">{value}</p>
-    {detail ? <p className="mt-2 line-clamp-2 text-xs font-medium leading-relaxed text-background/62 dark:text-zinc-950/62">{detail}</p> : null}
-  </div>
 );
 
 const PortalHero = ({
@@ -551,6 +546,93 @@ const AppointmentCard = ({ appointment }: { appointment: PatientPortalAppointmen
   );
 };
 
+const PatientMiniCalendar = ({ appointments }: { appointments: PatientPortalAppointment[] }) => {
+  const [monthDate, setMonthDate] = useState(new Date());
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const monthStart = new Date(year, month, 1);
+  const offset = (monthStart.getDay() + 6) % 7;
+  const gridStart = new Date(year, month, 1 - offset);
+  const days = Array.from({ length: 42 }, (_, index) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index));
+  const appointmentsByDay = appointments.reduce<Record<string, PatientPortalAppointment[]>>((result, appointment) => {
+    const key = new Date(appointment.start_time).toDateString();
+    result[key] = [...(result[key] || []), appointment];
+    return result;
+  }, {});
+
+  return (
+    <Panel className="overflow-hidden p-0">
+      <div className="flex items-center justify-between border-b border-border/60 p-4">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.16em] text-muted-foreground">Calendário</p>
+          <p className="mt-1 text-xl font-black capitalize tracking-tight text-foreground">
+            {monthOnly.format(monthDate)} {year}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-10 w-10 rounded-2xl"
+            aria-label="Mês anterior"
+            onClick={() => setMonthDate(new Date(year, month - 1, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-10 w-10 rounded-2xl"
+            aria-label="Próximo mês"
+            onClick={() => setMonthDate(new Date(year, month + 1, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 gap-px bg-border/50 p-px">
+        {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((day) => (
+          <div key={day} className="bg-card px-2 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">
+            {day}
+          </div>
+        ))}
+        {days.map((day) => {
+          const key = day.toDateString();
+          const dayAppointments = appointmentsByDay[key] || [];
+          const isCurrentMonth = day.getMonth() === month;
+          const isToday = key === new Date().toDateString();
+          return (
+            <div
+              key={key}
+              className={cn(
+                "min-h-[86px] bg-card p-2 transition-colors",
+                !isCurrentMonth && "bg-muted/35 text-muted-foreground/50",
+                isToday && "bg-foreground/[0.035] dark:bg-white/[0.045]",
+              )}
+            >
+              <div className={cn("flex h-7 w-7 items-center justify-center rounded-full text-xs font-black", isToday && "bg-foreground text-background dark:bg-white dark:text-zinc-950")}>
+                {day.getDate()}
+              </div>
+              <div className="mt-2 space-y-1">
+                {dayAppointments.slice(0, 2).map((appointment) => (
+                  <div key={appointment.id} className="truncate rounded-full border border-border/70 bg-background/70 px-2 py-1 text-[10px] font-semibold text-muted-foreground">
+                    {dateTime.format(new Date(appointment.start_time)).slice(-5)} {appointment.type === "online" ? "Online" : "Presencial"}
+                  </div>
+                ))}
+                {dayAppointments.length > 2 && (
+                  <p className="px-1 text-[10px] font-semibold text-muted-foreground">+{dayAppointments.length - 2}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+};
+
 const AppointmentsView = ({ appointments }: { appointments?: PatientPortalAppointment[] }) => {
   const rows = appointments || [];
   const upcoming = rows.filter((appointment) => new Date(appointment.start_time).getTime() >= Date.now());
@@ -560,19 +642,20 @@ const AppointmentsView = ({ appointments }: { appointments?: PatientPortalAppoin
     <div className="space-y-6">
       <SectionHeader
         title="Agenda compartilhada"
-        description="Consultas confirmadas e pedidos enviados por você ficam agrupados aqui."
+        description="Uma visão do calendário compartilhado com você. Pedidos enviados ficam pendentes até confirmação profissional."
         action={<AppointmentRequestDialog />}
       />
+      <PatientMiniCalendar appointments={rows} />
       {rows.length ? (
         <>
-          <div className="space-y-3">
+          <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1 custom-scrollbar">
             <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Próximas consultas</p>
             {upcoming.length ? upcoming.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} />) : (
               <EmptyState icon={CalendarDays} title="Nenhuma consulta futura" description="Solicite um horário para o profissional confirmar." />
             )}
           </div>
           {past.length > 0 && (
-            <div className="space-y-3">
+            <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1 custom-scrollbar">
               <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Histórico de consultas</p>
               {past.slice(0, 10).map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} />)}
             </div>
@@ -585,18 +668,51 @@ const AppointmentsView = ({ appointments }: { appointments?: PatientPortalAppoin
   );
 };
 
-const DocumentsView = ({ documents }: { documents?: PatientPortalDocument[] }) => {
+type NeuroDriveTab = "documentos" | "anamneses" | "neuroview" | "notas" | "tarefas" | "notion";
+
+const PreparedPortalSpace = ({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof Home;
+  title: string;
+  description: string;
+}) => (
+  <Panel className="min-h-[320px]">
+    <div className="flex h-full flex-col items-center justify-center text-center">
+      <div className="dashboard-soft-fill flex h-16 w-16 items-center justify-center rounded-[24px] text-muted-foreground">
+        <Icon className="h-7 w-7" />
+      </div>
+      <h3 className="mt-6 text-2xl font-black tracking-tight text-foreground">{title}</h3>
+      <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+    </div>
+  </Panel>
+);
+
+const DocumentsView = ({
+  documents,
+  anamneses,
+  tab,
+  onTabChange,
+}: {
+  documents?: PatientPortalDocument[];
+  anamneses?: PatientPortalAnamnesis[];
+  tab: NeuroDriveTab;
+  onTabChange: (tab: NeuroDriveTab) => void;
+}) => {
   const rows = documents || [];
+  const anamnesisRows = anamneses || [];
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="NeuroDrive" description="Documentos compartilhados e espaços preparados para leitura, notas e tarefas." />
+      <SectionHeader title="NeuroDrive" description="Documentos compartilhados, anamneses e espaços preparados para seu acervo pessoal." />
       <div className="grid gap-3 md:grid-cols-4">
         {[
           { title: "Arquivos", value: String(rows.length), icon: FileText },
+          { title: "Anamneses", value: String(anamnesisRows.length), icon: ClipboardList },
           { title: "NeuroView", value: "Em breve", icon: BrainCircuit },
-          { title: "Notas", value: "Preparado", icon: ClipboardList },
-          { title: "Tarefas + Notion", value: "Próximo", icon: Target },
+          { title: "Notas + Notion", value: "Preparado", icon: Sparkles },
         ].map((item) => (
           <Panel key={item.title} className="min-h-[126px]">
             <div className="flex items-start justify-between gap-3">
@@ -611,42 +727,70 @@ const DocumentsView = ({ documents }: { documents?: PatientPortalDocument[] }) =
           </Panel>
         ))}
       </div>
-      {rows.length ? (
-        <div className="space-y-3">
-          <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
-            {rows.length} arquivo{rows.length === 1 ? "" : "s"} disponível{rows.length === 1 ? "" : "is"}
-          </p>
-          {rows.map((document) => (
-            <article key={document.id} className="rounded-[24px] border border-border/60 bg-card/82 p-4 shadow-sm transition-colors hover:border-foreground/15">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex min-w-0 items-center gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
-                    <FileText className="h-5 w-5" />
+
+      <Tabs value={tab} onValueChange={(value) => onTabChange(value as NeuroDriveTab)}>
+        <TabsList className="h-auto max-w-full flex-wrap justify-start rounded-[22px] p-1.5">
+          <TabsTrigger value="documentos" className="rounded-2xl">Documentos</TabsTrigger>
+          <TabsTrigger value="anamneses" className="rounded-2xl">Anamneses</TabsTrigger>
+          <TabsTrigger value="neuroview" className="rounded-2xl">NeuroView</TabsTrigger>
+          <TabsTrigger value="notas" className="rounded-2xl">Notas</TabsTrigger>
+          <TabsTrigger value="tarefas" className="rounded-2xl">Tarefas</TabsTrigger>
+          <TabsTrigger value="notion" className="rounded-2xl">Notion</TabsTrigger>
+        </TabsList>
+        <TabsContent value="documentos" className="space-y-3">
+          {rows.length ? (
+            <>
+              <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                {rows.length} arquivo{rows.length === 1 ? "" : "s"} disponível{rows.length === 1 ? "" : "is"}
+              </p>
+              {rows.map((document) => (
+                <article key={document.id} className="rounded-[24px] border border-border/60 bg-card/82 p-4 shadow-sm transition-colors hover:border-foreground/15">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-foreground">{document.name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {fileSize(document.sizeBytes)} {document.sharedAt ? `- ${dateOnly.format(new Date(document.sharedAt))}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      disabled={!document.signedUrl}
+                      size="icon"
+                      variant="outline"
+                      className="h-10 w-10 shrink-0 rounded-xl"
+                      onClick={() => document.signedUrl && window.open(document.signedUrl, "_blank", "noopener,noreferrer")}
+                      aria-label={`Abrir ${document.name}`}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-semibold text-foreground">{document.name}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {fileSize(document.sizeBytes)} {document.sharedAt ? `- ${dateOnly.format(new Date(document.sharedAt))}` : ""}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  disabled={!document.signedUrl}
-                  size="icon"
-                  variant="outline"
-                  className="h-10 w-10 shrink-0 rounded-xl"
-                  onClick={() => document.signedUrl && window.open(document.signedUrl, "_blank", "noopener,noreferrer")}
-                  aria-label={`Abrir ${document.name}`}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-              </div>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <EmptyState title="Nenhum documento compartilhado" description="Apenas arquivos liberados pelo profissional aparecem aqui, com links R2 temporários." />
-      )}
+                </article>
+              ))}
+            </>
+          ) : (
+            <EmptyState title="Nenhum documento compartilhado" description="Apenas arquivos liberados pelo profissional aparecem aqui, com links R2 temporários." />
+          )}
+        </TabsContent>
+        <TabsContent value="anamneses">
+          <AnamnesisView anamneses={anamnesisRows} />
+        </TabsContent>
+        <TabsContent value="neuroview">
+          <PreparedPortalSpace icon={BrainCircuit} title="NeuroView do paciente" description="Aqui ficará sua visão pessoal de documentos, registros e conexões importantes. Conteúdo clínico privado do profissional não aparece neste espaço." />
+        </TabsContent>
+        <TabsContent value="notas">
+          <PreparedPortalSpace icon={ClipboardList} title="Notas pessoais" description="Área preparada para você criar registros próprios dentro do portal. A escrita persistente será ligada por um contrato seguro separado." />
+        </TabsContent>
+        <TabsContent value="tarefas">
+          <PreparedPortalSpace icon={Target} title="Tarefas" description="Espaço reservado para tarefas pessoais e acompanhamentos leves, separado das missões compartilhadas pelo profissional." />
+        </TabsContent>
+        <TabsContent value="notion">
+          <PreparedPortalSpace icon={Sparkles} title="Importação Notion" description="A integração será ativada apenas quando estiver isolada para o usuário-paciente, sem misturar notas profissionais ou dados clínicos privados." />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
@@ -1037,9 +1181,16 @@ const AnamnesisView = ({ anamneses }: { anamneses?: PatientPortalAnamnesis[] }) 
   );
 };
 
+type ProgressTab = "visao" | "missoes" | "feed";
+
 const ProgressView = ({
   progress,
   goals,
+  historyItems,
+  patientName,
+  professionalName,
+  tab,
+  onTabChange,
 }: {
   progress?: {
     attendedSessions: number;
@@ -1053,6 +1204,11 @@ const ProgressView = ({
     nextSteps: PatientPortalGoal[];
   };
   goals?: PatientPortalGoal[];
+  historyItems?: PatientPortalHistoryItem[];
+  patientName: string;
+  professionalName: string;
+  tab: ProgressTab;
+  onTabChange: (tab: ProgressTab) => void;
 }) => {
   const lastMood = progress?.lastMood;
   const moodMeta = moodOptions.find((option) => option.score === lastMood?.mood_score);
@@ -1061,47 +1217,63 @@ const ProgressView = ({
 
   return (
     <div className="space-y-5">
+      <SectionHeader title="Progresso" description="Visão geral, missões e feed do seu processo em um só lugar." />
       <div className="grid gap-3 md:grid-cols-4">
         <MetricCard title="Sessões registradas" value={`${progress?.attendedSessions || 0}/${progress?.sessionsTotal || 0}`} icon={CalendarDays} />
         <MetricCard title="Missões concluídas" value={`${progress?.completedGoals || 0}/${progress?.goalsTotal || 0}`} icon={Target} tone={(progress?.completedGoals || 0) ? "success" : "default"} />
         <MetricCard title="Documentos" value={String(progress?.sharedDocuments || 0)} icon={FileText} tone="info" />
         <MetricCard title="Pacotes em uso" value={String(progress?.activePackages || 0)} icon={Package} />
       </div>
-      <Panel>
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
-            <BrainCircuit className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold text-foreground">Direção atual</p>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Este painel usa apenas sinais compartilhados: agenda, missões, humor, documentos e pacotes. Notas clínicas privadas não aparecem aqui.
-            </p>
-            <div className="mt-4 grid gap-2">
-              {openGoals.length ? openGoals.map((goal) => (
-                <div key={goal.id} className="rounded-2xl border border-border bg-background/70 p-3 text-sm text-muted-foreground">
-                  {goal.description}
+      <Tabs value={tab} onValueChange={(value) => onTabChange(value as ProgressTab)}>
+        <TabsList className="h-auto flex-wrap justify-start rounded-[22px] p-1.5">
+          <TabsTrigger value="visao" className="rounded-2xl">Visão geral</TabsTrigger>
+          <TabsTrigger value="missoes" className="rounded-2xl">Missões</TabsTrigger>
+          <TabsTrigger value="feed" className="rounded-2xl">Feed</TabsTrigger>
+        </TabsList>
+        <TabsContent value="visao" className="space-y-5">
+          <Panel>
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
+                <BrainCircuit className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold text-foreground">Direção atual</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  Este painel usa apenas sinais compartilhados: agenda, missões, humor, documentos e pacotes. Notas clínicas privadas não aparecem aqui.
+                </p>
+                <div className="mt-4 grid gap-2">
+                  {openGoals.length ? openGoals.map((goal) => (
+                    <div key={goal.id} className="rounded-2xl border border-border bg-background/70 p-3 text-sm text-muted-foreground">
+                      {goal.description}
+                    </div>
+                  )) : <p className="text-sm text-muted-foreground">Nenhuma missão aberta no momento.</p>}
                 </div>
-              )) : <p className="text-sm text-muted-foreground">Nenhuma meta aberta no momento.</p>}
+              </div>
             </div>
-          </div>
-        </div>
-      </Panel>
-      <Panel>
-        <div className="flex items-start gap-4">
-          <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border", moodMeta?.tone || "border-border bg-background text-muted-foreground")}>
-            <MoodIcon className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-base font-semibold text-foreground">Registro emocional recente</p>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {lastMood
-                ? `${moodMeta?.label || "Registro"} em ${dateTime.format(new Date(lastMood.created_at))}${lastMood.notes ? `: ${lastMood.notes}` : "."}`
-                : "Nenhum diário preenchido ainda."}
-            </p>
-          </div>
-        </div>
-      </Panel>
+          </Panel>
+          <Panel>
+            <div className="flex items-start gap-4">
+              <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border", moodMeta?.tone || "border-border bg-background text-muted-foreground")}>
+                <MoodIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-foreground">Registro emocional recente</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {lastMood
+                    ? `${moodMeta?.label || "Registro"} em ${dateTime.format(new Date(lastMood.created_at))}${lastMood.notes ? `: ${lastMood.notes}` : "."}`
+                    : "Nenhum diário preenchido ainda."}
+                </p>
+              </div>
+            </div>
+          </Panel>
+        </TabsContent>
+        <TabsContent value="missoes">
+          <GoalsView goals={goals} />
+        </TabsContent>
+        <TabsContent value="feed">
+          <HistoryView items={historyItems} patientName={patientName} professionalName={professionalName} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
@@ -1268,38 +1440,132 @@ const DiaryView = ({ mood }: { mood: ReturnType<typeof usePatientPortalMood> }) 
 const ProfileView = ({
   patientName,
   patientEmail,
+  patientAvatarUrl,
+  patientGenderIdentity,
   professionalName,
   onSignOut,
   loggingOut,
 }: {
   patientName: string;
   patientEmail?: string | null;
+  patientAvatarUrl?: string | null;
+  patientGenderIdentity?: string | null;
   professionalName: string;
   onSignOut: () => void;
   loggingOut: boolean;
-}) => (
-  <div className="space-y-4">
-    <Panel>
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
-          <UserRound className="h-5 w-5" />
+}) => {
+  const initialName = useMemo(() => splitPatientName(patientName), [patientName]);
+  const [firstName, setFirstName] = useState(initialName.firstName);
+  const [lastName, setLastName] = useState(initialName.lastName);
+  const [genderIdentity, setGenderIdentity] = useState(patientGenderIdentity || "");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const updateProfile = useUpdatePatientPortalProfile();
+
+  useEffect(() => {
+    setFirstName(initialName.firstName);
+    setLastName(initialName.lastName);
+  }, [initialName.firstName, initialName.lastName]);
+
+  useEffect(() => {
+    setGenderIdentity(patientGenderIdentity || "");
+  }, [patientGenderIdentity]);
+
+  const previewUrl = avatarFile ? URL.createObjectURL(avatarFile) : patientAvatarUrl || "";
+
+  useEffect(() => {
+    if (!avatarFile || !previewUrl) return;
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [avatarFile, previewUrl]);
+
+  const save = () => {
+    updateProfile.mutate(
+      {
+        firstName,
+        lastName,
+        genderIdentity: genderIdentity || null,
+        avatarFile,
+      },
+      {
+        onSuccess: () => {
+          setAvatarFile(null);
+          toast.success("Perfil atualizado.");
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Não foi possível atualizar seu perfil."),
+      },
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <Panel>
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="flex items-center gap-4 lg:w-[320px]">
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[26px] border border-border bg-background text-muted-foreground">
+              {previewUrl ? (
+                <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <UserRound className="h-7 w-7" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-lg font-semibold text-foreground">{patientName}</p>
+              <p className="mt-1 truncate text-sm text-muted-foreground">{patientEmail || "E-mail não informado"}</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => setAvatarFile(event.target.files?.[0] || null)}
+              />
+              <Button type="button" variant="outline" size="sm" className="mt-3 rounded-2xl" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" />
+                Foto
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Nome</span>
+              <Input value={firstName} onChange={(event) => setFirstName(event.target.value)} maxLength={80} />
+            </label>
+            <label className="space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Sobrenome</span>
+              <Input value={lastName} onChange={(event) => setLastName(event.target.value)} maxLength={120} />
+            </label>
+            <label className="space-y-2 sm:col-span-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Gênero</span>
+              <select
+                value={genderIdentity}
+                onChange={(event) => setGenderIdentity(event.target.value)}
+                className="flex h-11 w-full rounded-xl border border-border/30 bg-background/50 px-4 py-2 text-sm shadow-sm outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                {genderOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            <div className="sm:col-span-2">
+              <Button onClick={save} disabled={updateProfile.isPending} className="h-12 rounded-2xl bg-zinc-950 px-6 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100">
+                {updateProfile.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar perfil
+              </Button>
+            </div>
+          </div>
         </div>
-        <div>
-          <p className="text-lg font-semibold text-foreground">{patientName}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{patientEmail || "E-mail não informado"}</p>
+        <div className="mt-5 rounded-2xl border border-border bg-background/70 p-4">
+          <p className="text-sm font-semibold text-foreground">Profissional vinculado</p>
+          <p className="mt-1 text-sm text-muted-foreground">{professionalName}</p>
         </div>
-      </div>
-      <div className="mt-5 rounded-2xl border border-border bg-background/70 p-4">
-        <p className="text-sm font-semibold text-foreground">Profissional vinculado</p>
-        <p className="mt-1 text-sm text-muted-foreground">{professionalName}</p>
-      </div>
-    </Panel>
-    <Button onClick={onSignOut} disabled={loggingOut} variant="outline" className="h-12 w-full rounded-2xl">
-      {loggingOut ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOut className="mr-2 h-4 w-4" />}
-      Sair
-    </Button>
-  </div>
-);
+      </Panel>
+      <Button onClick={onSignOut} disabled={loggingOut} variant="outline" className="h-12 w-full rounded-2xl">
+        {loggingOut ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOut className="mr-2 h-4 w-4" />}
+        Sair
+      </Button>
+    </div>
+  );
+};
 
 const HomeShortcutCard = ({
   title,
@@ -1471,7 +1737,7 @@ const AnamnesisHomeCard = ({
       value={`${record.progress}%`}
       detail={record.status === "submitted" ? "Ficha enviada para leitura." : "Continue quando estiver confortável."}
       icon={ClipboardList}
-      onClick={() => onNavigate("/portal/anamneses")}
+        onClick={() => onNavigate("/portal/documentos?tab=anamneses")}
     >
       <div className="h-2 overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${record.progress}%` }} />
@@ -1560,71 +1826,38 @@ const ReflectionCarousel = ({ patientName }: { patientName: string }) => {
   );
 };
 
-const NeuroNexSignature = () => {
-  const containerRef = useRef<HTMLElement | null>(null);
-  const mouseX = useMotionValue(720);
-  const mouseY = useMotionValue(145);
-  const springX = useSpring(mouseX, { stiffness: 42, damping: 40, mass: 1 });
-  const springY = useSpring(mouseY, { stiffness: 42, damping: 40, mass: 1 });
-  const spotlightMask = useMotionTemplate`radial-gradient(680px ellipse at ${springX}px ${springY}px, rgba(0,0,0,0.36) 0%, rgba(0,0,0,0.20) 36%, rgba(0,0,0,0.07) 66%, transparent 100%)`;
-
-  const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    mouseX.set(event.clientX - rect.left);
-    mouseY.set(event.clientY - rect.top);
-  };
-
-  const handlePointerLeave = () => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    mouseX.set((rect?.width || 1440) * 0.52);
-    mouseY.set((rect?.height || 360) * 0.38);
-  };
-
-  const wordmarkClass = "select-none whitespace-nowrap text-[clamp(4.4rem,13.4vw,14.5rem)] font-black uppercase leading-[0.72] tracking-tight";
-
-  return (
-    <section
-      ref={containerRef}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
-      className="relative -mx-4 min-h-[360px] overflow-hidden text-center sm:-mx-6 md:-mx-8 lg:-mx-12 xl:-mx-16"
-    >
-      <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-[0.006]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.028),transparent_68%)]" />
-      <div className="pointer-events-none absolute inset-x-[14%] top-[58%] h-32 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.04),rgba(255,255,255,0.014)_42%,transparent_78%)] blur-3xl" />
-      <div className="absolute inset-x-0 top-3 flex h-[238px] items-end justify-center overflow-hidden">
-        <p
-          className={cn(
-            wordmarkClass,
-            "text-[#050506] opacity-95 [-webkit-text-stroke:1px_rgba(255,255,255,0.018)] [text-shadow:0_1px_0_rgba(255,255,255,0.032),0_-1px_0_rgba(0,0,0,0.94),0_18px_48px_rgba(0,0,0,0.78)]",
-          )}
-        >
-          NEURONEX
-        </p>
+const NeuroNexSignature = () => (
+  <section className="relative overflow-hidden rounded-[38px] border border-border/50 bg-[#050506] p-6 text-white shadow-[0_34px_110px_-76px_rgba(0,0,0,0.95)] md:p-8">
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.09),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_52%)]" />
+    <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-[0.008]" />
+    <div className="relative z-10 grid gap-6 md:grid-cols-[0.78fr_1.22fr] md:items-center">
+      <div className="relative flex min-h-[220px] items-center justify-center overflow-hidden rounded-[30px] border border-white/[0.075] bg-white/[0.026]">
+        <div className="absolute h-44 w-44 rounded-full border border-white/[0.10] motion-safe:animate-pulse motion-reduce:animate-none" />
+        <div className="absolute h-72 w-72 rounded-full border border-white/[0.035]" />
+        <div className="absolute h-28 w-28 rounded-full bg-white/[0.055] blur-2xl" />
+        <div className="relative flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/[0.12] bg-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_24px_70px_-40px_rgba(255,255,255,0.35)] backdrop-blur-2xl">
+          <BrainCircuit className="h-8 w-8 text-white/82" />
+        </div>
       </div>
-      <motion.div
-        className="pointer-events-none absolute inset-x-0 top-3 flex h-[238px] items-end justify-center overflow-hidden"
-        style={{ WebkitMaskImage: spotlightMask, maskImage: spotlightMask }}
-      >
-        <p
-          className={cn(
-            wordmarkClass,
-            "bg-[linear-gradient(115deg,rgba(255,255,255,0.00),rgba(255,255,255,0.28)_36%,rgba(155,155,155,0.08)_54%,rgba(255,255,255,0.18)_68%,rgba(255,255,255,0.00))] bg-clip-text text-transparent opacity-80",
-          )}
-        >
-          NEURONEX
+      <div className="py-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/42">NeuroDiver</p>
+        <h2 className="mt-4 max-w-2xl text-3xl font-black leading-[0.94] tracking-tight md:text-5xl">
+          Um espaço de cuidado com a nossa linguagem.
+        </h2>
+        <p className="mt-5 max-w-xl text-sm font-medium leading-relaxed text-white/56 md:text-base">
+          NeuroNex AI. De paciente para paciente, com privacidade, delicadeza e clareza no centro da experiência.
         </p>
-      </motion.div>
-      <div className="absolute inset-x-0 top-[69%] z-10 flex justify-center px-6 text-white">
-        <p className="rounded-full border border-white/[0.07] bg-white/[0.028] px-5 py-2 text-[12px] font-black tracking-[0.16em] shadow-[0_18px_58px_-36px_rgba(255,255,255,0.32)] backdrop-blur-xl">
-          <span className="uppercase">NeuroNex AI</span>
-          <span className="mx-2 text-white/38">-</span>
-          <span className="normal-case tracking-normal text-white/68">De paciente para paciente.</span>
-        </p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          {["Seguro", "Privado", "Compartilhado com intenção"].map((item) => (
+            <span key={item} className="rounded-full border border-white/[0.09] bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/58">
+              {item}
+            </span>
+          ))}
+        </div>
       </div>
-    </section>
-  );
-};
+    </div>
+  </section>
+);
 
 const HomeView = ({
   nextAppointment,
@@ -1646,46 +1879,94 @@ const HomeView = ({
   mood: ReturnType<typeof usePatientPortalMood>;
   patientName: string;
   onNavigate: (path: string) => void;
-}) => (
-  <div className="space-y-5">
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <AppointmentHomeCard appointment={nextAppointment} onNavigate={onNavigate} />
-      <HomeShortcutCard
-        title="NeuroFinance"
-        value={pendingAmount ? "Pagamento disponível" : "Tudo em dia"}
-        detail={pendingAmount ? money.format(pendingAmount) : "Sem pagamentos disponíveis agora."}
-        icon={CreditCard}
-        onClick={() => onNavigate("/portal/financeiro")}
-      />
-      <HomeShortcutCard
-        title="NeuroDrive"
-        value={String(documentsCount)}
-        detail="Documentos, NeuroView, notas, tarefas e Notion em preparação."
-        icon={FileText}
-        onClick={() => onNavigate("/portal/documentos")}
-      />
-      <HomeShortcutCard
-        title="Missões"
-        value={String(activeGoals)}
-        detail={activeGoals ? "Pequenas conquistas em movimento." : "Nada aberto por enquanto."}
-        icon={Target}
-        onClick={() => onNavigate("/portal/metas")}
-      />
-    </div>
-    <div className="grid gap-3 sm:grid-cols-2">
-      <AnamnesisHomeCard record={anamnesisRecord} onNavigate={onNavigate} />
-      <PackagesHomeCard packages={packages} onNavigate={onNavigate} />
-    </div>
-    <ReflectionCarousel patientName={patientName} />
-    <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
-      <div>
-        <SectionHeader title="Agenda próxima" action={<AppointmentRequestDialog />} />
-        {nextAppointment ? <AppointmentCard appointment={nextAppointment} /> : <EmptyState icon={CalendarDays} title="Sem horário futuro" description="Solicite um novo horário para confirmação." />}
+}) => {
+  const todayMood = mood.data?.today;
+  const moodMeta = moodOptions.find((option) => option.score === todayMood?.mood_score);
+  const packageActive = packages.find((pkg) => Number(pkg.total_sessions || 0) > Number(pkg.sessions_used || 0));
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <AppointmentHomeCard appointment={nextAppointment} onNavigate={onNavigate} />
+        <HomeShortcutCard
+          title="NeuroFinance"
+          value={pendingAmount ? "Pagamento disponível" : "Tudo em dia"}
+          detail={pendingAmount ? money.format(pendingAmount) : "Sem pagamentos disponíveis agora."}
+          icon={CreditCard}
+          onClick={() => onNavigate("/portal/financeiro")}
+        />
+        <HomeShortcutCard
+          title="NeuroDrive"
+          value={`${documentsCount} itens`}
+          detail="Documentos, anamneses e espaços pessoais."
+          icon={FileText}
+          onClick={() => onNavigate("/portal/documentos")}
+        />
+        <HomeShortcutCard
+          title="Progresso"
+          value={activeGoals ? `${activeGoals} missões` : "Em dia"}
+          detail={activeGoals ? "Pequenas conquistas em movimento." : "Sem missão aberta agora."}
+          icon={TrendingUp}
+          onClick={() => onNavigate("/portal/progresso")}
+        />
       </div>
-      <DiaryView mood={mood} />
+
+      <div className="grid gap-3 lg:grid-cols-[1fr_1fr_0.9fr]">
+        <Panel className="min-h-[156px]">
+          <div className="flex h-full items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground">Resumo de hoje</p>
+              <p className="mt-4 text-2xl font-black tracking-tight text-foreground">
+                {todayMood ? `Humor ${moodMeta?.label || todayMood.mood_score}` : "Sem registro ainda"}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {todayMood ? "Seu diário de humor está salvo para hoje." : "Registre seu humor quando fizer sentido."}
+              </p>
+            </div>
+            <Button variant="outline" className="rounded-2xl" onClick={() => onNavigate("/portal/humor")}>
+              Humor
+            </Button>
+          </div>
+        </Panel>
+        <AnamnesisHomeCard record={anamnesisRecord} onNavigate={onNavigate} />
+        <PackagesHomeCard packages={packages} onNavigate={onNavigate} />
+      </div>
+
+      <Panel className="overflow-hidden">
+        <div className="grid gap-5 md:grid-cols-[1fr_0.72fr] md:items-center">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Continuidade</p>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-foreground">O próximo passo está nas abas certas.</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Agenda, humor, documentos, progresso e financeiro ficam separados para você encontrar rápido, sem a Home virar um painel pesado.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Agenda", path: "/portal/agenda", icon: CalendarDays },
+              { label: "Humor", path: "/portal/humor", icon: HeartPulse },
+              { label: "Missões", path: "/portal/progresso?tab=missoes", icon: Target },
+              { label: packageActive ? "Pacote ativo" : "NeuroFinance", path: "/portal/financeiro", icon: CreditCard },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => onNavigate(item.path)}
+                className="flex h-20 flex-col items-center justify-center gap-2 rounded-2xl border border-border/60 bg-background/70 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Panel>
+
+      <ReflectionCarousel patientName={patientName} />
+      <NeuroNexSignature />
     </div>
-  </div>
-);
+  );
+};
 
 const PatientPortal = () => {
   const navigate = useNavigate();
@@ -1693,6 +1974,10 @@ const PatientPortal = () => {
   const { signOut } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const activeView = viewFromPath(location.pathname);
+  const searchParams = new URLSearchParams(location.search);
+  const requestedTab = searchParams.get("tab") || "";
+  const neuroDriveTab = (["documentos", "anamneses", "neuroview", "notas", "tarefas", "notion"].includes(requestedTab) ? requestedTab : "documentos") as NeuroDriveTab;
+  const progressTab = (["visao", "missoes", "feed"].includes(requestedTab) ? requestedTab : "visao") as ProgressTab;
   const current = usePatientPortalCurrent();
   const isActive = current.data?.status === "active";
   const appointments = usePatientPortalAppointments(isActive);
@@ -1708,6 +1993,19 @@ const PatientPortal = () => {
   const patientName = current.data?.patient?.name || "Paciente";
   const professionalName = current.data?.professional?.name || "Seu psicólogo";
   const activeNav = navItems.find((item) => item.value === activeView) || navItems[0];
+
+  useEffect(() => {
+    if (location.pathname.startsWith("/portal/historico")) {
+      navigate("/portal/progresso?tab=feed", { replace: true });
+    } else if (location.pathname.startsWith("/portal/metas")) {
+      navigate("/portal/progresso?tab=missoes", { replace: true });
+    } else if (location.pathname.startsWith("/portal/anamneses")) {
+      navigate("/portal/documentos?tab=anamneses", { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+  const setNeuroDriveTab = (tab: NeuroDriveTab) => navigate(tab === "documentos" ? "/portal/documentos" : `/portal/documentos?tab=${tab}`);
+  const setProgressTab = (tab: ProgressTab) => navigate(tab === "visao" ? "/portal/progresso" : `/portal/progresso?tab=${tab}`);
 
   const appointmentRows = appointments.data?.appointments || [];
   const billingEntries = billing.data?.entries || [];
@@ -1780,16 +2078,27 @@ const PatientPortal = () => {
     switch (activeView) {
       case "agenda":
         return appointments.isLoading ? <LoadingCard /> : <AppointmentsView appointments={appointmentRows} />;
-      case "anamneses":
-        return anamnesis.isLoading ? <LoadingCard /> : <AnamnesisView anamneses={anamnesisRows} />;
-      case "historico":
-        return history.isLoading ? <LoadingCard /> : <HistoryView items={history.data?.items} patientName={patientName} professionalName={professionalName} />;
       case "documentos":
-        return documents.isLoading ? <LoadingCard /> : <DocumentsView documents={documents.data?.documents} />;
-      case "metas":
-        return goals.isLoading ? <LoadingCard /> : <GoalsView goals={goalRows} />;
+        return documents.isLoading || anamnesis.isLoading ? <LoadingCard /> : (
+          <DocumentsView
+            documents={documents.data?.documents}
+            anamneses={anamnesisRows}
+            tab={neuroDriveTab}
+            onTabChange={setNeuroDriveTab}
+          />
+        );
       case "progresso":
-        return progress.isLoading ? <LoadingCard /> : <ProgressView progress={progress.data?.progress} goals={goalRows} />;
+        return progress.isLoading || goals.isLoading || history.isLoading ? <LoadingCard /> : (
+          <ProgressView
+            progress={progress.data?.progress}
+            goals={goalRows}
+            historyItems={history.data?.items}
+            patientName={patientName}
+            professionalName={professionalName}
+            tab={progressTab}
+            onTabChange={setProgressTab}
+          />
+        );
       case "financeiro":
         return billing.isLoading || packages.isLoading ? <LoadingCard /> : <BillingView entries={billingEntries} invoices={billing.data?.invoices} packages={packageRows} />;
       case "humor":
@@ -1799,6 +2108,8 @@ const PatientPortal = () => {
           <ProfileView
             patientName={patientName}
             patientEmail={current.data.patient?.email}
+            patientAvatarUrl={current.data.patient?.avatarUrl}
+            patientGenderIdentity={current.data.patient?.genderIdentity}
             professionalName={professionalName}
             onSignOut={handleSignOut}
             loggingOut={loggingOut}
@@ -1837,9 +2148,6 @@ const PatientPortal = () => {
               professionalName={professionalName}
               activeLabel={activeNav.label}
               nextAppointment={nextAppointment}
-              pendingAmount={pendingAmount}
-              documentsCount={documents.data?.documents?.length || 0}
-              activeGoals={goalRows.filter((goal) => !goal.is_completed).length}
               onSignOut={handleSignOut}
               loggingOut={loggingOut}
             />
@@ -1851,7 +2159,6 @@ const PatientPortal = () => {
             </DesktopWorkspacePanel>
           </div>
         </DesktopWorkspaceShell>
-        {activeView === "home" && <NeuroNexSignature />}
       </main>
     </div>
   );
