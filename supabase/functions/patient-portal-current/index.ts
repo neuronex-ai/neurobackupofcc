@@ -533,7 +533,7 @@ async function requestAppointment(context: any, body: Record<string, unknown>) {
   const type = String(body.type || "online");
 
   if (!Number.isFinite(startTime.getTime()) || startTime.getTime() <= Date.now()) {
-    return errorResponse("Escolha um horario futuro.", 400);
+    return errorResponse("Escolha um horário futuro.", 400);
   }
   if (!["online", "presencial"].includes(type)) {
     return errorResponse("Modalidade invalida.", 400);
@@ -609,7 +609,7 @@ async function updateProfile(context: any, body: Record<string, unknown>) {
   if (fullName.length < 2) return errorResponse("Informe seu nome.", 400);
   if (fullName.length > 160) return errorResponse("Nome muito longo.", 400);
   if (genderIdentity && !allowedGenders.has(genderIdentity)) {
-    return errorResponse("Genero invalido.", 400);
+    return errorResponse("Gênero inválido.", 400);
   }
   if (avatarUrl !== undefined && avatarUrl && !/^https:\/\/.+/i.test(avatarUrl)) {
     return errorResponse("Foto invalida.", 400);
@@ -681,9 +681,9 @@ Deno.serve(async (req: Request) => {
       return result instanceof Response ? result : jsonResponse(result);
     }
 
-    return errorResponse("Acao do portal desconhecida.", 400);
+    return errorResponse("Ação do portal desconhecida.", 400);
   } catch (error) {
     console.error("[patient-portal-current]", error);
-    return errorResponse(error instanceof Error ? error.message : "Nao foi possivel carregar seu portal.", 500);
+    return errorResponse(error instanceof Error ? error.message : "Não foi possível carregar seu portal.", 500);
   }
 });
