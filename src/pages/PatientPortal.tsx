@@ -1559,10 +1559,10 @@ const ReflectionCarousel = ({ patientName }: { patientName: string }) => {
 const NeuroNexSignature = () => {
   const containerRef = useRef<HTMLElement | null>(null);
   const mouseX = useMotionValue(720);
-  const mouseY = useMotionValue(190);
-  const springX = useSpring(mouseX, { stiffness: 44, damping: 38, mass: 0.95 });
-  const springY = useSpring(mouseY, { stiffness: 44, damping: 38, mass: 0.95 });
-  const spotlightMask = useMotionTemplate`radial-gradient(860px circle at ${springX}px ${springY}px, rgba(0,0,0,0.46) 0%, rgba(0,0,0,0.30) 34%, rgba(0,0,0,0.12) 64%, transparent 100%)`;
+  const mouseY = useMotionValue(145);
+  const springX = useSpring(mouseX, { stiffness: 42, damping: 40, mass: 1 });
+  const springY = useSpring(mouseY, { stiffness: 42, damping: 40, mass: 1 });
+  const spotlightMask = useMotionTemplate`radial-gradient(680px ellipse at ${springX}px ${springY}px, rgba(0,0,0,0.36) 0%, rgba(0,0,0,0.20) 36%, rgba(0,0,0,0.07) 66%, transparent 100%)`;
 
   const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -1573,46 +1573,46 @@ const NeuroNexSignature = () => {
   const handlePointerLeave = () => {
     const rect = containerRef.current?.getBoundingClientRect();
     mouseX.set((rect?.width || 1440) * 0.52);
-    mouseY.set((rect?.height || 390) * 0.42);
+    mouseY.set((rect?.height || 360) * 0.38);
   };
 
-  const wordmarkClass = "select-none whitespace-nowrap text-[clamp(4.9rem,16.2vw,17.5rem)] font-black uppercase leading-[0.72] tracking-tight";
+  const wordmarkClass = "select-none whitespace-nowrap text-[clamp(4.4rem,13.4vw,14.5rem)] font-black uppercase leading-[0.72] tracking-tight";
 
   return (
     <section
       ref={containerRef}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
-      className="relative -mx-4 min-h-[390px] overflow-hidden text-center sm:-mx-6 md:-mx-8 lg:-mx-12 xl:-mx-16"
+      className="relative -mx-4 min-h-[360px] overflow-hidden text-center sm:-mx-6 md:-mx-8 lg:-mx-12 xl:-mx-16"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-[0.022]" />
-      <div className="pointer-events-none absolute inset-x-0 top-[62%] h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.08)_20%,rgba(255,255,255,0.28)_50%,rgba(255,255,255,0.08)_80%,transparent)]" />
-      <div className="pointer-events-none absolute inset-x-[10%] top-[62%] h-28 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.09),rgba(255,255,255,0.032)_42%,transparent_76%)] blur-3xl" />
-      <div className="absolute inset-x-0 top-1 flex h-[270px] items-end justify-center overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-[0.006]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.028),transparent_68%)]" />
+      <div className="pointer-events-none absolute inset-x-[14%] top-[58%] h-32 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.04),rgba(255,255,255,0.014)_42%,transparent_78%)] blur-3xl" />
+      <div className="absolute inset-x-0 top-3 flex h-[238px] items-end justify-center overflow-hidden">
         <p
           className={cn(
             wordmarkClass,
-            "bg-[linear-gradient(120deg,#070708,#111113_34%,#09090a_68%,#141416),url('/noise.png')] bg-clip-text text-transparent opacity-95 [background-blend-mode:normal,soft-light] [text-shadow:0_1px_0_rgba(255,255,255,0.026),0_-1px_0_rgba(0,0,0,0.92),1px_0_0_rgba(255,255,255,0.012),-1px_0_0_rgba(0,0,0,0.72)]",
+            "text-[#050506] opacity-95 [-webkit-text-stroke:1px_rgba(255,255,255,0.018)] [text-shadow:0_1px_0_rgba(255,255,255,0.032),0_-1px_0_rgba(0,0,0,0.94),0_18px_48px_rgba(0,0,0,0.78)]",
           )}
         >
           NEURONEX
         </p>
       </div>
       <motion.div
-        className="pointer-events-none absolute inset-x-0 top-1 flex h-[270px] items-end justify-center overflow-hidden"
+        className="pointer-events-none absolute inset-x-0 top-3 flex h-[238px] items-end justify-center overflow-hidden"
         style={{ WebkitMaskImage: spotlightMask, maskImage: spotlightMask }}
       >
         <p
           className={cn(
             wordmarkClass,
-            "bg-[linear-gradient(120deg,rgba(255,255,255,0.06),rgba(255,255,255,0.46)_34%,rgba(120,120,120,0.16)_54%,rgba(255,255,255,0.30)_68%,rgba(255,255,255,0.05)),url('/noise.png')] bg-clip-text text-transparent [background-blend-mode:screen,soft-light]",
+            "bg-[linear-gradient(115deg,rgba(255,255,255,0.00),rgba(255,255,255,0.28)_36%,rgba(155,155,155,0.08)_54%,rgba(255,255,255,0.18)_68%,rgba(255,255,255,0.00))] bg-clip-text text-transparent opacity-80",
           )}
         >
           NEURONEX
         </p>
       </motion.div>
-      <div className="absolute inset-x-0 top-[66%] z-10 px-6 text-white">
-        <p className="text-[13px] font-black tracking-[0.16em]">
+      <div className="absolute inset-x-0 top-[69%] z-10 flex justify-center px-6 text-white">
+        <p className="rounded-full border border-white/[0.07] bg-white/[0.028] px-5 py-2 text-[12px] font-black tracking-[0.16em] shadow-[0_18px_58px_-36px_rgba(255,255,255,0.32)] backdrop-blur-xl">
           <span className="uppercase">NeuroNex AI</span>
           <span className="mx-2 text-white/38">-</span>
           <span className="normal-case tracking-normal text-white/68">De paciente para paciente.</span>
