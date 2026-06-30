@@ -1010,7 +1010,7 @@ const ProgressView = ({
         <MetricCard title="Sessões registradas" value={`${progress?.attendedSessions || 0}/${progress?.sessionsTotal || 0}`} icon={CalendarDays} />
         <MetricCard title="Missões concluídas" value={`${progress?.completedGoals || 0}/${progress?.goalsTotal || 0}`} icon={Target} tone={(progress?.completedGoals || 0) ? "success" : "default"} />
         <MetricCard title="Documentos" value={String(progress?.sharedDocuments || 0)} icon={FileText} tone="info" />
-        <MetricCard title="Pacotes ativos" value={String(progress?.activePackages || 0)} icon={Package} />
+        <MetricCard title="Pacotes em uso" value={String(progress?.activePackages || 0)} icon={Package} />
       </div>
       <Panel>
         <div className="flex items-start gap-4">
