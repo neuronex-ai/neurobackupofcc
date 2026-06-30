@@ -56,7 +56,6 @@ import {
   Package,
   ReceiptText,
   Route,
-  ShieldCheck,
   Smile,
   Target,
   TrendingUp,
@@ -1555,10 +1554,10 @@ const PatientPortal = () => {
     return (
       <LockedPortalState
         title="Ative seu Portal do Paciente"
-        description="Entre pelo link do convite enviado por e-mail ou informe o codigo de ativacao para liberar seu acesso."
+        description="Entre pelo link do convite enviado por e-mail ou informe o código de ativação para liberar seu acesso."
         action={(
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Button onClick={() => navigate("/portal/ativar")} className="h-11 rounded-xl">Inserir codigo</Button>
+            <Button onClick={() => navigate("/portal/ativar")} className="h-11 rounded-xl">Inserir código</Button>
             <Button onClick={handleSignOut} variant="outline" className="h-11 rounded-xl">Sair</Button>
           </div>
         )}
@@ -1601,9 +1600,7 @@ const PatientPortal = () => {
       case "progresso":
         return progress.isLoading ? <LoadingCard /> : <ProgressView progress={progress.data?.progress} goals={goalRows} />;
       case "financeiro":
-        return billing.isLoading ? <LoadingCard /> : <BillingView entries={billingEntries} invoices={billing.data?.invoices} />;
-      case "pacotes":
-        return packages.isLoading ? <LoadingCard /> : <PackagesView packages={packageRows} />;
+        return billing.isLoading || packages.isLoading ? <LoadingCard /> : <BillingView entries={billingEntries} invoices={billing.data?.invoices} packages={packageRows} />;
       case "humor":
         return mood.isLoading ? <LoadingCard /> : <DiaryView mood={mood} />;
       case "perfil":
@@ -1627,25 +1624,19 @@ const PatientPortal = () => {
             pendingAmount={pendingAmount}
             documentsCount={documents.data?.documents?.length || 0}
             activeGoals={goalRows.filter((goal) => !goal.is_completed).length}
-            anamnesisPending={anamnesisRows.filter((record) => record.status === "pending").length}
-            packagesActive={packageRows.filter((pkg) => Number(pkg.total_sessions || 0) > Number(pkg.sessions_used || 0)).length}
+            anamnesisRecord={anamnesisRows.find((record) => record.status === "pending") || anamnesisRows[0]}
+            packages={packageRows}
             mood={mood}
+            patientName={patientName}
+            onNavigate={navigate}
           />
         );
     }
   };
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-background pb-12 pt-28 text-foreground selection:bg-primary/10 selection:text-primary">
+    <div className="relative min-h-screen overflow-x-hidden bg-background pb-12 pt-6 text-foreground selection:bg-primary/10 selection:text-primary lg:pt-8">
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_12%_8%,hsl(var(--foreground)/0.055),transparent_32%),radial-gradient(circle_at_88%_4%,hsl(var(--primary)/0.075),transparent_30%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--muted)/0.22)_58%,hsl(var(--background)))] dark:bg-[radial-gradient(circle_at_12%_8%,rgba(255,255,255,0.045),transparent_32%),radial-gradient(circle_at_88%_4%,rgba(255,255,255,0.028),transparent_30%),linear-gradient(180deg,#070708,#0b0b0c_58%,#070708)]" />
-
-      <NeuroDiverTopNav
-        activeView={activeView}
-        patientName={patientName}
-        onNavigate={navigate}
-        onSignOut={handleSignOut}
-        loggingOut={loggingOut}
-      />
 
       <main className="page-spacing relative z-10 mx-auto flex w-full max-w-[2200px] flex-col gap-4 px-4 pb-10 sm:px-6 md:px-8 lg:px-12 xl:px-16">
         <DesktopWorkspaceShell>
@@ -1658,6 +1649,8 @@ const PatientPortal = () => {
               pendingAmount={pendingAmount}
               documentsCount={documents.data?.documents?.length || 0}
               activeGoals={goalRows.filter((goal) => !goal.is_completed).length}
+              onSignOut={handleSignOut}
+              loggingOut={loggingOut}
             />
 
             <PortalModuleRail activeView={activeView} onNavigate={navigate} />

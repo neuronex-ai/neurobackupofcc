@@ -197,7 +197,7 @@ const readFunctionError = async (error: unknown, fallback: string) => {
   return error instanceof Error && error.message ? error.message : fallback;
 };
 
-const invokePortalFunction = async <T>(name: string, body?: Record<string, unknown>, fallback = "Nao foi possivel carregar o portal.") => {
+const invokePortalFunction = async <T>(name: string, body?: Record<string, unknown>, fallback = "Não foi possível carregar o portal.") => {
   const { data, error } = await supabase.functions.invoke(name, { body: body || {} });
   if (error) throw new Error(await readFunctionError(error, fallback));
   return data as T;
@@ -215,7 +215,7 @@ export const useCreatePatientPortalInvite = () => {
         patientEmail?: string;
         portalUrl?: string;
         message: string;
-      }>("create-patient-portal-invite", { patientId }, "Nao foi possivel enviar o convite."),
+      }>("create-patient-portal-invite", { patientId }, "Não foi possível enviar o convite."),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient-portal-invite-status"] });
     },
@@ -229,7 +229,7 @@ export const usePatientPortalInvitePreview = (token?: string) =>
       invokePortalFunction<PatientPortalInvitePreview>(
         "patient-portal-invite-preview",
         { token },
-        "Convite invalido ou expirado.",
+        "Convite inválido ou expirado.",
       ),
     enabled: Boolean(token),
     retry: false,
@@ -243,7 +243,7 @@ export const useActivatePatientPortal = () => {
       invokePortalFunction<PatientPortalContext>(
         "patient-portal-activate",
         { token, code },
-        "Nao foi possivel ativar o portal.",
+        "Não foi possível ativar o portal.",
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient-portal-current"] });
@@ -365,7 +365,7 @@ export const usePatientPortalMood = (enabled = true) => {
       invokePortalFunction<{ logs: PatientPortalMoodLog[]; today: PatientPortalMoodLog | null }>(
         "patient-portal-current",
         { action: "mood", moodScore, notes },
-        "Nao foi possivel salvar o diario.",
+        "Não foi possível salvar o diário.",
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient-portal-mood", user?.id] });
@@ -395,7 +395,7 @@ export const useRequestPatientPortalAppointment = () => {
       invokePortalFunction<{ appointment: PatientPortalAppointment }>(
         "patient-portal-current",
         { action: "request_appointment", startTime, type },
-        "Nao foi possivel solicitar o horario.",
+        "Não foi possível solicitar o horário.",
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient-portal-appointments", user?.id] });
@@ -416,7 +416,7 @@ export const useTogglePatientPortalGoal = () => {
       invokePortalFunction<{ goal: PatientPortalGoal }>(
         "patient-portal-current",
         { action: "toggle_goal", goalId, isCompleted },
-        "Nao foi possivel atualizar a meta.",
+        "Não foi possível atualizar a missão.",
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient-portal-goals", user?.id] });
@@ -435,7 +435,7 @@ export const useSavePatientPortalAnamnesis = () => {
       invokePortalFunction<{ anamnesis: PatientPortalAnamnesis }>(
         "patient-portal-current",
         { action: "save_anamnesis", anamnesisId, content },
-        "Nao foi possivel salvar a anamnese.",
+        "Não foi possível salvar a anamnese.",
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient-portal-anamnesis", user?.id] });
