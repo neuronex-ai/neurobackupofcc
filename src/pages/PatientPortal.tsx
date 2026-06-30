@@ -12,6 +12,7 @@ import {
   type PatientPortalGoal,
   type PatientPortalHistoryItem,
   type PatientPortalInvoice,
+  type PatientPortalMoodLog,
   type PatientPortalPackage,
   usePatientPortalAnamnesis,
   usePatientPortalAppointments,
@@ -431,14 +432,14 @@ const AppointmentRequestDialog = () => {
       <DialogTrigger asChild>
         <Button className="h-11 rounded-2xl bg-zinc-950 px-4 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100">
           <CalendarPlus className="mr-2 h-4 w-4" />
-          Solicitar horario
+          Solicitar horário
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-[520px] rounded-[28px] border border-border/70 bg-card p-0 shadow-2xl">
         <div className="border-b border-border/60 p-6">
           <DialogTitle className="text-xl font-semibold tracking-tight">Solicitar agendamento</DialogTitle>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Seu pedido fica pendente ate o profissional confirmar na agenda.
+            Seu pedido fica pendente até o profissional confirmar na agenda.
           </p>
         </div>
         <div className="space-y-5 p-6">
@@ -454,7 +455,7 @@ const AppointmentRequestDialog = () => {
               />
             </label>
             <label className="space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Horario</span>
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Horário</span>
               <input
                 type="time"
                 value={time}
@@ -516,11 +517,11 @@ const AppointmentCard = ({ appointment }: { appointment: PatientPortalAppointmen
             <p className="mt-1 text-sm text-muted-foreground">{dateTime.format(start)}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className={cn("inline-flex rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]", statusTone(isRequest ? "pending" : appointment.status))}>
-                {isRequest ? "Aguardando confirmacao" : isPast ? "Realizada/passada" : appointment.status || "Agendada"}
+                {isRequest ? "Aguardando confirmação" : isPast ? "Realizada/passada" : appointment.status || "Agendada"}
               </span>
               <span className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                 {appointment.type === "online" ? <Video className="mr-1.5 h-3 w-3" /> : <MapPin className="mr-1.5 h-3 w-3" />}
-                {appointment.type || "Sessao"}
+                {appointment.type || "Sessão"}
               </span>
             </div>
           </div>
@@ -546,20 +547,20 @@ const AppointmentsView = ({ appointments }: { appointments?: PatientPortalAppoin
     <div className="space-y-6">
       <SectionHeader
         title="Agenda compartilhada"
-        description="Consultas confirmadas e pedidos enviados por voce ficam agrupados aqui."
+        description="Consultas confirmadas e pedidos enviados por você ficam agrupados aqui."
         action={<AppointmentRequestDialog />}
       />
       {rows.length ? (
         <>
           <div className="space-y-3">
-            <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Proximas consultas</p>
+            <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Próximas consultas</p>
             {upcoming.length ? upcoming.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} />) : (
-              <EmptyState icon={CalendarDays} title="Nenhuma consulta futura" description="Solicite um horario para o profissional confirmar." />
+              <EmptyState icon={CalendarDays} title="Nenhuma consulta futura" description="Solicite um horário para o profissional confirmar." />
             )}
           </div>
           {past.length > 0 && (
             <div className="space-y-3">
-              <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Historico de consultas</p>
+              <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Histórico de consultas</p>
               {past.slice(0, 10).map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} />)}
             </div>
           )}
@@ -573,40 +574,66 @@ const AppointmentsView = ({ appointments }: { appointments?: PatientPortalAppoin
 
 const DocumentsView = ({ documents }: { documents?: PatientPortalDocument[] }) => {
   const rows = documents || [];
-  if (!rows.length) {
-    return <EmptyState title="Nenhum documento compartilhado" description="Apenas arquivos liberados pelo profissional aparecem aqui, com links R2 temporarios." />;
-  }
 
   return (
-    <div className="space-y-4">
-      <SectionHeader title="Documentos compartilhados" description={`${rows.length} arquivo${rows.length === 1 ? "" : "s"} disponivel${rows.length === 1 ? "" : "is"} com URL assinada.`} />
-      {rows.map((document) => (
-        <article key={document.id} className="rounded-[24px] border border-border/60 bg-card/82 p-4 shadow-sm transition-colors hover:border-foreground/15">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
-                <FileText className="h-5 w-5" />
+    <div className="space-y-5">
+      <SectionHeader title="NeuroDrive" description="Documentos compartilhados e espaços preparados para leitura, notas e tarefas." />
+      <div className="grid gap-3 md:grid-cols-4">
+        {[
+          { title: "Arquivos", value: String(rows.length), icon: FileText },
+          { title: "NeuroView", value: "Em breve", icon: BrainCircuit },
+          { title: "Notas", value: "Preparado", icon: ClipboardList },
+          { title: "Tarefas + Notion", value: "Próximo", icon: Target },
+        ].map((item) => (
+          <Panel key={item.title} className="min-h-[126px]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground">{item.title}</p>
+                <p className="mt-4 text-2xl font-black tracking-tight text-foreground">{item.value}</p>
               </div>
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-foreground">{document.name}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {fileSize(document.sizeBytes)} {document.sharedAt ? `- ${dateOnly.format(new Date(document.sharedAt))}` : ""}
-                </p>
+              <div className="dashboard-soft-fill flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground">
+                <item.icon className="h-4 w-4" />
               </div>
             </div>
-            <Button
-              disabled={!document.signedUrl}
-              size="icon"
-              variant="outline"
-              className="h-10 w-10 shrink-0 rounded-xl"
-              onClick={() => document.signedUrl && window.open(document.signedUrl, "_blank", "noopener,noreferrer")}
-              aria-label={`Abrir ${document.name}`}
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-          </div>
-        </article>
-      ))}
+          </Panel>
+        ))}
+      </div>
+      {rows.length ? (
+        <div className="space-y-3">
+          <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+            {rows.length} arquivo{rows.length === 1 ? "" : "s"} disponível{rows.length === 1 ? "" : "is"}
+          </p>
+          {rows.map((document) => (
+            <article key={document.id} className="rounded-[24px] border border-border/60 bg-card/82 p-4 shadow-sm transition-colors hover:border-foreground/15">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold text-foreground">{document.name}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {fileSize(document.sizeBytes)} {document.sharedAt ? `- ${dateOnly.format(new Date(document.sharedAt))}` : ""}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  disabled={!document.signedUrl}
+                  size="icon"
+                  variant="outline"
+                  className="h-10 w-10 shrink-0 rounded-xl"
+                  onClick={() => document.signedUrl && window.open(document.signedUrl, "_blank", "noopener,noreferrer")}
+                  aria-label={`Abrir ${document.name}`}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="Nenhum documento compartilhado" description="Apenas arquivos liberados pelo profissional aparecem aqui, com links R2 temporários." />
+      )}
     </div>
   );
 };
@@ -618,7 +645,7 @@ const GoalsView = ({ goals }: { goals?: PatientPortalGoal[] }) => {
   const progress = rows.length ? Math.round((completedCount / rows.length) * 100) : 0;
 
   if (!rows.length) {
-    return <EmptyState icon={Target} title="Nenhuma meta ativa" description="Metas compartilhadas pelo profissional aparecem aqui para acompanhamento." />;
+    return <EmptyState icon={Target} title="Nenhuma missão ativa" description="Missões compartilhadas pelo profissional aparecem aqui para acompanhamento." />;
   }
 
   return (
@@ -626,8 +653,8 @@ const GoalsView = ({ goals }: { goals?: PatientPortalGoal[] }) => {
       <Panel>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-foreground">Plano de metas</p>
-            <p className="mt-1 text-sm text-muted-foreground">{completedCount} de {rows.length} concluidas</p>
+            <p className="text-sm font-semibold text-foreground">Plano de missões</p>
+            <p className="mt-1 text-sm text-muted-foreground">{completedCount} de {rows.length} concluídas</p>
           </div>
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-background text-lg font-semibold text-foreground">
             {progress}%
@@ -646,8 +673,8 @@ const GoalsView = ({ goals }: { goals?: PatientPortalGoal[] }) => {
               toggleGoal.mutate(
                 { goalId: goal.id, isCompleted: !goal.is_completed },
                 {
-                  onSuccess: () => toast.success(goal.is_completed ? "Meta reaberta." : "Meta concluida."),
-                  onError: (error) => toast.error(error instanceof Error ? error.message : "Nao foi possivel atualizar a meta."),
+                  onSuccess: () => toast.success(goal.is_completed ? "Missão reaberta." : "Missão concluída."),
+                  onError: (error) => toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a missão."),
                 },
               )
             }
@@ -663,7 +690,7 @@ const GoalsView = ({ goals }: { goals?: PatientPortalGoal[] }) => {
               <span className={cn("block text-sm font-semibold text-foreground", goal.is_completed && "text-muted-foreground line-through")}>
                 {goal.description}
               </span>
-              {goal.due_date && <span className="mt-1 block text-xs font-medium text-muted-foreground">Ate {dateOnly.format(new Date(`${goal.due_date}T00:00:00`))}</span>}
+              {goal.due_date && <span className="mt-1 block text-xs font-medium text-muted-foreground">Até {dateOnly.format(new Date(`${goal.due_date}T00:00:00`))}</span>}
             </span>
           </button>
         ))}
@@ -830,19 +857,19 @@ const HistoryView = ({ items }: { items?: PatientPortalHistoryItem[] }) => {
   };
 
   if (!rows.length) {
-    return <EmptyState icon={FileClock} title="Historico ainda vazio" description="Eventos compartilhados do seu cuidado aparecem em ordem cronologica aqui." />;
+    return <EmptyState icon={FileClock} title="Feed ainda vazio" description="Eventos compartilhados do seu cuidado aparecem aqui quando estiverem disponíveis." />;
   }
 
   return (
     <div className="space-y-4">
-      <SectionHeader title="Historico compartilhado" description="Timeline sanitizada: sem notas clinicas privadas ou resumos internos nao publicados." />
+      <SectionHeader title="Feed" description="Postagens do seu processo, com apenas informações compartilhadas com você." />
       <div className="space-y-3">
         {rows.map((item) => {
           const Icon = iconByType[item.type] || FileClock;
           return (
-            <article key={item.id} className="rounded-[24px] border border-border/60 bg-card/82 p-4">
+            <article key={item.id} className="dashboard-retina-card rounded-[30px] p-5">
               <div className="flex gap-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-background text-muted-foreground">
+                <div className="dashboard-soft-fill flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] text-muted-foreground">
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -851,6 +878,16 @@ const HistoryView = ({ items }: { items?: PatientPortalHistoryItem[] }) => {
                     <p className="text-xs font-medium text-muted-foreground">{dateTime.format(new Date(item.occurredAt))}</p>
                   </div>
                   {item.description && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.description}</p>}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <span className="inline-flex h-9 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-semibold text-muted-foreground">
+                      <Heart className="h-3.5 w-3.5" />
+                      Acolhido pelo profissional
+                    </span>
+                    <span className="inline-flex h-9 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-semibold text-muted-foreground">
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      Comentário em breve
+                    </span>
+                  </div>
                 </div>
               </div>
             </article>
@@ -878,7 +915,7 @@ const AnamnesisEditor = ({ record }: { record: PatientPortalAnamnesis }) => {
       { anamnesisId: record.id, content: draft },
       {
         onSuccess: () => toast.success("Anamnese salva."),
-        onError: (error) => toast.error(error instanceof Error ? error.message : "Nao foi possivel salvar a anamnese."),
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Não foi possível salvar a anamnese."),
       },
     );
   };
@@ -893,7 +930,7 @@ const AnamnesisEditor = ({ record }: { record: PatientPortalAnamnesis }) => {
           </p>
         </div>
         <span className={cn("rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]", statusTone(record.status))}>
-          {record.status === "submitted" ? "Leitura" : record.status === "expired" ? "Expirada" : "Editavel"}
+          {record.status === "submitted" ? "Leitura" : record.status === "expired" ? "Expirada" : "Editável"}
         </span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -927,7 +964,7 @@ const AnamnesisEditor = ({ record }: { record: PatientPortalAnamnesis }) => {
           )}
         </div>
       ) : (
-        <EmptyState icon={ClipboardList} title="Ficha sem perguntas" description="Esta anamnese ainda nao tem conteudo estruturado para exibir." />
+        <EmptyState icon={ClipboardList} title="Ficha sem perguntas" description="Esta anamnese ainda não tem conteúdo estruturado para exibir." />
       )}
     </Panel>
   );
@@ -936,7 +973,7 @@ const AnamnesisEditor = ({ record }: { record: PatientPortalAnamnesis }) => {
 const AnamnesisView = ({ anamneses }: { anamneses?: PatientPortalAnamnesis[] }) => {
   const rows = anamneses || [];
   if (!rows.length) {
-    return <EmptyState icon={ClipboardList} title="Nenhuma anamnese disponivel" description="Fichas enviadas pelo profissional aparecem aqui para preencher ou consultar." />;
+    return <EmptyState icon={ClipboardList} title="Nenhuma anamnese disponível" description="Fichas enviadas pelo profissional aparecem aqui para preencher ou consultar." />;
   }
   return (
     <div className="space-y-5">
@@ -971,8 +1008,8 @@ const ProgressView = ({
   return (
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-4">
-        <MetricCard title="Sessoes registradas" value={`${progress?.attendedSessions || 0}/${progress?.sessionsTotal || 0}`} icon={CalendarDays} />
-        <MetricCard title="Metas concluidas" value={`${progress?.completedGoals || 0}/${progress?.goalsTotal || 0}`} icon={Target} tone={(progress?.completedGoals || 0) ? "success" : "default"} />
+        <MetricCard title="Sessões registradas" value={`${progress?.attendedSessions || 0}/${progress?.sessionsTotal || 0}`} icon={CalendarDays} />
+        <MetricCard title="Missões concluídas" value={`${progress?.completedGoals || 0}/${progress?.goalsTotal || 0}`} icon={Target} tone={(progress?.completedGoals || 0) ? "success" : "default"} />
         <MetricCard title="Documentos" value={String(progress?.sharedDocuments || 0)} icon={FileText} tone="info" />
         <MetricCard title="Pacotes ativos" value={String(progress?.activePackages || 0)} icon={Package} />
       </div>
@@ -982,9 +1019,9 @@ const ProgressView = ({
             <BrainCircuit className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold text-foreground">Direcao atual</p>
+            <p className="text-base font-semibold text-foreground">Direção atual</p>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Este painel usa apenas sinais compartilhados: agenda, metas, humor, documentos e pacotes. Notas clinicas privadas nao aparecem aqui.
+              Este painel usa apenas sinais compartilhados: agenda, missões, humor, documentos e pacotes. Notas clínicas privadas não aparecem aqui.
             </p>
             <div className="mt-4 grid gap-2">
               {openGoals.length ? openGoals.map((goal) => (
@@ -1006,12 +1043,56 @@ const ProgressView = ({
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               {lastMood
                 ? `${moodMeta?.label || "Registro"} em ${dateTime.format(new Date(lastMood.created_at))}${lastMood.notes ? `: ${lastMood.notes}` : "."}`
-                : "Nenhum diario preenchido ainda."}
+                : "Nenhum diário preenchido ainda."}
             </p>
           </div>
         </div>
       </Panel>
     </div>
+  );
+};
+
+const MoodTrendChart = ({ logs }: { logs: PatientPortalMoodLog[] }) => {
+  const rows = [...logs]
+    .sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime())
+    .slice(-14);
+
+  if (rows.length < 2) {
+    return <EmptyState icon={TrendingUp} title="Gráfico em formação" description="Com dois registros ou mais, seu histórico emocional começa a desenhar uma linha do tempo." />;
+  }
+
+  const width = 640;
+  const height = 180;
+  const padding = 22;
+  const points = rows.map((log, index) => {
+    const x = padding + (index * (width - padding * 2)) / Math.max(rows.length - 1, 1);
+    const y = padding + ((5 - log.mood_score) * (height - padding * 2)) / 4;
+    return { x, y, log };
+  });
+  const path = points.map((point) => `${point.x},${point.y}`).join(" ");
+
+  return (
+    <Panel>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-lg font-semibold text-foreground">Linha do humor</p>
+          <p className="mt-1 text-sm text-muted-foreground">Últimos registros compartilhados no seu diário.</p>
+        </div>
+        <TrendingUp className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <div className="overflow-hidden rounded-[24px] border border-border/60 bg-background/70 p-3">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-[180px] w-full" role="img" aria-label="Gráfico temporal de humor">
+          {[1, 2, 3, 4, 5].map((score) => {
+            const y = padding + ((5 - score) * (height - padding * 2)) / 4;
+            return <line key={score} x1={padding} x2={width - padding} y1={y} y2={y} className="stroke-border/60" strokeWidth="1" />;
+          })}
+          <polyline points={path} fill="none" className="stroke-foreground" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          {points.map((point) => (
+            <circle key={point.log.id} cx={point.x} cy={point.y} r="6" className="fill-background stroke-foreground" strokeWidth="3" />
+          ))}
+        </svg>
+      </div>
+    </Panel>
   );
 };
 
@@ -1030,14 +1111,15 @@ const DiaryView = ({ mood }: { mood: ReturnType<typeof usePatientPortalMood> }) 
   const saveMood = () => {
     mood.saveMood.mutate(
       { moodScore, notes },
-      { onSuccess: () => toast.success("Registro salvo no diario.") },
+      { onSuccess: () => toast.success("Registro salvo no diário.") },
     );
   };
 
   return (
     <div className="space-y-5">
+      <MoodTrendChart logs={logs} />
       <Panel>
-        <p className="text-lg font-semibold text-foreground">Como voce esta hoje?</p>
+        <p className="text-lg font-semibold text-foreground">Como você está hoje?</p>
         <div className="mt-5 grid grid-cols-5 gap-2">
           {moodOptions.map((option) => (
             <button
@@ -1080,7 +1162,7 @@ const DiaryView = ({ mood }: { mood: ReturnType<typeof usePatientPortalMood> }) 
               </span>
             </div>
           </article>
-        )) : <EmptyState icon={HeartPulse} title="Nenhum registro ainda" description="Use esta area para acompanhar pequenas mudancas entre as sessoes." />}
+        )) : <EmptyState icon={HeartPulse} title="Nenhum registro ainda" description="Use esta área para acompanhar pequenas mudanças entre as sessões." />}
       </section>
     </div>
   );
@@ -1107,7 +1189,7 @@ const ProfileView = ({
         </div>
         <div>
           <p className="text-lg font-semibold text-foreground">{patientName}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{patientEmail || "E-mail nao informado"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{patientEmail || "E-mail não informado"}</p>
         </div>
       </div>
       <div className="mt-5 rounded-2xl border border-border bg-background/70 p-4">
