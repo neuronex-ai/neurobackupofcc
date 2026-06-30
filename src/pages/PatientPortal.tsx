@@ -12,20 +12,21 @@ import {
   type PatientPortalBillingEntry,
   type PatientPortalDocument,
   type PatientPortalGoal,
-  type PatientPortalHistoryItem,
   type PatientPortalInvoice,
   type PatientPortalMoodLog,
   type PatientPortalPackage,
+  type PatientPortalSessionSummary,
   usePatientPortalAnamnesis,
   usePatientPortalAppointments,
   usePatientPortalBilling,
   usePatientPortalCurrent,
   usePatientPortalDocuments,
   usePatientPortalGoals,
-  usePatientPortalHistory,
   usePatientPortalMood,
+  usePatientPortalNotes,
   usePatientPortalPackages,
   usePatientPortalProgress,
+  usePatientPortalSessionSummaries,
   useRequestPatientPortalAppointment,
   useSavePatientPortalAnamnesis,
   useTogglePatientPortalGoal,
@@ -38,17 +39,15 @@ import {
   BrainCircuit,
   CalendarDays,
   CalendarPlus,
-  ChevronLeft,
-  ChevronRight,
   CheckCircle2,
   Circle,
   ClipboardList,
+  Copy,
   CreditCard,
   Download,
-  FileClock,
+  ExternalLink,
   FileText,
   Frown,
-  Heart,
   HeartPulse,
   Home,
   Laugh,
@@ -57,19 +56,19 @@ import {
   LogOut,
   MapPin,
   Meh,
-  MessageCircle,
   Package,
+  Plus,
   ReceiptText,
   Route,
-  Sparkles,
+  Save,
   Smile,
   Target,
   TrendingUp,
+  Trash2,
   Upload,
   UserRound,
   Video,
 } from "lucide-react";
-import { motion } from "framer-motion";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -105,7 +104,7 @@ const moodVisualConfig: Record<number, { label: string; color: string; tone: str
 
 const navItems = [
   { value: "home", label: "Início", path: "/portal", icon: Home },
-  { value: "agenda", label: "Agenda", path: "/portal/agenda", icon: CalendarDays },
+  { value: "sessoes", label: "Sessões", path: "/portal/sessoes", icon: CalendarDays },
   { value: "humor", label: "Humor", path: "/portal/humor", icon: HeartPulse },
   { value: "documentos", label: "NeuroDrive", path: "/portal/documentos", icon: FileText },
   { value: "progresso", label: "Progresso", path: "/portal/progresso", icon: TrendingUp },
@@ -116,6 +115,7 @@ const navItems = [
 type PortalView = (typeof navItems)[number]["value"];
 
 const viewFromPath = (pathname: string): PortalView => {
+  if (pathname.startsWith("/portal/agenda")) return "sessoes";
   if (pathname.startsWith("/portal/pacotes")) return "financeiro";
   const match = navItems.find((item) => item.path !== "/portal" && pathname.startsWith(item.path));
   return match?.value || "home";
@@ -138,6 +138,35 @@ const mapsRouteUrl = (destination?: string | null) =>
   destination
     ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`
     : "";
+
+const appointmentIsOnline = (appointment?: PatientPortalAppointment | null) =>
+  String(appointment?.type || "").toLowerCase() === "online";
+
+const patientSessionUrl = (appointment: PatientPortalAppointment) => {
+  const link = appointment.google_meet_link || "";
+  if (link.includes("/join/")) return link;
+  return `/join/${appointment.id}`;
+};
+
+const appointmentTypeLabel = (type?: string | null) => {
+  const normalized = String(type || "").toLowerCase();
+  if (normalized === "online") return "Online";
+  if (normalized === "presencial" || normalized === "in_person") return "Presencial";
+  return "Sessão";
+};
+
+const statusLabel = (status?: string | null) => {
+  const normalized = String(status || "").toLowerCase();
+  if (["paid", "received", "confirmed", "attended", "submitted", "completed"].includes(normalized)) return "Concluído";
+  if (["pending", "processing", "draft", "unscored"].includes(normalized)) return "Em acompanhamento";
+  if (["overdue", "expired"].includes(normalized)) return "Atenção";
+  if (["cancelled", "canceled", "cancelled_by_professional", "cancelled_by_patient"].includes(normalized)) return "Cancelado";
+  if (["absent", "missed"].includes(normalized)) return "Não compareceu";
+  return "Em acompanhamento";
+};
+
+const isPortalRequest = (appointment: PatientPortalAppointment) =>
+  appointment.metadata?.origin === "patient_portal" && appointment.metadata?.syncStatus === "pending";
 
 const patientQuotes = [
   "Pequenos passos também desenham caminhos inteiros.",
@@ -375,28 +404,46 @@ const PortalHero = ({
         <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-background/12 blur-3xl dark:bg-zinc-950/10" />
         <div className="relative z-10 flex h-full flex-col justify-between gap-6">
           <div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-background/18 bg-background/[0.10] text-background/76 dark:border-zinc-950/12 dark:bg-zinc-950/[0.06] dark:text-zinc-950/70">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.18em] text-background/54 dark:text-zinc-950/52">
-              Portal NeuroDiver
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-background/54 dark:text-zinc-950/52">
+              Próximo agendamento
             </p>
             <p className="mt-3 max-w-md text-2xl font-black leading-tight tracking-tight text-background dark:text-zinc-950">
-              Um painel simples para acompanhar o que importa agora.
+              {nextAppointment
+                ? dateTime.format(new Date(nextAppointment.start_time))
+                : "Nenhuma sessão futura confirmada."}
             </p>
             <p className="mt-3 text-sm font-medium leading-relaxed text-background/62 dark:text-zinc-950/62">
               {nextAppointment
-                ? `Próxima sessão em ${dateTime.format(new Date(nextAppointment.start_time))}.`
-                : "Sem sessão futura confirmada no momento."}
+                ? appointmentIsOnline(nextAppointment)
+                  ? "Sessão online pelo NeuroNex."
+                  : nextAppointment.location || "Sessão presencial. O endereço aparecerá quando for compartilhado."
+                : "Quando o próximo horário for confirmado, ele aparece aqui com os detalhes de acesso."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-background/64 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/62">
-              Seguro
-            </span>
-            <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-background/64 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/62">
-              Compartilhado com você
-            </span>
+            {nextAppointment ? (
+              appointmentIsOnline(nextAppointment) ? (
+                <Button asChild className="h-10 rounded-2xl bg-background text-xs font-black uppercase tracking-[0.14em] text-foreground hover:bg-background/90 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900">
+                  <a href={patientSessionUrl(nextAppointment)} target="_blank" rel="noreferrer">
+                    Entrar
+                  </a>
+                </Button>
+              ) : nextAppointment.location ? (
+                <Button asChild className="h-10 rounded-2xl bg-background text-xs font-black uppercase tracking-[0.14em] text-foreground hover:bg-background/90 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900">
+                  <a href={mapsRouteUrl(nextAppointment.location)} target="_blank" rel="noreferrer">
+                    Abrir rota
+                  </a>
+                </Button>
+              ) : (
+                <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-background/64 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/62">
+                  Endereço em breve
+                </span>
+              )
+            ) : (
+              <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-background/64 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/62">
+                Sem horário próximo
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -447,7 +494,7 @@ const AppointmentRequestDialog = () => {
         <div className="border-b border-border/60 p-6">
           <DialogTitle className="text-xl font-semibold tracking-tight">Solicitar agendamento</DialogTitle>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Seu pedido fica pendente até o profissional confirmar na agenda.
+            Seu pedido fica pendente até o profissional confirmar o horário.
           </p>
         </div>
         <div className="space-y-5 p-6">
@@ -510,7 +557,8 @@ const AppointmentRequestDialog = () => {
 const AppointmentCard = ({ appointment }: { appointment: PatientPortalAppointment }) => {
   const start = new Date(appointment.start_time);
   const isPast = start.getTime() < Date.now();
-  const isRequest = appointment.metadata?.origin === "patient_portal" && appointment.metadata?.syncStatus === "pending";
+  const isRequest = isPortalRequest(appointment);
+  const isOnline = appointmentIsOnline(appointment);
 
   return (
     <article className="rounded-[24px] border border-border/60 bg-card/82 p-4 shadow-sm">
@@ -525,19 +573,26 @@ const AppointmentCard = ({ appointment }: { appointment: PatientPortalAppointmen
             <p className="mt-1 text-sm text-muted-foreground">{dateTime.format(start)}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className={cn("inline-flex rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]", statusTone(isRequest ? "pending" : appointment.status))}>
-                {isRequest ? "Aguardando confirmação" : isPast ? "Realizada/passada" : appointment.status || "Agendada"}
+                {isRequest ? "Aguardando confirmação" : isPast ? "Realizada" : statusLabel(appointment.status)}
               </span>
               <span className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                {appointment.type === "online" ? <Video className="mr-1.5 h-3 w-3" /> : <MapPin className="mr-1.5 h-3 w-3" />}
-                {appointment.type || "Sessão"}
+                {isOnline ? <Video className="mr-1.5 h-3 w-3" /> : <MapPin className="mr-1.5 h-3 w-3" />}
+                {appointmentTypeLabel(appointment.type)}
               </span>
             </div>
           </div>
         </div>
-        {appointment.google_meet_link && appointment.type === "online" && !isPast && (
+        {isOnline && !isPast && (
           <Button asChild size="sm" className="shrink-0 rounded-xl">
-            <a href={appointment.google_meet_link} target="_blank" rel="noreferrer">
+            <a href={patientSessionUrl(appointment)} target="_blank" rel="noreferrer">
               Entrar
+            </a>
+          </Button>
+        )}
+        {!isOnline && appointment.location && !isPast && (
+          <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl">
+            <a href={mapsRouteUrl(appointment.location)} target="_blank" rel="noreferrer">
+              Rota
             </a>
           </Button>
         )}
@@ -546,129 +601,169 @@ const AppointmentCard = ({ appointment }: { appointment: PatientPortalAppointmen
   );
 };
 
-const PatientMiniCalendar = ({ appointments }: { appointments: PatientPortalAppointment[] }) => {
-  const [monthDate, setMonthDate] = useState(new Date());
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-  const monthStart = new Date(year, month, 1);
-  const offset = (monthStart.getDay() + 6) % 7;
-  const gridStart = new Date(year, month, 1 - offset);
-  const days = Array.from({ length: 42 }, (_, index) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index));
-  const appointmentsByDay = appointments.reduce<Record<string, PatientPortalAppointment[]>>((result, appointment) => {
-    const key = new Date(appointment.start_time).toDateString();
-    result[key] = [...(result[key] || []), appointment];
-    return result;
-  }, {});
+const NextSessionPanel = ({ appointment }: { appointment?: PatientPortalAppointment }) => {
+  const isOnline = appointmentIsOnline(appointment);
 
   return (
-    <Panel className="overflow-hidden p-0">
-      <div className="flex items-center justify-between border-b border-border/60 p-4">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.16em] text-muted-foreground">Calendário</p>
-          <p className="mt-1 text-xl font-black capitalize tracking-tight text-foreground">
-            {monthOnly.format(monthDate)} {year}
+    <Panel className="bg-white/92 dark:bg-white/[0.06]">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Próximo agendamento</p>
+          <h2 className="mt-3 text-2xl font-black tracking-tight text-foreground">
+            {appointment ? dateTime.format(new Date(appointment.start_time)) : "Sem sessão futura confirmada"}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {appointment
+              ? isOnline
+                ? "A sala online abre pelo ambiente seguro da NeuroNex."
+                : appointment.location || "O endereço aparece aqui quando for compartilhado pelo profissional."
+              : "Quando houver um horário confirmado, ele aparece aqui com acesso rápido e detalhes."}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className="h-10 w-10 rounded-2xl"
-            aria-label="Mês anterior"
-            onClick={() => setMonthDate(new Date(year, month - 1, 1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className="h-10 w-10 rounded-2xl"
-            aria-label="Próximo mês"
-            onClick={() => setMonthDate(new Date(year, month + 1, 1))}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      <div className="grid grid-cols-7 gap-px bg-border/50 p-px">
-        {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((day) => (
-          <div key={day} className="bg-card px-2 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">
-            {day}
+        {appointment && (
+          <div className="flex flex-wrap gap-2">
+            {isOnline ? (
+              <Button asChild className="h-11 rounded-2xl">
+                <a href={patientSessionUrl(appointment)} target="_blank" rel="noreferrer">
+                  <Video className="mr-2 h-4 w-4" />
+                  Entrar
+                </a>
+              </Button>
+            ) : appointment.location ? (
+              <Button asChild className="h-11 rounded-2xl">
+                <a href={mapsRouteUrl(appointment.location)} target="_blank" rel="noreferrer">
+                  <Route className="mr-2 h-4 w-4" />
+                  Abrir rota
+                </a>
+              </Button>
+            ) : null}
           </div>
-        ))}
-        {days.map((day) => {
-          const key = day.toDateString();
-          const dayAppointments = appointmentsByDay[key] || [];
-          const isCurrentMonth = day.getMonth() === month;
-          const isToday = key === new Date().toDateString();
-          return (
-            <div
-              key={key}
-              className={cn(
-                "min-h-[86px] bg-card p-2 transition-colors",
-                !isCurrentMonth && "bg-muted/35 text-muted-foreground/50",
-                isToday && "bg-foreground/[0.035] dark:bg-white/[0.045]",
-              )}
-            >
-              <div className={cn("flex h-7 w-7 items-center justify-center rounded-full text-xs font-black", isToday && "bg-foreground text-background dark:bg-white dark:text-zinc-950")}>
-                {day.getDate()}
-              </div>
-              <div className="mt-2 space-y-1">
-                {dayAppointments.slice(0, 2).map((appointment) => (
-                  <div key={appointment.id} className="truncate rounded-full border border-border/70 bg-background/70 px-2 py-1 text-[10px] font-semibold text-muted-foreground">
-                    {dateTime.format(new Date(appointment.start_time)).slice(-5)} {appointment.type === "online" ? "Online" : "Presencial"}
-                  </div>
-                ))}
-                {dayAppointments.length > 2 && (
-                  <p className="px-1 text-[10px] font-semibold text-muted-foreground">+{dayAppointments.length - 2}</p>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        )}
       </div>
     </Panel>
   );
 };
 
-const AppointmentsView = ({ appointments }: { appointments?: PatientPortalAppointment[] }) => {
+const SessionSummaryCard = ({ summary }: { summary: PatientPortalSessionSummary }) => {
+  const hasContent = summary.transcriptionEnabled && summary.hasSummary;
+
+  return (
+    <article className="rounded-[26px] border border-border/60 bg-card/82 p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-border bg-background px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">
+              {dateOnly.format(new Date(summary.startTime))}
+            </span>
+            <span className={cn("rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em]", statusTone(summary.reviewStatus === "confirmed" ? "confirmed" : "pending"))}>
+              {summary.transcriptionEnabled ? (summary.reviewStatus === "confirmed" ? "Registrado" : "Em revisão") : "Sem transcrição"}
+            </span>
+          </div>
+          <h3 className="mt-4 text-lg font-black tracking-tight text-foreground">{summary.modality}</h3>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {hasContent
+              ? summary.summary || "A transcrição original está disponível para consulta."
+              : summary.transcriptionEnabled
+                ? "Resumo em preparação. A versão original aparecerá aqui quando estiver disponível."
+                : "Sessão realizada sem transcrição ativa."}
+          </p>
+        </div>
+      </div>
+      {hasContent && (
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          {summary.topics.length > 0 && (
+            <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Temas</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {summary.topics.map((topic) => (
+                  <span key={topic} className="rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold text-muted-foreground">
+                    {topic}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {summary.nextSteps.length > 0 && (
+            <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Próximos passos</p>
+              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                {summary.nextSteps.map((step) => <li key={step}>{step}</li>)}
+              </ul>
+            </div>
+          )}
+          {summary.transcription && (
+            <details className="rounded-2xl border border-border/60 bg-background/70 p-4 lg:col-span-2">
+              <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+                Ver transcrição original
+              </summary>
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{summary.transcription}</p>
+            </details>
+          )}
+        </div>
+      )}
+    </article>
+  );
+};
+
+const SessionsView = ({
+  appointments,
+  summaries,
+}: {
+  appointments?: PatientPortalAppointment[];
+  summaries?: PatientPortalSessionSummary[];
+}) => {
   const rows = appointments || [];
   const upcoming = rows.filter((appointment) => new Date(appointment.start_time).getTime() >= Date.now());
   const past = rows.filter((appointment) => new Date(appointment.start_time).getTime() < Date.now()).reverse();
+  const nextAppointment = upcoming.find((appointment) => !isPortalRequest(appointment));
+  const summaryRows = summaries || [];
 
   return (
     <div className="space-y-6">
       <SectionHeader
-        title="Agenda compartilhada"
-        description="Uma visão do calendário compartilhado com você. Pedidos enviados ficam pendentes até confirmação profissional."
+        title="Sessões"
+        description="Agendamentos, pedidos e registros de IA compartilhados com você."
         action={<AppointmentRequestDialog />}
       />
-      <PatientMiniCalendar appointments={rows} />
-      {rows.length ? (
-        <>
-          <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1 custom-scrollbar">
-            <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Próximas consultas</p>
-            {upcoming.length ? upcoming.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} />) : (
-              <EmptyState icon={CalendarDays} title="Nenhuma consulta futura" description="Solicite um horário para o profissional confirmar." />
-            )}
-          </div>
-          {past.length > 0 && (
-            <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1 custom-scrollbar">
-              <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Histórico de consultas</p>
-              {past.slice(0, 10).map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} />)}
-            </div>
+      <Tabs defaultValue="agendamentos">
+        <TabsList className="h-auto flex-wrap justify-start rounded-[22px] p-1.5">
+          <TabsTrigger value="agendamentos" className="rounded-2xl">Agendamentos</TabsTrigger>
+          <TabsTrigger value="resumos" className="rounded-2xl">Resumos de IA</TabsTrigger>
+        </TabsList>
+        <TabsContent value="agendamentos" className="space-y-5">
+          <NextSessionPanel appointment={nextAppointment} />
+          {rows.length ? (
+            <>
+              <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1 custom-scrollbar">
+                <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Próximos agendamentos</p>
+                {upcoming.length ? upcoming.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} />) : (
+                  <EmptyState icon={CalendarDays} title="Nenhuma sessão futura" description="Solicite um horário para o profissional confirmar." />
+                )}
+              </div>
+              {past.length > 0 && (
+                <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1 custom-scrollbar">
+                  <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Histórico de sessões</p>
+                  {past.slice(0, 10).map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} />)}
+                </div>
+              )}
+            </>
+          ) : (
+            <EmptyState icon={CalendarDays} title="Nenhuma sessão compartilhada" description="Quando houver sessão confirmada ou pedido pendente, ela aparece aqui." />
           )}
-        </>
-      ) : (
-        <EmptyState icon={CalendarDays} title="Nenhuma consulta compartilhada" description="Quando houver agenda confirmada ou pedidos pendentes, ela aparece aqui." />
-      )}
+        </TabsContent>
+        <TabsContent value="resumos" className="space-y-3">
+          {summaryRows.length ? (
+            summaryRows.map((summary) => <SessionSummaryCard key={`${summary.appointmentId}:${summary.id}`} summary={summary} />)
+          ) : (
+            <EmptyState icon={BrainCircuit} title="Nenhum resumo disponível" description="Sessões com transcrição ativada aparecerão aqui quando houver registro compartilhado." />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
 
-type NeuroDriveTab = "documentos" | "anamneses" | "neuroview" | "notas" | "tarefas" | "notion";
+type NeuroDriveTab = "documentos" | "anamneses" | "notas" | "tarefas";
 
 const PreparedPortalSpace = ({
   icon: Icon,
@@ -690,6 +785,199 @@ const PreparedPortalSpace = ({
   </Panel>
 );
 
+const PatientNotesView = ({ notesState }: { notesState: ReturnType<typeof usePatientPortalNotes> }) => {
+  const notes = notesState.data?.notes || [];
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [neuroView, setNeuroView] = useState(false);
+  const selectedNote = notes.find((note) => note.id === selectedId) || null;
+
+  useEffect(() => {
+    if (!selectedId && notes.length) {
+      setSelectedId(notes[0].id);
+    }
+  }, [notes, selectedId]);
+
+  useEffect(() => {
+    if (selectedNote) {
+      setTitle(selectedNote.title || "");
+      setContent(selectedNote.content || "");
+    }
+  }, [selectedNote?.id]);
+
+  const startNewNote = () => {
+    setSelectedId(null);
+    setTitle("");
+    setContent("");
+  };
+
+  const saveNote = () => {
+    notesState.saveNote.mutate(
+      {
+        noteId: selectedNote?.id,
+        title,
+        content,
+      },
+      {
+        onSuccess: ({ note }) => {
+          setSelectedId(note.id);
+          toast.success("Nota salva.");
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Não foi possível salvar a nota."),
+      },
+    );
+  };
+
+  const deleteNote = () => {
+    if (!selectedNote) return;
+    const confirmed = window.confirm("Excluir esta nota pessoal?");
+    if (!confirmed) return;
+
+    notesState.deleteNote.mutate(selectedNote.id, {
+      onSuccess: () => {
+        setSelectedId(null);
+        setTitle("");
+        setContent("");
+        toast.success("Nota excluída.");
+      },
+      onError: (error) => toast.error(error instanceof Error ? error.message : "Não foi possível excluir a nota."),
+    });
+  };
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+      <Panel className="min-h-[420px]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Notas pessoais</p>
+            <h3 className="mt-2 text-xl font-black tracking-tight text-foreground">Seus registros</h3>
+          </div>
+          <Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl" onClick={startNewNote} aria-label="Criar nota">
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="mt-5 max-h-[520px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+          {notesState.isLoading ? (
+            <div className="rounded-2xl border border-border/60 bg-background/70 p-4 text-sm text-muted-foreground">Carregando notas...</div>
+          ) : notes.length ? (
+            notes.map((note) => (
+              <button
+                key={note.id}
+                type="button"
+                onClick={() => setSelectedId(note.id)}
+                className={cn(
+                  "w-full rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  selectedId === note.id
+                    ? "border-foreground/25 bg-foreground text-background"
+                    : "border-border/60 bg-background/70 text-foreground hover:border-foreground/15",
+                )}
+              >
+                <span className="block truncate text-sm font-black">{note.title || "Nota sem título"}</span>
+                <span className={cn("mt-2 block line-clamp-2 text-xs leading-relaxed", selectedId === note.id ? "text-background/66" : "text-muted-foreground")}>
+                  {note.content || "Sem conteúdo ainda."}
+                </span>
+                <span className={cn("mt-3 block text-[10px] font-bold uppercase tracking-[0.14em]", selectedId === note.id ? "text-background/48" : "text-muted-foreground")}>
+                  {dateOnly.format(new Date(note.updatedAt))}
+                </span>
+              </button>
+            ))
+          ) : (
+            <EmptyState icon={FileText} title="Nenhuma nota ainda" description="Crie registros rápidos para organizar ideias, tarefas e percepções entre sessões." />
+          )}
+        </div>
+      </Panel>
+
+      <Panel className="min-h-[420px]">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+              {selectedNote ? "Editando nota" : "Nova nota"}
+            </p>
+            <h3 className="mt-2 text-2xl font-black tracking-tight text-foreground">Espaço pessoal</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Essas notas são suas e ficam separadas das anotações clínicas privadas do profissional.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={neuroView ? "default" : "outline"}
+              className="h-11 rounded-2xl px-4"
+              onClick={() => setNeuroView((current) => !current)}
+              aria-pressed={neuroView}
+              aria-label="NeuroView das notas"
+            >
+              <BrainCircuit className="mr-2 h-4 w-4" />
+              NeuroView
+            </Button>
+            {selectedNote && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-2xl px-4 text-rose-600 hover:text-rose-700"
+                onClick={deleteNote}
+                disabled={notesState.deleteNote.isPending}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {neuroView && (
+          <div className="mt-5 rounded-[24px] border border-border/70 bg-background/70 p-5">
+            <div className="flex items-start gap-4">
+              <div className="dashboard-soft-fill flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-muted-foreground">
+                <BrainCircuit className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Visualização neural preparada</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  Em breve, suas notas poderão aparecer como conexões de ideias dentro do NeuroDrive.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-5 space-y-4">
+          <Input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Título da nota"
+            className="h-12 rounded-2xl border-border bg-background/70 px-4 text-base font-semibold"
+            maxLength={120}
+          />
+          <Textarea
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            placeholder="Escreva uma nota, ideia, lembrete ou reflexão..."
+            className="min-h-[260px] rounded-[24px] border-border bg-background/70 p-4 text-base leading-relaxed"
+            maxLength={12000}
+          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs font-medium text-muted-foreground">
+              {content.length}/12000 caracteres
+            </p>
+            <Button
+              type="button"
+              className="h-12 rounded-2xl bg-zinc-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+              onClick={saveNote}
+              disabled={notesState.saveNote.isPending || (!title.trim() && !content.trim())}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Salvar nota
+            </Button>
+          </div>
+        </div>
+      </Panel>
+    </div>
+  );
+};
+
 const DocumentsView = ({
   documents,
   anamneses,
@@ -703,39 +991,18 @@ const DocumentsView = ({
 }) => {
   const rows = documents || [];
   const anamnesisRows = anamneses || [];
+  const notesState = usePatientPortalNotes(tab === "notas");
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="NeuroDrive" description="Documentos compartilhados, anamneses e espaços preparados para seu acervo pessoal." />
-      <div className="grid gap-3 md:grid-cols-4">
-        {[
-          { title: "Arquivos", value: String(rows.length), icon: FileText },
-          { title: "Anamneses", value: String(anamnesisRows.length), icon: ClipboardList },
-          { title: "NeuroView", value: "Em breve", icon: BrainCircuit },
-          { title: "Notas + Notion", value: "Preparado", icon: Sparkles },
-        ].map((item) => (
-          <Panel key={item.title} className="min-h-[126px]">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground">{item.title}</p>
-                <p className="mt-4 text-2xl font-black tracking-tight text-foreground">{item.value}</p>
-              </div>
-              <div className="dashboard-soft-fill flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground">
-                <item.icon className="h-4 w-4" />
-              </div>
-            </div>
-          </Panel>
-        ))}
-      </div>
+      <SectionHeader title="NeuroDrive" description="Documentos, anamneses e registros pessoais compartilhados com cuidado." />
 
       <Tabs value={tab} onValueChange={(value) => onTabChange(value as NeuroDriveTab)}>
         <TabsList className="h-auto max-w-full flex-wrap justify-start rounded-[22px] p-1.5">
           <TabsTrigger value="documentos" className="rounded-2xl">Documentos</TabsTrigger>
           <TabsTrigger value="anamneses" className="rounded-2xl">Anamneses</TabsTrigger>
-          <TabsTrigger value="neuroview" className="rounded-2xl">NeuroView</TabsTrigger>
           <TabsTrigger value="notas" className="rounded-2xl">Notas</TabsTrigger>
           <TabsTrigger value="tarefas" className="rounded-2xl">Tarefas</TabsTrigger>
-          <TabsTrigger value="notion" className="rounded-2xl">Notion</TabsTrigger>
         </TabsList>
         <TabsContent value="documentos" className="space-y-3">
           {rows.length ? (
@@ -772,23 +1039,17 @@ const DocumentsView = ({
               ))}
             </>
           ) : (
-            <EmptyState title="Nenhum documento compartilhado" description="Apenas arquivos liberados pelo profissional aparecem aqui, com links R2 temporários." />
+            <EmptyState title="Nenhum documento compartilhado" description="Quando o profissional liberar um arquivo para você, ele aparecerá aqui." />
           )}
         </TabsContent>
         <TabsContent value="anamneses">
           <AnamnesisView anamneses={anamnesisRows} />
         </TabsContent>
-        <TabsContent value="neuroview">
-          <PreparedPortalSpace icon={BrainCircuit} title="NeuroView do paciente" description="Aqui ficará sua visão pessoal de documentos, registros e conexões importantes. Conteúdo clínico privado do profissional não aparece neste espaço." />
-        </TabsContent>
         <TabsContent value="notas">
-          <PreparedPortalSpace icon={ClipboardList} title="Notas pessoais" description="Área preparada para você criar registros próprios dentro do portal. A escrita persistente será ligada por um contrato seguro separado." />
+          <PatientNotesView notesState={notesState} />
         </TabsContent>
         <TabsContent value="tarefas">
           <PreparedPortalSpace icon={Target} title="Tarefas" description="Espaço reservado para tarefas pessoais e acompanhamentos leves, separado das missões compartilhadas pelo profissional." />
-        </TabsContent>
-        <TabsContent value="notion">
-          <PreparedPortalSpace icon={Sparkles} title="Importação Notion" description="A integração será ativada apenas quando estiver isolada para o usuário-paciente, sem misturar notas profissionais ou dados clínicos privados." />
         </TabsContent>
       </Tabs>
     </div>
@@ -868,74 +1129,230 @@ const BillingView = ({
   const entryRows = entries || [];
   const invoiceRows = invoices || [];
   const packageRows = packages || [];
-  const pendingAmount = entryRows
-    .filter((entry) => !["paid", "received", "confirmed"].includes(String(entry.status || "").toLowerCase()))
-    .reduce((total, entry) => total + Number(entry.amount || 0), 0);
-
-  if (!entryRows.length && !invoiceRows.length && !packageRows.length) {
-    return <EmptyState icon={ReceiptText} title="Nenhuma movimentação compartilhada" description="Cobranças, recibos, pagamentos e pacotes aparecem aqui pelo NeuroFinance." />;
-  }
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 md:grid-cols-3">
-        <MetricCard title="Pagamentos" value={pendingAmount ? "Disponível" : "Tudo em dia"} icon={CreditCard} tone={pendingAmount ? "warning" : "success"} />
-        <MetricCard title="Cobranças" value={String(entryRows.length)} icon={ReceiptText} tone="info" />
-        <MetricCard title="Documentos" value={String(invoiceRows.length)} icon={FileText} />
-      </div>
-      {packageRows.length > 0 && (
-        <div className="space-y-3">
-          <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Pacotes e sessões</p>
-          <div className="grid gap-4 xl:grid-cols-2">
-            {packageRows.map((pkg) => <PackageCard key={pkg.id} pkg={pkg} />)}
+      <SectionHeader title="NeuroFinance" description="Pacotes, sessões e cobranças compartilhadas em um só lugar." />
+      <Tabs defaultValue="pacotes">
+        <TabsList className="h-auto flex-wrap justify-start rounded-[22px] p-1.5">
+          <TabsTrigger value="pacotes" className="rounded-2xl">Pacotes e sessões</TabsTrigger>
+          <TabsTrigger value="cobrancas" className="rounded-2xl">Cobranças</TabsTrigger>
+        </TabsList>
+        <TabsContent value="pacotes" className="space-y-4">
+          {packageRows.length ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {packageRows.map((pkg) => <PackageCard key={pkg.id} pkg={pkg} />)}
+            </div>
+          ) : (
+            <EmptyState icon={Package} title="Nenhum pacote compartilhado" description="Pacotes contratados ou em acompanhamento aparecem aqui quando estiverem disponíveis." />
+          )}
+        </TabsContent>
+        <TabsContent value="cobrancas" className="space-y-3">
+          {entryRows.length ? (
+            entryRows.map((entry) => <BillingChargeCard key={entry.id} entry={entry} />)
+          ) : (
+            <EmptyState icon={ReceiptText} title="Nenhuma cobrança disponível" description="Quando houver um pagamento disponível pelo NeuroFinance, ele aparecerá aqui." />
+          )}
+          {invoiceRows.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Recibos e documentos</p>
+              {invoiceRows.map((invoice) => {
+                const url = invoice.invoice_url || invoice.bank_slip_url || invoice.receipt_url || "";
+                return (
+                  <article key={invoice.id} className="rounded-[24px] border border-border/60 bg-card/82 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-base font-semibold text-foreground">{invoice.invoice_number || "Documento financeiro"}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {money.format(Number(invoice.amount || 0))} {invoice.due_date ? `- ${dateOnly.format(new Date(`${invoice.due_date}T00:00:00`))}` : ""}
+                        </p>
+                      </div>
+                      <Button size="sm" variant="outline" disabled={!url} className="rounded-xl" onClick={() => url && window.open(url, "_blank", "noopener,noreferrer")}>
+                        Abrir
+                      </Button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+const BillingActionButton = ({
+  href,
+  primary = false,
+  children,
+}: {
+  href?: string | null;
+  primary?: boolean;
+  children: ReactNode;
+}) => {
+  if (!href) return null;
+  return (
+    <Button
+      asChild
+      variant={primary ? "default" : "outline"}
+      className={cn(
+        "h-12 rounded-2xl px-5 text-xs font-black uppercase tracking-[0.14em]",
+        primary && "bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100",
+      )}
+    >
+      <a href={href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    </Button>
+  );
+};
+
+const billingMethodLabel = (method?: string | null) => {
+  const normalized = String(method || "").toLowerCase();
+  if (normalized.includes("pix")) return "Pix";
+  if (normalized.includes("boleto")) return "Boleto";
+  if (normalized.includes("cart") || normalized.includes("card")) return "Cartão";
+  if (normalized.includes("link")) return "Link de pagamento";
+  return method || "A definir";
+};
+
+const BillingChargeCard = ({ entry }: { entry: PatientPortalBillingEntry }) => {
+  const canPay = Boolean(entry.payment_url || entry.invoice_url || entry.bank_slip_url || entry.pix_qr_code || entry.pix_copy_paste);
+  const chargeTitle = entry.title || entry.description || "Cobrança NeuroFinance";
+  const paidAt = entry.paid_at ? dateOnly.format(new Date(entry.paid_at)) : null;
+  const dueText = paidAt
+    ? `Pagamento registrado em ${paidAt}`
+    : entry.due_date
+      ? `Disponível até ${dateOnly.format(new Date(`${entry.due_date}T00:00:00`))}`
+      : "Disponível no portal";
+  const methodLabel = billingMethodLabel(entry.payment_method);
+  const statusText = statusLabel(entry.status);
+  const primaryPaymentUrl = entry.payment_url || entry.invoice_url;
+  const copyPix = async () => {
+    if (!entry.pix_copy_paste) return;
+    try {
+      await navigator.clipboard.writeText(entry.pix_copy_paste);
+      toast.success("Código Pix copiado.");
+    } catch {
+      toast.error("Não foi possível copiar o Pix agora.");
+    }
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button type="button" className="w-full rounded-[24px] border border-border/60 bg-card/82 p-4 text-left transition-colors hover:border-foreground/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-base font-semibold text-foreground">{chargeTitle}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{dueText}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-base font-semibold">{money.format(Number(entry.amount || 0))}</p>
+              <span className={cn("mt-2 inline-flex rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]", statusTone(entry.status))}>
+                {statusText}
+              </span>
+            </div>
+          </div>
+        </button>
+      </DialogTrigger>
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-none overflow-hidden rounded-[32px] border border-border/70 bg-card p-0 shadow-[0_44px_140px_-72px_rgba(0,0,0,0.92)] sm:max-w-[760px]">
+        <div className="relative overflow-hidden border-b border-border/60 p-6 md:p-7">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,hsl(var(--foreground)/0.08),transparent_34%),linear-gradient(135deg,hsl(var(--muted)/0.62),transparent_48%)] dark:bg-[radial-gradient(circle_at_85%_0%,rgba(255,255,255,0.08),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.055),transparent_48%)]" />
+          <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <span className="inline-flex rounded-full border border-border/60 bg-background/76 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                NeuroFinance
+              </span>
+              <DialogTitle className="mt-4 text-2xl font-black tracking-tight text-foreground md:text-3xl">{chargeTitle}</DialogTitle>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                Acompanhe os detalhes e escolha uma forma disponível para seguir com o pagamento.
+              </p>
+            </div>
+            <div className="shrink-0 rounded-[26px] border border-border/60 bg-background/76 p-4 text-left shadow-sm md:min-w-[220px] md:text-right">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Valor</p>
+              <p className="mt-2 text-3xl font-black tracking-tight text-foreground">{money.format(Number(entry.amount || 0))}</p>
+              <span className={cn("mt-3 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em]", statusTone(entry.status))}>
+                {statusText}
+              </span>
+            </div>
           </div>
         </div>
-      )}
-      <div className="space-y-3">
-        <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Cobranças NeuroFinance</p>
-        {entryRows.map((entry) => (
-          <article key={entry.id} className="rounded-[24px] border border-border/60 bg-card/82 p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-base font-semibold text-foreground">{entry.title || entry.description || "Cobrança"}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {entry.due_date ? `Vence em ${dateOnly.format(new Date(`${entry.due_date}T00:00:00`))}` : "Sem vencimento"}
+        <div className="max-h-[calc(100vh-18rem)] space-y-5 overflow-y-auto p-6 custom-scrollbar md:p-7">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[22px] border border-border/70 bg-background/70 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Situação</p>
+              <p className="mt-2 text-sm font-semibold text-foreground">{statusText}</p>
+            </div>
+            <div className="rounded-[22px] border border-border/70 bg-background/70 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Forma</p>
+              <p className="mt-2 text-sm font-semibold text-foreground">{methodLabel}</p>
+            </div>
+            <div className="rounded-[22px] border border-border/70 bg-background/70 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Disponibilidade</p>
+              <p className="mt-2 text-sm font-semibold text-foreground">{dueText}</p>
+            </div>
+          </div>
+
+          {(entry.pix_qr_code || entry.pix_copy_paste) && (
+            <div className="grid gap-4 rounded-[26px] border border-border/70 bg-background/70 p-4 md:grid-cols-[auto_1fr] md:items-center">
+              {entry.pix_qr_code && (
+                <div className="mx-auto rounded-[24px] border border-border/60 bg-white p-3 shadow-sm md:mx-0">
+                  <img
+                    src={entry.pix_qr_code.startsWith("data:") ? entry.pix_qr_code : `data:image/png;base64,${entry.pix_qr_code}`}
+                    alt="QR Code Pix"
+                    className="h-44 w-44 rounded-[18px]"
+                  />
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Pix disponível</p>
+                <h3 className="mt-2 text-xl font-black tracking-tight text-foreground">Pague pelo QR Code ou copie o código.</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Use o app do seu banco para ler o QR Code. Se preferir, copie o código Pix e cole no pagamento.
                 </p>
-              </div>
-              <div className="text-right">
-                <p className="text-base font-semibold">{money.format(Number(entry.amount || 0))}</p>
-                <span className={cn("mt-2 inline-flex rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]", statusTone(entry.status))}>
-                  {entry.status}
-                </span>
+                {entry.pix_copy_paste && (
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <div className="min-w-0 flex-1 truncate rounded-2xl border border-border/70 bg-card px-4 py-3 text-xs font-medium text-muted-foreground">
+                      {entry.pix_copy_paste}
+                    </div>
+                    <Button type="button" variant="outline" className="h-11 rounded-2xl px-4 text-xs font-black uppercase tracking-[0.14em]" onClick={copyPix}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copiar
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
-          </article>
-        ))}
-      </div>
-      {invoiceRows.length > 0 && (
-        <div className="space-y-3">
-          <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Recibos e documentos</p>
-          {invoiceRows.map((invoice) => {
-            const url = invoice.invoice_url || invoice.bank_slip_url || invoice.receipt_url || "";
-            return (
-              <article key={invoice.id} className="rounded-[24px] border border-border/60 bg-card/82 p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-base font-semibold text-foreground">{invoice.invoice_number || "Documento financeiro"}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {money.format(Number(invoice.amount || 0))} {invoice.due_date ? `- ${dateOnly.format(new Date(`${invoice.due_date}T00:00:00`))}` : ""}
-                    </p>
-                  </div>
-                  <Button size="sm" variant="outline" disabled={!url} className="rounded-xl" onClick={() => url && window.open(url, "_blank", "noopener,noreferrer")}>
-                    Abrir
-                  </Button>
-                </div>
-              </article>
-            );
-          })}
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <BillingActionButton href={primaryPaymentUrl} primary>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Abrir pagamento
+            </BillingActionButton>
+            <BillingActionButton href={entry.bank_slip_url}>
+              <ReceiptText className="mr-2 h-4 w-4" />
+              Abrir boleto
+            </BillingActionButton>
+            <BillingActionButton href={entry.receipt_url}>
+              <FileText className="mr-2 h-4 w-4" />
+              Ver recibo
+            </BillingActionButton>
+          </div>
+
+          {!canPay && (
+            <div className="rounded-[24px] border border-border/70 bg-background/70 p-5">
+              <p className="text-sm font-semibold text-foreground">Pagamento ainda não liberado no portal.</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Quando o profissional disponibilizar o pagamento pelo NeuroFinance, as opções aparecerão aqui automaticamente.
+              </p>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -984,115 +1401,6 @@ const PackageCard = ({ pkg }: { pkg: PatientPortalPackage }) => {
         <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
       </div>
     </Panel>
-  );
-};
-
-const PackagesView = ({ packages }: { packages?: PatientPortalPackage[] }) => {
-  const rows = packages || [];
-  if (!rows.length) {
-    return <EmptyState icon={Package} title="Nenhum pacote compartilhado" description="Pacotes contratados ou em acompanhamento ficam visíveis aqui quando estiverem cadastrados." />;
-  }
-  return (
-    <div className="space-y-4">
-      <SectionHeader title="Pacotes" description="Acompanhe sessões usadas, restantes e histórico de planos." />
-      <div className="grid gap-4 xl:grid-cols-2">
-        {rows.map((pkg) => <PackageCard key={pkg.id} pkg={pkg} />)}
-      </div>
-    </div>
-  );
-};
-
-const avatarInitials = (name: string) => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return `${parts[0]?.[0] || "N"}${parts[1]?.[0] || ""}`.toUpperCase();
-};
-
-const historyActionText = (item: PatientPortalHistoryItem) => {
-  if (item.type === "appointment") return "participou de uma atualização de agenda";
-  if (item.type === "document") return "recebeu um documento no NeuroDrive";
-  if (item.type === "goal") return "avançou em uma missão compartilhada";
-  if (item.type === "mood") return "registrou um momento no diário de humor";
-  if (item.type === "billing") return "teve uma atualização no NeuroFinance";
-  if (item.type === "anamnesis") return "atualizou uma anamnese";
-  return "teve uma atualização no portal";
-};
-
-const HistoryView = ({
-  items,
-  patientName,
-  professionalName,
-}: {
-  items?: PatientPortalHistoryItem[];
-  patientName: string;
-  professionalName: string;
-}) => {
-  const rows = items || [];
-  const iconByType: Record<PatientPortalHistoryItem["type"], typeof Home> = {
-    appointment: CalendarDays,
-    document: FileText,
-    goal: Target,
-    mood: HeartPulse,
-    billing: ReceiptText,
-    anamnesis: ClipboardList,
-  };
-
-  if (!rows.length) {
-    return <EmptyState icon={FileClock} title="Feed ainda vazio" description="Eventos compartilhados do seu cuidado aparecem aqui quando estiverem disponíveis." />;
-  }
-
-  return (
-    <div className="space-y-5">
-      <SectionHeader title="Feed" description="Postagens do seu processo, com apenas informações compartilhadas com você." />
-      <div className="relative space-y-4">
-        <div className="absolute left-6 top-4 hidden h-[calc(100%-2rem)] w-px bg-gradient-to-b from-transparent via-border to-transparent md:block" />
-        {rows.map((item) => {
-          const Icon = iconByType[item.type] || FileClock;
-          return (
-            <article key={item.id} className="dashboard-retina-card group relative overflow-hidden rounded-[32px] p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-foreground/18 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
-              <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-foreground/[0.035] blur-3xl dark:bg-white/[0.028]" />
-              <div className="relative z-10 flex gap-4">
-                <div className="relative shrink-0">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-background text-sm font-black text-foreground shadow-sm">
-                    {avatarInitials(patientName)}
-                  </div>
-                  <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm">
-                    <Icon className="h-3.5 w-3.5" />
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-foreground">
-                        {patientName}
-                        <span className="ml-2 font-medium text-muted-foreground">{historyActionText(item)}</span>
-                      </p>
-                      <p className="mt-1 text-xs font-semibold text-muted-foreground">{dateTime.format(new Date(item.occurredAt))}</p>
-                    </div>
-                    <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-                      {item.type}
-                    </span>
-                  </div>
-                  <div className="mt-4 rounded-[24px] border border-border/60 bg-background/62 p-4">
-                    <p className="text-base font-semibold text-foreground">{item.title}</p>
-                    {item.description && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.description}</p>}
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <button type="button" className="inline-flex h-10 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
-                      <Heart className="h-3.5 w-3.5" />
-                      Acolhido pelo profissional
-                    </button>
-                    <button type="button" className="inline-flex h-10 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      Comentário do {getFirstName(professionalName)} em breve
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-    </div>
   );
 };
 
@@ -1181,14 +1489,11 @@ const AnamnesisView = ({ anamneses }: { anamneses?: PatientPortalAnamnesis[] }) 
   );
 };
 
-type ProgressTab = "visao" | "missoes" | "feed";
+type ProgressTab = "visao" | "missoes";
 
 const ProgressView = ({
   progress,
   goals,
-  historyItems,
-  patientName,
-  professionalName,
   tab,
   onTabChange,
 }: {
@@ -1204,9 +1509,6 @@ const ProgressView = ({
     nextSteps: PatientPortalGoal[];
   };
   goals?: PatientPortalGoal[];
-  historyItems?: PatientPortalHistoryItem[];
-  patientName: string;
-  professionalName: string;
   tab: ProgressTab;
   onTabChange: (tab: ProgressTab) => void;
 }) => {
@@ -1217,7 +1519,7 @@ const ProgressView = ({
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Progresso" description="Visão geral, missões e feed do seu processo em um só lugar." />
+      <SectionHeader title="Progresso" description="Visão geral e missões compartilhadas para acompanhar seu processo." />
       <div className="grid gap-3 md:grid-cols-4">
         <MetricCard title="Sessões registradas" value={`${progress?.attendedSessions || 0}/${progress?.sessionsTotal || 0}`} icon={CalendarDays} />
         <MetricCard title="Missões concluídas" value={`${progress?.completedGoals || 0}/${progress?.goalsTotal || 0}`} icon={Target} tone={(progress?.completedGoals || 0) ? "success" : "default"} />
@@ -1228,7 +1530,6 @@ const ProgressView = ({
         <TabsList className="h-auto flex-wrap justify-start rounded-[22px] p-1.5">
           <TabsTrigger value="visao" className="rounded-2xl">Visão geral</TabsTrigger>
           <TabsTrigger value="missoes" className="rounded-2xl">Missões</TabsTrigger>
-          <TabsTrigger value="feed" className="rounded-2xl">Feed</TabsTrigger>
         </TabsList>
         <TabsContent value="visao" className="space-y-5">
           <Panel>
@@ -1239,7 +1540,7 @@ const ProgressView = ({
               <div className="min-w-0 flex-1">
                 <p className="text-base font-semibold text-foreground">Direção atual</p>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  Este painel usa apenas sinais compartilhados: agenda, missões, humor, documentos e pacotes. Notas clínicas privadas não aparecem aqui.
+                  Este painel usa apenas sinais compartilhados: sessões, missões, humor, documentos e pacotes. Notas clínicas privadas não aparecem aqui.
                 </p>
                 <div className="mt-4 grid gap-2">
                   {openGoals.length ? openGoals.map((goal) => (
@@ -1269,9 +1570,6 @@ const ProgressView = ({
         </TabsContent>
         <TabsContent value="missoes">
           <GoalsView goals={goals} />
-        </TabsContent>
-        <TabsContent value="feed">
-          <HistoryView items={historyItems} patientName={patientName} professionalName={professionalName} />
         </TabsContent>
       </Tabs>
     </div>
@@ -1567,204 +1865,36 @@ const ProfileView = ({
   );
 };
 
-const HomeShortcutCard = ({
+const HomeSummaryRow = ({
   title,
-  value,
-  detail,
   icon: Icon,
+  detail,
+  value,
   onClick,
-  children,
 }: {
   title: string;
-  value: string;
-  detail?: string;
   icon: typeof Home;
+  detail: string;
+  value: string;
   onClick: () => void;
-  children?: ReactNode;
 }) => (
   <button
     type="button"
     onClick={onClick}
-    className="dashboard-retina-card dashboard-tactile group flex min-h-[174px] flex-col rounded-[30px] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/18 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+    className="flex w-full items-center justify-between gap-4 rounded-2xl border border-border/60 bg-background/62 p-4 text-left transition-colors hover:border-foreground/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
   >
-    <div className="flex items-start justify-between gap-4">
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-muted-foreground">{title}</p>
-        <p className="mt-4 text-3xl font-black tracking-tight text-foreground">{value}</p>
-        {detail && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{detail}</p>}
-      </div>
-      <span className="dashboard-soft-fill flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] text-muted-foreground transition-colors group-hover:text-foreground">
+    <span className="flex min-w-0 items-center gap-4">
+      <span className="dashboard-soft-fill flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] text-muted-foreground">
         <Icon className="h-5 w-5" />
       </span>
-    </div>
-    {children && <div className="mt-auto pt-5">{children}</div>}
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-foreground">{title}</span>
+        <span className="mt-1 block text-sm text-muted-foreground">{detail}</span>
+      </span>
+    </span>
+    <span className="shrink-0 text-right text-sm font-black text-foreground">{value}</span>
   </button>
 );
-
-const AppointmentHomeCard = ({
-  appointment,
-  onNavigate,
-}: {
-  appointment?: PatientPortalAppointment;
-  onNavigate: (path: string) => void;
-}) => {
-  const [open, setOpen] = useState(false);
-  const isOnline = appointment?.type === "online";
-  const isPresential = appointment?.type === "presencial";
-  const routeUrl = mapsRouteUrl(appointment?.location);
-
-  if (!appointment) {
-    return (
-      <HomeShortcutCard
-        title="Próxima sessão"
-        value="Sem horário"
-        detail="Você pode solicitar um novo horário na agenda."
-        icon={CalendarDays}
-        onClick={() => onNavigate("/portal/agenda")}
-      />
-    );
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen(true)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") setOpen(true);
-        }}
-        className="dashboard-retina-card dashboard-tactile group flex min-h-[174px] cursor-pointer flex-col rounded-[30px] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/18 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-muted-foreground">Próxima sessão</p>
-            <p className="mt-4 text-3xl font-black tracking-tight text-foreground">{dateTime.format(new Date(appointment.start_time))}</p>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {isOnline ? "Online" : isPresential ? appointment.location || "Presencial" : appointment.type || "Sessão"}
-            </p>
-          </div>
-          <span className="dashboard-soft-fill flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] text-muted-foreground transition-colors group-hover:text-foreground">
-            {isOnline ? <Video className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
-          </span>
-        </div>
-        <div className="mt-auto flex flex-wrap gap-2 pt-5">
-          {isOnline && appointment.google_meet_link && (
-            <Button
-              asChild
-              size="sm"
-              className="rounded-2xl"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <a href={appointment.google_meet_link} target="_blank" rel="noreferrer">Entrar</a>
-            </Button>
-          )}
-          {isPresential && routeUrl && (
-            <Button
-              asChild
-              size="sm"
-              className="rounded-2xl"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <a href={routeUrl} target="_blank" rel="noreferrer">
-                <Route className="mr-2 h-4 w-4" />
-                Abrir rota
-              </a>
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            className="rounded-2xl"
-            onClick={(event) => {
-              event.stopPropagation();
-              setOpen(true);
-            }}
-          >
-            Detalhes
-          </Button>
-        </div>
-      </div>
-      <DialogContent className="max-w-[560px] rounded-[30px] border border-border/70 bg-card p-0 shadow-2xl">
-        <div className="border-b border-border/60 p-6">
-          <DialogTitle className="text-xl font-semibold tracking-tight">Detalhes da sessão</DialogTitle>
-          <p className="mt-2 text-sm text-muted-foreground">{dateTime.format(new Date(appointment.start_time))}</p>
-        </div>
-        <div className="space-y-4 p-6">
-          <AppointmentCard appointment={appointment} />
-          {isPresential && appointment.location && (
-            <div className="rounded-2xl border border-border bg-background/70 p-4">
-              <p className="text-sm font-semibold text-foreground">Endereço</p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{appointment.location}</p>
-              {routeUrl && (
-                <Button asChild className="mt-4 rounded-2xl">
-                  <a href={routeUrl} target="_blank" rel="noreferrer">
-                    <Route className="mr-2 h-4 w-4" />
-                    Abrir no Google Maps
-                  </a>
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-const AnamnesisHomeCard = ({
-  record,
-  onNavigate,
-}: {
-  record?: PatientPortalAnamnesis;
-  onNavigate: (path: string) => void;
-}) => {
-  if (!record) {
-    return (
-      <HomeShortcutCard
-        title="Anamnese"
-        value="Tudo certo"
-        detail="Nenhuma ficha nova agora. Se quiser, registre como você está hoje."
-        icon={ClipboardList}
-        onClick={() => onNavigate("/portal/humor")}
-      />
-    );
-  }
-
-  return (
-    <HomeShortcutCard
-      title="Anamnese"
-      value={`${record.progress}%`}
-      detail={record.status === "submitted" ? "Ficha enviada para leitura." : "Continue quando estiver confortável."}
-      icon={ClipboardList}
-        onClick={() => onNavigate("/portal/documentos?tab=anamneses")}
-    >
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${record.progress}%` }} />
-      </div>
-    </HomeShortcutCard>
-  );
-};
-
-const PackagesHomeCard = ({
-  packages,
-  onNavigate,
-}: {
-  packages: PatientPortalPackage[];
-  onNavigate: (path: string) => void;
-}) => {
-  const active = packages.find((pkg) => Number(pkg.total_sessions || 0) > Number(pkg.sessions_used || 0));
-  const remaining = active ? Math.max(Number(active.total_sessions || 0) - Number(active.sessions_used || 0), 0) : 0;
-  return (
-    <HomeShortcutCard
-      title="Ritmo de sessões"
-      value={active ? `${remaining} disponíveis` : "Sem pacote ativo"}
-      detail={active ? active.description || "Pacote em acompanhamento." : "Quando houver um pacote, ele aparece no NeuroFinance."}
-      icon={Package}
-      onClick={() => onNavigate("/portal/financeiro")}
-    />
-  );
-};
 
 const ReflectionCarousel = ({ patientName }: { patientName: string }) => {
   const [activeSlide, setActiveSlide] = useState(0);
@@ -1791,10 +1921,9 @@ const ReflectionCarousel = ({ patientName }: { patientName: string }) => {
     <section className="relative overflow-hidden rounded-[42px] border border-border/45 bg-foreground p-6 text-center text-background shadow-[0_32px_110px_-78px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950 md:p-10">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.12),transparent_42%,rgba(255,255,255,0.04))] dark:bg-[linear-gradient(135deg,rgba(0,0,0,0.055),transparent_42%,rgba(0,0,0,0.02))]" />
       <div className="relative z-10 mx-auto max-w-4xl overflow-hidden">
-        <motion.div
-          className="flex"
-          animate={{ x: `${activeSlide * -100}%` }}
-          transition={{ type: "spring", stiffness: 90, damping: 22, mass: 0.8 }}
+        <div
+          className="flex transition-transform duration-700 ease-out motion-reduce:transition-none"
+          style={{ transform: `translateX(${activeSlide * -100}%)` }}
         >
           {slides.map((slide) => (
             <div key={slide.eyebrow} className="flex min-h-[220px] min-w-full flex-col items-center justify-center px-4 md:min-h-[260px]">
@@ -1806,7 +1935,7 @@ const ReflectionCarousel = ({ patientName }: { patientName: string }) => {
               <p className="mx-auto mt-5 max-w-2xl text-sm font-medium leading-relaxed opacity-62 md:text-base">{slide.description}</p>
             </div>
           ))}
-        </motion.div>
+        </div>
         <div className="mt-2 flex justify-center gap-2">
           {slides.map((slide, index) => (
             <button
@@ -1825,39 +1954,6 @@ const ReflectionCarousel = ({ patientName }: { patientName: string }) => {
     </section>
   );
 };
-
-const NeuroNexSignature = () => (
-  <section className="relative overflow-hidden rounded-[38px] border border-border/50 bg-[#050506] p-6 text-white shadow-[0_34px_110px_-76px_rgba(0,0,0,0.95)] md:p-8">
-    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.09),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.035),transparent_52%)]" />
-    <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-[0.008]" />
-    <div className="relative z-10 grid gap-6 md:grid-cols-[0.78fr_1.22fr] md:items-center">
-      <div className="relative flex min-h-[220px] items-center justify-center overflow-hidden rounded-[30px] border border-white/[0.075] bg-white/[0.026]">
-        <div className="absolute h-44 w-44 rounded-full border border-white/[0.10] motion-safe:animate-pulse motion-reduce:animate-none" />
-        <div className="absolute h-72 w-72 rounded-full border border-white/[0.035]" />
-        <div className="absolute h-28 w-28 rounded-full bg-white/[0.055] blur-2xl" />
-        <div className="relative flex h-20 w-20 items-center justify-center rounded-[28px] border border-white/[0.12] bg-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_24px_70px_-40px_rgba(255,255,255,0.35)] backdrop-blur-2xl">
-          <BrainCircuit className="h-8 w-8 text-white/82" />
-        </div>
-      </div>
-      <div className="py-2">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/42">NeuroDiver</p>
-        <h2 className="mt-4 max-w-2xl text-3xl font-black leading-[0.94] tracking-tight md:text-5xl">
-          Um espaço de cuidado com a nossa linguagem.
-        </h2>
-        <p className="mt-5 max-w-xl text-sm font-medium leading-relaxed text-white/56 md:text-base">
-          NeuroNex AI. De paciente para paciente, com privacidade, delicadeza e clareza no centro da experiência.
-        </p>
-        <div className="mt-6 flex flex-wrap gap-2">
-          {["Seguro", "Privado", "Compartilhado com intenção"].map((item) => (
-            <span key={item} className="rounded-full border border-white/[0.09] bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/58">
-              {item}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  </section>
-);
 
 const HomeView = ({
   nextAppointment,
@@ -1883,87 +1979,101 @@ const HomeView = ({
   const todayMood = mood.data?.today;
   const moodMeta = moodOptions.find((option) => option.score === todayMood?.mood_score);
   const packageActive = packages.find((pkg) => Number(pkg.total_sessions || 0) > Number(pkg.sessions_used || 0));
+  const remainingSessions = packageActive ? Math.max(Number(packageActive.total_sessions || 0) - Number(packageActive.sessions_used || 0), 0) : 0;
+  const nextSessionDetail = nextAppointment
+    ? `${appointmentTypeLabel(nextAppointment.type)} - ${dateTime.format(new Date(nextAppointment.start_time))}`
+    : "Sem sessão futura confirmada";
+  const anamnesisValue = anamnesisRecord
+    ? anamnesisRecord.status === "submitted"
+      ? "Enviada"
+      : `${anamnesisRecord.progress}%`
+    : "Sem ficha nova";
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <AppointmentHomeCard appointment={nextAppointment} onNavigate={onNavigate} />
-        <HomeShortcutCard
-          title="NeuroFinance"
-          value={pendingAmount ? "Pagamento disponível" : "Tudo em dia"}
-          detail={pendingAmount ? money.format(pendingAmount) : "Sem pagamentos disponíveis agora."}
-          icon={CreditCard}
-          onClick={() => onNavigate("/portal/financeiro")}
-        />
-        <HomeShortcutCard
-          title="NeuroDrive"
-          value={`${documentsCount} itens`}
-          detail="Documentos, anamneses e espaços pessoais."
-          icon={FileText}
-          onClick={() => onNavigate("/portal/documentos")}
-        />
-        <HomeShortcutCard
-          title="Progresso"
-          value={activeGoals ? `${activeGoals} missões` : "Em dia"}
-          detail={activeGoals ? "Pequenas conquistas em movimento." : "Sem missão aberta agora."}
-          icon={TrendingUp}
-          onClick={() => onNavigate("/portal/progresso")}
-        />
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-[1fr_1fr_0.9fr]">
-        <Panel className="min-h-[156px]">
-          <div className="flex h-full items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-muted-foreground">Resumo de hoje</p>
-              <p className="mt-4 text-2xl font-black tracking-tight text-foreground">
-                {todayMood ? `Humor ${moodMeta?.label || todayMood.mood_score}` : "Sem registro ainda"}
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {todayMood ? "Seu diário de humor está salvo para hoje." : "Registre seu humor quando fizer sentido."}
-              </p>
-            </div>
-            <Button variant="outline" className="rounded-2xl" onClick={() => onNavigate("/portal/humor")}>
-              Humor
-            </Button>
-          </div>
-        </Panel>
-        <AnamnesisHomeCard record={anamnesisRecord} onNavigate={onNavigate} />
-        <PackagesHomeCard packages={packages} onNavigate={onNavigate} />
-      </div>
-
-      <Panel className="overflow-hidden">
-        <div className="grid gap-5 md:grid-cols-[1fr_0.72fr] md:items-center">
+      <Panel>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Continuidade</p>
-            <h2 className="mt-3 text-2xl font-black tracking-tight text-foreground">O próximo passo está nas abas certas.</h2>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">Resumo do momento</p>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-foreground">O essencial, sem ruído.</h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Agenda, humor, documentos, progresso e financeiro ficam separados para você encontrar rápido, sem a Home virar um painel pesado.
+              Sessões, documentos, progresso e financeiro aparecem aqui apenas como atalhos rápidos.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: "Agenda", path: "/portal/agenda", icon: CalendarDays },
-              { label: "Humor", path: "/portal/humor", icon: HeartPulse },
-              { label: "Missões", path: "/portal/progresso?tab=missoes", icon: Target },
-              { label: packageActive ? "Pacote ativo" : "NeuroFinance", path: "/portal/financeiro", icon: CreditCard },
-            ].map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => onNavigate(item.path)}
-                className="flex h-20 flex-col items-center justify-center gap-2 rounded-2xl border border-border/60 bg-background/70 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </button>
-            ))}
-          </div>
+          <Button variant="outline" className="h-11 rounded-2xl" onClick={() => onNavigate("/portal/sessoes")}>
+            Ver sessões
+          </Button>
+        </div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          <HomeSummaryRow
+            title="Próximo agendamento"
+            detail={nextSessionDetail}
+            value={nextAppointment ? "Ver" : "Solicitar"}
+            icon={CalendarDays}
+            onClick={() => onNavigate("/portal/sessoes")}
+          />
+          <HomeSummaryRow
+            title="NeuroFinance"
+            detail={pendingAmount ? money.format(pendingAmount) : "Sem pagamentos disponíveis agora."}
+            value={pendingAmount ? "Disponível" : "Tudo em dia"}
+            icon={CreditCard}
+            onClick={() => onNavigate("/portal/financeiro")}
+          />
+          <HomeSummaryRow
+            title="NeuroDrive"
+            detail={`${documentsCount} documento${documentsCount === 1 ? "" : "s"} compartilhado${documentsCount === 1 ? "" : "s"}`}
+            value="Abrir"
+            icon={FileText}
+            onClick={() => onNavigate("/portal/documentos")}
+          />
+          <HomeSummaryRow
+            title="Progresso"
+            detail={activeGoals ? `${activeGoals} missão${activeGoals === 1 ? "" : "ões"} em acompanhamento` : "Sem missão aberta agora"}
+            value={activeGoals ? "Missões" : "Em dia"}
+            icon={TrendingUp}
+            onClick={() => onNavigate("/portal/progresso")}
+          />
         </div>
       </Panel>
 
+      <div className="grid gap-3 lg:grid-cols-3">
+        <Panel className="min-h-[156px]">
+          <p className="text-sm font-semibold text-muted-foreground">Humor de hoje</p>
+          <p className="mt-4 text-2xl font-black tracking-tight text-foreground">
+            {todayMood ? moodMeta?.label || `Humor ${todayMood.mood_score}` : "Sem registro"}
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {todayMood ? "Seu diário de humor está salvo para hoje." : "Registre seu humor quando fizer sentido."}
+          </p>
+          <Button variant="outline" className="mt-5 rounded-2xl" onClick={() => onNavigate("/portal/humor")}>
+            Abrir humor
+          </Button>
+        </Panel>
+        <Panel className="min-h-[156px]">
+          <p className="text-sm font-semibold text-muted-foreground">Anamnese</p>
+          <p className="mt-4 text-2xl font-black tracking-tight text-foreground">{anamnesisValue}</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {anamnesisRecord ? "Acompanhe ou continue sua ficha quando fizer sentido." : "Nenhuma ficha nova no momento."}
+          </p>
+          <Button variant="outline" className="mt-5 rounded-2xl" onClick={() => onNavigate(anamnesisRecord ? "/portal/documentos?tab=anamneses" : "/portal/humor")}>
+            {anamnesisRecord ? "Abrir anamnese" : "Registrar humor"}
+          </Button>
+        </Panel>
+        <Panel className="min-h-[156px]">
+          <p className="text-sm font-semibold text-muted-foreground">Pacotes</p>
+          <p className="mt-4 text-2xl font-black tracking-tight text-foreground">
+            {packageActive ? `${remainingSessions} sessões` : "Sem pacote ativo"}
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {packageActive ? packageActive.description || "Pacote em acompanhamento." : "Quando houver um pacote, ele aparece no NeuroFinance."}
+          </p>
+          <Button variant="outline" className="mt-5 rounded-2xl" onClick={() => onNavigate("/portal/financeiro")}>
+            Abrir NeuroFinance
+          </Button>
+        </Panel>
+      </div>
+
       <ReflectionCarousel patientName={patientName} />
-      <NeuroNexSignature />
     </div>
   );
 };
@@ -1976,8 +2086,8 @@ const PatientPortal = () => {
   const activeView = viewFromPath(location.pathname);
   const searchParams = new URLSearchParams(location.search);
   const requestedTab = searchParams.get("tab") || "";
-  const neuroDriveTab = (["documentos", "anamneses", "neuroview", "notas", "tarefas", "notion"].includes(requestedTab) ? requestedTab : "documentos") as NeuroDriveTab;
-  const progressTab = (["visao", "missoes", "feed"].includes(requestedTab) ? requestedTab : "visao") as ProgressTab;
+  const neuroDriveTab = (["documentos", "anamneses", "notas", "tarefas"].includes(requestedTab) ? requestedTab : "documentos") as NeuroDriveTab;
+  const progressTab = (["visao", "missoes"].includes(requestedTab) ? requestedTab : "visao") as ProgressTab;
   const current = usePatientPortalCurrent();
   const isActive = current.data?.status === "active";
   const appointments = usePatientPortalAppointments(isActive);
@@ -1987,16 +2097,18 @@ const PatientPortal = () => {
   const goals = usePatientPortalGoals(isActive);
   const anamnesis = usePatientPortalAnamnesis(isActive);
   const packages = usePatientPortalPackages(isActive);
-  const history = usePatientPortalHistory(isActive);
   const progress = usePatientPortalProgress(isActive);
+  const sessionSummaries = usePatientPortalSessionSummaries(isActive);
 
   const patientName = current.data?.patient?.name || "Paciente";
   const professionalName = current.data?.professional?.name || "Seu psicólogo";
   const activeNav = navItems.find((item) => item.value === activeView) || navItems[0];
 
   useEffect(() => {
-    if (location.pathname.startsWith("/portal/historico")) {
-      navigate("/portal/progresso?tab=feed", { replace: true });
+    if (location.pathname.startsWith("/portal/agenda")) {
+      navigate("/portal/sessoes", { replace: true });
+    } else if (location.pathname.startsWith("/portal/historico")) {
+      navigate("/portal/progresso", { replace: true });
     } else if (location.pathname.startsWith("/portal/metas")) {
       navigate("/portal/progresso?tab=missoes", { replace: true });
     } else if (location.pathname.startsWith("/portal/anamneses")) {
@@ -2015,7 +2127,7 @@ const PatientPortal = () => {
 
   const nextAppointment = useMemo(() => (
     appointmentRows
-      .filter((appointment) => new Date(appointment.start_time).getTime() >= Date.now())
+      .filter((appointment) => new Date(appointment.start_time).getTime() >= Date.now() && !isPortalRequest(appointment))
       .sort((left, right) => new Date(left.start_time).getTime() - new Date(right.start_time).getTime())[0]
   ), [appointmentRows]);
 
@@ -2076,8 +2188,10 @@ const PatientPortal = () => {
 
   const renderView = () => {
     switch (activeView) {
-      case "agenda":
-        return appointments.isLoading ? <LoadingCard /> : <AppointmentsView appointments={appointmentRows} />;
+      case "sessoes":
+        return appointments.isLoading || sessionSummaries.isLoading ? <LoadingCard /> : (
+          <SessionsView appointments={appointmentRows} summaries={sessionSummaries.data?.summaries} />
+        );
       case "documentos":
         return documents.isLoading || anamnesis.isLoading ? <LoadingCard /> : (
           <DocumentsView
@@ -2088,13 +2202,10 @@ const PatientPortal = () => {
           />
         );
       case "progresso":
-        return progress.isLoading || goals.isLoading || history.isLoading ? <LoadingCard /> : (
+        return progress.isLoading || goals.isLoading ? <LoadingCard /> : (
           <ProgressView
             progress={progress.data?.progress}
             goals={goalRows}
-            historyItems={history.data?.items}
-            patientName={patientName}
-            professionalName={professionalName}
             tab={progressTab}
             onTabChange={setProgressTab}
           />

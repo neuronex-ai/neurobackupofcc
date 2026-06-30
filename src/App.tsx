@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, HashRouter, BrowserRouter, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, HashRouter, BrowserRouter, useLocation, useNavigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -85,6 +85,14 @@ const PaidRoute = ({ children }: { children: ReactNode }) => (
     <SubscriptionRouteGuard>{children}</SubscriptionRouteGuard>
   </ProtectedRoute>
 );
+
+const SynapseShellGate = () => {
+  const location = useLocation();
+  const isPatientSurface = location.pathname.startsWith("/portal") || location.pathname.startsWith("/join/");
+  if (isPatientSurface) return null;
+
+  return <SynapseGlobalShell />;
+};
 
 // ─── Electron body offset for custom title bar ────────────────────────
 const ElectronBodyOffset = () => {
@@ -211,7 +219,7 @@ function App() {
 
                       {/* Synapse Global Shell — Desktop only (browser + Electron), gated by SynapseProvider.isVisible */}
                       <Suspense fallback={null}>
-                        <SynapseGlobalShell />
+                        <SynapseShellGate />
                       </Suspense>
 
                       <SharedRoutes />

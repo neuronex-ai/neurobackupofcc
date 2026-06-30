@@ -90,15 +90,41 @@ async function loadDocuments(context: any) {
   return { documents };
 }
 
+function normalizeStatusLabel(status?: string | null) {
+  const normalized = String(status || "").toLowerCase();
+  if (["paid", "received", "confirmed", "attended", "completed"].includes(normalized)) return "Concluído";
+  if (["pending", "processing", "draft", "unscored"].includes(normalized)) return "Em acompanhamento";
+  if (["overdue", "expired"].includes(normalized)) return "Atenção necessária";
+  if (["cancelled", "canceled", "cancelled_by_professional", "cancelled_by_patient"].includes(normalized)) return "Cancelado";
+  if (["absent", "missed"].includes(normalized)) return "Não compareceu";
+  return "Em acompanhamento";
+}
+
+function normalizePaymentMethod(method?: string | null) {
+  const normalized = String(method || "").toLowerCase();
+  if (normalized.includes("pix")) return "Pix";
+  if (normalized.includes("boleto")) return "Boleto";
+  if (normalized.includes("card") || normalized.includes("cart")) return "Cartão";
+  return "Link de pagamento";
+}
+
+function metadataString(metadata: any, keys: string[]) {
+  for (const key of keys) {
+    const value = metadata?.[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
 async function loadBilling(context: any) {
-  const [entriesResult, invoicesResult] = await Promise.all([
+  const [paymentsResult, invoicesResult] = await Promise.all([
     supabaseAdmin
-      .from("financial_entries")
-      .select("id,title,description,amount,due_date,paid_at,status,payment_method,neurofinance_charge_id,created_at,metadata")
+      .from("nb_payments")
+      .select("id,description,gross_amount,status,payment_method_type,checkout_url,invoice_url,bank_slip_url,receipt_url,pix_qr_code,pix_copy_paste,paid_at,expires_at,created_at,metadata")
       .eq("patient_id", context.patient.id)
-      .eq("professional_id", context.professional.id)
-      .eq("type", "income")
-      .order("due_date", { ascending: false })
+      .eq("user_id", context.professional.id)
+      .neq("status", "draft")
+      .order("created_at", { ascending: false })
       .limit(50),
     supabaseAdmin
       .from("invoices")
@@ -108,11 +134,49 @@ async function loadBilling(context: any) {
       .order("due_date", { ascending: false })
       .limit(50),
   ]);
-  if (entriesResult.error) throw entriesResult.error;
+  if (paymentsResult.error) throw paymentsResult.error;
   if (invoicesResult.error) throw invoicesResult.error;
 
   return {
-    entries: entriesResult.data || [],
+    entries: (paymentsResult.data || []).map((payment: any) => {
+      const metadata = payment.metadata || {};
+      const paymentUrl =
+        payment.checkout_url ||
+        payment.invoice_url ||
+        metadataString(metadata, ["payment_url", "paymentUrl", "asaas_invoice_url", "invoiceUrl"]);
+      const bankSlipUrl =
+        payment.bank_slip_url ||
+        metadataString(metadata, ["bank_slip_url", "bankSlipUrl", "asaas_bank_slip_url"]);
+      const receiptUrl =
+        payment.receipt_url ||
+        metadataString(metadata, ["receipt_url", "receiptUrl", "asaas_transaction_receipt_url"]);
+      const invoiceUrl =
+        payment.invoice_url ||
+        metadataString(metadata, ["invoice_url", "invoiceUrl", "asaas_invoice_url"]);
+
+      return {
+        id: payment.id,
+        title: payment.description || "Cobrança NeuroFinance",
+        description: payment.description || null,
+        amount: Number(payment.gross_amount || 0) / 100,
+        due_date: payment.expires_at ? String(payment.expires_at).slice(0, 10) : metadataString(metadata, ["due_date", "dueDate"]),
+        paid_at: payment.paid_at || null,
+        status: payment.status || "pending",
+        status_label: normalizeStatusLabel(payment.status),
+        payment_method: normalizePaymentMethod(payment.payment_method_type),
+        neurofinance_charge_id: payment.id,
+        payment_url: paymentUrl,
+        invoice_url: invoiceUrl,
+        bank_slip_url: bankSlipUrl,
+        receipt_url: receiptUrl,
+        pix_qr_code: payment.pix_qr_code || metadataString(metadata, ["pix_qr_code", "pixQrCode", "encodedImage"]),
+        pix_copy_paste: payment.pix_copy_paste || metadataString(metadata, ["pix_copy_paste", "pixCopyPaste", "payload"]),
+        created_at: payment.created_at,
+        metadata: {
+          paymentMethod: normalizePaymentMethod(payment.payment_method_type),
+        },
+      };
+    }),
     invoices: (invoicesResult.data || []).map((invoice: any) => ({
       id: invoice.id,
       invoice_number: invoice.invoice_number,
@@ -126,6 +190,86 @@ async function loadBilling(context: any) {
       nfse_xml_url: invoice.nfse_xml_url || null,
     })),
   };
+}
+
+async function loadSessionSummaries(context: any) {
+  const [appointmentsResult, notesResult, transcriptsResult] = await Promise.all([
+    supabaseAdmin
+      .from("appointments")
+      .select("id,start_time,end_time,type,status,metadata")
+      .eq("patient_id", context.patient.id)
+      .eq("user_id", context.professional.id)
+      .lte("start_time", new Date().toISOString())
+      .order("start_time", { ascending: false })
+      .limit(50),
+    supabaseAdmin
+      .from("session_notes")
+      .select("id,appointment_id,ai_summary,transcription,original_ai_summary,original_transcription,review_status,review_due_at,created_at")
+      .eq("patient_id", context.patient.id)
+      .eq("user_id", context.professional.id)
+      .not("appointment_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(80),
+    supabaseAdmin
+      .from("session_transcripts")
+      .select("id,appointment_id,status,consent_status,reviewed_at,summary_note_id,created_at")
+      .eq("patient_id", context.patient.id)
+      .eq("user_id", context.professional.id)
+      .not("appointment_id", "is", null)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(80),
+  ]);
+
+  if (appointmentsResult.error) throw appointmentsResult.error;
+  if (notesResult.error) throw notesResult.error;
+  if (transcriptsResult.error) throw transcriptsResult.error;
+
+  const notesByAppointment = new Map<string, any>();
+  for (const note of notesResult.data || []) {
+    if (note.appointment_id && !notesByAppointment.has(note.appointment_id)) notesByAppointment.set(note.appointment_id, note);
+  }
+
+  const transcriptsByAppointment = new Map<string, any>();
+  for (const transcript of transcriptsResult.data || []) {
+    if (transcript.appointment_id && !transcriptsByAppointment.has(transcript.appointment_id)) {
+      transcriptsByAppointment.set(transcript.appointment_id, transcript);
+    }
+  }
+
+  const summaries = (appointmentsResult.data || []).map((appointment: any) => {
+    const note = notesByAppointment.get(appointment.id);
+    const transcript = transcriptsByAppointment.get(appointment.id);
+    const metadata = appointment.metadata || {};
+    const transcriptionDecision = metadata.teleconsultationTranscription;
+    const transcriptionEnabled =
+      Boolean(transcriptionDecision?.enabled) ||
+      transcript?.consent_status === "granted" ||
+      Boolean(note?.original_transcription || note?.transcription);
+    const summary = note?.original_ai_summary || note?.ai_summary || null;
+    const transcription = note?.original_transcription || note?.transcription || null;
+
+    return {
+      id: note?.id || transcript?.id || appointment.id,
+      appointmentId: appointment.id,
+      startTime: appointment.start_time,
+      endTime: appointment.end_time || null,
+      modality: appointment.type === "online" ? "Online" : "Presencial",
+      statusLabel: normalizeStatusLabel(appointment.status),
+      transcriptionEnabled,
+      hasSummary: Boolean(summary?.summary || transcription),
+      summary: summary?.summary || null,
+      topics: Array.isArray(summary?.topics) ? summary.topics.slice(0, 8).map((item: unknown) => String(item)) : [],
+      nextSteps: Array.isArray(summary?.next_steps) ? summary.next_steps.slice(0, 8).map((item: unknown) => String(item)) : [],
+      emotionalAnalysis: typeof summary?.emotional_analysis === "string" ? summary.emotional_analysis : null,
+      sentiment: typeof summary?.sentiment === "string" ? summary.sentiment : null,
+      transcription,
+      reviewStatus: note?.review_status || (transcriptionEnabled ? "pending_review" : "none"),
+      reviewDueAt: note?.review_due_at || null,
+    };
+  });
+
+  return { summaries };
 }
 
 function normalizeAnamnesisContent(content: unknown) {
@@ -270,136 +414,6 @@ async function loadPackages(context: any) {
     .limit(30);
   if (error) throw error;
   return { packages: data || [] };
-}
-
-async function loadHistory(context: any) {
-  const [appointments, documents, goals, mood, billing, anamnesis] = await Promise.all([
-    supabaseAdmin
-      .from("appointments")
-      .select("id,start_time,end_time,type,status,created_at,metadata")
-      .eq("patient_id", context.patient.id)
-      .eq("user_id", context.professional.id)
-      .order("start_time", { ascending: false })
-      .limit(30),
-    supabaseAdmin
-      .from("document_files")
-      .select("id,original_name,mime_type,size_bytes,created_at,shared_with_patient_at")
-      .eq("patient_id", context.patient.id)
-      .eq("user_id", context.professional.id)
-      .eq("status", "ready")
-      .eq("shared_with_patient", true)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(30),
-    supabaseAdmin
-      .from("patient_goals")
-      .select("id,description,is_completed,due_date,created_at")
-      .eq("patient_id", context.patient.id)
-      .eq("user_id", context.professional.id)
-      .order("created_at", { ascending: false })
-      .limit(30),
-    supabaseAdmin
-      .from("patient_mood_logs")
-      .select("id,mood_score,notes,source,created_at")
-      .eq("patient_id", context.patient.id)
-      .eq("user_id", context.professional.id)
-      .order("created_at", { ascending: false })
-      .limit(30),
-    supabaseAdmin
-      .from("financial_entries")
-      .select("id,title,description,amount,due_date,paid_at,status,created_at,metadata")
-      .eq("patient_id", context.patient.id)
-      .eq("professional_id", context.professional.id)
-      .eq("type", "income")
-      .order("created_at", { ascending: false })
-      .limit(30),
-    supabaseAdmin
-      .from("patient_anamneses")
-      .select("id,type,content,created_at,updated_at,token_expires_at")
-      .eq("patient_id", context.patient.id)
-      .order("updated_at", { ascending: false })
-      .limit(20),
-  ]);
-
-  for (const result of [appointments, documents, goals, mood, billing, anamnesis]) {
-    if (result.error) throw result.error;
-  }
-
-  const items: any[] = [];
-  (appointments.data || []).forEach((row: any) => {
-    items.push({
-      id: `appointment:${row.id}`,
-      sourceId: row.id,
-      type: "appointment",
-      title: "Consulta",
-      description: `${row.type || "Sessao"} - ${row.status || "agendada"}`,
-      occurredAt: row.start_time,
-      metadata: { status: row.status, type: row.type, syncStatus: row.metadata?.syncStatus || null },
-    });
-  });
-  (documents.data || []).forEach((row: any) => {
-    items.push({
-      id: `document:${row.id}`,
-      sourceId: row.id,
-      type: "document",
-      title: row.original_name || "Documento compartilhado",
-      description: "Documento liberado pelo profissional.",
-      occurredAt: row.shared_with_patient_at || row.created_at,
-      metadata: { mimeType: row.mime_type, sizeBytes: row.size_bytes },
-    });
-  });
-  (goals.data || []).forEach((row: any) => {
-    items.push({
-      id: `goal:${row.id}`,
-      sourceId: row.id,
-      type: "goal",
-      title: row.is_completed ? "Meta concluida" : "Meta criada",
-      description: row.description,
-      occurredAt: row.created_at,
-      metadata: { isCompleted: row.is_completed, dueDate: row.due_date },
-    });
-  });
-  (mood.data || []).forEach((row: any) => {
-    items.push({
-      id: `mood:${row.id}`,
-      sourceId: row.id,
-      type: "mood",
-      title: "Registro de humor",
-      description: row.notes || `Humor ${row.mood_score}/5`,
-      occurredAt: row.created_at,
-      metadata: { moodScore: row.mood_score, source: row.source },
-    });
-  });
-  (billing.data || []).forEach((row: any) => {
-    items.push({
-      id: `billing:${row.id}`,
-      sourceId: row.id,
-      type: "billing",
-      title: row.title || row.description || "Registro NeuroFinance",
-      description: row.status || "financeiro",
-      occurredAt: row.paid_at || row.due_date || row.created_at,
-      metadata: { amount: row.amount, status: row.status },
-    });
-  });
-  (anamnesis.data || []).forEach((row: any) => {
-    const progress = calculateAnamnesisProgress(row.content);
-    items.push({
-      id: `anamnesis:${row.id}`,
-      sourceId: row.id,
-      type: "anamnesis",
-      title: progress >= 100 ? "Anamnese enviada" : "Anamnese em andamento",
-      description: row.type || "Ficha de anamnese",
-      occurredAt: row.updated_at || row.created_at,
-      metadata: { progress },
-    });
-  });
-
-  return {
-    items: items
-      .filter((item) => item.occurredAt)
-      .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime())
-      .slice(0, 80),
-  };
 }
 
 async function loadProgress(context: any) {
@@ -584,6 +598,85 @@ async function toggleGoal(context: any, body: Record<string, unknown>) {
   return { goal: data };
 }
 
+function mapPatientNote(note: any) {
+  return {
+    id: note.id,
+    title: note.title || "Nota sem título",
+    content: note.content || "",
+    tags: Array.isArray(note.tags) ? note.tags.map((tag: unknown) => String(tag)) : [],
+    referenceDate: note.reference_date || null,
+    createdAt: note.created_at,
+    updatedAt: note.updated_at,
+  };
+}
+
+async function loadPatientNotes(user: any, context: any) {
+  const { data, error } = await supabaseAdmin
+    .from("personal_notes")
+    .select("id,title,content,tags,reference_date,created_at,updated_at")
+    .eq("user_id", user.id)
+    .eq("patient_id", context.patient.id)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+  return { notes: (data || []).map(mapPatientNote) };
+}
+
+async function savePatientNote(user: any, context: any, body: Record<string, unknown>) {
+  const noteId = String(body.noteId || "").trim();
+  const title = String(body.title || "").trim().replace(/\s+/g, " ").slice(0, 120);
+  const content = String(body.content || "").trim().slice(0, 12000);
+
+  if (!title && !content) return errorResponse("Escreva algo para salvar a nota.", 400);
+
+  const payload = {
+    user_id: user.id,
+    patient_id: context.patient.id,
+    module_id: "patient_portal",
+    title: title || "Nota sem título",
+    content,
+    tags: ["portal-paciente"],
+    reference_date: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const query = noteId
+    ? supabaseAdmin
+        .from("personal_notes")
+        .update(payload)
+        .eq("id", noteId)
+        .eq("user_id", user.id)
+        .eq("patient_id", context.patient.id)
+        .select("id,title,content,tags,reference_date,created_at,updated_at")
+        .single()
+    : supabaseAdmin
+        .from("personal_notes")
+        .insert(payload)
+        .select("id,title,content,tags,reference_date,created_at,updated_at")
+        .single();
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return { note: mapPatientNote(data) };
+}
+
+async function deletePatientNote(user: any, context: any, body: Record<string, unknown>) {
+  const noteId = String(body.noteId || "").trim();
+  if (!noteId) return errorResponse("Nota inválida.", 400);
+
+  const { error } = await supabaseAdmin
+    .from("personal_notes")
+    .delete()
+    .eq("id", noteId)
+    .eq("user_id", user.id)
+    .eq("patient_id", context.patient.id);
+
+  if (error) throw error;
+  return { deleted: true };
+}
+
 async function updateProfile(context: any, body: Record<string, unknown>) {
   const firstName = String(body.firstName || "").trim().replace(/\s+/g, " ").slice(0, 80);
   const lastName = String(body.lastName || "").trim().replace(/\s+/g, " ").slice(0, 120);
@@ -654,12 +747,21 @@ Deno.serve(async (req: Request) => {
     if (action === "appointments") return jsonResponse(await loadAppointments(context));
     if (action === "documents") return jsonResponse(await loadDocuments(context));
     if (action === "billing") return jsonResponse(await loadBilling(context));
+    if (action === "session_summaries") return jsonResponse(await loadSessionSummaries(context));
     if (action === "anamnesis") return jsonResponse(await loadAnamnesis(context));
     if (action === "packages") return jsonResponse(await loadPackages(context));
-    if (action === "history") return jsonResponse(await loadHistory(context));
     if (action === "progress") return jsonResponse(await loadProgress(context));
     if (action === "appointment_requests") return jsonResponse(await loadAppointmentRequests(context));
     if (action === "goals") return jsonResponse(await loadGoals(context));
+    if (action === "patient_notes") return jsonResponse(await loadPatientNotes(user, context));
+    if (action === "save_patient_note") {
+      const result = await savePatientNote(user, context, body as Record<string, unknown>);
+      return result instanceof Response ? result : jsonResponse(result);
+    }
+    if (action === "delete_patient_note") {
+      const result = await deletePatientNote(user, context, body as Record<string, unknown>);
+      return result instanceof Response ? result : jsonResponse(result);
+    }
     if (action === "save_anamnesis") {
       const result = await saveAnamnesis(user, context, body as Record<string, unknown>);
       return result instanceof Response ? result : jsonResponse(result);

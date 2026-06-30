@@ -84,6 +84,12 @@ export interface PatientPortalBillingEntry {
   status: string;
   payment_method?: string | null;
   neurofinance_charge_id?: string | null;
+  payment_url?: string | null;
+  invoice_url?: string | null;
+  bank_slip_url?: string | null;
+  receipt_url?: string | null;
+  pix_qr_code?: string | null;
+  pix_copy_paste?: string | null;
   created_at: string;
   metadata?: Record<string, unknown> | null;
 }
@@ -146,24 +152,6 @@ export interface PatientPortalPackage {
   created_at: string;
 }
 
-export type PatientPortalHistoryType =
-  | "appointment"
-  | "document"
-  | "goal"
-  | "mood"
-  | "billing"
-  | "anamnesis";
-
-export interface PatientPortalHistoryItem {
-  id: string;
-  sourceId: string;
-  type: PatientPortalHistoryType;
-  title: string;
-  description: string | null;
-  occurredAt: string;
-  metadata?: Record<string, unknown> | null;
-}
-
 export interface PatientPortalProgress {
   sessionsTotal: number;
   attendedSessions: number;
@@ -174,6 +162,35 @@ export interface PatientPortalProgress {
   activePackages: number;
   lastMood: PatientPortalMoodLog | null;
   nextSteps: PatientPortalGoal[];
+}
+
+export interface PatientPortalSessionSummary {
+  id: string;
+  appointmentId: string;
+  startTime: string;
+  endTime: string | null;
+  modality: string;
+  statusLabel: string;
+  transcriptionEnabled: boolean;
+  hasSummary: boolean;
+  summary: string | null;
+  topics: string[];
+  nextSteps: string[];
+  emotionalAnalysis: string | null;
+  sentiment: string | null;
+  transcription: string | null;
+  reviewStatus: "pending_review" | "confirmed" | "none";
+  reviewDueAt: string | null;
+}
+
+export interface PatientPortalNote {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  referenceDate: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PatientPortalAppointmentRequest {
@@ -326,17 +343,6 @@ export const usePatientPortalPackages = (enabled = true) => {
   });
 };
 
-export const usePatientPortalHistory = (enabled = true) => {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ["patient-portal-history", user?.id],
-    queryFn: () =>
-      invokePortalFunction<{ items: PatientPortalHistoryItem[] }>("patient-portal-current", { action: "history" }),
-    enabled: Boolean(user?.id) && enabled,
-  });
-};
-
 export const usePatientPortalProgress = (enabled = true) => {
   const { user } = useAuth();
 
@@ -357,6 +363,60 @@ export const usePatientPortalAppointmentRequests = (enabled = true) => {
       invokePortalFunction<{ requests: PatientPortalAppointment[] }>("patient-portal-current", { action: "appointment_requests" }),
     enabled: Boolean(user?.id) && enabled,
   });
+};
+
+export const usePatientPortalSessionSummaries = (enabled = true) => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["patient-portal-session-summaries", user?.id],
+    enabled: Boolean(user?.id) && enabled,
+    queryFn: () =>
+      invokePortalFunction<{ summaries: PatientPortalSessionSummary[] }>("patient-portal-current", { action: "session_summaries" }),
+  });
+};
+
+export const usePatientPortalNotes = (enabled = true) => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const queryKey = ["patient-portal-notes", user?.id] as const;
+
+  const query = useQuery({
+    queryKey,
+    queryFn: () =>
+      invokePortalFunction<{ notes: PatientPortalNote[] }>("patient-portal-current", { action: "patient_notes" }),
+    enabled: Boolean(user?.id) && enabled,
+  });
+
+  const saveNote = useMutation({
+    mutationFn: (input: { noteId?: string; title: string; content: string }) =>
+      invokePortalFunction<{ note: PatientPortalNote }>("patient-portal-current", {
+        action: "save_patient_note",
+        noteId: input.noteId,
+        title: input.title,
+        content: input.content,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  const deleteNote = useMutation({
+    mutationFn: (noteId: string) =>
+      invokePortalFunction<{ deleted: true }>("patient-portal-current", {
+        action: "delete_patient_note",
+        noteId,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  return {
+    ...query,
+    saveNote,
+    deleteNote,
+  };
 };
 
 export const usePatientPortalMood = (enabled = true) => {
