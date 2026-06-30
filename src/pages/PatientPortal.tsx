@@ -42,6 +42,7 @@ import {
   FileClock,
   FileText,
   Frown,
+  Heart,
   HeartPulse,
   Home,
   Laugh,
@@ -50,8 +51,10 @@ import {
   LogOut,
   MapPin,
   Meh,
+  MessageCircle,
   Package,
   ReceiptText,
+  Route,
   ShieldCheck,
   Smile,
   Target,
@@ -77,22 +80,21 @@ const monthOnly = new Intl.DateTimeFormat("pt-BR", { month: "short" });
 
 const moodOptions = [
   { score: 1, label: "Pesado", icon: Angry, tone: "text-rose-600 border-rose-500/25 bg-rose-500/10" },
-  { score: 2, label: "Dificil", icon: Frown, tone: "text-orange-600 border-orange-500/25 bg-orange-500/10" },
+  { score: 2, label: "Difícil", icon: Frown, tone: "text-orange-600 border-orange-500/25 bg-orange-500/10" },
   { score: 3, label: "Neutro", icon: Meh, tone: "text-amber-600 border-amber-500/25 bg-amber-500/10" },
   { score: 4, label: "Bem", icon: Smile, tone: "text-emerald-600 border-emerald-500/25 bg-emerald-500/10" },
   { score: 5, label: "Leve", icon: Laugh, tone: "text-blue-600 border-blue-500/25 bg-blue-500/10" },
 ] as const;
 
 const navItems = [
-  { value: "home", label: "Inicio", path: "/portal", icon: Home },
+  { value: "home", label: "Início", path: "/portal", icon: Home },
   { value: "agenda", label: "Agenda", path: "/portal/agenda", icon: CalendarDays },
   { value: "anamneses", label: "Anamneses", path: "/portal/anamneses", icon: ClipboardList },
-  { value: "historico", label: "Historico", path: "/portal/historico", icon: FileClock },
-  { value: "documentos", label: "Documentos", path: "/portal/documentos", icon: FileText },
-  { value: "metas", label: "Metas", path: "/portal/metas", icon: Target },
+  { value: "historico", label: "Feed", path: "/portal/historico", icon: FileClock },
+  { value: "documentos", label: "NeuroDrive", path: "/portal/documentos", icon: FileText },
+  { value: "metas", label: "Missões", path: "/portal/metas", icon: Target },
   { value: "progresso", label: "Progresso", path: "/portal/progresso", icon: TrendingUp },
   { value: "financeiro", label: "NeuroFinance", path: "/portal/financeiro", icon: CreditCard },
-  { value: "pacotes", label: "Pacotes", path: "/portal/pacotes", icon: Package },
   { value: "humor", label: "Humor", path: "/portal/humor", icon: HeartPulse },
   { value: "perfil", label: "Perfil", path: "/portal/perfil", icon: UserRound },
 ] as const;
@@ -100,6 +102,7 @@ const navItems = [
 type PortalView = (typeof navItems)[number]["value"];
 
 const viewFromPath = (pathname: string): PortalView => {
+  if (pathname.startsWith("/portal/pacotes")) return "financeiro";
   const match = navItems.find((item) => item.path !== "/portal" && pathname.startsWith(item.path));
   return match?.value || "home";
 };
@@ -115,6 +118,30 @@ const fileSize = (bytes: number) => {
   if (!bytes) return "0 KB";
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const mapsRouteUrl = (destination?: string | null) =>
+  destination
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`
+    : "";
+
+const patientQuotes = [
+  "Pequenos passos também desenham caminhos inteiros.",
+  "Seu ritmo não precisa parecer com o de ninguém para ser válido.",
+  "Cuidar de si é uma forma silenciosa de coragem.",
+  "Hoje não precisa ser perfeito; precisa apenas ser possível.",
+  "Quando a mente pesa, gentileza vira direção.",
+  "Você não é um problema a resolver; é uma história em construção.",
+  "Clareza também nasce em dias lentos.",
+  "Avançar pode ser só perceber melhor o que você sente.",
+  "Existe força em pedir pausa, ajuda e espaço.",
+  "O futuro melhora quando o cuidado fica mais perto.",
+];
+
+const quoteOfTheDay = () => {
+  const start = new Date(new Date().getFullYear(), 0, 0);
+  const day = Math.floor((Date.now() - start.getTime()) / 86400000);
+  return patientQuotes[Math.abs(day) % patientQuotes.length];
 };
 
 const statusTone = (status?: string | null) => {
@@ -219,81 +246,6 @@ const LockedPortalState = ({
 
 const getFirstName = (name: string) => name.trim().split(/\s+/)[0] || name;
 
-const NeuroDiverTopNav = ({
-  activeView,
-  patientName,
-  onNavigate,
-  onSignOut,
-  loggingOut,
-}: {
-  activeView: PortalView;
-  patientName: string;
-  onNavigate: (path: string) => void;
-  onSignOut: () => void;
-  loggingOut: boolean;
-}) => (
-  <nav
-    id="neurodiver-navbar"
-    className="fixed left-0 right-0 top-7 z-[60] flex justify-center px-4 pointer-events-none"
-    aria-label="Navegacao principal do NeuroDiver"
-  >
-    <div className="pointer-events-auto flex w-full max-w-[1480px] items-center gap-2 overflow-hidden rounded-[30px] border border-black/[0.075] bg-white/[0.72] px-2 py-2 shadow-[0_20px_70px_-52px_rgba(0,0,0,0.72)] ring-1 ring-white/55 backdrop-blur-2xl dark:border-white/[0.09] dark:bg-[#070708]/72 dark:ring-white/[0.05]">
-      <button
-        type="button"
-        onClick={() => onNavigate("/portal")}
-        className="flex min-w-0 shrink-0 items-center gap-3 rounded-[24px] px-3 py-2 text-left transition-colors hover:bg-foreground/[0.045] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label="Ir para Inicio do NeuroDiver"
-      >
-        <span className="flex h-10 w-10 items-center justify-center rounded-[18px] border border-foreground/[0.105] bg-background shadow-sm dark:border-white/[0.08] dark:bg-white/[0.045]">
-          <img src="/favicon-dark.png" alt="" className="h-5 w-5 object-contain dark:hidden" />
-          <img src="/favicon-light.png" alt="" className="hidden h-5 w-5 object-contain dark:block" />
-        </span>
-        <span className="hidden min-w-0 sm:block">
-          <span className="block text-sm font-black leading-none tracking-tight text-foreground">NeuroDiver</span>
-          <span className="mt-1 block max-w-[140px] truncate text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            {getFirstName(patientName)}
-          </span>
-        </span>
-      </button>
-
-      <div className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 no-scrollbar lg:flex">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = activeView === item.value;
-          return (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => onNavigate(item.path)}
-              className={cn(
-                "flex h-11 shrink-0 items-center gap-2 rounded-[18px] px-3 text-xs font-black uppercase tracking-[0.08em] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100",
-                active
-                  ? "bg-foreground text-background shadow-sm dark:bg-white dark:text-zinc-950"
-                  : "text-muted-foreground hover:bg-foreground/[0.055] hover:text-foreground dark:hover:bg-white/[0.07]",
-              )}
-              aria-current={active ? "page" : undefined}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <Button
-        onClick={onSignOut}
-        disabled={loggingOut}
-        variant="ghost"
-        size="icon"
-        className="ml-auto h-11 w-11 shrink-0 rounded-[18px] text-muted-foreground hover:bg-foreground/[0.055] hover:text-foreground dark:hover:bg-white/[0.07]"
-        aria-label="Sair"
-      >
-        {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-      </Button>
-    </div>
-  </nav>
-);
-
 const PortalModuleRail = ({
   activeView,
   onNavigate,
@@ -302,7 +254,7 @@ const PortalModuleRail = ({
   onNavigate: (path: string) => void;
 }) => (
   <DesktopWorkspacePanel className="p-2.5">
-    <div className="flex gap-1.5 overflow-x-auto no-scrollbar lg:grid lg:grid-cols-11 lg:overflow-visible">
+    <div className="flex gap-1.5 overflow-x-auto no-scrollbar lg:grid lg:grid-cols-10 lg:overflow-visible">
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = activeView === item.value;
@@ -362,6 +314,8 @@ const PortalHero = ({
   pendingAmount,
   documentsCount,
   activeGoals,
+  onSignOut,
+  loggingOut,
 }: {
   patientName: string;
   professionalName: string;
@@ -370,18 +324,32 @@ const PortalHero = ({
   pendingAmount: number;
   documentsCount: number;
   activeGoals: number;
+  onSignOut: () => void;
+  loggingOut: boolean;
 }) => (
   <DesktopWorkspacePanel highContrast className="p-0">
     <div className="grid gap-5 p-5 sm:p-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)]">
       <div className="flex min-h-[238px] flex-col justify-between gap-8">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-background/62 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/58">
-              NeuroDiver
-            </span>
-            <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-background/62 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/58">
-              {activeLabel}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-background/62 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/58">
+                NeuroDiver
+              </span>
+              <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.16em] text-background/62 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/58">
+                {activeLabel}
+              </span>
+            </div>
+            <Button
+              onClick={onSignOut}
+              disabled={loggingOut}
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11 rounded-[18px] border border-background/18 bg-background/[0.08] text-background/66 hover:bg-background/[0.14] hover:text-background dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/62 dark:hover:text-zinc-950"
+              aria-label="Sair"
+            >
+              {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+            </Button>
           </div>
           <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[0.96] tracking-tight text-background dark:text-zinc-950 sm:text-5xl xl:text-6xl">
             Oi, {getFirstName(patientName)}.
@@ -402,23 +370,23 @@ const PortalHero = ({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <PortalHeroStat
-          label="Proxima sessao"
-          value={nextAppointment ? dateTime.format(new Date(nextAppointment.start_time)) : "Sem horario"}
+          label="Próxima sessão"
+          value={nextAppointment ? dateTime.format(new Date(nextAppointment.start_time)) : "Sem horário"}
           detail={nextAppointment?.type || "Agenda"}
         />
         <PortalHeroStat
           label="NeuroFinance"
-          value={pendingAmount ? money.format(pendingAmount) : "Em dia"}
-          detail={pendingAmount ? "Pendencias abertas" : "Sem pendencias"}
+          value={pendingAmount ? money.format(pendingAmount) : "Tudo em dia"}
+          detail={pendingAmount ? "Pagamento disponível" : "Sem pagamentos disponíveis"}
           tone={pendingAmount ? "warning" : "success"}
         />
         <PortalHeroStat
-          label="Documentos"
+          label="NeuroDrive"
           value={documentsCount}
           detail="Compartilhados"
         />
         <PortalHeroStat
-          label="Metas ativas"
+          label="Missões"
           value={activeGoals}
           detail="Em acompanhamento"
         />
@@ -707,34 +675,45 @@ const GoalsView = ({ goals }: { goals?: PatientPortalGoal[] }) => {
 const BillingView = ({
   entries,
   invoices,
+  packages,
 }: {
   entries?: PatientPortalBillingEntry[];
   invoices?: PatientPortalInvoice[];
+  packages?: PatientPortalPackage[];
 }) => {
   const entryRows = entries || [];
   const invoiceRows = invoices || [];
+  const packageRows = packages || [];
   const pendingAmount = entryRows
     .filter((entry) => !["paid", "received", "confirmed"].includes(String(entry.status || "").toLowerCase()))
     .reduce((total, entry) => total + Number(entry.amount || 0), 0);
 
-  if (!entryRows.length && !invoiceRows.length) {
-    return <EmptyState icon={ReceiptText} title="Nenhuma movimentacao compartilhada" description="Cobrancas, recibos e documentos financeiros aparecem aqui pelo NeuroFinance." />;
+  if (!entryRows.length && !invoiceRows.length && !packageRows.length) {
+    return <EmptyState icon={ReceiptText} title="Nenhuma movimentação compartilhada" description="Cobranças, recibos, pagamentos e pacotes aparecem aqui pelo NeuroFinance." />;
   }
 
   return (
     <div className="space-y-5">
       <div className="grid gap-3 md:grid-cols-3">
-        <MetricCard title="Pendencias" value={pendingAmount ? money.format(pendingAmount) : "Em dia"} icon={CreditCard} tone={pendingAmount ? "warning" : "success"} />
-        <MetricCard title="Cobrancas" value={String(entryRows.length)} icon={ReceiptText} tone="info" />
+        <MetricCard title="Pagamentos" value={pendingAmount ? "Disponível" : "Tudo em dia"} icon={CreditCard} tone={pendingAmount ? "warning" : "success"} />
+        <MetricCard title="Cobranças" value={String(entryRows.length)} icon={ReceiptText} tone="info" />
         <MetricCard title="Documentos" value={String(invoiceRows.length)} icon={FileText} />
       </div>
+      {packageRows.length > 0 && (
+        <div className="space-y-3">
+          <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Pacotes e sessões</p>
+          <div className="grid gap-4 xl:grid-cols-2">
+            {packageRows.map((pkg) => <PackageCard key={pkg.id} pkg={pkg} />)}
+          </div>
+        </div>
+      )}
       <div className="space-y-3">
-        <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Cobrancas NeuroFinance</p>
+        <p className="px-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">Cobranças NeuroFinance</p>
         {entryRows.map((entry) => (
           <article key={entry.id} className="rounded-[24px] border border-border/60 bg-card/82 p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-base font-semibold text-foreground">{entry.title || entry.description || "Cobranca"}</p>
+                <p className="text-base font-semibold text-foreground">{entry.title || entry.description || "Cobrança"}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {entry.due_date ? `Vence em ${dateOnly.format(new Date(`${entry.due_date}T00:00:00`))}` : "Sem vencimento"}
                 </p>
@@ -792,15 +771,15 @@ const PackageCard = ({ pkg }: { pkg: PatientPortalPackage }) => {
             <Package className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-base font-semibold text-foreground">{pkg.description || "Pacote terapeutico"}</p>
+            <p className="text-base font-semibold text-foreground">{pkg.description || "Pacote terapêutico"}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Inicio {dateOnly.format(new Date(`${pkg.start_date}T00:00:00`))}
+              Início {dateOnly.format(new Date(`${pkg.start_date}T00:00:00`))}
               {pkg.end_date ? ` - vence ${dateOnly.format(new Date(`${pkg.end_date}T00:00:00`))}` : ""}
             </p>
           </div>
         </div>
         <span className={cn("shrink-0 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]", statusTone(complete ? "submitted" : expired ? "expired" : "pending"))}>
-          {complete ? "Concluido" : expired ? "Expirado" : "Ativo"}
+          {complete ? "Concluído" : expired ? "Expirado" : "Ativo"}
         </span>
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -827,11 +806,11 @@ const PackageCard = ({ pkg }: { pkg: PatientPortalPackage }) => {
 const PackagesView = ({ packages }: { packages?: PatientPortalPackage[] }) => {
   const rows = packages || [];
   if (!rows.length) {
-    return <EmptyState icon={Package} title="Nenhum pacote compartilhado" description="Pacotes contratados ou em acompanhamento ficam visiveis aqui quando estiverem cadastrados." />;
+    return <EmptyState icon={Package} title="Nenhum pacote compartilhado" description="Pacotes contratados ou em acompanhamento ficam visíveis aqui quando estiverem cadastrados." />;
   }
   return (
     <div className="space-y-4">
-      <SectionHeader title="Pacotes" description="Acompanhe sessoes usadas, restantes e historico de planos." />
+      <SectionHeader title="Pacotes" description="Acompanhe sessões usadas, restantes e histórico de planos." />
       <div className="grid gap-4 xl:grid-cols-2">
         {rows.map((pkg) => <PackageCard key={pkg.id} pkg={pkg} />)}
       </div>
@@ -1143,52 +1122,296 @@ const ProfileView = ({
   </div>
 );
 
+const HomeShortcutCard = ({
+  title,
+  value,
+  detail,
+  icon: Icon,
+  onClick,
+  children,
+}: {
+  title: string;
+  value: string;
+  detail?: string;
+  icon: typeof Home;
+  onClick: () => void;
+  children?: ReactNode;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="dashboard-retina-card dashboard-tactile group flex min-h-[174px] flex-col rounded-[30px] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/18 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+  >
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-muted-foreground">{title}</p>
+        <p className="mt-4 text-3xl font-black tracking-tight text-foreground">{value}</p>
+        {detail && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{detail}</p>}
+      </div>
+      <span className="dashboard-soft-fill flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] text-muted-foreground transition-colors group-hover:text-foreground">
+        <Icon className="h-5 w-5" />
+      </span>
+    </div>
+    {children && <div className="mt-auto pt-5">{children}</div>}
+  </button>
+);
+
+const AppointmentHomeCard = ({
+  appointment,
+  onNavigate,
+}: {
+  appointment?: PatientPortalAppointment;
+  onNavigate: (path: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const isOnline = appointment?.type === "online";
+  const isPresential = appointment?.type === "presencial";
+  const routeUrl = mapsRouteUrl(appointment?.location);
+
+  if (!appointment) {
+    return (
+      <HomeShortcutCard
+        title="Próxima sessão"
+        value="Sem horário"
+        detail="Você pode solicitar um novo horário na agenda."
+        icon={CalendarDays}
+        onClick={() => onNavigate("/portal/agenda")}
+      />
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") setOpen(true);
+        }}
+        className="dashboard-retina-card dashboard-tactile group flex min-h-[174px] cursor-pointer flex-col rounded-[30px] p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/18 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-muted-foreground">Próxima sessão</p>
+            <p className="mt-4 text-3xl font-black tracking-tight text-foreground">{dateTime.format(new Date(appointment.start_time))}</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {isOnline ? "Online" : isPresential ? appointment.location || "Presencial" : appointment.type || "Sessão"}
+            </p>
+          </div>
+          <span className="dashboard-soft-fill flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] text-muted-foreground transition-colors group-hover:text-foreground">
+            {isOnline ? <Video className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
+          </span>
+        </div>
+        <div className="mt-auto flex flex-wrap gap-2 pt-5">
+          {isOnline && appointment.google_meet_link && (
+            <Button
+              asChild
+              size="sm"
+              className="rounded-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <a href={appointment.google_meet_link} target="_blank" rel="noreferrer">Entrar</a>
+            </Button>
+          )}
+          {isPresential && routeUrl && (
+            <Button
+              asChild
+              size="sm"
+              className="rounded-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <a href={routeUrl} target="_blank" rel="noreferrer">
+                <Route className="mr-2 h-4 w-4" />
+                Abrir rota
+              </a>
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-2xl"
+            onClick={(event) => {
+              event.stopPropagation();
+              setOpen(true);
+            }}
+          >
+            Detalhes
+          </Button>
+        </div>
+      </div>
+      <DialogContent className="max-w-[560px] rounded-[30px] border border-border/70 bg-card p-0 shadow-2xl">
+        <div className="border-b border-border/60 p-6">
+          <DialogTitle className="text-xl font-semibold tracking-tight">Detalhes da sessão</DialogTitle>
+          <p className="mt-2 text-sm text-muted-foreground">{dateTime.format(new Date(appointment.start_time))}</p>
+        </div>
+        <div className="space-y-4 p-6">
+          <AppointmentCard appointment={appointment} />
+          {isPresential && appointment.location && (
+            <div className="rounded-2xl border border-border bg-background/70 p-4">
+              <p className="text-sm font-semibold text-foreground">Endereço</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{appointment.location}</p>
+              {routeUrl && (
+                <Button asChild className="mt-4 rounded-2xl">
+                  <a href={routeUrl} target="_blank" rel="noreferrer">
+                    <Route className="mr-2 h-4 w-4" />
+                    Abrir no Google Maps
+                  </a>
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const AnamnesisHomeCard = ({
+  record,
+  onNavigate,
+}: {
+  record?: PatientPortalAnamnesis;
+  onNavigate: (path: string) => void;
+}) => {
+  if (!record) {
+    return (
+      <HomeShortcutCard
+        title="Anamnese"
+        value="Tudo certo"
+        detail="Nenhuma ficha nova agora. Se quiser, registre como você está hoje."
+        icon={ClipboardList}
+        onClick={() => onNavigate("/portal/humor")}
+      />
+    );
+  }
+
+  return (
+    <HomeShortcutCard
+      title="Anamnese"
+      value={`${record.progress}%`}
+      detail={record.status === "submitted" ? "Ficha enviada para leitura." : "Continue quando estiver confortável."}
+      icon={ClipboardList}
+      onClick={() => onNavigate("/portal/anamneses")}
+    >
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${record.progress}%` }} />
+      </div>
+    </HomeShortcutCard>
+  );
+};
+
+const PackagesHomeCard = ({
+  packages,
+  onNavigate,
+}: {
+  packages: PatientPortalPackage[];
+  onNavigate: (path: string) => void;
+}) => {
+  const active = packages.find((pkg) => Number(pkg.total_sessions || 0) > Number(pkg.sessions_used || 0));
+  const remaining = active ? Math.max(Number(active.total_sessions || 0) - Number(active.sessions_used || 0), 0) : 0;
+  return (
+    <HomeShortcutCard
+      title="Ritmo de sessões"
+      value={active ? `${remaining} disponíveis` : "Sem pacote ativo"}
+      detail={active ? active.description || "Pacote em acompanhamento." : "Quando houver um pacote, ele aparece no NeuroFinance."}
+      icon={Package}
+      onClick={() => onNavigate("/portal/financeiro")}
+    />
+  );
+};
+
+const ReflectionCarousel = ({ patientName }: { patientName: string }) => (
+  <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1 no-scrollbar">
+    <Panel className="min-w-[88%] snap-start sm:min-w-[48%]">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Frase do dia</p>
+      <p className="mt-4 text-2xl font-black leading-tight tracking-tight text-foreground">{quoteOfTheDay()}</p>
+    </Panel>
+    <Panel className="min-w-[88%] snap-start sm:min-w-[48%]">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Boas-vindas</p>
+      <p className="mt-4 text-2xl font-black leading-tight tracking-tight text-foreground">
+        Esse ambiente foi construído para você.
+      </p>
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+        Não somos empresários. Somos pacientes que, como você, vislumbram um futuro melhor. Seja muito bem-vindo, {getFirstName(patientName)}.
+      </p>
+    </Panel>
+  </div>
+);
+
+const NeuroNexSignature = () => (
+  <section className="relative overflow-hidden rounded-[36px] border border-white/[0.08] bg-black px-6 py-16 text-center shadow-[0_26px_100px_-70px_rgba(0,0,0,0.95)]">
+    <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-white/10" />
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.16),transparent_34%)] motion-safe:animate-pulse" />
+    <p className="relative text-[clamp(3.8rem,16vw,15rem)] font-black leading-[0.72] tracking-tight text-white/[0.055] drop-shadow-[0_0_34px_rgba(255,255,255,0.16)]">
+      NEURONEX
+    </p>
+    <div className="relative mt-8 text-white">
+      <p className="text-sm font-black uppercase tracking-[0.18em]">NeuroNex AI</p>
+      <p className="mt-2 text-sm text-white/58">De paciente para paciente.</p>
+    </div>
+  </section>
+);
+
 const HomeView = ({
   nextAppointment,
   pendingAmount,
   documentsCount,
   activeGoals,
-  anamnesisPending,
-  packagesActive,
+  anamnesisRecord,
+  packages,
   mood,
+  patientName,
+  onNavigate,
 }: {
   nextAppointment?: PatientPortalAppointment;
   pendingAmount: number;
   documentsCount: number;
   activeGoals: number;
-  anamnesisPending: number;
-  packagesActive: number;
+  anamnesisRecord?: PatientPortalAnamnesis;
+  packages: PatientPortalPackage[];
   mood: ReturnType<typeof usePatientPortalMood>;
+  patientName: string;
+  onNavigate: (path: string) => void;
 }) => (
   <div className="space-y-5">
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <MetricCard title="Proxima sessao" value={nextAppointment ? dateTime.format(new Date(nextAppointment.start_time)) : "Sem horario"} icon={CalendarDays} />
-      <MetricCard title="NeuroFinance" value={pendingAmount ? money.format(pendingAmount) : "Em dia"} icon={CreditCard} tone={pendingAmount ? "warning" : "success"} />
-      <MetricCard title="Documentos" value={String(documentsCount)} icon={FileText} tone="info" />
-      <MetricCard title="Metas ativas" value={String(activeGoals)} icon={Target} />
+      <AppointmentHomeCard appointment={nextAppointment} onNavigate={onNavigate} />
+      <HomeShortcutCard
+        title="NeuroFinance"
+        value={pendingAmount ? "Pagamento disponível" : "Tudo em dia"}
+        detail={pendingAmount ? money.format(pendingAmount) : "Sem pagamentos disponíveis agora."}
+        icon={CreditCard}
+        onClick={() => onNavigate("/portal/financeiro")}
+      />
+      <HomeShortcutCard
+        title="NeuroDrive"
+        value={String(documentsCount)}
+        detail="Documentos, NeuroView, notas, tarefas e Notion em preparação."
+        icon={FileText}
+        onClick={() => onNavigate("/portal/documentos")}
+      />
+      <HomeShortcutCard
+        title="Missões"
+        value={String(activeGoals)}
+        detail={activeGoals ? "Pequenas conquistas em movimento." : "Nada aberto por enquanto."}
+        icon={Target}
+        onClick={() => onNavigate("/portal/metas")}
+      />
     </div>
     <div className="grid gap-3 sm:grid-cols-2">
-      <MetricCard title="Anamneses pendentes" value={String(anamnesisPending)} icon={ClipboardList} tone={anamnesisPending ? "warning" : "success"} />
-      <MetricCard title="Pacotes ativos" value={String(packagesActive)} icon={Package} />
+      <AnamnesisHomeCard record={anamnesisRecord} onNavigate={onNavigate} />
+      <PackagesHomeCard packages={packages} onNavigate={onNavigate} />
     </div>
-    <Panel>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-lg font-semibold text-foreground">Continuidade do cuidado</p>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Seu portal concentra agenda, documentos, financeiro, metas, pacotes, anamnese e registros de humor compartilhados com seguranca.
-          </p>
-        </div>
-        <ShieldCheck className="h-5 w-5 text-emerald-500" />
-      </div>
-    </Panel>
+    <ReflectionCarousel patientName={patientName} />
     <div className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
       <div>
-        <SectionHeader title="Agenda proxima" action={<AppointmentRequestDialog />} />
-        {nextAppointment ? <AppointmentCard appointment={nextAppointment} /> : <EmptyState icon={CalendarDays} title="Sem horario futuro" description="Solicite um novo horario para confirmacao." />}
+        <SectionHeader title="Agenda próxima" action={<AppointmentRequestDialog />} />
+        {nextAppointment ? <AppointmentCard appointment={nextAppointment} /> : <EmptyState icon={CalendarDays} title="Sem horário futuro" description="Solicite um novo horário para confirmação." />}
       </div>
       <DiaryView mood={mood} />
     </div>
+    <NeuroNexSignature />
   </div>
 );
 
