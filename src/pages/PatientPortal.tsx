@@ -411,7 +411,7 @@ const AppointmentRequestDialog = () => {
   const handleSubmit = () => {
     const start = new Date(`${date}T${time}:00`);
     if (!date || !time || !Number.isFinite(start.getTime()) || start.getTime() <= Date.now()) {
-      toast.error("Escolha um horario futuro.");
+      toast.error("Escolha um horário futuro.");
       return;
     }
 
@@ -419,10 +419,10 @@ const AppointmentRequestDialog = () => {
       { startTime: start.toISOString(), type },
       {
         onSuccess: () => {
-          toast.success("Pedido enviado para confirmacao.");
+          toast.success("Pedido enviado para confirmação.");
           setOpen(false);
         },
-        onError: (error) => toast.error(error instanceof Error ? error.message : "Nao foi possivel solicitar o horario."),
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Não foi possível solicitar o horário."),
       },
     );
   };
@@ -1516,7 +1516,7 @@ const PatientPortal = () => {
   const progress = usePatientPortalProgress(isActive);
 
   const patientName = current.data?.patient?.name || "Paciente";
-  const professionalName = current.data?.professional?.name || "Seu psicologo";
+  const professionalName = current.data?.professional?.name || "Seu psicólogo";
   const activeNav = navItems.find((item) => item.value === activeView) || navItems[0];
 
   const appointmentRows = appointments.data?.appointments || [];
@@ -1569,7 +1569,7 @@ const PatientPortal = () => {
   if (current.data.status === "suspended") {
     return (
       <LockedPortalState
-        title="Portal temporariamente indisponivel"
+        title="Portal temporariamente indisponível"
         description={current.data.message || "O acesso ao portal depende da assinatura ativa do profissional."}
         action={<Button onClick={handleSignOut} variant="outline" className="h-11 rounded-xl">Sair</Button>}
       />
@@ -1579,7 +1579,7 @@ const PatientPortal = () => {
   if (current.data.status === "revoked") {
     return (
       <LockedPortalState
-        title="Vinculo revogado"
+        title="Vínculo revogado"
         description="Solicite um novo convite ao profissional para voltar a acessar o portal."
         action={<Button onClick={handleSignOut} variant="outline" className="h-11 rounded-xl">Sair</Button>}
       />
