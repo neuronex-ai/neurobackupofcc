@@ -62,8 +62,10 @@ import {
   UserRound,
   Video,
 } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { motion, useMotionTemplate, useMotionValue, useSpring } from "framer-motion";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "sonner";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -85,6 +87,14 @@ const moodOptions = [
   { score: 4, label: "Bem", icon: Smile, tone: "text-emerald-600 border-emerald-500/25 bg-emerald-500/10" },
   { score: 5, label: "Leve", icon: Laugh, tone: "text-blue-600 border-blue-500/25 bg-blue-500/10" },
 ] as const;
+
+const moodVisualConfig: Record<number, { label: string; color: string; tone: string }> = {
+  1: { label: "Pesado", color: "#f43f5e", tone: "bg-rose-500/10 text-rose-500 border-rose-500/20" },
+  2: { label: "Difícil", color: "#f97316", tone: "bg-orange-500/10 text-orange-500 border-orange-500/20" },
+  3: { label: "Neutro", color: "#eab308", tone: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" },
+  4: { label: "Bem", color: "#10b981", tone: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" },
+  5: { label: "Leve", color: "#6366f1", tone: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
+};
 
 const navItems = [
   { value: "home", label: "Início", path: "/portal", icon: Home },
@@ -844,7 +854,30 @@ const PackagesView = ({ packages }: { packages?: PatientPortalPackage[] }) => {
   );
 };
 
-const HistoryView = ({ items }: { items?: PatientPortalHistoryItem[] }) => {
+const avatarInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return `${parts[0]?.[0] || "N"}${parts[1]?.[0] || ""}`.toUpperCase();
+};
+
+const historyActionText = (item: PatientPortalHistoryItem) => {
+  if (item.type === "appointment") return "participou de uma atualização de agenda";
+  if (item.type === "document") return "recebeu um documento no NeuroDrive";
+  if (item.type === "goal") return "avançou em uma missão compartilhada";
+  if (item.type === "mood") return "registrou um momento no diário de humor";
+  if (item.type === "billing") return "teve uma atualização no NeuroFinance";
+  if (item.type === "anamnesis") return "atualizou uma anamnese";
+  return "teve uma atualização no portal";
+};
+
+const HistoryView = ({
+  items,
+  patientName,
+  professionalName,
+}: {
+  items?: PatientPortalHistoryItem[];
+  patientName: string;
+  professionalName: string;
+}) => {
   const rows = items || [];
   const iconByType: Record<PatientPortalHistoryItem["type"], typeof Home> = {
     appointment: CalendarDays,
@@ -860,32 +893,50 @@ const HistoryView = ({ items }: { items?: PatientPortalHistoryItem[] }) => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <SectionHeader title="Feed" description="Postagens do seu processo, com apenas informações compartilhadas com você." />
-      <div className="space-y-3">
+      <div className="relative space-y-4">
+        <div className="absolute left-6 top-4 hidden h-[calc(100%-2rem)] w-px bg-gradient-to-b from-transparent via-border to-transparent md:block" />
         {rows.map((item) => {
           const Icon = iconByType[item.type] || FileClock;
           return (
-            <article key={item.id} className="dashboard-retina-card rounded-[30px] p-5">
-              <div className="flex gap-4">
-                <div className="dashboard-soft-fill flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] text-muted-foreground">
-                  <Icon className="h-4 w-4" />
+            <article key={item.id} className="dashboard-retina-card group relative overflow-hidden rounded-[32px] p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-foreground/18 motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+              <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-foreground/[0.035] blur-3xl dark:bg-white/[0.028]" />
+              <div className="relative z-10 flex gap-4">
+                <div className="relative shrink-0">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border bg-background text-sm font-black text-foreground shadow-sm">
+                    {avatarInitials(patientName)}
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm">
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                    <p className="text-xs font-medium text-muted-foreground">{dateTime.format(new Date(item.occurredAt))}</p>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-foreground">
+                        {patientName}
+                        <span className="ml-2 font-medium text-muted-foreground">{historyActionText(item)}</span>
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-muted-foreground">{dateTime.format(new Date(item.occurredAt))}</p>
+                    </div>
+                    <span className="rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                      {item.type}
+                    </span>
                   </div>
-                  {item.description && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.description}</p>}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="inline-flex h-9 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-semibold text-muted-foreground">
+                  <div className="mt-4 rounded-[24px] border border-border/60 bg-background/62 p-4">
+                    <p className="text-base font-semibold text-foreground">{item.title}</p>
+                    {item.description && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.description}</p>}
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <button type="button" className="inline-flex h-10 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
                       <Heart className="h-3.5 w-3.5" />
                       Acolhido pelo profissional
-                    </span>
-                    <span className="inline-flex h-9 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-semibold text-muted-foreground">
+                    </button>
+                    <button type="button" className="inline-flex h-10 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
                       <MessageCircle className="h-3.5 w-3.5" />
-                      Comentário em breve
-                    </span>
+                      Comentário do {getFirstName(professionalName)} em breve
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1051,47 +1102,90 @@ const ProgressView = ({
   );
 };
 
+const MoodChartTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  const score = Number(payload[0].value || 3);
+  const config = moodVisualConfig[score] || moodVisualConfig[3];
+
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white/92 p-4 shadow-2xl ring-1 ring-black/5 backdrop-blur-2xl dark:border-white/[0.085] dark:bg-[#0b0b0d] dark:ring-white/5">
+      <p className="mb-3 border-b border-zinc-100 pb-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:border-white/[0.065] dark:text-zinc-500">
+        {label}
+      </p>
+      <div className="flex items-center gap-3">
+        <span className={cn("rounded-lg border px-3 py-2 text-xs font-black uppercase tracking-[0.16em]", config.tone)}>
+          {config.label}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const MoodTrendChart = ({ logs }: { logs: PatientPortalMoodLog[] }) => {
   const rows = [...logs]
     .sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime())
     .slice(-14);
-
-  if (rows.length < 2) {
-    return <EmptyState icon={TrendingUp} title="Gráfico em formação" description="Com dois registros ou mais, seu histórico emocional começa a desenhar uma linha do tempo." />;
-  }
-
-  const width = 640;
-  const height = 180;
-  const padding = 22;
-  const points = rows.map((log, index) => {
-    const x = padding + (index * (width - padding * 2)) / Math.max(rows.length - 1, 1);
-    const y = padding + ((5 - log.mood_score) * (height - padding * 2)) / 4;
-    return { x, y, log };
-  });
-  const path = points.map((point) => `${point.x},${point.y}`).join(" ");
+  const avgMood = rows.length ? rows.reduce((total, log) => total + Number(log.mood_score || 0), 0) / rows.length : 0;
+  const chartData = rows.map((log) => ({
+    date: dateOnly.format(new Date(log.created_at)).slice(0, 5),
+    fullDate: dateOnly.format(new Date(log.created_at)),
+    score: log.mood_score,
+  }));
 
   return (
-    <Panel>
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-lg font-semibold text-foreground">Linha do humor</p>
-          <p className="mt-1 text-sm text-muted-foreground">Últimos registros compartilhados no seu diário.</p>
+    <section className="relative overflow-hidden rounded-[34px] border border-zinc-200/50 bg-white p-6 shadow-[0_24px_72px_-58px_rgba(0,0,0,0.42)] dark:border-white/[0.085] dark:bg-[#0b0b0d] dark:shadow-[0_24px_62px_-46px_rgba(0,0,0,0.96)] md:p-8">
+      <div className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-primary/5 blur-[100px] dark:bg-white/[0.018]" />
+      <div className="relative z-10 mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-center">
+        <div className="flex items-center gap-5">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 text-zinc-900 shadow-lg dark:border-white/[0.075] dark:bg-[#141415] dark:text-white">
+            <TrendingUp className="h-7 w-7" />
+          </div>
+          <div>
+            <h3 className="text-xl font-black leading-none tracking-tight text-zinc-900 dark:text-zinc-100">Tendência Emocional</h3>
+            <p className="mt-2 text-[10px] font-bold uppercase leading-none tracking-[0.2em] text-zinc-500">Análise de variação de humor</p>
+          </div>
         </div>
-        <TrendingUp className="h-5 w-5 text-muted-foreground" />
+        <div className="flex items-center gap-4 rounded-2xl border border-zinc-200/50 bg-zinc-100/50 p-1 backdrop-blur-md dark:border-white/[0.065] dark:bg-[#080809]">
+          <div className="rounded-xl border border-zinc-200 bg-white px-5 py-3 shadow-lg dark:border-white/[0.075] dark:bg-[#141415]">
+            <p className="mb-1 text-[9px] font-black uppercase leading-none tracking-widest text-zinc-400 dark:text-zinc-500">Média geral</p>
+            <p className="text-2xl font-black leading-none tracking-tight text-zinc-900 dark:text-white">{avgMood ? avgMood.toFixed(1) : "0.0"}</p>
+          </div>
+          <div className="hidden px-4 sm:block">
+            <p className="mb-1 text-[9px] font-black uppercase leading-none tracking-widest text-zinc-400 dark:text-zinc-500">Registros</p>
+            <p className="text-sm font-bold leading-none text-zinc-900 dark:text-white">{rows.length}</p>
+          </div>
+        </div>
       </div>
-      <div className="overflow-hidden rounded-[24px] border border-border/60 bg-background/70 p-3">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-[180px] w-full" role="img" aria-label="Gráfico temporal de humor">
-          {[1, 2, 3, 4, 5].map((score) => {
-            const y = padding + ((5 - score) * (height - padding * 2)) / 4;
-            return <line key={score} x1={padding} x2={width - padding} y1={y} y2={y} className="stroke-border/60" strokeWidth="1" />;
-          })}
-          <polyline points={path} fill="none" className="stroke-foreground" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-          {points.map((point) => (
-            <circle key={point.log.id} cx={point.x} cy={point.y} r="6" className="fill-background stroke-foreground" strokeWidth="3" />
-          ))}
-        </svg>
+
+      <div className="relative z-10 h-[300px] rounded-[32px] border border-zinc-200/50 bg-zinc-100/30 p-6 shadow-inner dark:border-white/[0.065] dark:bg-[#080809]">
+        {rows.length < 2 ? (
+          <div className="flex h-full items-center justify-center text-center">
+            <p className="max-w-sm text-sm font-medium leading-relaxed text-muted-foreground">
+              Com dois registros ou mais, seu histórico emocional começa a desenhar uma linha do tempo.
+            </p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(120,120,120,0.12)" vertical={false} />
+              <XAxis dataKey="date" stroke="transparent" tick={{ fill: "rgba(120,120,120,0.58)", fontSize: 10, fontWeight: 700 }} dy={15} />
+              <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} stroke="transparent" tick={{ fill: "rgba(120,120,120,0.58)", fontSize: 10, fontWeight: 700 }} />
+              <Tooltip content={<MoodChartTooltip />} cursor={{ stroke: "rgba(120,120,120,0.16)", strokeWidth: 2 }} />
+              <ReferenceLine y={3} stroke="rgba(120,120,120,0.18)" strokeDasharray="6 6" />
+              <Line
+                type="monotone"
+                dataKey="score"
+                stroke="#6366f1"
+                strokeWidth={5}
+                dot={{ r: 6, fill: "#6366f1", strokeWidth: 4, stroke: "#fff" }}
+                activeDot={{ r: 8, strokeWidth: 0, fill: "#4f46e5" }}
+                animationDuration={1500}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </div>
-    </Panel>
+    </section>
   );
 };
 
@@ -1402,37 +1496,131 @@ const PackagesHomeCard = ({
   );
 };
 
-const ReflectionCarousel = ({ patientName }: { patientName: string }) => (
-  <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1 no-scrollbar">
-    <Panel className="min-w-[88%] snap-start sm:min-w-[48%]">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Frase do dia</p>
-      <p className="mt-4 text-2xl font-black leading-tight tracking-tight text-foreground">{quoteOfTheDay()}</p>
-    </Panel>
-    <Panel className="min-w-[88%] snap-start sm:min-w-[48%]">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Boas-vindas</p>
-      <p className="mt-4 text-2xl font-black leading-tight tracking-tight text-foreground">
-        Esse ambiente foi construído para você.
-      </p>
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-        Não somos empresários. Somos pacientes que, como você, vislumbram um futuro melhor. Seja muito bem-vindo, {getFirstName(patientName)}.
-      </p>
-    </Panel>
-  </div>
-);
+const ReflectionCarousel = ({ patientName }: { patientName: string }) => {
+  const [activeSlide, setActiveSlide] = useState(0);
 
-const NeuroNexSignature = () => (
-  <section className="relative overflow-hidden rounded-[36px] border border-white/[0.08] bg-black px-6 py-16 text-center shadow-[0_26px_100px_-70px_rgba(0,0,0,0.95)]">
-    <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-white/10" />
-    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.16),transparent_34%)] motion-safe:animate-pulse" />
-    <p className="relative text-[clamp(3.8rem,16vw,15rem)] font-black leading-[0.72] tracking-tight text-white/[0.055] drop-shadow-[0_0_34px_rgba(255,255,255,0.16)]">
-      NEURONEX
-    </p>
-    <div className="relative mt-8 text-white">
-      <p className="text-sm font-black uppercase tracking-[0.18em]">NeuroNex AI</p>
-      <p className="mt-2 text-sm text-white/58">De paciente para paciente.</p>
-    </div>
-  </section>
-);
+  useEffect(() => {
+    const timer = window.setInterval(() => setActiveSlide((current) => (current === 0 ? 1 : 0)), 5200);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const slides = [
+    {
+      eyebrow: "Frase do dia",
+      title: quoteOfTheDay(),
+      description: "Uma pequena lâmina para atravessar o dia com menos ruído e mais presença.",
+    },
+    {
+      eyebrow: "Boas-vindas",
+      title: "Esse ambiente foi construído para você.",
+      description: `Não somos empresários. Somos pacientes que, como você, vislumbram um futuro melhor. Seja muito bem-vindo, ${getFirstName(patientName)}.`,
+    },
+  ];
+
+  return (
+    <section className="relative overflow-hidden rounded-[42px] border border-border/45 bg-foreground p-6 text-center text-background shadow-[0_32px_110px_-78px_rgba(0,0,0,0.9)] dark:bg-white dark:text-zinc-950 md:p-10">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.12),transparent_42%,rgba(255,255,255,0.04))] dark:bg-[linear-gradient(135deg,rgba(0,0,0,0.055),transparent_42%,rgba(0,0,0,0.02))]" />
+      <div className="relative z-10 mx-auto max-w-4xl overflow-hidden">
+        <motion.div
+          className="flex"
+          animate={{ x: `${activeSlide * -100}%` }}
+          transition={{ type: "spring", stiffness: 90, damping: 22, mass: 0.8 }}
+        >
+          {slides.map((slide) => (
+            <div key={slide.eyebrow} className="flex min-h-[220px] min-w-full flex-col items-center justify-center px-4 md:min-h-[260px]">
+              <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-background text-foreground dark:bg-zinc-950 dark:text-white">
+                <BrainCircuit className="h-5 w-5" />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-55">{slide.eyebrow}</p>
+              <h2 className="mt-5 max-w-3xl text-3xl font-black leading-[0.96] tracking-tight md:text-5xl">{slide.title}</h2>
+              <p className="mx-auto mt-5 max-w-2xl text-sm font-medium leading-relaxed opacity-62 md:text-base">{slide.description}</p>
+            </div>
+          ))}
+        </motion.div>
+        <div className="mt-2 flex justify-center gap-2">
+          {slides.map((slide, index) => (
+            <button
+              key={slide.eyebrow}
+              type="button"
+              onClick={() => setActiveSlide(index)}
+              className={cn(
+                "h-2 rounded-full transition-all duration-300 motion-reduce:transition-none",
+                activeSlide === index ? "w-8 bg-background dark:bg-zinc-950" : "w-2 bg-background/25 dark:bg-zinc-950/25",
+              )}
+              aria-label={`Ir para ${slide.eyebrow}`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const NeuroNexSignature = () => {
+  const containerRef = useRef<HTMLElement | null>(null);
+  const mouseX = useMotionValue(720);
+  const mouseY = useMotionValue(190);
+  const springX = useSpring(mouseX, { stiffness: 44, damping: 38, mass: 0.95 });
+  const springY = useSpring(mouseY, { stiffness: 44, damping: 38, mass: 0.95 });
+  const spotlightMask = useMotionTemplate`radial-gradient(860px circle at ${springX}px ${springY}px, rgba(0,0,0,0.46) 0%, rgba(0,0,0,0.30) 34%, rgba(0,0,0,0.12) 64%, transparent 100%)`;
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    mouseX.set(event.clientX - rect.left);
+    mouseY.set(event.clientY - rect.top);
+  };
+
+  const handlePointerLeave = () => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    mouseX.set((rect?.width || 1440) * 0.52);
+    mouseY.set((rect?.height || 390) * 0.42);
+  };
+
+  const wordmarkClass = "select-none whitespace-nowrap text-[clamp(4.9rem,16.2vw,17.5rem)] font-black uppercase leading-[0.72] tracking-tight";
+
+  return (
+    <section
+      ref={containerRef}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      className="relative -mx-4 min-h-[390px] overflow-hidden text-center sm:-mx-6 md:-mx-8 lg:-mx-12 xl:-mx-16"
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-[0.022]" />
+      <div className="pointer-events-none absolute inset-x-0 top-[62%] h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.08)_20%,rgba(255,255,255,0.28)_50%,rgba(255,255,255,0.08)_80%,transparent)]" />
+      <div className="pointer-events-none absolute inset-x-[10%] top-[62%] h-28 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.09),rgba(255,255,255,0.032)_42%,transparent_76%)] blur-3xl" />
+      <div className="absolute inset-x-0 top-1 flex h-[270px] items-end justify-center overflow-hidden">
+        <p
+          className={cn(
+            wordmarkClass,
+            "bg-[linear-gradient(120deg,#070708,#111113_34%,#09090a_68%,#141416),url('/noise.png')] bg-clip-text text-transparent opacity-95 [background-blend-mode:normal,soft-light] [text-shadow:0_1px_0_rgba(255,255,255,0.026),0_-1px_0_rgba(0,0,0,0.92),1px_0_0_rgba(255,255,255,0.012),-1px_0_0_rgba(0,0,0,0.72)]",
+          )}
+        >
+          NEURONEX
+        </p>
+      </div>
+      <motion.div
+        className="pointer-events-none absolute inset-x-0 top-1 flex h-[270px] items-end justify-center overflow-hidden"
+        style={{ WebkitMaskImage: spotlightMask, maskImage: spotlightMask }}
+      >
+        <p
+          className={cn(
+            wordmarkClass,
+            "bg-[linear-gradient(120deg,rgba(255,255,255,0.06),rgba(255,255,255,0.46)_34%,rgba(120,120,120,0.16)_54%,rgba(255,255,255,0.30)_68%,rgba(255,255,255,0.05)),url('/noise.png')] bg-clip-text text-transparent [background-blend-mode:screen,soft-light]",
+          )}
+        >
+          NEURONEX
+        </p>
+      </motion.div>
+      <div className="absolute inset-x-0 top-[66%] z-10 px-6 text-white">
+        <p className="text-[13px] font-black tracking-[0.16em]">
+          <span className="uppercase">NeuroNex AI</span>
+          <span className="mx-2 text-white/38">-</span>
+          <span className="normal-case tracking-normal text-white/68">De paciente para paciente.</span>
+        </p>
+      </div>
+    </section>
+  );
+};
 
 const HomeView = ({
   nextAppointment,
@@ -1492,7 +1680,6 @@ const HomeView = ({
       </div>
       <DiaryView mood={mood} />
     </div>
-    <NeuroNexSignature />
   </div>
 );
 
@@ -1592,7 +1779,7 @@ const PatientPortal = () => {
       case "anamneses":
         return anamnesis.isLoading ? <LoadingCard /> : <AnamnesisView anamneses={anamnesisRows} />;
       case "historico":
-        return history.isLoading ? <LoadingCard /> : <HistoryView items={history.data?.items} />;
+        return history.isLoading ? <LoadingCard /> : <HistoryView items={history.data?.items} patientName={patientName} professionalName={professionalName} />;
       case "documentos":
         return documents.isLoading ? <LoadingCard /> : <DocumentsView documents={documents.data?.documents} />;
       case "metas":
@@ -1660,6 +1847,7 @@ const PatientPortal = () => {
             </DesktopWorkspacePanel>
           </div>
         </DesktopWorkspaceShell>
+        {activeView === "home" && <NeuroNexSignature />}
       </main>
     </div>
   );
