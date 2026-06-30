@@ -7,7 +7,7 @@ export default defineConfig(({ mode, command }) => {
   const isProduction = command === 'build';
 
   return {
-    base: isProduction ? "./" : "/",
+    base: "/",
     server: {
       host: "::",
       port: 8080,
