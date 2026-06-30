@@ -47,7 +47,7 @@ async function loadDocuments(context: any) {
   const r2SecretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY");
 
   if (needsSignedUrls && (!r2Endpoint || !r2AccessKeyId || !r2SecretAccessKey)) {
-    throw new Error("R2 nao configurado para assinar documentos do portal.");
+    throw new Error("Nao foi possivel preparar este documento agora.");
   }
 
   const r2 = needsSignedUrls
@@ -610,6 +610,10 @@ function mapPatientNote(note: any) {
   };
 }
 
+function noteTags(note: any) {
+  return Array.isArray(note?.tags) ? note.tags.map((tag: unknown) => String(tag)) : [];
+}
+
 async function loadPatientNotes(user: any, context: any) {
   const { data, error } = await supabaseAdmin
     .from("personal_notes")
@@ -620,7 +624,14 @@ async function loadPatientNotes(user: any, context: any) {
     .limit(50);
 
   if (error) throw error;
-  return { notes: (data || []).map(mapPatientNote) };
+  return {
+    notes: (data || [])
+      .filter((note: any) => {
+        const tags = noteTags(note);
+        return tags.includes("portal-paciente") && !tags.includes("tarefa");
+      })
+      .map(mapPatientNote),
+  };
 }
 
 async function savePatientNote(user: any, context: any, body: Record<string, unknown>) {
@@ -633,7 +644,7 @@ async function savePatientNote(user: any, context: any, body: Record<string, unk
   const payload = {
     user_id: user.id,
     patient_id: context.patient.id,
-    module_id: "patient_portal",
+    module_id: null,
     title: title || "Nota sem título",
     content,
     tags: ["portal-paciente"],
@@ -660,6 +671,140 @@ async function savePatientNote(user: any, context: any, body: Record<string, unk
   if (error) throw error;
 
   return { note: mapPatientNote(data) };
+}
+
+function mapPatientTask(note: any) {
+  const tags = noteTags(note);
+  return {
+    id: note.id,
+    title: note.title || "Tarefa sem título",
+    content: note.content || "",
+    isCompleted: tags.includes("status:completed"),
+    dueDate: note.reference_date || null,
+    createdAt: note.created_at,
+    updatedAt: note.updated_at,
+  };
+}
+
+async function loadPatientTasks(user: any, context: any) {
+  const { data, error } = await supabaseAdmin
+    .from("personal_notes")
+    .select("id,title,content,tags,reference_date,created_at,updated_at")
+    .eq("user_id", user.id)
+    .eq("patient_id", context.patient.id)
+    .order("updated_at", { ascending: false })
+    .limit(80);
+
+  if (error) throw error;
+  return {
+    tasks: (data || [])
+      .filter((note: any) => {
+        const tags = noteTags(note);
+        return tags.includes("portal-paciente") && tags.includes("tarefa");
+      })
+      .map(mapPatientTask),
+  };
+}
+
+async function savePatientTask(user: any, context: any, body: Record<string, unknown>) {
+  const taskId = String(body.taskId || "").trim();
+  const title = String(body.title || "").trim().replace(/\s+/g, " ").slice(0, 160);
+  const content = String(body.content || "").trim().slice(0, 4000);
+  const dueDateRaw = body.dueDate === null || body.dueDate === undefined ? "" : String(body.dueDate || "").trim();
+  const dueDate = dueDateRaw ? new Date(`${dueDateRaw.slice(0, 10)}T12:00:00.000Z`) : null;
+
+  if (!title) return errorResponse("Informe um nome para a tarefa.", 400);
+  if (dueDate && !Number.isFinite(dueDate.getTime())) return errorResponse("Data da tarefa inválida.", 400);
+
+  const existingTags = taskId
+    ? await supabaseAdmin
+        .from("personal_notes")
+        .select("tags")
+        .eq("id", taskId)
+        .eq("user_id", user.id)
+        .eq("patient_id", context.patient.id)
+        .maybeSingle()
+    : { data: null, error: null };
+  if (existingTags.error) throw existingTags.error;
+
+  const currentTags = noteTags(existingTags.data);
+  const completed = currentTags.includes("status:completed");
+  const payload = {
+    user_id: user.id,
+    patient_id: context.patient.id,
+    module_id: null,
+    title,
+    content,
+    tags: ["portal-paciente", "tarefa", completed ? "status:completed" : "status:pending"],
+    reference_date: dueDate ? dueDate.toISOString() : null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const query = taskId
+    ? supabaseAdmin
+        .from("personal_notes")
+        .update(payload)
+        .eq("id", taskId)
+        .eq("user_id", user.id)
+        .eq("patient_id", context.patient.id)
+        .select("id,title,content,tags,reference_date,created_at,updated_at")
+        .single()
+    : supabaseAdmin
+        .from("personal_notes")
+        .insert(payload)
+        .select("id,title,content,tags,reference_date,created_at,updated_at")
+        .single();
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return { task: mapPatientTask(data) };
+}
+
+async function togglePatientTask(user: any, context: any, body: Record<string, unknown>) {
+  const taskId = String(body.taskId || "").trim();
+  const isCompleted = Boolean(body.isCompleted);
+  if (!taskId) return errorResponse("Tarefa inválida.", 400);
+
+  const { data: existing, error: loadError } = await supabaseAdmin
+    .from("personal_notes")
+    .select("id,tags")
+    .eq("id", taskId)
+    .eq("user_id", user.id)
+    .eq("patient_id", context.patient.id)
+    .maybeSingle();
+  if (loadError) throw loadError;
+  if (!existing) return errorResponse("Tarefa não encontrada.", 404);
+
+  const tags = noteTags(existing).filter((tag) => !tag.startsWith("status:"));
+  if (!tags.includes("portal-paciente")) tags.push("portal-paciente");
+  if (!tags.includes("tarefa")) tags.push("tarefa");
+  tags.push(isCompleted ? "status:completed" : "status:pending");
+
+  const { data, error } = await supabaseAdmin
+    .from("personal_notes")
+    .update({ tags, updated_at: new Date().toISOString() })
+    .eq("id", taskId)
+    .eq("user_id", user.id)
+    .eq("patient_id", context.patient.id)
+    .select("id,title,content,tags,reference_date,created_at,updated_at")
+    .single();
+  if (error) throw error;
+  return { task: mapPatientTask(data) };
+}
+
+async function deletePatientTask(user: any, context: any, body: Record<string, unknown>) {
+  const taskId = String(body.taskId || "").trim();
+  if (!taskId) return errorResponse("Tarefa inválida.", 400);
+
+  const { error } = await supabaseAdmin
+    .from("personal_notes")
+    .delete()
+    .eq("id", taskId)
+    .eq("user_id", user.id)
+    .eq("patient_id", context.patient.id);
+
+  if (error) throw error;
+  return { deleted: true };
 }
 
 async function deletePatientNote(user: any, context: any, body: Record<string, unknown>) {
@@ -760,6 +905,19 @@ Deno.serve(async (req: Request) => {
     }
     if (action === "delete_patient_note") {
       const result = await deletePatientNote(user, context, body as Record<string, unknown>);
+      return result instanceof Response ? result : jsonResponse(result);
+    }
+    if (action === "patient_tasks") return jsonResponse(await loadPatientTasks(user, context));
+    if (action === "save_patient_task") {
+      const result = await savePatientTask(user, context, body as Record<string, unknown>);
+      return result instanceof Response ? result : jsonResponse(result);
+    }
+    if (action === "toggle_patient_task") {
+      const result = await togglePatientTask(user, context, body as Record<string, unknown>);
+      return result instanceof Response ? result : jsonResponse(result);
+    }
+    if (action === "delete_patient_task") {
+      const result = await deletePatientTask(user, context, body as Record<string, unknown>);
       return result instanceof Response ? result : jsonResponse(result);
     }
     if (action === "save_anamnesis") {

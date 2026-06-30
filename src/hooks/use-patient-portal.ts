@@ -193,6 +193,16 @@ export interface PatientPortalNote {
   updatedAt: string;
 }
 
+export interface PatientPortalTask {
+  id: string;
+  title: string;
+  content: string;
+  isCompleted: boolean;
+  dueDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PatientPortalAppointmentRequest {
   startTime: string;
   type: "online" | "presencial";
@@ -416,6 +426,63 @@ export const usePatientPortalNotes = (enabled = true) => {
     ...query,
     saveNote,
     deleteNote,
+  };
+};
+
+export const usePatientPortalTasks = (enabled = true) => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const queryKey = ["patient-portal-tasks", user?.id] as const;
+
+  const query = useQuery({
+    queryKey,
+    queryFn: () =>
+      invokePortalFunction<{ tasks: PatientPortalTask[] }>("patient-portal-current", { action: "patient_tasks" }),
+    enabled: Boolean(user?.id) && enabled,
+  });
+
+  const saveTask = useMutation({
+    mutationFn: (input: { taskId?: string; title: string; content?: string; dueDate?: string | null }) =>
+      invokePortalFunction<{ task: PatientPortalTask }>("patient-portal-current", {
+        action: "save_patient_task",
+        taskId: input.taskId,
+        title: input.title,
+        content: input.content || "",
+        dueDate: input.dueDate || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  const toggleTask = useMutation({
+    mutationFn: ({ taskId, isCompleted }: { taskId: string; isCompleted: boolean }) =>
+      invokePortalFunction<{ task: PatientPortalTask }>("patient-portal-current", {
+        action: "toggle_patient_task",
+        taskId,
+        isCompleted,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  const deleteTask = useMutation({
+    mutationFn: (taskId: string) =>
+      invokePortalFunction<{ deleted: true }>("patient-portal-current", {
+        action: "delete_patient_task",
+        taskId,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  return {
+    ...query,
+    saveTask,
+    toggleTask,
+    deleteTask,
   };
 };
 

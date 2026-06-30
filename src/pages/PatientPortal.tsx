@@ -27,6 +27,7 @@ import {
   usePatientPortalPackages,
   usePatientPortalProgress,
   usePatientPortalSessionSummaries,
+  usePatientPortalTasks,
   useRequestPatientPortalAppointment,
   useSavePatientPortalAnamnesis,
   useTogglePatientPortalGoal,
@@ -436,7 +437,7 @@ const PortalHero = ({
                 </Button>
               ) : (
                 <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-background/64 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/62">
-                  Endereço em breve
+                  Endereço não informado
                 </span>
               )
             ) : (
@@ -765,32 +766,11 @@ const SessionsView = ({
 
 type NeuroDriveTab = "documentos" | "anamneses" | "notas" | "tarefas";
 
-const PreparedPortalSpace = ({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: typeof Home;
-  title: string;
-  description: string;
-}) => (
-  <Panel className="min-h-[320px]">
-    <div className="flex h-full flex-col items-center justify-center text-center">
-      <div className="dashboard-soft-fill flex h-16 w-16 items-center justify-center rounded-[24px] text-muted-foreground">
-        <Icon className="h-7 w-7" />
-      </div>
-      <h3 className="mt-6 text-2xl font-black tracking-tight text-foreground">{title}</h3>
-      <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">{description}</p>
-    </div>
-  </Panel>
-);
-
 const PatientNotesView = ({ notesState }: { notesState: ReturnType<typeof usePatientPortalNotes> }) => {
   const notes = notesState.data?.notes || [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [neuroView, setNeuroView] = useState(false);
   const selectedNote = notes.find((note) => note.id === selectedId) || null;
 
   useEffect(() => {
@@ -900,48 +880,19 @@ const PatientNotesView = ({ notesState }: { notesState: ReturnType<typeof usePat
               Essas notas são suas e ficam separadas das anotações clínicas privadas do profissional.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          {selectedNote && (
             <Button
               type="button"
-              variant={neuroView ? "default" : "outline"}
-              className="h-11 rounded-2xl px-4"
-              onClick={() => setNeuroView((current) => !current)}
-              aria-pressed={neuroView}
-              aria-label="NeuroView das notas"
+              variant="outline"
+              className="h-11 rounded-2xl px-4 text-rose-600 hover:text-rose-700"
+              onClick={deleteNote}
+              disabled={notesState.deleteNote.isPending}
             >
-              <BrainCircuit className="mr-2 h-4 w-4" />
-              NeuroView
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir
             </Button>
-            {selectedNote && (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 rounded-2xl px-4 text-rose-600 hover:text-rose-700"
-                onClick={deleteNote}
-                disabled={notesState.deleteNote.isPending}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Excluir
-              </Button>
-            )}
-          </div>
+          )}
         </div>
-
-        {neuroView && (
-          <div className="mt-5 rounded-[24px] border border-border/70 bg-background/70 p-5">
-            <div className="flex items-start gap-4">
-              <div className="dashboard-soft-fill flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-muted-foreground">
-                <BrainCircuit className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Visualização neural preparada</p>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  Em breve, suas notas poderão aparecer como conexões de ideias dentro do NeuroDrive.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="mt-5 space-y-4">
           <Input
@@ -978,6 +929,237 @@ const PatientNotesView = ({ notesState }: { notesState: ReturnType<typeof usePat
   );
 };
 
+const PatientTasksView = ({ tasksState }: { tasksState: ReturnType<typeof usePatientPortalTasks> }) => {
+  const tasks = tasksState.data?.tasks || [];
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const selectedTask = tasks.find((task) => task.id === selectedId) || null;
+
+  useEffect(() => {
+    if (!selectedId && tasks.length) {
+      setSelectedId(tasks[0].id);
+    }
+  }, [tasks, selectedId]);
+
+  useEffect(() => {
+    if (selectedTask) {
+      setTitle(selectedTask.title || "");
+      setContent(selectedTask.content || "");
+      setDueDate(selectedTask.dueDate ? selectedTask.dueDate.slice(0, 10) : "");
+    }
+  }, [selectedTask?.id]);
+
+  const startNewTask = () => {
+    setSelectedId(null);
+    setTitle("");
+    setContent("");
+    setDueDate("");
+  };
+
+  const saveTask = () => {
+    tasksState.saveTask.mutate(
+      {
+        taskId: selectedTask?.id,
+        title,
+        content,
+        dueDate: dueDate || null,
+      },
+      {
+        onSuccess: ({ task }) => {
+          setSelectedId(task.id);
+          toast.success("Tarefa salva.");
+        },
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Não foi possível salvar a tarefa."),
+      },
+    );
+  };
+
+  const toggleTask = (taskId: string, isCompleted: boolean) => {
+    tasksState.toggleTask.mutate(
+      { taskId, isCompleted },
+      {
+        onSuccess: () => toast.success(isCompleted ? "Tarefa concluída." : "Tarefa reaberta."),
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a tarefa."),
+      },
+    );
+  };
+
+  const deleteTask = () => {
+    if (!selectedTask) return;
+    const confirmed = window.confirm("Excluir esta tarefa?");
+    if (!confirmed) return;
+
+    tasksState.deleteTask.mutate(selectedTask.id, {
+      onSuccess: () => {
+        setSelectedId(null);
+        setTitle("");
+        setContent("");
+        setDueDate("");
+        toast.success("Tarefa excluída.");
+      },
+      onError: (error) => toast.error(error instanceof Error ? error.message : "Não foi possível excluir a tarefa."),
+    });
+  };
+
+  const pendingTasks = tasks.filter((task) => !task.isCompleted);
+  const completedTasks = tasks.filter((task) => task.isCompleted);
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
+      <Panel className="min-h-[420px]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Tarefas pessoais</p>
+            <h3 className="mt-2 text-xl font-black tracking-tight text-foreground">Seu plano leve</h3>
+          </div>
+          <Button type="button" size="icon" variant="outline" className="h-11 w-11 rounded-2xl" onClick={startNewTask} aria-label="Criar tarefa">
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="mt-5 max-h-[520px] space-y-4 overflow-y-auto pr-1 custom-scrollbar">
+          {tasksState.isLoading ? (
+            <div className="rounded-2xl border border-border/60 bg-background/70 p-4 text-sm text-muted-foreground">Carregando tarefas...</div>
+          ) : tasks.length ? (
+            <>
+              {pendingTasks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="px-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Em aberto</p>
+                  {pendingTasks.map((task) => (
+                    <TaskListButton key={task.id} task={task} selected={selectedId === task.id} onSelect={() => setSelectedId(task.id)} onToggle={() => toggleTask(task.id, true)} />
+                  ))}
+                </div>
+              )}
+              {completedTasks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="px-1 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Concluídas</p>
+                  {completedTasks.map((task) => (
+                    <TaskListButton key={task.id} task={task} selected={selectedId === task.id} onSelect={() => setSelectedId(task.id)} onToggle={() => toggleTask(task.id, false)} />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <EmptyState icon={ClipboardList} title="Nenhuma tarefa ainda" description="Crie lembretes pessoais para organizar pequenas ações entre sessões." />
+          )}
+        </div>
+      </Panel>
+
+      <Panel className="min-h-[420px]">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+              {selectedTask ? "Editando tarefa" : "Nova tarefa"}
+            </p>
+            <h3 className="mt-2 text-2xl font-black tracking-tight text-foreground">Próxima ação</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Use este espaço para compromissos pessoais. Missões compartilhadas pelo profissional ficam em Progresso.
+            </p>
+          </div>
+          {selectedTask && (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-2xl px-4 text-rose-600 hover:text-rose-700"
+              onClick={deleteTask}
+              disabled={tasksState.deleteTask.isPending}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir
+            </Button>
+          )}
+        </div>
+
+        <div className="mt-5 grid gap-4">
+          <Input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Nome da tarefa"
+            className="h-12 rounded-2xl border-border bg-background/70 px-4 text-base font-semibold"
+            maxLength={160}
+          />
+          <Input
+            type="date"
+            value={dueDate}
+            onChange={(event) => setDueDate(event.target.value)}
+            className="h-12 rounded-2xl border-border bg-background/70 px-4 text-base font-semibold"
+          />
+          <Textarea
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            placeholder="Detalhes opcionais..."
+            className="min-h-[180px] rounded-[24px] border-border bg-background/70 p-4 text-base leading-relaxed"
+            maxLength={4000}
+          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs font-medium text-muted-foreground">
+              {selectedTask?.isCompleted ? "Esta tarefa está concluída." : "Esta tarefa fica visível apenas para você neste portal."}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {selectedTask && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 rounded-2xl px-5"
+                  onClick={() => toggleTask(selectedTask.id, !selectedTask.isCompleted)}
+                  disabled={tasksState.toggleTask.isPending}
+                >
+                  {selectedTask.isCompleted ? "Reabrir" : "Concluir"}
+                </Button>
+              )}
+              <Button
+                type="button"
+                className="h-12 rounded-2xl bg-zinc-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+                onClick={saveTask}
+                disabled={tasksState.saveTask.isPending || !title.trim()}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                Salvar tarefa
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Panel>
+    </div>
+  );
+};
+
+const TaskListButton = ({
+  task,
+  selected,
+  onSelect,
+  onToggle,
+}: {
+  task: { title: string; content: string; dueDate: string | null; isCompleted: boolean };
+  selected: boolean;
+  onSelect: () => void;
+  onToggle: () => void;
+}) => (
+  <div
+    className={cn(
+      "flex items-start gap-3 rounded-2xl border p-3 transition-colors",
+      selected ? "border-foreground/25 bg-foreground text-background" : "border-border/60 bg-background/70 text-foreground hover:border-foreground/15",
+    )}
+  >
+    <button
+      type="button"
+      onClick={onToggle}
+      className="mt-1 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={task.isCompleted ? "Reabrir tarefa" : "Concluir tarefa"}
+    >
+      {task.isCompleted ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
+    </button>
+    <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-left focus-visible:outline-none">
+      <span className={cn("block truncate text-sm font-black", task.isCompleted && "line-through opacity-70")}>{task.title}</span>
+      <span className={cn("mt-1 block line-clamp-2 text-xs leading-relaxed", selected ? "text-background/66" : "text-muted-foreground")}>
+        {task.content || (task.dueDate ? `Até ${dateOnly.format(new Date(task.dueDate))}` : "Sem detalhes.")}
+      </span>
+    </button>
+  </div>
+);
+
 const DocumentsView = ({
   documents,
   anamneses,
@@ -992,6 +1174,7 @@ const DocumentsView = ({
   const rows = documents || [];
   const anamnesisRows = anamneses || [];
   const notesState = usePatientPortalNotes(tab === "notas");
+  const tasksState = usePatientPortalTasks(tab === "tarefas");
 
   return (
     <div className="space-y-5">
@@ -1049,7 +1232,7 @@ const DocumentsView = ({
           <PatientNotesView notesState={notesState} />
         </TabsContent>
         <TabsContent value="tarefas">
-          <PreparedPortalSpace icon={Target} title="Tarefas" description="Espaço reservado para tarefas pessoais e acompanhamentos leves, separado das missões compartilhadas pelo profissional." />
+          <PatientTasksView tasksState={tasksState} />
         </TabsContent>
       </Tabs>
     </div>
