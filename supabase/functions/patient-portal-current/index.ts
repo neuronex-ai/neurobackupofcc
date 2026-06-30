@@ -584,6 +584,56 @@ async function toggleGoal(context: any, body: Record<string, unknown>) {
   return { goal: data };
 }
 
+async function updateProfile(context: any, body: Record<string, unknown>) {
+  const firstName = String(body.firstName || "").trim().replace(/\s+/g, " ").slice(0, 80);
+  const lastName = String(body.lastName || "").trim().replace(/\s+/g, " ").slice(0, 120);
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  const genderIdentity = body.genderIdentity === null || body.genderIdentity === undefined
+    ? null
+    : String(body.genderIdentity || "").trim();
+  const avatarUrl = body.avatarUrl === undefined || body.avatarUrl === null
+    ? undefined
+    : String(body.avatarUrl || "").trim();
+
+  const allowedGenders = new Set([
+    "male",
+    "female",
+    "agender",
+    "gender_fluid",
+    "non_binary",
+    "transgender",
+    "prefer_not_to_say",
+    "other",
+  ]);
+
+  if (fullName.length < 2) return errorResponse("Informe seu nome.", 400);
+  if (fullName.length > 160) return errorResponse("Nome muito longo.", 400);
+  if (genderIdentity && !allowedGenders.has(genderIdentity)) {
+    return errorResponse("Genero invalido.", 400);
+  }
+  if (avatarUrl !== undefined && avatarUrl && !/^https:\/\/.+/i.test(avatarUrl)) {
+    return errorResponse("Foto invalida.", 400);
+  }
+
+  const updates: Record<string, unknown> = {
+    name: fullName,
+    gender_identity: genderIdentity || null,
+  };
+  if (avatarUrl !== undefined) updates.avatar_url = avatarUrl || null;
+
+  const { error } = await supabaseAdmin
+    .from("patients")
+    .update(updates)
+    .eq("id", context.patient.id)
+    .eq("user_id", context.professional.id);
+  if (error) throw error;
+
+  return await getPatientPortalContext({
+    id: context.patientUserId || "",
+    email: context.patient?.email || null,
+  });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return corsResponse();
   if (req.method !== "GET" && req.method !== "POST") return errorResponse("Metodo nao permitido.", 405);
@@ -620,6 +670,10 @@ Deno.serve(async (req: Request) => {
     }
     if (action === "toggle_goal") {
       const result = await toggleGoal(context, body as Record<string, unknown>);
+      return result instanceof Response ? result : jsonResponse(result);
+    }
+    if (action === "update_profile") {
+      const result = await updateProfile({ ...context, patientUserId: user.id }, body as Record<string, unknown>);
       return result instanceof Response ? result : jsonResponse(result);
     }
     if (action === "mood") {

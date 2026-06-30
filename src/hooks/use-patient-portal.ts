@@ -12,6 +12,8 @@ export interface PatientPortalContext {
     name: string;
     email: string | null;
     phone: string | null;
+    avatarUrl: string | null;
+    genderIdentity: string | null;
   } | null;
   professional: {
     id: string;
@@ -177,6 +179,13 @@ export interface PatientPortalProgress {
 export interface PatientPortalAppointmentRequest {
   startTime: string;
   type: "online" | "presencial";
+}
+
+export interface PatientPortalProfileUpdate {
+  firstName: string;
+  lastName: string;
+  genderIdentity?: string | null;
+  avatarFile?: File | null;
 }
 
 const readFunctionError = async (error: unknown, fallback: string) => {
@@ -441,6 +450,48 @@ export const useSavePatientPortalAnamnesis = () => {
       queryClient.invalidateQueries({ queryKey: ["patient-portal-anamnesis", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["patient-portal-history", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["patient-portal-progress", user?.id] });
+    },
+  });
+};
+
+export const useUpdatePatientPortalProfile = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ firstName, lastName, genderIdentity, avatarFile }: PatientPortalProfileUpdate) => {
+      let avatarUrl: string | null | undefined;
+
+      if (avatarFile) {
+        if (!user?.id) throw new Error("Usuário não autenticado.");
+        if (!avatarFile.type.startsWith("image/")) throw new Error("Envie uma imagem válida.");
+        if (avatarFile.size > 4 * 1024 * 1024) throw new Error("A imagem deve ter até 4 MB.");
+
+        const extension = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const filePath = `patient-portal/${user.id}/avatar.${extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from("avatars")
+          .upload(filePath, avatarFile, { upsert: true, contentType: avatarFile.type });
+        if (uploadError) throw new Error(uploadError.message);
+
+        const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+        avatarUrl = data.publicUrl;
+      }
+
+      return invokePortalFunction<PatientPortalContext>(
+        "patient-portal-current",
+        {
+          action: "update_profile",
+          firstName,
+          lastName,
+          genderIdentity,
+          avatarUrl,
+        },
+        "Não foi possível atualizar seu perfil.",
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-current", user?.id] });
     },
   });
 };

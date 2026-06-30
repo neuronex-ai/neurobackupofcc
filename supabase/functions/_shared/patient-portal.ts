@@ -153,7 +153,7 @@ export async function getPatientPortalContext(patientUser: {
   const [patientResult, profileResult, entitlement] = await Promise.all([
     supabaseAdmin
       .from("patients")
-      .select("id,name,email,phone,mobile_phone,status")
+      .select("id,name,email,phone,mobile_phone,status,avatar_url,gender_identity")
       .eq("id", preferred.patient_id)
       .maybeSingle(),
     supabaseAdmin
@@ -211,6 +211,8 @@ export async function getPatientPortalContext(patientUser: {
           name: patientResult.data.name,
           email: patientResult.data.email,
           phone: patientResult.data.mobile_phone || patientResult.data.phone,
+          avatarUrl: patientResult.data.avatar_url || null,
+          genderIdentity: patientResult.data.gender_identity || null,
         }
       : null,
     professional: profileResult.data

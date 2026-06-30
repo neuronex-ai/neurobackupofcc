@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { DesktopWorkspacePanel, DesktopWorkspaceShell } from "@/components/ui/desktop-workspace";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import {
@@ -27,6 +29,7 @@ import {
   useRequestPatientPortalAppointment,
   useSavePatientPortalAnamnesis,
   useTogglePatientPortalGoal,
+  useUpdatePatientPortalProfile,
 } from "@/hooks/use-patient-portal";
 import { cn } from "@/lib/utils";
 import {
@@ -35,6 +38,8 @@ import {
   BrainCircuit,
   CalendarDays,
   CalendarPlus,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Circle,
   ClipboardList,
@@ -56,9 +61,11 @@ import {
   Package,
   ReceiptText,
   Route,
+  Sparkles,
   Smile,
   Target,
   TrendingUp,
+  Upload,
   UserRound,
   Video,
 } from "lucide-react";
@@ -99,13 +106,10 @@ const moodVisualConfig: Record<number, { label: string; color: string; tone: str
 const navItems = [
   { value: "home", label: "Início", path: "/portal", icon: Home },
   { value: "agenda", label: "Agenda", path: "/portal/agenda", icon: CalendarDays },
-  { value: "anamneses", label: "Anamneses", path: "/portal/anamneses", icon: ClipboardList },
-  { value: "historico", label: "Feed", path: "/portal/historico", icon: FileClock },
+  { value: "humor", label: "Humor", path: "/portal/humor", icon: HeartPulse },
   { value: "documentos", label: "NeuroDrive", path: "/portal/documentos", icon: FileText },
-  { value: "metas", label: "Missões", path: "/portal/metas", icon: Target },
   { value: "progresso", label: "Progresso", path: "/portal/progresso", icon: TrendingUp },
   { value: "financeiro", label: "NeuroFinance", path: "/portal/financeiro", icon: CreditCard },
-  { value: "humor", label: "Humor", path: "/portal/humor", icon: HeartPulse },
   { value: "perfil", label: "Perfil", path: "/portal/perfil", icon: UserRound },
 ] as const;
 
@@ -264,7 +268,7 @@ const PortalModuleRail = ({
   onNavigate: (path: string) => void;
 }) => (
   <DesktopWorkspacePanel className="p-2.5">
-    <div className="flex gap-1.5 overflow-x-auto no-scrollbar lg:grid lg:grid-cols-10 lg:overflow-visible">
+    <div className="flex gap-1.5 overflow-x-auto no-scrollbar lg:grid lg:grid-cols-7 lg:overflow-visible">
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = activeView === item.value;
@@ -321,9 +325,6 @@ const PortalHero = ({
   professionalName,
   activeLabel,
   nextAppointment,
-  pendingAmount,
-  documentsCount,
-  activeGoals,
   onSignOut,
   loggingOut,
 }: {
@@ -331,15 +332,12 @@ const PortalHero = ({
   professionalName: string;
   activeLabel: string;
   nextAppointment?: PatientPortalAppointment;
-  pendingAmount: number;
-  documentsCount: number;
-  activeGoals: number;
   onSignOut: () => void;
   loggingOut: boolean;
 }) => (
   <DesktopWorkspacePanel highContrast className="p-0">
-    <div className="grid gap-5 p-5 sm:p-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)]">
-      <div className="flex min-h-[238px] flex-col justify-between gap-8">
+    <div className="grid gap-5 p-5 sm:p-6 xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.88fr)]">
+      <div className="flex min-h-[228px] flex-col justify-between gap-8">
         <div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -378,28 +376,34 @@ const PortalHero = ({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <PortalHeroStat
-          label="Próxima sessão"
-          value={nextAppointment ? dateTime.format(new Date(nextAppointment.start_time)) : "Sem horário"}
-          detail={nextAppointment?.type || "Agenda"}
-        />
-        <PortalHeroStat
-          label="NeuroFinance"
-          value={pendingAmount ? money.format(pendingAmount) : "Tudo em dia"}
-          detail={pendingAmount ? "Pagamento disponível" : "Sem pagamentos disponíveis"}
-          tone={pendingAmount ? "warning" : "success"}
-        />
-        <PortalHeroStat
-          label="NeuroDrive"
-          value={documentsCount}
-          detail="Compartilhados"
-        />
-        <PortalHeroStat
-          label="Missões"
-          value={activeGoals}
-          detail="Em acompanhamento"
-        />
+      <div className="relative overflow-hidden rounded-[30px] border border-background/16 bg-background/[0.08] p-5 shadow-sm dark:border-zinc-950/12 dark:bg-zinc-950/[0.05]">
+        <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-background/12 blur-3xl dark:bg-zinc-950/10" />
+        <div className="relative z-10 flex h-full flex-col justify-between gap-6">
+          <div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-background/18 bg-background/[0.10] text-background/76 dark:border-zinc-950/12 dark:bg-zinc-950/[0.06] dark:text-zinc-950/70">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.18em] text-background/54 dark:text-zinc-950/52">
+              Portal NeuroDiver
+            </p>
+            <p className="mt-3 max-w-md text-2xl font-black leading-tight tracking-tight text-background dark:text-zinc-950">
+              Um painel simples para acompanhar o que importa agora.
+            </p>
+            <p className="mt-3 text-sm font-medium leading-relaxed text-background/62 dark:text-zinc-950/62">
+              {nextAppointment
+                ? `Próxima sessão em ${dateTime.format(new Date(nextAppointment.start_time))}.`
+                : "Sem sessão futura confirmada no momento."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-background/64 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/62">
+              Seguro
+            </span>
+            <span className="rounded-full border border-background/18 bg-background/[0.08] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-background/64 dark:border-zinc-950/12 dark:bg-zinc-950/[0.05] dark:text-zinc-950/62">
+              Compartilhado com você
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   </DesktopWorkspacePanel>
