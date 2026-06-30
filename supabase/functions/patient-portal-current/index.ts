@@ -20,7 +20,7 @@ async function readBody(req: Request) {
 async function loadAppointments(context: any) {
   const { data, error } = await supabaseAdmin
     .from("appointments")
-    .select("id,start_time,end_time,type,status,location,google_meet_link,created_at,updated_at")
+    .select("id,start_time,end_time,type,status,location,google_meet_link,created_at,updated_at,metadata,notes")
     .eq("patient_id", context.patient.id)
     .eq("user_id", context.professional.id)
     .order("start_time", { ascending: true });
@@ -125,6 +125,332 @@ async function loadBilling(context: any) {
       bank_slip_url: invoice.payment_url || null,
       nfse_xml_url: invoice.nfse_xml_url || null,
     })),
+  };
+}
+
+function normalizeAnamnesisContent(content: unknown) {
+  if (Array.isArray(content)) return content;
+  if (!content || typeof content !== "object") return [];
+
+  const fields = (content as { fields?: Record<string, unknown> }).fields;
+  if (fields && typeof fields === "object") {
+    return Object.entries(fields).map(([question, answer]) => ({
+      question,
+      answer: String(answer ?? ""),
+    }));
+  }
+
+  return [];
+}
+
+function calculateAnamnesisProgress(content: unknown) {
+  const items = normalizeAnamnesisContent(content);
+  const questions = items.filter((item: any) => !item?.isSection);
+  if (!questions.length) return 0;
+  const answered = questions.filter((item: any) => String(item?.answer || "").trim().length > 0).length;
+  return Math.round((answered / questions.length) * 100);
+}
+
+async function loadAnamnesis(context: any) {
+  const { data, error } = await supabaseAdmin
+    .from("patient_anamneses")
+    .select("id,type,content,created_at,updated_at,token_expires_at")
+    .eq("patient_id", context.patient.id)
+    .order("updated_at", { ascending: false })
+    .limit(20);
+  if (error) throw error;
+
+  const now = Date.now();
+  return {
+    anamneses: (data || []).map((record: any) => {
+      const progress = calculateAnamnesisProgress(record.content);
+      const expiresAt = record.token_expires_at ? new Date(record.token_expires_at).getTime() : 0;
+      return {
+        id: record.id,
+        type: record.type || "Anamnese",
+        content: normalizeAnamnesisContent(record.content),
+        progress,
+        status: progress >= 100 ? "submitted" : expiresAt > now ? "pending" : "expired",
+        canEdit: progress < 100 && expiresAt > now,
+        createdAt: record.created_at,
+        updatedAt: record.updated_at,
+        tokenExpiresAt: record.token_expires_at,
+      };
+    }),
+  };
+}
+
+async function saveAnamnesis(user: any, context: any, body: Record<string, unknown>) {
+  const anamnesisId = String(body.anamnesisId || "");
+  const content = Array.isArray(body.content) ? body.content : null;
+  if (!anamnesisId || !content) return errorResponse("Anamnese invalida.", 400);
+
+  const { data: record, error: loadError } = await supabaseAdmin
+    .from("patient_anamneses")
+    .select("id,content,token_expires_at")
+    .eq("id", anamnesisId)
+    .eq("patient_id", context.patient.id)
+    .maybeSingle();
+  if (loadError) throw loadError;
+  if (!record) return errorResponse("Anamnese nao encontrada.", 404);
+
+  const currentProgress = calculateAnamnesisProgress((record as any).content);
+  const expiresAt = (record as any).token_expires_at ? new Date((record as any).token_expires_at).getTime() : 0;
+  if (currentProgress >= 100 || expiresAt <= Date.now()) {
+    return errorResponse("Esta anamnese esta em modo leitura.", 403);
+  }
+
+  const sanitizedContent = content.slice(0, 300).map((item: any) => ({
+    question: String(item?.question || "").slice(0, 500),
+    answer: String(item?.answer || "").slice(0, 8000),
+    isSection: Boolean(item?.isSection),
+  }));
+
+  const { data, error } = await supabaseAdmin
+    .from("patient_anamneses")
+    .update({
+      content: sanitizedContent,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", anamnesisId)
+    .eq("patient_id", context.patient.id)
+    .select("id,type,content,created_at,updated_at,token_expires_at")
+    .single();
+  if (error) throw error;
+
+  const progress = calculateAnamnesisProgress(data.content);
+  try {
+    await supabaseAdmin.rpc("emit_user_notification", {
+      p_user_id: context.professional.id,
+      p_event_id: `portal-anamnesis:${anamnesisId}:progress`,
+      p_type: progress >= 100 ? "anamnesis_completed" : "anamnesis_progress",
+      p_category: "prontuario",
+      p_severity: progress >= 100 ? "success" : "info",
+      p_title: progress >= 100 ? "Anamnese concluida" : "Anamnese atualizada",
+      p_message: `${context.patient.name || "Paciente"} salvou ${progress}% da anamnese pelo Portal do Paciente.`,
+      p_action_url: `/pacientes/${context.patient.id}?tab=anamnesis`,
+      p_priority: progress >= 100 ? "normal" : "low",
+      p_data: {
+        sourceModule: "patient_portal",
+        eventSource: "patient_portal_anamnesis",
+        anamnesisId,
+        patientId: context.patient.id,
+        actorUserId: user.id,
+        progress,
+      },
+      p_payload: {},
+      p_organization_id: null,
+    });
+  } catch (notifyError) {
+    console.warn("[patient-portal-current] anamnesis notification skipped", notifyError);
+  }
+
+  return {
+    anamnesis: {
+      id: data.id,
+      type: data.type || "Anamnese",
+      content: normalizeAnamnesisContent(data.content),
+      progress,
+      status: progress >= 100 ? "submitted" : "pending",
+      canEdit: progress < 100,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      tokenExpiresAt: data.token_expires_at,
+    },
+  };
+}
+
+async function loadPackages(context: any) {
+  const { data, error } = await supabaseAdmin
+    .from("patient_packages")
+    .select("id,description,total_sessions,sessions_used,price,start_date,end_date,due_day,created_at")
+    .eq("patient_id", context.patient.id)
+    .eq("user_id", context.professional.id)
+    .order("start_date", { ascending: false })
+    .limit(30);
+  if (error) throw error;
+  return { packages: data || [] };
+}
+
+async function loadHistory(context: any) {
+  const [appointments, documents, goals, mood, billing, anamnesis] = await Promise.all([
+    supabaseAdmin
+      .from("appointments")
+      .select("id,start_time,end_time,type,status,created_at,metadata")
+      .eq("patient_id", context.patient.id)
+      .eq("user_id", context.professional.id)
+      .order("start_time", { ascending: false })
+      .limit(30),
+    supabaseAdmin
+      .from("document_files")
+      .select("id,original_name,mime_type,size_bytes,created_at,shared_with_patient_at")
+      .eq("patient_id", context.patient.id)
+      .eq("user_id", context.professional.id)
+      .eq("status", "ready")
+      .eq("shared_with_patient", true)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    supabaseAdmin
+      .from("patient_goals")
+      .select("id,description,is_completed,due_date,created_at")
+      .eq("patient_id", context.patient.id)
+      .eq("user_id", context.professional.id)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    supabaseAdmin
+      .from("patient_mood_logs")
+      .select("id,mood_score,notes,source,created_at")
+      .eq("patient_id", context.patient.id)
+      .eq("user_id", context.professional.id)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    supabaseAdmin
+      .from("financial_entries")
+      .select("id,title,description,amount,due_date,paid_at,status,created_at,metadata")
+      .eq("patient_id", context.patient.id)
+      .eq("professional_id", context.professional.id)
+      .eq("type", "income")
+      .order("created_at", { ascending: false })
+      .limit(30),
+    supabaseAdmin
+      .from("patient_anamneses")
+      .select("id,type,content,created_at,updated_at,token_expires_at")
+      .eq("patient_id", context.patient.id)
+      .order("updated_at", { ascending: false })
+      .limit(20),
+  ]);
+
+  for (const result of [appointments, documents, goals, mood, billing, anamnesis]) {
+    if (result.error) throw result.error;
+  }
+
+  const items: any[] = [];
+  (appointments.data || []).forEach((row: any) => {
+    items.push({
+      id: `appointment:${row.id}`,
+      sourceId: row.id,
+      type: "appointment",
+      title: "Consulta",
+      description: `${row.type || "Sessao"} - ${row.status || "agendada"}`,
+      occurredAt: row.start_time,
+      metadata: { status: row.status, type: row.type, syncStatus: row.metadata?.syncStatus || null },
+    });
+  });
+  (documents.data || []).forEach((row: any) => {
+    items.push({
+      id: `document:${row.id}`,
+      sourceId: row.id,
+      type: "document",
+      title: row.original_name || "Documento compartilhado",
+      description: "Documento liberado pelo profissional.",
+      occurredAt: row.shared_with_patient_at || row.created_at,
+      metadata: { mimeType: row.mime_type, sizeBytes: row.size_bytes },
+    });
+  });
+  (goals.data || []).forEach((row: any) => {
+    items.push({
+      id: `goal:${row.id}`,
+      sourceId: row.id,
+      type: "goal",
+      title: row.is_completed ? "Meta concluida" : "Meta criada",
+      description: row.description,
+      occurredAt: row.created_at,
+      metadata: { isCompleted: row.is_completed, dueDate: row.due_date },
+    });
+  });
+  (mood.data || []).forEach((row: any) => {
+    items.push({
+      id: `mood:${row.id}`,
+      sourceId: row.id,
+      type: "mood",
+      title: "Registro de humor",
+      description: row.notes || `Humor ${row.mood_score}/5`,
+      occurredAt: row.created_at,
+      metadata: { moodScore: row.mood_score, source: row.source },
+    });
+  });
+  (billing.data || []).forEach((row: any) => {
+    items.push({
+      id: `billing:${row.id}`,
+      sourceId: row.id,
+      type: "billing",
+      title: row.title || row.description || "Registro NeuroFinance",
+      description: row.status || "financeiro",
+      occurredAt: row.paid_at || row.due_date || row.created_at,
+      metadata: { amount: row.amount, status: row.status },
+    });
+  });
+  (anamnesis.data || []).forEach((row: any) => {
+    const progress = calculateAnamnesisProgress(row.content);
+    items.push({
+      id: `anamnesis:${row.id}`,
+      sourceId: row.id,
+      type: "anamnesis",
+      title: progress >= 100 ? "Anamnese enviada" : "Anamnese em andamento",
+      description: row.type || "Ficha de anamnese",
+      occurredAt: row.updated_at || row.created_at,
+      metadata: { progress },
+    });
+  });
+
+  return {
+    items: items
+      .filter((item) => item.occurredAt)
+      .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime())
+      .slice(0, 80),
+  };
+}
+
+async function loadProgress(context: any) {
+  const [appointments, goals, mood, documents, packages] = await Promise.all([
+    loadAppointments(context),
+    loadGoals(context),
+    loadMood({ id: context.patient.id }, context, {}),
+    supabaseAdmin
+      .from("document_files")
+      .select("id", { count: "exact", head: true })
+      .eq("patient_id", context.patient.id)
+      .eq("user_id", context.professional.id)
+      .eq("status", "ready")
+      .eq("shared_with_patient", true)
+      .is("deleted_at", null),
+    loadPackages(context),
+  ]);
+  if (documents.error) throw documents.error;
+
+  const appointmentRows = appointments.appointments || [];
+  const goalRows = goals.goals || [];
+  const moodRows = mood.logs || [];
+  const packageRows = packages.packages || [];
+  const completedGoals = goalRows.filter((goal: any) => goal.is_completed).length;
+  const attendedSessions = appointmentRows.filter((appointment: any) => {
+    const start = new Date(appointment.start_time).getTime();
+    return Number.isFinite(start) && start < Date.now() && !String(appointment.status || "").includes("cancelled");
+  }).length;
+  const activePackages = packageRows.filter((pkg: any) => Number(pkg.total_sessions || 0) > Number(pkg.sessions_used || 0)).length;
+
+  return {
+    progress: {
+      sessionsTotal: appointmentRows.length,
+      attendedSessions,
+      goalsTotal: goalRows.length,
+      completedGoals,
+      sharedDocuments: documents.count || 0,
+      moodLogs: moodRows.length,
+      activePackages,
+      lastMood: moodRows[0] || null,
+      nextSteps: goalRows.filter((goal: any) => !goal.is_completed).slice(0, 5),
+    },
+  };
+}
+
+async function loadAppointmentRequests(context: any) {
+  const appointments = await loadAppointments(context);
+  return {
+    requests: (appointments.appointments || []).filter((appointment: any) =>
+      appointment?.metadata?.origin === "patient_portal" && appointment?.metadata?.syncStatus === "pending"
+    ),
   };
 }
 
@@ -278,7 +604,16 @@ Deno.serve(async (req: Request) => {
     if (action === "appointments") return jsonResponse(await loadAppointments(context));
     if (action === "documents") return jsonResponse(await loadDocuments(context));
     if (action === "billing") return jsonResponse(await loadBilling(context));
+    if (action === "anamnesis") return jsonResponse(await loadAnamnesis(context));
+    if (action === "packages") return jsonResponse(await loadPackages(context));
+    if (action === "history") return jsonResponse(await loadHistory(context));
+    if (action === "progress") return jsonResponse(await loadProgress(context));
+    if (action === "appointment_requests") return jsonResponse(await loadAppointmentRequests(context));
     if (action === "goals") return jsonResponse(await loadGoals(context));
+    if (action === "save_anamnesis") {
+      const result = await saveAnamnesis(user, context, body as Record<string, unknown>);
+      return result instanceof Response ? result : jsonResponse(result);
+    }
     if (action === "request_appointment") {
       const result = await requestAppointment(context, body as Record<string, unknown>);
       return result instanceof Response ? result : jsonResponse(result);

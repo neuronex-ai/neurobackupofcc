@@ -58,6 +58,8 @@ export interface PatientPortalAppointment {
   status: string;
   location: string | null;
   google_meet_link: string | null;
+  notes?: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface PatientPortalDocument {
@@ -110,6 +112,66 @@ export interface PatientPortalGoal {
   is_completed: boolean;
   due_date: string | null;
   created_at: string;
+}
+
+export interface PatientPortalAnamnesisItem {
+  question: string;
+  answer: string;
+  isSection?: boolean;
+}
+
+export interface PatientPortalAnamnesis {
+  id: string;
+  type: string;
+  content: PatientPortalAnamnesisItem[];
+  progress: number;
+  status: "pending" | "submitted" | "expired";
+  canEdit: boolean;
+  createdAt: string;
+  updatedAt: string;
+  tokenExpiresAt: string | null;
+}
+
+export interface PatientPortalPackage {
+  id: string;
+  description: string;
+  total_sessions: number;
+  sessions_used: number;
+  price: number | null;
+  start_date: string;
+  end_date: string | null;
+  due_day?: number | null;
+  created_at: string;
+}
+
+export type PatientPortalHistoryType =
+  | "appointment"
+  | "document"
+  | "goal"
+  | "mood"
+  | "billing"
+  | "anamnesis";
+
+export interface PatientPortalHistoryItem {
+  id: string;
+  sourceId: string;
+  type: PatientPortalHistoryType;
+  title: string;
+  description: string | null;
+  occurredAt: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface PatientPortalProgress {
+  sessionsTotal: number;
+  attendedSessions: number;
+  goalsTotal: number;
+  completedGoals: number;
+  sharedDocuments: number;
+  moodLogs: number;
+  activePackages: number;
+  lastMood: PatientPortalMoodLog | null;
+  nextSteps: PatientPortalGoal[];
 }
 
 export interface PatientPortalAppointmentRequest {
@@ -233,6 +295,61 @@ export const usePatientPortalBilling = (enabled = true) => {
   });
 };
 
+export const usePatientPortalAnamnesis = (enabled = true) => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["patient-portal-anamnesis", user?.id],
+    queryFn: () =>
+      invokePortalFunction<{ anamneses: PatientPortalAnamnesis[] }>("patient-portal-current", { action: "anamnesis" }),
+    enabled: Boolean(user?.id) && enabled,
+  });
+};
+
+export const usePatientPortalPackages = (enabled = true) => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["patient-portal-packages", user?.id],
+    queryFn: () =>
+      invokePortalFunction<{ packages: PatientPortalPackage[] }>("patient-portal-current", { action: "packages" }),
+    enabled: Boolean(user?.id) && enabled,
+  });
+};
+
+export const usePatientPortalHistory = (enabled = true) => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["patient-portal-history", user?.id],
+    queryFn: () =>
+      invokePortalFunction<{ items: PatientPortalHistoryItem[] }>("patient-portal-current", { action: "history" }),
+    enabled: Boolean(user?.id) && enabled,
+  });
+};
+
+export const usePatientPortalProgress = (enabled = true) => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["patient-portal-progress", user?.id],
+    queryFn: () =>
+      invokePortalFunction<{ progress: PatientPortalProgress }>("patient-portal-current", { action: "progress" }),
+    enabled: Boolean(user?.id) && enabled,
+  });
+};
+
+export const usePatientPortalAppointmentRequests = (enabled = true) => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["patient-portal-appointment-requests", user?.id],
+    queryFn: () =>
+      invokePortalFunction<{ requests: PatientPortalAppointment[] }>("patient-portal-current", { action: "appointment_requests" }),
+    enabled: Boolean(user?.id) && enabled,
+  });
+};
+
 export const usePatientPortalMood = (enabled = true) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -282,6 +399,9 @@ export const useRequestPatientPortalAppointment = () => {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient-portal-appointments", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-appointment-requests", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-history", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-progress", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["patient-portal-current", user?.id] });
     },
   });
@@ -300,6 +420,27 @@ export const useTogglePatientPortalGoal = () => {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient-portal-goals", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-history", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-progress", user?.id] });
+    },
+  });
+};
+
+export const useSavePatientPortalAnamnesis = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ anamnesisId, content }: { anamnesisId: string; content: PatientPortalAnamnesisItem[] }) =>
+      invokePortalFunction<{ anamnesis: PatientPortalAnamnesis }>(
+        "patient-portal-current",
+        { action: "save_anamnesis", anamnesisId, content },
+        "Nao foi possivel salvar a anamnese.",
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-anamnesis", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-history", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["patient-portal-progress", user?.id] });
     },
   });
 };
