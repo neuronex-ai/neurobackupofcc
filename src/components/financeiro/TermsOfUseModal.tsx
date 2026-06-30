@@ -53,7 +53,7 @@ export const TermsOfUseModal = ({ isOpen, onOpenChange }: TermsOfUseModalProps) 
                 { 
                   icon: ShieldCheck, 
                   title: "NeuroFinance & Asaas", 
-                  content: "Nossos serviços financeiros ('NeuroFinance') são operados através da infraestrutura tecnológica da Asaas (BaaS), garantindo segurança e conformidade com padrões nacionais de pagamento, KYC (Know Your Customer) e regulamentações do Banco Central do Brasil." 
+                  content: "NeuroFinance é a interface de produto da NeuroNex para fluxos financeiros. Os serviços financeiros, contas, recursos, Pix, boletos, cartões e repasses contratados são prestados pela Asaas Instituição de Pagamento S.A. A NeuroNex atua como plataforma tecnológica e não é banco nem instituição de pagamento." 
                 },
                 { 
                   icon: Info, 
@@ -117,7 +117,7 @@ export const TermsOfUseModal = ({ isOpen, onOpenChange }: TermsOfUseModalProps) 
                 <h3 className="text-xs font-black uppercase tracking-widest text-zinc-900 dark:text-white">Exclusão de Dados</h3>
               </div>
               <p className="text-xs text-zinc-500 leading-relaxed">
-                Você pode solicitar a exclusão de seus dados a qualquer momento. No entanto, por obrigações legais do Banco Central e da Receita Federal, certos dados de transações financeiras podem ser retidos por períodos específicos (geralmente 5 anos).
+                Você pode solicitar a exclusão de seus dados a qualquer momento. Dados transacionais financeiros podem permanecer retidos quando houver obrigação legal, regulatória, fiscal, antifraude ou contratual aplicável ao serviço financeiro prestado pela Asaas.
               </p>
             </div>
           </div>

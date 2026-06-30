@@ -3,10 +3,15 @@ name: Validate main
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
-  group: validate-main
+  group: validate-main-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -26,8 +31,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck
+        run: npx tsc -p tsconfig.app.json --noEmit
+
       - name: Run tests
         run: npm test -- --reporter=dot
 
       - name: Build application
         run: npm run build
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

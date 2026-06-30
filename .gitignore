@@ -66,6 +66,21 @@ Thumbs.db
 .gemini/
 scratch/
 docs/internal/
+private-compliance/
+backup/
+backups/
+contract/
+contracts/
+contrato/
+contratos/
+evidence/
+evidences/
+evidencia/
+evidencias/
+private-evidence/
+private-evidences/
+private-evidencia/
+private-evidencias/
 
 # Legacy serverless/API experiments
 api/

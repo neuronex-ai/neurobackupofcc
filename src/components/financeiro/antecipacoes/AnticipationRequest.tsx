@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Loader2, SlidersHorizontal, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import { useNeurofinanceAnticipations } from "@/hooks/use-neurofinance-anticipations";
+import { NEUROFINANCE_ANTICIPATION_ENABLED, useNeurofinanceAnticipations } from "@/hooks/use-neurofinance-anticipations";
 
 export function AnticipationRequest() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -10,6 +10,17 @@ export function AnticipationRequest() {
   const payments = eligible.data || [];
   const selected = useMemo(() => payments.find((item) => item.provider_payment_id === selectedId), [payments, selectedId]);
   const simulation = simulate.data?.simulation;
+
+  if (!NEUROFINANCE_ANTICIPATION_ENABLED) {
+    return (
+      <div className="rounded-[28px] border border-amber-500/20 bg-amber-500/10 p-8 text-sm text-amber-900 dark:text-amber-100">
+        <h3 className="text-lg font-black text-zinc-950 dark:text-white">Antecipação indisponível</h3>
+        <p className="mt-2 max-w-2xl">
+          A antecipação de recebíveis permanece desabilitada até confirmação do enquadramento contratual e da responsabilidade prevista no Anexo I com a Asaas.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">

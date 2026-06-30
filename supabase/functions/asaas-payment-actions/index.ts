@@ -105,7 +105,7 @@ Deno.serve(async (req: Request) => {
             })
             : await getFinancialAccount(user.id);
 
-        const apiKey = getFinancialAccountAsaasApiKey(financialAccount);
+        const apiKey = await getFinancialAccountAsaasApiKey(financialAccount);
         if (!apiKey) return errorResponse("Sua conta financeira ainda não está pronta para esta ação.", 403, { code: "ACCOUNT_NOT_READY" });
 
         if (action === "sync") {

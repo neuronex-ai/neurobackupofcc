@@ -156,6 +156,11 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
             : "Não informada";
     const cardAccountType = account?.bank_account_type === "CONTA_POUPANCA" ? "Poupança" : "Conta corrente";
 
+    const safeCardAccount = account?.bank_account_last4
+        ? `â€¢â€¢â€¢â€¢ ${account.bank_account_last4}`
+        : "NÃ£o informada";
+    void cardAccount;
+
     const filteredTransactions = useMemo(() => {
         return transactions.filter(t => {
             const patientName = (t as Transaction & { patient_name?: string }).patient_name || "";
@@ -658,7 +663,7 @@ export const NeuroNexBankPanel = ({ transactions = [], isLoadingTransactions = f
                                 bankName={cardBankName}
                                 bankCode={account?.bank_code || undefined}
                                 agency={cardAgency}
-                                account={cardAccount}
+                                account={safeCardAccount}
                                 accountType={cardAccountType}
                                 isExpanded={cardExpanded}
                                 showSensitive={true}

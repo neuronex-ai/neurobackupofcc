@@ -6,6 +6,10 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  getAuthenticatedUser,
+  getFinancialAccountAsaasApiKey,
+} from "../_shared/asaas-client.ts";
 
 type AsaasEnvironment = "production" | "sandbox";
 
@@ -103,28 +107,6 @@ async function appendLogoIfAvailable(form: FormData, body: BrandingRequestBody) 
   return true;
 }
 
-async function getAuthenticatedUser(req: Request, supabaseAdmin: ReturnType<typeof createClient>) {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) throw new Error("Missing Authorization header");
-
-  const token = authHeader.replace("Bearer ", "");
-  const {
-    data: { user },
-    error,
-  } = await supabaseAdmin.auth.getUser(token);
-
-  if (error || !user) throw new Error("Invalid or expired token");
-  return user;
-}
-
-function getFinancialAccountAsaasApiKey(financialAccount: any): string {
-  return (
-    financialAccount?.asaas_api_key?.trim?.() ||
-    financialAccount?.metadata?.asaas_api_key?.trim?.() ||
-    ""
-  );
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return errorResponse("Método não suportado.", 405);
@@ -138,18 +120,18 @@ Deno.serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const user = await getAuthenticatedUser(req, supabaseAdmin);
+    const user = await getAuthenticatedUser(req);
     const body = (await req.json().catch(() => ({}))) as BrandingRequestBody;
 
     const { data: financialAccount, error: accountError } = await supabaseAdmin
       .from("financial_accounts")
-      .select("id, asaas_api_key, metadata")
+      .select("id, user_id, asaas_account_id, asaas_api_key, metadata")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (accountError) throw accountError;
 
-    const apiKey = getFinancialAccountAsaasApiKey(financialAccount);
+    const apiKey = await getFinancialAccountAsaasApiKey(financialAccount);
     if (!apiKey) return errorResponse("Conta financeira Asaas não configurada.", 403);
 
     const logoBackgroundColor = onlyHexColor(body.logoBackgroundColor, "#FFFFFF");

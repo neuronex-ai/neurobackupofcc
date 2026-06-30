@@ -838,7 +838,7 @@ async function tryScheduleAutomaticInvoice(nbPayment: any, payment: any) {
             .select('*')
             .eq('id', nbPayment.financial_account_id)
             .maybeSingle();
-        const apiKey = getFinancialAccountAsaasApiKey(financialAccount);
+        const apiKey = await getFinancialAccountAsaasApiKey(financialAccount);
         if (!apiKey) return;
 
         const invoiceId = nbPayment?.metadata?.invoice_id;

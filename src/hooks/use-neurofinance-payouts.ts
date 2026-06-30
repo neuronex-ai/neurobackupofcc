@@ -2,28 +2,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { toast } from "sonner";
+import { NB_PAYOUTS_SAFE_SELECT } from "@/lib/neurofinance-safe-selects";
 import { toUserFacingError } from "@/lib/user-facing-error";
 import { invokeEdgeFunction } from "@/lib/invoke-edge-function";
 
 export interface NeuroFinancePayout {
     id: string;
     user_id: string;
-    asaas_payout_id?: string | null;
-    provider_payout_id?: string | null;
     amount: number;
     currency: string;
     status: "pending" | "in_transit" | "paid" | "failed" | "canceled";
     destination_type: string;
     destination_summary: string | null;
-    destination_payload?: Record<string, unknown>;
-    pix_key?: string | null;
     receipt_url?: string | null;
     requested_at: string;
     processed_at: string | null;
     completed_at?: string | null;
     created_at: string;
     updated_at: string;
-    provider_payload?: Record<string, unknown>;
 }
 
 export interface RequestPayoutParams {
@@ -95,9 +91,9 @@ export const useNeuroFinancePayouts = (limit = 30) => {
         queryFn: async () => {
             if (!user?.id) throw new Error("Você precisa entrar novamente para continuar.");
 
-            const { data, error } = await supabase
-                .from("nb_payouts")
-                .select("*")
+            const { data, error } = await (supabase as any)
+                .from("nb_payouts_safe_v")
+                .select(NB_PAYOUTS_SAFE_SELECT)
                 .eq("user_id", user.id)
                 .neq("operation_type", "pix_qr_payment")
                 .neq("operation_type", "pix_transfer")

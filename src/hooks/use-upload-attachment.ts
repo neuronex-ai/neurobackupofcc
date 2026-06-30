@@ -4,6 +4,9 @@ import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
 import { getUserFacingErrorMessage } from '@/lib/user-facing-error';
 
+export const LEGACY_PATIENT_ATTACHMENTS_ENABLED =
+  import.meta.env.VITE_ENABLE_LEGACY_PATIENT_ATTACHMENTS === 'true';
+
 const uploadAttachment = async ({
   patientId,
   file,
@@ -13,6 +16,10 @@ const uploadAttachment = async ({
   file: File;
   userId: string;
 }) => {
+  if (!LEGACY_PATIENT_ATTACHMENTS_ENABLED) {
+    throw new Error('Upload legado de anexos desativado enquanto o fluxo privado migra para R2.');
+  }
+
   const fileExt = file.name.split('.').pop();
   const fileName = `${Date.now()}.${fileExt}`;
   const filePath = `${userId}/${patientId}/${fileName}`;

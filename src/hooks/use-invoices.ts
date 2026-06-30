@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Invoice } from "@/types";
 import { useAuth } from "@/components/auth/SessionContextProvider";
+import { NB_PAYMENTS_SAFE_SELECT } from "@/lib/neurofinance-safe-selects";
 
 export interface InvoiceListParams {
     page?: number;
@@ -29,24 +30,17 @@ const mapNbPayment = (payment: any): Invoice => ({
     id: payment.id,
     user_id: payment.user_id,
     patient_id: payment.patient_id,
-    invoice_number: (payment.provider_payment_id?.split("_") || []).pop() || payment.id.slice(0, 8),
+    invoice_number: payment.id.slice(0, 8),
     amount: Number(payment.gross_amount || 0) / 100,
-    status: mapStatus(payment.normalized_status || payment.status || payment.provider_status),
+    status: mapStatus(payment.normalized_status || payment.status),
     due_date: payment.expires_at,
     created_at: payment.created_at,
     description: payment.description,
     payment_url:
         payment.checkout_url ||
-        payment.invoice_url ||
-        payment.metadata?.checkout_url ||
-        payment.metadata?.invoice_url ||
-        payment.metadata?.asaas_invoice_url ||
-        payment.metadata?.payment_url,
-    pdf_url:
-        payment.bank_slip_url ||
-        payment.metadata?.bank_slip_url ||
-        payment.metadata?.asaas_bank_slip_url,
-    gateway_payment_id: payment.provider_payment_id,
+        payment.invoice_url,
+    pdf_url: payment.bank_slip_url,
+    gateway_payment_id: null,
     ...(payment as any),
 });
 
@@ -79,53 +73,6 @@ const selectLegacy = `
     description
 `;
 
-const selectNbBase = `
-    id,
-    user_id,
-    patient_id,
-    checkout_url,
-    gross_amount,
-    net_amount,
-    platform_fee_amount,
-    estimated_fee_amount,
-    actual_fee_amount,
-    status,
-    provider_status,
-    normalized_status,
-    funds_status,
-    payment_method_type,
-    expires_at,
-    paid_at,
-    confirmed_at,
-    available_at,
-    created_at,
-    description,
-    provider_payment_id,
-    nfse_reference,
-    nfse_status,
-    nfse_number,
-    nfse_verification_code,
-    nfse_pdf_url,
-    nfse_xml_url,
-    nfse_status_description,
-    nfse_error_message,
-    nfse_synced_at,
-    metadata
-`;
-
-const selectNbExtended = `
-    ${selectNbBase},
-    receipt_url,
-    invoice_url,
-    bank_slip_url,
-    cancelable
-`;
-
-const isMissingColumnError = (error?: { message?: string; details?: string; hint?: string; code?: string } | null) => {
-    const text = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""} ${error?.code || ""}`.toLowerCase();
-    return text.includes("column") || text.includes("schema cache") || text.includes("does not exist") || text.includes("42703");
-};
-
 export const fetchInvoicesPage = async (userId: string, params: InvoiceListParams = {}): Promise<InvoiceListResult> => {
     const page = Math.max(1, params.page || 1);
     const pageSize = Math.min(50, Math.max(5, params.pageSize || 25));
@@ -146,7 +93,7 @@ export const fetchInvoicesPage = async (userId: string, params: InvoiceListParam
 
     const buildNbQuery = (select: string) => {
         let query = supabase
-            .from("nb_payments")
+            .from("nb_payments_safe_v")
             .select(select, { count: "exact" })
             .eq("user_id", userId)
             .order("created_at", { ascending: false })
@@ -159,12 +106,7 @@ export const fetchInvoicesPage = async (userId: string, params: InvoiceListParam
         return query;
     };
 
-    const [legacyResult, nbResultInitial] = await Promise.all([legacyQuery, buildNbQuery(selectNbExtended)]);
-    let nbResult = nbResultInitial;
-
-    if (nbResultInitial.error && isMissingColumnError(nbResultInitial.error)) {
-        nbResult = await buildNbQuery(selectNbBase);
-    }
+    const [legacyResult, nbResult] = await Promise.all([legacyQuery, buildNbQuery(NB_PAYMENTS_SAFE_SELECT)]);
 
     if (legacyResult.error) console.error("Erro ao buscar faturas legadas:", legacyResult.error);
     if (nbResult.error) console.error("Erro ao buscar cobranças NeuroFinance:", nbResult.error);

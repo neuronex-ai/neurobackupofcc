@@ -1,6 +1,6 @@
 ﻿import { Button } from '@/components/ui/button';
 import { usePatientAttachments } from '@/hooks/use-patient-attachments';
-import { useUploadAttachment } from '@/hooks/use-upload-attachment';
+import { LEGACY_PATIENT_ATTACHMENTS_ENABLED, useUploadAttachment } from '@/hooks/use-upload-attachment';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Download, File, Loader2, Paperclip, UploadCloud } from 'lucide-react';
@@ -17,6 +17,11 @@ export const AttachmentsPanel = ({ patientId }: AttachmentsPanelProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!LEGACY_PATIENT_ATTACHMENTS_ENABLED) {
+      toast.info("Upload de anexos temporariamente indisponível enquanto o fluxo privado migra para R2.");
+      event.target.value = "";
+      return;
+    }
     const file = event.target.files?.[0];
     if (file) {
       uploadFile({ patientId, file });
@@ -24,6 +29,11 @@ export const AttachmentsPanel = ({ patientId }: AttachmentsPanelProps) => {
   };
 
   const handleDownload = async (storagePath: string, fileName: string) => {
+    if (!LEGACY_PATIENT_ATTACHMENTS_ENABLED) {
+      toast.info("Download legado desativado. Os documentos privados serão disponibilizados pelo fluxo R2.");
+      return;
+    }
+
     const { data, error } = await supabase.storage
       .from('patient-attachments')
       .download(storagePath);
@@ -52,7 +62,12 @@ export const AttachmentsPanel = ({ patientId }: AttachmentsPanelProps) => {
         onChange={handleFileChange}
         className="hidden"
       />
-      <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+      {!LEGACY_PATIENT_ATTACHMENTS_ENABLED ? (
+        <div className="rounded-md border border-dashed border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
+          Upload de anexos desativado temporariamente enquanto os documentos privados migram para R2.
+        </div>
+      ) : null}
+      <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading || !LEGACY_PATIENT_ATTACHMENTS_ENABLED}>
         <UploadCloud className="mr-2 h-4 w-4" />
         {isUploading ? 'Enviando...' : 'Enviar Arquivo'}
       </Button>
@@ -78,7 +93,7 @@ export const AttachmentsPanel = ({ patientId }: AttachmentsPanelProps) => {
                     <span className="text-xs text-muted-foreground">{format(new Date(file.created_at), 'dd/MM/yyyy')}</span>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleDownload(file.storage_path, file.file_name)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" disabled={!LEGACY_PATIENT_ATTACHMENTS_ENABLED} onClick={() => handleDownload(file.storage_path, file.file_name)}>
                   <Download className="h-4 w-4" />
                 </Button>
               </li>

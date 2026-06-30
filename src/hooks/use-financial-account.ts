@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getAsaasAccountState } from "@/lib/asaas-account-status";
+import { FINANCIAL_ACCOUNT_SAFE_SELECT } from "@/lib/neurofinance-safe-selects";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 
 type FinancialUiStatus =
@@ -79,22 +80,6 @@ export interface FinancialAccountRecord {
   accountStatus?: Record<string, any> | null;
 }
 
-const FINANCIAL_ACCOUNT_PUBLIC_FIELDS = [
-  "id", "user_id", "status", "provider", "onboarding_started_at", "onboarding_completed_at",
-  "charges_enabled", "payouts_enabled", "details_submitted", "default_currency",
-  "bank_account_last4", "bank_name", "pix_enabled", "card_enabled",
-  "platform_fee_percent", "platform_fee_fixed", "created_at", "updated_at",
-  "asaas_account_id", "asaas_wallet_id", "requirements", "metadata", "asaas_onboarding_url",
-  "asaas_environment", "last_asaas_event_type", "last_asaas_event_at",
-  "last_balance_sync_at", "last_sync_error", "holder_name", "cpf_cnpj", "birth_date",
-  "mobile_phone", "pep_status", "address_street", "address_number", "address_complement",
-  "address_neighborhood", "address_city", "address_state", "address_postal_code",
-  "company_type", "income_value", "business_url", "business_description", "business_mcc",
-  "bank_code", "bank_agency", "bank_account", "bank_account_digit", "bank_account_type",
-  "bank_holder_name", "bank_holder_cpf_cnpj", "document_front_id", "document_back_id",
-  "tos_accepted_at", "onboarding_payload",
-].join(",");
-
 const invokeAsaasFunction = async (name: string, body?: Record<string, unknown> | FormData) => {
   const response = await supabase.functions.invoke(name, { body });
 
@@ -142,8 +127,8 @@ export const useFinancialAccount = () => {
     if (!userId) return null;
 
     const { data, error } = await supabase
-      .from("financial_accounts")
-      .select(FINANCIAL_ACCOUNT_PUBLIC_FIELDS)
+      .from("financial_accounts_safe_v")
+      .select(FINANCIAL_ACCOUNT_SAFE_SELECT)
       .eq("user_id", userId)
       .returns<FinancialAccountRecord[]>()
       .maybeSingle();

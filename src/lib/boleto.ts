@@ -15,13 +15,37 @@ function modulo10Digit(value: string) {
   return (10 - (sum % 10)) % 10;
 }
 
+function modulo11BoletoDigit(value: string) {
+  let factor = 2;
+  let sum = 0;
+
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    sum += Number(value[index]) * factor;
+    factor = factor === 9 ? 2 : factor + 1;
+  }
+
+  const digit = 11 - (sum % 11);
+  return digit === 0 || digit === 10 || digit === 11 ? 1 : digit;
+}
+
+function boletoLineToBarcode(digits: string) {
+  return `${digits.slice(0, 4)}${digits[32]}${digits.slice(33, 47)}${digits.slice(4, 9)}${digits.slice(10, 20)}${digits.slice(21, 31)}`;
+}
+
+function hasValidGeneralBoletoDigit(digits: string) {
+  const barcode = boletoLineToBarcode(digits);
+  const withoutGeneralDigit = `${barcode.slice(0, 4)}${barcode.slice(5)}`;
+  return modulo11BoletoDigit(withoutGeneralDigit) === Number(digits[32]);
+}
+
 export function isValidBoletoDigits(value: string) {
   const digits = onlyDigits(value);
 
   if (digits.length === 47 && digits[0] !== "8") {
     return modulo10Digit(digits.slice(0, 9)) === Number(digits[9])
       && modulo10Digit(digits.slice(10, 20)) === Number(digits[20])
-      && modulo10Digit(digits.slice(21, 31)) === Number(digits[31]);
+      && modulo10Digit(digits.slice(21, 31)) === Number(digits[31])
+      && hasValidGeneralBoletoDigit(digits);
   }
 
   // Arrecadacao/utility bills use 48 digits and always begin with product code 8.
@@ -50,6 +74,12 @@ export function formatBoletoValue(value: string) {
 }
 
 export function findBoletoCandidate(text: string) {
+  const formattedBoletoSegments = text.match(/\d{5}\.?\d{5}\s+\d{5}\.?\d{6}\s+\d{5}\.?\d{6}\s+\d\s+\d{14}/g) || [];
+  for (const segment of formattedBoletoSegments) {
+    const candidate = onlyDigits(segment);
+    if (isValidBoletoDigits(candidate)) return candidate;
+  }
+
   const numericSegments = text.match(/\d[\d.\-\s]{42,120}\d/g) || [];
   const segments = [...numericSegments, text];
 

@@ -134,7 +134,7 @@ Deno.serve(async (req: Request) => {
             }
         }
 
-        const asaasApiKey = getFinancialAccountAsaasApiKey(financialAccount);
+        const asaasApiKey = await getFinancialAccountAsaasApiKey(financialAccount);
         if (!asaasApiKey) {
             return jsonResponse({
                 status: financialAccount.status || 'not_started',
@@ -184,7 +184,7 @@ Deno.serve(async (req: Request) => {
         }
 
         // 4. Sync status to DB
-        const activeApiKey = getFinancialAccountAsaasApiKey(financialAccount);
+        const activeApiKey = await getFinancialAccountAsaasApiKey(financialAccount);
         const uiStatus = deriveUiStatusFromAsaasAccount(accountStatus);
         const requirementsSnapshot = buildAsaasRequirementSnapshot(accountStatus, 'sync');
         await syncFinancialAccountFromAsaas(financialAccount.id, accountStatus, 'sync');

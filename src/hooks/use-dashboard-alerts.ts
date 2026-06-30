@@ -4,6 +4,7 @@ import { useAuth } from '@/components/auth/SessionContextProvider';
 import { format, isSameDay } from 'date-fns';
 import { isCancelledAppointmentStatus } from '@/lib/appointment-status';
 import { getAsaasAccountState } from '@/lib/asaas-account-status';
+import { FINANCIAL_ACCOUNT_SAFE_SELECT, NB_PAYMENTS_SAFE_SELECT, NB_PAYOUTS_SAFE_SELECT } from '@/lib/neurofinance-safe-selects';
 
 export interface DashboardAlert {
   id: string;
@@ -30,9 +31,9 @@ export const fetchDashboardAlerts = async (userId: string): Promise<DashboardAle
   const inAppEnabled = settings?.in_app_enabled ?? true;
   if (!inAppEnabled) return [];
 
-  const { data: financialAccount } = await supabase
-    .from('financial_accounts')
-    .select('id, status, asaas_account_id, charges_enabled, payouts_enabled, details_submitted, requirements, last_sync_error, last_asaas_event_type, last_asaas_event_at')
+  const { data: financialAccount } = await (supabase as any)
+    .from('financial_accounts_safe_v')
+    .select(FINANCIAL_ACCOUNT_SAFE_SELECT)
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -69,9 +70,9 @@ export const fetchDashboardAlerts = async (userId: string): Promise<DashboardAle
 
   if (settings?.in_app_overdue_invoices ?? true) {
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const { data: recentPayments } = await supabase
-      .from('nb_payments')
-      .select('gross_amount, updated_at')
+    const { data: recentPayments } = await (supabase as any)
+      .from('nb_payments_safe_v')
+      .select(NB_PAYMENTS_SAFE_SELECT)
       .eq('user_id', userId)
       .eq('status', 'paid')
       .gte('updated_at', yesterday.toISOString());
@@ -88,9 +89,9 @@ export const fetchDashboardAlerts = async (userId: string): Promise<DashboardAle
       });
     }
 
-    const { data: problematicPayouts } = await supabase
-      .from('nb_payouts')
-      .select('id, status')
+    const { data: problematicPayouts } = await (supabase as any)
+      .from('nb_payouts_safe_v')
+      .select(NB_PAYOUTS_SAFE_SELECT)
       .eq('user_id', userId)
       .in('status', ['failed', 'canceled'])
       .gte('updated_at', yesterday.toISOString());

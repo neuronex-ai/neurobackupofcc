@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/SessionContextProvider";
 import { toast } from "sonner";
 import type { NeuroFinancePayment, CreatePaymentResult } from "./use-neurofinance-payments";
+import { NB_PAYMENTS_SAFE_SELECT } from "@/lib/neurofinance-safe-selects";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import { invokeNeurofinanceFunction } from "@/lib/neurofinance-edge";
 
@@ -139,9 +140,9 @@ export function useNeuroFinancePix() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('Não autenticado');
 
-        const { data, error } = await supabase
-            .from('nb_payments')
-            .select('*')
+        const { data, error } = await (supabase as any)
+            .from('nb_payments_safe_v')
+            .select(NB_PAYMENTS_SAFE_SELECT)
             .eq('user_id', session.user.id)
             .eq('payment_method_type', 'pix')
             .order('created_at', { ascending: false })
@@ -153,9 +154,9 @@ export function useNeuroFinancePix() {
 
     // ─── Query a single charge ───────────────────────────────
     const queryCharge = async (paymentId: string): Promise<NeuroFinancePayment | null> => {
-        const { data, error } = await supabase
-            .from('nb_payments')
-            .select('*')
+        const { data, error } = await (supabase as any)
+            .from('nb_payments_safe_v')
+            .select(NB_PAYMENTS_SAFE_SELECT)
             .eq('id', paymentId)
             .single();
 
@@ -238,9 +239,9 @@ export function usePixCobList() {
         queryFn: async () => {
             if (!user?.id) throw new Error('Não autenticado');
 
-            const { data, error } = await supabase
-                .from('nb_payments')
-                .select('*')
+            const { data, error } = await (supabase as any)
+                .from('nb_payments_safe_v')
+                .select(NB_PAYMENTS_SAFE_SELECT)
                 .eq('user_id', user.id)
                 .eq('payment_method_type', 'pix')
                 .in('status', ['pending', 'processing', 'paid'])
@@ -266,9 +267,9 @@ export function usePixRecebidos() {
         queryFn: async () => {
             if (!user?.id) throw new Error('Não autenticado');
 
-            const { data, error } = await supabase
-                .from('nb_payments')
-                .select('*')
+            const { data, error } = await (supabase as any)
+                .from('nb_payments_safe_v')
+                .select(NB_PAYMENTS_SAFE_SELECT)
                 .eq('user_id', user.id)
                 .eq('payment_method_type', 'pix')
                 .eq('status', 'paid')

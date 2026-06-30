@@ -27,7 +27,8 @@ export const BankAccountsView = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [isSavingPix, setIsSavingPix] = useState(false);
     const [form, setForm] = useState({ holderName: "", cpfCnpj: "", bankCode: "", agency: "", account: "", digit: "", pixKey: "" });
-    const storedPixKey = account?.metadata?.destinations?.pix?.key || "";
+    const pixKeyValues = useMemo(() => pixKeys.map(getPixKeyValue).filter(Boolean), [pixKeys]);
+    const storedPixKey = pixKeyValues[0] || "";
 
     useEffect(() => {
         if (!account) return;
@@ -36,21 +37,20 @@ export const BankAccountsView = () => {
             cpfCnpj: account.bank_holder_cpf_cnpj || account.cpf_cnpj || "",
             bankCode: account.bank_code || account.bank_name || "",
             agency: account.bank_agency || "",
-            account: account.bank_account || "",
-            digit: account.bank_account_digit || "",
+            account: "",
+            digit: "",
             pixKey: storedPixKey,
         });
     }, [account, storedPixKey]);
 
-    const hasStoredAccount = Boolean(account?.bank_account || account?.bank_account_last4);
+    const hasStoredAccount = Boolean(account?.bank_account_last4);
     const hasCompleteBankAccount = Boolean(account?.bank_code && account?.bank_agency && hasStoredAccount);
     const hasPixKey = Boolean(storedPixKey);
-    const pixKeyValues = pixKeys.map(getPixKeyValue).filter(Boolean);
 
     const maskedAccount = useMemo(() => {
-        const last4 = account?.bank_account_last4 || `${form.account}${form.digit}`.slice(-4);
+        const last4 = account?.bank_account_last4 || "";
         return last4 ? `•••• ${last4}` : "Não informada";
-    }, [account?.bank_account_last4, form.account, form.digit]);
+    }, [account?.bank_account_last4]);
 
     const setField = (field: keyof typeof form, value: string) => setForm((current) => ({ ...current, [field]: value }));
 

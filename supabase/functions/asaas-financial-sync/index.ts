@@ -220,7 +220,7 @@ async function reconcilePaymentsMissingFromProvider(
 }
 
 async function syncAccount(financialAccount: any, mode: "incremental" | "full") {
-    const apiKey = getFinancialAccountAsaasApiKey(financialAccount);
+    const apiKey = await getFinancialAccountAsaasApiKey(financialAccount);
     if (!apiKey || financialAccount.status === "account_missing") {
         throw new Error("A conta precisa ser reconectada antes da sincronização.");
     }
@@ -440,7 +440,7 @@ Deno.serve(async (req: Request) => {
                 .from("financial_accounts")
                 .select("*")
                 .eq("provider", "asaas")
-                .not("asaas_api_key", "is", null)
+                .not("asaas_account_id", "is", null)
                 .neq("status", "account_missing");
             if (error) throw error;
 

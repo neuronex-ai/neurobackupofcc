@@ -33,8 +33,8 @@ export const BankAccountsManager = () => {
         bank_code: account.bank_code || account.bank_name || '',
         bank_name: account.bank_name || account.bank_code || '',
         agency: account.bank_agency || '',
-        account_number: `${account.bank_account || ''}${account.bank_account_digit || ''}`,
-        last4: account.bank_account_last4 || `${account.bank_account || ''}${account.bank_account_digit || ''}`.slice(-4),
+        account_number: account.bank_account_last4 ? `****${account.bank_account_last4}` : '',
+        last4: account.bank_account_last4 || '',
         default_for_currency: true,
     }] : [];
     const addAccount = (_data: any, _opts?: any) => toast.info('Novas contas serão vinculadas via onboarding NeuroFinance.');
@@ -341,7 +341,7 @@ export const BankAccountsManager = () => {
                     <div className="flex items-center gap-4">
                         <p className="text-[9px] font-black text-zinc-400 dark:text-zinc-600 uppercase tracking-[0.4em]">Segurança de Nível Bancário</p>
                         <div className="px-3 py-1 bg-zinc-900/10 dark:bg-white/10 text-zinc-900 dark:text-white text-[8px] font-black uppercase rounded-full border border-zinc-900/10 dark:border-white/10 flex items-center gap-2">
-                            <Lock className="w-3 h-3" /> Criptografia AES-256
+                            <Lock className="w-3 h-3" /> Proteção server-side
                         </div>
                     </div>
                     <p className="text-xl font-black text-zinc-900 dark:text-white tracking-tight leading-relaxed max-w-4xl">
@@ -351,11 +351,11 @@ export const BankAccountsManager = () => {
                     <div className="flex items-center gap-8 opacity-40">
                         <div className="flex items-center gap-2">
                             <div className="w-1 h-1 rounded-full bg-zinc-400 dark:bg-zinc-600" />
-                            <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500">PCI-DSS Compliant</span>
+                            <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500">Controles do provedor</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-1 h-1 rounded-full bg-zinc-400 dark:bg-zinc-600" />
-                            <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500">TLS 1.3 Protocol</span>
+                            <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500">HTTPS/TLS</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-1 h-1 rounded-full bg-zinc-400 dark:bg-zinc-600" />

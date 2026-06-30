@@ -75,7 +75,7 @@ Deno.serve(async (req: Request) => {
         const body = await req.json().catch(() => ({}));
         const action = body.action || 'list';
         const account = await getFinancialAccount(user.id);
-        const apiKey = getFinancialAccountAsaasApiKey(account);
+        const apiKey = await getFinancialAccountAsaasApiKey(account);
 
         if (!account || !apiKey) {
             return errorResponse('Sua conta ainda não está pronta para antecipar recebíveis.', 403);

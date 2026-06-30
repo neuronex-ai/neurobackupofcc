@@ -40,10 +40,8 @@ type NormalizedPixKey = {
   raw: Record<string, unknown>;
 };
 
-function getSubAccountApiKey(financialAccount: any) {
-  const key =
-    getFinancialAccountAsaasApiKey(financialAccount) ||
-    financialAccount?.metadata?.asaas_api_key?.trim?.();
+async function getSubAccountApiKey(financialAccount: any) {
+  const key = await getFinancialAccountAsaasApiKey(financialAccount);
   if (!key) throw new Error("Conta financeira não configurada.");
   return key as string;
 }
@@ -114,7 +112,7 @@ Deno.serve(async (req: Request) => {
       "neurofinance",
     );
     const financialAccount = await getFinancialAccount(user.id);
-    const subApiKey = getSubAccountApiKey(financialAccount);
+    const subApiKey = await getSubAccountApiKey(financialAccount);
     const url = new URL(req.url);
 
     if (req.method === "POST") {

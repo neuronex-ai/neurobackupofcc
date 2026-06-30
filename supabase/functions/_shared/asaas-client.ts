@@ -219,9 +219,155 @@ export function toNullableString(value?: string | null) {
     return v ? v : undefined;
 }
 
-export function getFinancialAccountAsaasApiKey(financialAccount: any): string {
-    const topLevelKey = financialAccount?.asaas_api_key?.trim?.();
-    return topLevelKey || "";
+const ASAAS_ACCOUNT_KEY_ENCRYPTION_SECRET =
+    Deno.env.get("ASAAS_ACCOUNT_KEY_ENCRYPTION_SECRET")?.trim() ||
+    Deno.env.get("ASAAS_CREDENTIAL_ENCRYPTION_SECRET")?.trim() ||
+    "";
+
+const ASAAS_CREDENTIAL_KEY_VERSION =
+    Deno.env.get("ASAAS_ACCOUNT_KEY_VERSION")?.trim() || "v1";
+
+type EncryptedAsaasCredential = {
+    key_ciphertext: string;
+    key_iv: string;
+    key_tag: string;
+    key_algorithm?: string | null;
+    key_version?: string | null;
+};
+
+function bytesToBase64(bytes: Uint8Array) {
+    let binary = "";
+    bytes.forEach((byte) => {
+        binary += String.fromCharCode(byte);
+    });
+    return btoa(binary);
+}
+
+function base64ToBytes(value: string) {
+    const binary = atob(value);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+}
+
+function isMissingPrivateCredentialTable(error: any) {
+    return (
+        String(error?.code || "") === "42P01" ||
+        String(error?.message || "").includes("asaas_account_credentials") ||
+        String(error?.message || "").includes("schema \"private\"")
+    );
+}
+
+async function getAsaasCredentialCryptoKey() {
+    if (!ASAAS_ACCOUNT_KEY_ENCRYPTION_SECRET) {
+        throw new Error("ASAAS_ACCOUNT_KEY_ENCRYPTION_SECRET is required for private Asaas credentials.");
+    }
+
+    const secretDigest = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(ASAAS_ACCOUNT_KEY_ENCRYPTION_SECRET),
+    );
+
+    return crypto.subtle.importKey(
+        "raw",
+        secretDigest,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt", "decrypt"],
+    );
+}
+
+async function encryptAsaasApiKey(apiKey: string) {
+    const trimmedApiKey = apiKey.trim();
+    if (!trimmedApiKey) throw new Error("Empty Asaas API key cannot be stored.");
+
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await getAsaasCredentialCryptoKey();
+    const encrypted = new Uint8Array(
+        await crypto.subtle.encrypt(
+            { name: "AES-GCM", iv },
+            key,
+            new TextEncoder().encode(trimmedApiKey),
+        ),
+    );
+
+    const tagLength = 16;
+    const ciphertext = encrypted.slice(0, encrypted.length - tagLength);
+    const tag = encrypted.slice(encrypted.length - tagLength);
+
+    return {
+        key_ciphertext: bytesToBase64(ciphertext),
+        key_iv: bytesToBase64(iv),
+        key_tag: bytesToBase64(tag),
+        key_algorithm: "AES-256-GCM",
+        key_version: ASAAS_CREDENTIAL_KEY_VERSION,
+    };
+}
+
+async function decryptAsaasCredential(row: EncryptedAsaasCredential) {
+    if (!row?.key_ciphertext || !row?.key_iv || !row?.key_tag) return "";
+
+    const encrypted = new Uint8Array([
+        ...base64ToBytes(row.key_ciphertext),
+        ...base64ToBytes(row.key_tag),
+    ]);
+    const iv = base64ToBytes(row.key_iv);
+    const key = await getAsaasCredentialCryptoKey();
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, encrypted);
+    return new TextDecoder().decode(plain).trim();
+}
+
+export async function storeAsaasAccountApiKey(
+    financialAccount: any,
+    apiKey?: string | null,
+    source = "edge_function",
+) {
+    const trimmedApiKey = apiKey?.trim();
+    if (!trimmedApiKey) return;
+    if (!financialAccount?.id || !financialAccount?.user_id) {
+        throw new Error("Financial account id and user id are required to store Asaas credentials.");
+    }
+
+    const encrypted = await encryptAsaasApiKey(trimmedApiKey);
+    const payload = {
+        financial_account_id: financialAccount.id,
+        user_id: financialAccount.user_id,
+        asaas_account_id: financialAccount.asaas_account_id || null,
+        ...encrypted,
+        status: "active",
+        source,
+        rotated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabaseAdmin
+        .schema("private")
+        .from("asaas_account_credentials")
+        .upsert(payload, { onConflict: "financial_account_id" });
+
+    if (error) throw error;
+}
+
+export async function getFinancialAccountAsaasApiKey(financialAccount: any): Promise<string> {
+    const financialAccountId = financialAccount?.id;
+    if (financialAccountId) {
+        const { data, error } = await supabaseAdmin
+            .schema("private")
+            .from("asaas_account_credentials")
+            .select("key_ciphertext,key_iv,key_tag,key_algorithm,key_version,status")
+            .eq("financial_account_id", financialAccountId)
+            .eq("status", "active")
+            .maybeSingle();
+
+        if (error && !isMissingPrivateCredentialTable(error)) throw error;
+        if (data) return decryptAsaasCredential(data);
+    }
+
+    // Transitional fallback for deployments before the private-credential migration.
+    // New writes are stripped from financial_accounts by upsertFinancialAccountRecord.
+    return financialAccount?.asaas_api_key?.trim?.() || "";
 }
 
 export async function recordBaasOperation(
@@ -245,6 +391,184 @@ export async function recordBaasOperation(
         updated_at: new Date().toISOString(),
     });
     if (error) console.warn("[asaas-client] Failed to record BaaS operation:", error);
+}
+
+export const NEUROFINANCE_TERMS_VERSION =
+    Deno.env.get("NEUROFINANCE_TERMS_VERSION")?.trim() ||
+    "neurofinance-terms-2026-06-30";
+
+export const NEUROFINANCE_TERMS_HASH =
+    Deno.env.get("NEUROFINANCE_TERMS_HASH")?.trim() ||
+    "neurofinance-terms-2026-06-30";
+
+export const ASAAS_TERMS_REFERENCE =
+    Deno.env.get("ASAAS_TERMS_REFERENCE")?.trim() ||
+    "asaas-terms-reference-managed-by-compliance";
+
+export const ASAAS_TERMS_HASH =
+    Deno.env.get("ASAAS_TERMS_HASH")?.trim() ||
+    "asaas-terms-reference-managed-by-compliance";
+
+export const ASAAS_PRIVACY_POLICY_REFERENCE =
+    Deno.env.get("ASAAS_PRIVACY_POLICY_REFERENCE")?.trim() ||
+    "asaas-privacy-policy-reference-managed-by-compliance";
+
+export const ASAAS_PRIVACY_POLICY_HASH =
+    Deno.env.get("ASAAS_PRIVACY_POLICY_HASH")?.trim() ||
+    "asaas-privacy-policy-reference-managed-by-compliance";
+
+type FinancialAcceptanceType =
+    | "neuronex_terms"
+    | "asaas_terms"
+    | "asaas_privacy_policy"
+    | "financial_onboarding_bundle"
+    | "pix_random_key_consent";
+
+export function requireFinancialOnboardingAcceptance(
+    body: any,
+    flowOrigin = "neurofinance_onboarding",
+) {
+    if (body?.tos?.accepted !== true) {
+        throw new Error("Aceite dos termos NeuroNex e Asaas e obrigatorio para continuar.");
+    }
+
+    return {
+        flowOrigin,
+        acceptedAt: new Date().toISOString(),
+        neuronexTermsVersion: NEUROFINANCE_TERMS_VERSION,
+        neuronexTermsHash: NEUROFINANCE_TERMS_HASH,
+        asaasTermsReference: ASAAS_TERMS_REFERENCE,
+        asaasTermsHash: ASAAS_TERMS_HASH,
+        asaasPrivacyPolicyReference: ASAAS_PRIVACY_POLICY_REFERENCE,
+        asaasPrivacyPolicyHash: ASAAS_PRIVACY_POLICY_HASH,
+    };
+}
+
+async function insertFinancialAcceptance(values: {
+    userId: string;
+    financialAccountId?: string | null;
+    acceptanceType: FinancialAcceptanceType;
+    flowOrigin: string;
+    contentVersion: string;
+    contentReference: string;
+    contentHash: string;
+    metadata?: Record<string, unknown>;
+}) {
+    const { error } = await supabaseAdmin
+        .from("neurofinance_contract_acceptances")
+        .insert({
+            user_id: values.userId,
+            actor_user_id: values.userId,
+            financial_account_id: values.financialAccountId || null,
+            provider: "asaas",
+            acceptance_type: values.acceptanceType,
+            accepted_at: new Date().toISOString(),
+            flow_origin: values.flowOrigin,
+            content_version: values.contentVersion,
+            content_reference: values.contentReference,
+            content_hash: values.contentHash,
+            metadata: values.metadata || {},
+        });
+
+    if (error) throw error;
+}
+
+export async function recordFinancialOnboardingAcceptances(values: {
+    userId: string;
+    financialAccountId: string;
+    flowOrigin?: string;
+    metadata?: Record<string, unknown>;
+}) {
+    const flowOrigin = values.flowOrigin || "neurofinance_onboarding";
+    const metadata = {
+        source: "server_side_acceptance",
+        ...values.metadata,
+    };
+
+    await Promise.all([
+        insertFinancialAcceptance({
+            userId: values.userId,
+            financialAccountId: values.financialAccountId,
+            acceptanceType: "neuronex_terms",
+            flowOrigin,
+            contentVersion: NEUROFINANCE_TERMS_VERSION,
+            contentReference: NEUROFINANCE_TERMS_VERSION,
+            contentHash: NEUROFINANCE_TERMS_HASH,
+            metadata,
+        }),
+        insertFinancialAcceptance({
+            userId: values.userId,
+            financialAccountId: values.financialAccountId,
+            acceptanceType: "asaas_terms",
+            flowOrigin,
+            contentVersion: ASAAS_TERMS_REFERENCE,
+            contentReference: ASAAS_TERMS_REFERENCE,
+            contentHash: ASAAS_TERMS_HASH,
+            metadata,
+        }),
+        insertFinancialAcceptance({
+            userId: values.userId,
+            financialAccountId: values.financialAccountId,
+            acceptanceType: "asaas_privacy_policy",
+            flowOrigin,
+            contentVersion: ASAAS_PRIVACY_POLICY_REFERENCE,
+            contentReference: ASAAS_PRIVACY_POLICY_REFERENCE,
+            contentHash: ASAAS_PRIVACY_POLICY_HASH,
+            metadata,
+        }),
+        insertFinancialAcceptance({
+            userId: values.userId,
+            financialAccountId: values.financialAccountId,
+            acceptanceType: "financial_onboarding_bundle",
+            flowOrigin,
+            contentVersion: NEUROFINANCE_TERMS_VERSION,
+            contentReference: `${NEUROFINANCE_TERMS_VERSION}|${ASAAS_TERMS_REFERENCE}|${ASAAS_PRIVACY_POLICY_REFERENCE}`,
+            contentHash: `${NEUROFINANCE_TERMS_HASH}|${ASAAS_TERMS_HASH}|${ASAAS_PRIVACY_POLICY_HASH}`,
+            metadata,
+        }),
+    ]);
+
+    const { error: updateError } = await supabaseAdmin
+        .from("financial_accounts")
+        .update({
+            tos_accepted_at: new Date().toISOString(),
+            neuronex_terms_version: NEUROFINANCE_TERMS_VERSION,
+            asaas_terms_reference: ASAAS_TERMS_REFERENCE,
+            asaas_privacy_policy_reference: ASAAS_PRIVACY_POLICY_REFERENCE,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", values.financialAccountId);
+    if (updateError) throw updateError;
+}
+
+export async function recordPixRandomKeyConsent(values: {
+    userId: string;
+    financialAccountId: string;
+    flowOrigin?: string;
+    metadata?: Record<string, unknown>;
+}) {
+    await insertFinancialAcceptance({
+        userId: values.userId,
+        financialAccountId: values.financialAccountId,
+        acceptanceType: "pix_random_key_consent",
+        flowOrigin: values.flowOrigin || "pix_random_key_create",
+        contentVersion: "pix-random-key-consent-2026-06-30",
+        contentReference: "pix-random-key-consent-2026-06-30",
+        contentHash: "pix-random-key-consent-2026-06-30",
+        metadata: {
+            source: "server_side_pix_consent",
+            ...values.metadata,
+        },
+    });
+
+    const { error: updateError } = await supabaseAdmin
+        .from("financial_accounts")
+        .update({
+            pix_key_consent_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", values.financialAccountId);
+    if (updateError) throw updateError;
 }
 
 export function normalizeAccountNumber(account?: string | null, digit?: string | null) {
@@ -1168,12 +1492,16 @@ export async function upsertFinancialAccountRecord(
     patch: Record<string, unknown>
 ) {
     const existing = await getFinancialAccount(userId);
+    const pendingAsaasApiKey =
+        typeof patch.asaas_api_key === "string" ? patch.asaas_api_key.trim() : "";
+    const safePatch = { ...patch };
+    delete safePatch.asaas_api_key;
 
     if (existing) {
         const { data, error } = await supabaseAdmin
             .from("financial_accounts")
             .update({
-                ...patch,
+                ...safePatch,
                 updated_at: new Date().toISOString(),
             })
             .eq("id", existing.id)
@@ -1181,6 +1509,7 @@ export async function upsertFinancialAccountRecord(
             .single();
 
         if (error) throw error;
+        await storeAsaasAccountApiKey(data, pendingAsaasApiKey, "financial_account_upsert");
         return data;
     }
 
@@ -1189,12 +1518,13 @@ export async function upsertFinancialAccountRecord(
         .insert({
             user_id: userId,
             provider: "asaas",
-            ...patch,
+            ...safePatch,
         })
         .select()
         .single();
 
     if (error) throw error;
+    await storeAsaasAccountApiKey(data, pendingAsaasApiKey, "financial_account_upsert");
     return data;
 }
 

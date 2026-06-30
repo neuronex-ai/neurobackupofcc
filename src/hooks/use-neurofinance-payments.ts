@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/SessionContextProvider';
 import { toast } from 'sonner';
+import { NB_PAYMENTS_SAFE_SELECT } from '@/lib/neurofinance-safe-selects';
 import { toUserFacingError } from '@/lib/user-facing-error';
 
 export interface NeuroFinancePayment {
@@ -76,9 +77,9 @@ export const useNeuroFinancePayments = (
         queryFn: async () => {
             if (!user?.id) throw new Error('Não autenticado');
 
-            let query = supabase
-                .from('nb_payments')
-                .select('*')
+            let query = (supabase as any)
+                .from('nb_payments_safe_v')
+                .select(NB_PAYMENTS_SAFE_SELECT)
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
                 .limit(limit);
@@ -153,9 +154,9 @@ export const usePaymentDetail = (paymentId: string | null) => {
         queryFn: async () => {
             if (!paymentId) return null;
 
-            const { data, error } = await supabase
-                .from('nb_payments')
-                .select('*')
+            const { data, error } = await (supabase as any)
+                .from('nb_payments_safe_v')
+                .select(NB_PAYMENTS_SAFE_SELECT)
                 .eq('id', paymentId)
                 .single();
 
@@ -180,9 +181,9 @@ export const useRecentPixCharges = (limit = 20) => {
         queryFn: async () => {
             if (!user?.id) throw new Error('Não autenticado');
 
-            const { data, error } = await supabase
-                .from('nb_payments')
-                .select('*')
+            const { data, error } = await (supabase as any)
+                .from('nb_payments_safe_v')
+                .select(NB_PAYMENTS_SAFE_SELECT)
                 .eq('user_id', user.id)
                 .eq('payment_method_type', 'pix')
                 .order('created_at', { ascending: false })

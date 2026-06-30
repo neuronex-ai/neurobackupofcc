@@ -165,7 +165,7 @@ const PoliticaDePrivacidade = () => {
                                     <div className="p-5 rounded-2xl bg-white dark:bg-foreground/[0.03] border border-foreground/[0.05] space-y-2">
                                         <h4 className="font-semibold text-foreground text-sm">Provedores de Infraestrutura</h4>
                                         <p className="text-xs text-foreground/50 leading-relaxed">
-                                            <strong className="text-foreground/70">Supabase (hospedado na AWS):</strong> Utilizado como banco de dados e sistema de autenticação. Os dados de perfil (nome, e-mail) e tokens de acesso criptografados são armazenados em servidores da Supabase. A Supabase opera sob rigorosos contratos de processamento de dados (DPA) e conformidade SOC 2 Type II.
+                                            <strong className="text-foreground/70">Supabase (hospedado em infraestrutura cloud):</strong> Utilizado como banco de dados e sistema de autenticação. Controles e certificações devem ser verificados na documentação oficial do fornecedor.
                                         </p>
                                     </div>
 
@@ -210,15 +210,15 @@ const PoliticaDePrivacidade = () => {
                                     {[
                                         {
                                             title: "Criptografia em Repouso",
-                                            desc: "Todos os dados sensíveis, incluindo tokens de acesso e refresh tokens do Google, são criptografados utilizando AES-256 antes de serem armazenados no banco de dados."
+                                            desc: "Tokens e segredos são tratados por rotinas server-side e fornecedores gerenciados; algoritmos específicos dependem do controle aplicável."
                                         },
                                         {
                                             title: "Criptografia em Trnsito",
-                                            desc: "Todas as comunicações entre o aplicativo NeuroNex, os servidores e as APIs do Google são realizadas via HTTPS/TLS 1.2+, garantindo que os dados não possam ser interceptados em trnsito."
+                                            desc: "As comunicações entre o aplicativo NeuroNex, servidores e APIs oficiais usam HTTPS/TLS quando aplicável."
                                         },
                                         {
                                             title: "Infraestrutura Segura",
-                                            desc: "Os dados são armazenados em servidores da Supabase hospedados na infraestrutura AWS, que oferece conformidade SOC 2 Type II, ISO 27001 e criptografia de disco em repouso."
+                                            desc: "A infraestrutura é operada por fornecedores cloud. Certificações e controles devem ser confirmados nos portais oficiais desses fornecedores."
                                         },
                                         {
                                             title: "Controle de Acesso",
@@ -230,7 +230,7 @@ const PoliticaDePrivacidade = () => {
                                         },
                                         {
                                             title: "Monitoramento e Auditoria",
-                                            desc: "Logs de acesso e modificações de dados são mantidos para fins de auditoria e detecção de acessos não autorizados. A infraestrutura é monitorada 24/7 com alertas automáticos."
+                                            desc: "Logs operacionais e procedimentos internos apoiam auditoria, investigação e resposta a incidentes."
                                         }
                                     ].map((item, i) => (
                                         <div key={i} className="p-5 rounded-2xl bg-white dark:bg-foreground/[0.03] border border-foreground/[0.05] space-y-2">

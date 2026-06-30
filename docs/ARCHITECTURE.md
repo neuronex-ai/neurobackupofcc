@@ -14,8 +14,9 @@ This document is the current source of truth for agents and maintainers. Older p
 | Database/Auth/RLS | Supabase Cloud |
 | Edge backend | Supabase Edge Functions |
 | Private object storage | Cloudflare R2 |
-| Financial provider | Asaas BaaS v3, exposed as NeuroFinance |
-| NFS-e provider | Asaas fiscal/NFS-e flows through NeuroFinance |
+| Financial provider | Asaas BaaS v3, identified in financial flows as the payment-services provider |
+| Financial product surface | NeuroFinance, the NeuroNex product/interface for financial workflows |
+| NFS-e provider | Asaas fiscal/NFS-e flows presented with clear provider attribution |
 | AI | Gemini/Synapse Edge Functions |
 | Calendar/document integrations | Google Calendar/Drive/Docs where still connected |
 | Teleconsulta | Current Jitsi/JaaS flow plus hidden legacy evaluation route |
@@ -23,8 +24,9 @@ This document is the current source of truth for agents and maintainers. Older p
 
 ## Architecture Rules
 
-- NeuroFinance is the only financial surface. It uses Asaas BaaS v3 for psychologist subscriptions, subaccounts, patient charges, Pix/boletos/cards, payouts, fiscal data, and NFS-e.
-- Do not mention Asaas to patients or professionals in product UI unless legally required. User-facing copy should use NeuroFinance/NeuroNex white-label language.
+- NeuroFinance is the only financial product surface, but it must not hide the provider role. It uses Asaas BaaS v3 for psychologist subscriptions, subaccounts, patient charges, Pix/boletos/cards, payouts, fiscal data, and NFS-e.
+- NeuroNex is the technology platform. It must not be described as a bank, payment institution, or holder of client funds.
+- Asaas must be clearly identified in onboarding, financial screens, terms, contracts, Pix/boleto/card flows, payouts, receipts, and patient billing as the provider responsible for contracted financial services.
 - Supabase stores relational metadata, Auth, RLS, realtime, and Edge Functions. It is not the primary document store.
 - Cloudflare R2 stores private document bytes. Supabase stores metadata and authorizes uploads/downloads through Edge Functions and short-lived signed URLs.
 - Documents, notes attachments, AI chat files, portal patient files, and backfilled legacy objects must use R2 unless explicitly marked public and non-sensitive.
@@ -70,6 +72,8 @@ Historical migrations may still mention old providers because migration history 
 - Professional subscriptions to NeuroNex use Asaas checkout/subscription records through `create-checkout-session`, `verify-checkout-session`, `asaas-webhook`, and entitlement sync.
 - Psychologist financial accounts/subaccounts use Asaas BaaS v3 through NeuroFinance onboarding and account sync functions.
 - Patient charges use NeuroFinance payment creation/actions and `nb_payments` as the financial source of truth for provider-backed payments.
+- Financial UI, receipts, and patient billing must make the Asaas role unambiguous. Use official Asaas marks only from approved assets and keep NeuroFinance as product branding, not as a substitute for provider attribution.
+- Operational webhooks are not evidence of payout/withdrawal validation by themselves. Payout validation must be confirmed by the Asaas-specific withdrawal webhook configuration or by API IP allowlisting.
 - NFS-e issuance uses `asaas-invoices` plus shared Asaas NFS-e helpers. Provider-neutral columns should use `nfse_*`; Focus-specific columns are legacy.
 - Financial management reports inside `/financeiro` are current psychologist cashflow views and are not the old Plano Clínica reports.
 

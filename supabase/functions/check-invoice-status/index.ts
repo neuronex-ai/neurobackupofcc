@@ -143,7 +143,7 @@ Deno.serve(async (req: Request) => {
 
         // Need subconta key to query Asaas
         const financialAccount = await getFinancialAccount(user.id);
-        const subApiKey = getFinancialAccountAsaasApiKey(financialAccount);
+        const subApiKey = await getFinancialAccountAsaasApiKey(financialAccount);
         if (!subApiKey) {
             return errorResponse('Conta financeira não configurada. Complete o onboarding primeiro.', 403);
         }

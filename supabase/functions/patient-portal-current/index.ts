@@ -120,7 +120,7 @@ async function loadBilling(context: any) {
   const [paymentsResult, invoicesResult] = await Promise.all([
     supabaseAdmin
       .from("nb_payments")
-      .select("id,description,gross_amount,status,payment_method_type,checkout_url,invoice_url,bank_slip_url,receipt_url,pix_qr_code,pix_copy_paste,paid_at,expires_at,created_at,metadata")
+      .select("id,description,gross_amount,status,payment_method_type,checkout_url,boleto_url,boleto_pdf,nfse_pdf_url,pix_qr_code,pix_copy_paste,paid_at,expires_at,created_at,metadata")
       .eq("patient_id", context.patient.id)
       .eq("user_id", context.professional.id)
       .neq("status", "draft")
@@ -142,17 +142,17 @@ async function loadBilling(context: any) {
       const metadata = payment.metadata || {};
       const paymentUrl =
         payment.checkout_url ||
-        payment.invoice_url ||
-        metadataString(metadata, ["payment_url", "paymentUrl", "asaas_invoice_url", "invoiceUrl"]);
+        metadataString(metadata, ["payment_url", "paymentUrl", "checkout_url", "checkoutUrl", "asaas_invoice_url", "invoiceUrl"]);
       const bankSlipUrl =
-        payment.bank_slip_url ||
-        metadataString(metadata, ["bank_slip_url", "bankSlipUrl", "asaas_bank_slip_url"]);
+        payment.boleto_url ||
+        payment.boleto_pdf ||
+        metadataString(metadata, ["bank_slip_url", "bankSlipUrl", "asaas_bank_slip_url", "boleto_url", "boletoUrl", "boleto_pdf", "boletoPdf"]);
       const receiptUrl =
-        payment.receipt_url ||
-        metadataString(metadata, ["receipt_url", "receiptUrl", "asaas_transaction_receipt_url"]);
+        metadataString(metadata, ["receipt_url", "receiptUrl", "asaas_transaction_receipt_url", "transaction_receipt_url"]);
       const invoiceUrl =
-        payment.invoice_url ||
-        metadataString(metadata, ["invoice_url", "invoiceUrl", "asaas_invoice_url"]);
+        payment.checkout_url ||
+        payment.nfse_pdf_url ||
+        metadataString(metadata, ["invoice_url", "invoiceUrl", "asaas_invoice_url", "payment_url", "paymentUrl"]);
 
       return {
         id: payment.id,

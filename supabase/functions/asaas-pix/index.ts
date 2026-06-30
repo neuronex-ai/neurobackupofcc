@@ -7,7 +7,7 @@ import {
     getFinancialAccountAsaasApiKey,
     jsonResponse,
     recordBaasOperation,
-    supabaseAdmin,
+    recordPixRandomKeyConsent,
 } from "../_shared/asaas-client.ts";
 import {
     requireEntitlementForUser,
@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
         const body = await req.json().catch(() => ({}));
         const action = body.action || "list_keys";
         const account = await getFinancialAccount(user.id);
-        const apiKey = getFinancialAccountAsaasApiKey(account);
+        const apiKey = await getFinancialAccountAsaasApiKey(account);
 
         if (!account || !apiKey) {
             return errorResponse("Sua conta financeira ainda não está pronta para Pix.", 403, { code: "ACCOUNT_NOT_READY" });
@@ -55,11 +55,16 @@ Deno.serve(async (req: Request) => {
                 return errorResponse("Confirme a criação da chave Pix antes de continuar.", 400, { code: "CONSENT_REQUIRED" });
             }
 
+            await recordPixRandomKeyConsent({
+                userId: user.id,
+                financialAccountId: account.id,
+                flowOrigin: "pix_random_key_create",
+                metadata: {
+                    endpoint: "asaas-pix",
+                    key_type: "EVP",
+                },
+            });
             const result = await asaasRequest("/pix/addressKeys", "POST", { type: "EVP" }, apiKey);
-            await supabaseAdmin.from("financial_accounts").update({
-                pix_key_consent_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            }).eq("id", account.id);
             await recordBaasOperation(user.id, account.id, "pix_key_create", result as Record<string, unknown>);
             return jsonResponse({ success: true, key: normalizePixKey(result) });
         }

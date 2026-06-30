@@ -9,7 +9,6 @@ import { SecureOperationSuccess } from "@/components/financeiro/secure/SecureOpe
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useFinancialAccount } from "@/hooks/use-financial-account";
 import { useNeuroFinanceBalance } from "@/hooks/use-neurofinance-balance";
 import { type PayoutConsultation, type PayoutExecution, type RequestPayoutParams, useSecurePayout } from "@/hooks/use-neurofinance-payouts";
 import { formatMoneyInput, formatPixKeyInput, moneyInputToCents, normalizePixKeyInput } from "@/lib/financial-input";
@@ -18,7 +17,6 @@ import { cn, formatCurrency } from "@/lib/utils";
 type DestinationMode = "saved_bank" | "saved_pix" | "pix_key";
 type PayoutStep = "setup" | "review" | "processing" | "success";
 const wait = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-const normalizeAccountType = (value?: string | null): "CONTA_CORRENTE" | "CONTA_POUPANCA" => String(value || "").toUpperCase().includes("POUP") ? "CONTA_POUPANCA" : "CONTA_CORRENTE";
 
 function maskDocument(value?: string | null) {
   const digits = String(value || "").replace(/\D/g, "");
@@ -29,24 +27,19 @@ function maskDocument(value?: string | null) {
 
 export const BankTransferView = () => {
   const { data: balanceData } = useNeuroFinanceBalance();
-  const { account } = useFinancialAccount();
   const { consult, authorize, execute, receipt } = useSecurePayout();
   const [step, setStep] = useState<PayoutStep>("setup");
   const [amount, setAmount] = useState("");
-  const [mode, setMode] = useState<DestinationMode>("saved_bank");
+  const [mode, setMode] = useState<DestinationMode>("pix_key");
   const [pixKey, setPixKey] = useState("");
   const [consultation, setConsultation] = useState<PayoutConsultation | null>(null);
   const [execution, setExecution] = useState<PayoutExecution | null>(null);
   const [pinOpen, setPinOpen] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
   const balance = balanceData?.balance || 0;
-  const savedPixKey = String(account?.metadata?.destinations?.pix?.key || "");
+  const savedPixKey = "";
 
-  const savedBankDestination = useMemo<RequestPayoutParams["destination"] | null>(() => {
-    if (!account?.bank_code || !account?.bank_agency || !account?.bank_account) return null;
-    const holder = account.bank_holder_name || account.holder_name || "Conta de repasse";
-    return { type: "saved_bank", bank_code: account.bank_code, bank_name: account.bank_name || "Banco cadastrado", agency: account.bank_agency, account: account.bank_account, account_digit: account.bank_account_digit || "", account_type: normalizeAccountType(account.bank_account_type), holder_name: holder, holder_document: account.bank_holder_cpf_cnpj || account.cpf_cnpj || "", summary: `${holder} · Ag ${account.bank_agency} Conta ${account.bank_account}${account.bank_account_digit || ""}` };
-  }, [account]);
+  const savedBankDestination = useMemo<RequestPayoutParams["destination"] | null>(() => null, []);
 
   const savedPixDestination: RequestPayoutParams["destination"] | null = savedPixKey ? { type: "pix_key", pix_key: normalizePixKeyInput(savedPixKey), summary: savedPixKey } : null;
   const amountInCents = moneyInputToCents(amount);
@@ -94,7 +87,7 @@ export const BankTransferView = () => {
               <div className="grid grid-cols-3 gap-2 rounded-[24px] border border-zinc-200/70 bg-white/60 p-1.5 dark:border-white/10 dark:bg-white/[0.02]">
                 {[{ id: "saved_bank" as const, label: "Conta", icon: Landmark, disabled: !savedBankDestination }, { id: "saved_pix" as const, label: "Pix salvo", icon: KeyRound, disabled: !savedPixDestination }, { id: "pix_key" as const, label: "Outro Pix", icon: Send, disabled: false }].map((item) => <button key={item.id} type="button" disabled={item.disabled} onClick={() => setMode(item.id)} className={cn("flex h-12 items-center justify-center gap-2 rounded-[18px] text-[9px] font-black uppercase tracking-[0.12em] transition-all disabled:opacity-35", mode === item.id ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950" : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/[0.06]")}><item.icon className="h-4 w-4" /> {item.label}</button>)}
               </div>
-              {mode === "saved_bank" ? savedBankDestination ? <DestinationCard icon={Landmark} title={savedBankDestination.holder_name || "Conta cadastrada"} detail={`Ag ${savedBankDestination.agency} Conta ${savedBankDestination.account}${savedBankDestination.account_digit}`} /> : <Warning text="Cadastre uma conta bancária em Ajustes > Conta bancária." /> : mode === "saved_pix" ? savedPixDestination ? <DestinationCard icon={KeyRound} title="Chave Pix pessoal" detail={savedPixKey} /> : <Warning text="Cadastre uma chave Pix pessoal em Ajustes > Conta bancária." /> : <div className="relative"><KeyRound className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" /><Input value={pixKey} onChange={(event) => setPixKey(formatPixKeyInput(event.target.value))} placeholder="CPF, e-mail, telefone ou chave aleatória" className="h-14 rounded-[20px] pl-11 text-sm font-bold dark:border-white/10 dark:bg-white/[0.035]" /></div>}
+              {mode === "saved_bank" ? savedBankDestination ? <DestinationCard icon={Landmark} title={savedBankDestination.holder_name || "Conta cadastrada"} detail={`Ag ${savedBankDestination.agency} Conta ${savedBankDestination.account}${savedBankDestination.account_digit}`} /> : <Warning text="Destino bancário salvo indisponível nesta versão segura. Informe uma chave Pix revisada para sacar." /> : mode === "saved_pix" ? savedPixDestination ? <DestinationCard icon={KeyRound} title="Chave Pix pessoal" detail={savedPixKey} /> : <Warning text="Chave Pix salva não é lida do snapshot interno. Informe a chave para validação server-side." /> : <div className="relative"><KeyRound className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" /><Input value={pixKey} onChange={(event) => setPixKey(formatPixKeyInput(event.target.value))} placeholder="CPF, e-mail, telefone ou chave aleatória" className="h-14 rounded-[20px] pl-11 text-sm font-bold dark:border-white/10 dark:bg-white/[0.035]" /></div>}
             </div>
             <Button onClick={handleConsult} disabled={!canContinue || consult.isPending} className="h-16 w-full rounded-[24px] bg-zinc-900 text-[10px] font-black uppercase tracking-[0.2em] text-white dark:bg-white dark:text-black">{consult.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Consultar e revisar <ArrowRight className="ml-2 h-4 w-4" /></>}</Button>
           </motion.div>

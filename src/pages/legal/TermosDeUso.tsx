@@ -57,7 +57,7 @@ const TermosDeUso = () => {
                         <div className="grid gap-8">
                             {[
                                 { title: "Aceitação dos Termos", content: "Ao acessar e utilizar a plataforma NeuroNex, você concorda com estes Termos de Uso, nossa Política de Privacidade e a Política de Cookies. Caso não concorde com alguma disposição, você deve cessar o uso da plataforma imediatamente." },
-                                { title: "Serviços Financeiros (NeuroFinance)", content: "A infraestrutura tecnológica de pagamentos e liquidação disponibilizada na plataforma NeuroNex ('NeuroFinance') é operada pelo Asaas Gestão Financeira S.A. (CNPJ 19.540.550/0001-21), instituição de pagamento regulada pelo Banco Central do Brasil. A NeuroNex atua exclusivamente como software de gestão e automação, enquanto o Asaas funciona como parceiro de integração para os serviços financeiros." },
+                                { title: "Serviços Financeiros (NeuroFinance)", content: "NeuroFinance é a interface de produto da NeuroNex para fluxos financeiros. Os serviços financeiros, contas, recursos, Pix, boletos, cartões e repasses contratados são prestados pela Asaas Instituição de Pagamento S.A. A NeuroNex atua como plataforma tecnológica e não é banco nem instituição de pagamento." },
                                 { title: "Soberania Clínica", content: "A NeuroNex fornece ferramentas de gestão e suporte por IA. A responsabilidade por qualquer diagnóstico, prescrição ou conduta clínica é exclusivamente sua." },
                                 { title: "Cancelamento e Reembolso", content: "Assinaturas na NeuroNex podem ser canceladas a qualquer momento. O acesso permanece ativo até o fim do ciclo de faturamento atual." }
                             ].map((item, i) => (
@@ -170,7 +170,7 @@ const TermosDeUso = () => {
                                 <div className="space-y-3">
                                     <div className="p-5 rounded-2xl bg-white dark:bg-foreground/[0.03] border border-foreground/[0.05] space-y-2">
                                         <h4 className="font-semibold text-foreground text-sm">Supabase (AWS)</h4>
-                                        <p className="text-xs text-foreground/50 leading-relaxed">Provedor de banco de dados e autenticação. Opera sob contratos de processamento de dados (DPA) e conformidade SOC 2 Type II.</p>
+                                        <p className="text-xs text-foreground/50 leading-relaxed">Provedor de banco de dados e autenticação. Controles e certificações devem ser verificados na documentação oficial do fornecedor.</p>
                                     </div>
                                     <div className="p-5 rounded-2xl bg-white dark:bg-foreground/[0.03] border border-foreground/[0.05] space-y-2">
                                         <h4 className="font-semibold text-foreground text-sm">APIs do Google</h4>
@@ -204,12 +204,12 @@ const TermosDeUso = () => {
                                 </p>
                                 <div className="grid sm:grid-cols-2 gap-3">
                                     {[
-                                        { title: "Criptografia em Repouso", desc: "Tokens e dados sensíveis criptografados com AES-256." },
-                                        { title: "Criptografia em Trnsito", desc: "Todas as comunicações via HTTPS/TLS 1.2+." },
-                                        { title: "Infraestrutura AWS", desc: "Conformidade SOC 2 Type II e ISO 27001." },
+                                        { title: "Proteção em Repouso", desc: "Tokens e segredos são tratados por rotinas server-side e fornecedores gerenciados; algoritmos específicos dependem do controle aplicável." },
+                                        { title: "Proteção em Trnsito", desc: "Comunicações com a aplicação e APIs oficiais usam HTTPS/TLS quando aplicável." },
+                                        { title: "Fornecedores Cloud", desc: "Certificações e controles de infraestrutura devem ser confirmados nos portais oficiais dos fornecedores." },
                                         { title: "Row Level Security", desc: "Cada usuário acessa apenas seus próprios dados." },
                                         { title: "OAuth 2.0 Seguro", desc: "Tokens armazenados no servidor, nunca expostos ao cliente." },
-                                        { title: "Monitoramento 24/7", desc: "Logs de auditoria e alertas automáticos de segurança." }
+                                        { title: "Auditoria", desc: "Logs operacionais e procedimentos internos apoiam investigação e resposta a incidentes." }
                                     ].map((item, i) => (
                                         <div key={i} className="p-4 rounded-2xl bg-white dark:bg-foreground/[0.03] border border-foreground/[0.05] space-y-1">
                                             <h4 className="font-semibold text-foreground text-sm flex items-center gap-2">

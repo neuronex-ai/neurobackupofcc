@@ -43,6 +43,8 @@ import {
     findAsaasSubAccountByCpfCnpj,
     ensureAsaasOperationalWebhook,
     ASAAS_ENV,
+    recordFinancialOnboardingAcceptances,
+    requireFinancialOnboardingAcceptance,
 } from '../_shared/asaas-client.ts';
 import {
     requireEntitlementForUser,
@@ -59,6 +61,7 @@ Deno.serve(async (req: Request) => {
             'neurofinance',
         );
         const body = await req.json();
+        const acceptance = requireFinancialOnboardingAcceptance(body, 'neurofinance_onboarding');
 
         const {
             name,
@@ -102,7 +105,16 @@ Deno.serve(async (req: Request) => {
         if (existingAccount?.asaas_account_id) {
             // Already has an Asaas subconta — try to sync status
             try {
-                const existingApiKey = getFinancialAccountAsaasApiKey(existingAccount);
+                await recordFinancialOnboardingAcceptances({
+                    userId: user.id,
+                    financialAccountId: existingAccount.id,
+                    flowOrigin: acceptance.flowOrigin,
+                    metadata: {
+                        endpoint: 'asaas-connect-onboarding',
+                        already_exists: true,
+                    },
+                });
+                const existingApiKey = await getFinancialAccountAsaasApiKey(existingAccount);
                 if (!existingApiKey) {
                     return errorResponse('Subconta Asaas existente sem chave de acesso configurada.', 409);
                 }
@@ -243,6 +255,17 @@ Deno.serve(async (req: Request) => {
                 },
             });
 
+            await recordFinancialOnboardingAcceptances({
+                userId: user.id,
+                financialAccountId: financialAccount.id,
+                flowOrigin: acceptance.flowOrigin,
+                metadata: {
+                    endpoint: 'asaas-connect-onboarding',
+                    linked_existing_provider_account: true,
+                    asaas_account_id: providerExistingAccount.id,
+                },
+            });
+
             let status = 'onboarding';
             let accountStatus = null;
             let requirements = null;
@@ -379,6 +402,17 @@ Deno.serve(async (req: Request) => {
                     } : {}),
                     updated_at: now,
                 },
+            },
+        });
+
+        await recordFinancialOnboardingAcceptances({
+            userId: user.id,
+            financialAccountId: financialAccount.id,
+            flowOrigin: acceptance.flowOrigin,
+            metadata: {
+                endpoint: 'asaas-connect-onboarding',
+                linked_existing_provider_account: false,
+                asaas_account_id: subAccount.id,
             },
         });
 

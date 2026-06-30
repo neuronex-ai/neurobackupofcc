@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
         const body = await req.json().catch(() => ({}));
         const action = String(body.action || "");
         const account = await getFinancialAccount(user.id);
-        const apiKey = getFinancialAccountAsaasApiKey(account);
+        const apiKey = await getFinancialAccountAsaasApiKey(account);
         if (!account || !apiKey) {
             return errorResponse("Sua conta financeira ainda não está pronta para saques.", 403, { code: "ACCOUNT_NOT_READY" });
         }

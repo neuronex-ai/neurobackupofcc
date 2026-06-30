@@ -224,7 +224,7 @@ const DesktopHelpCenter = () => {
                                         },
                                         {
                                             q: "Meus dados estão seguros no app desktop?",
-                                            a: "Sim. Utilizamos criptografia de ponta (AES-256) e toda comunicação com nossos servidores é feita via HTTPS. O app desktop não armazena dados sensíveis localmente sem criptografia. Seguimos padrões LGPD.",
+                                            a: "Sim. A comunicação com nossos servidores usa HTTPS/TLS quando aplicável, e dados sensíveis devem permanecer protegidos por controles server-side e políticas de acesso. O tratamento segue a LGPD e a documentação técnica vigente.",
                                         },
                                         {
                                             q: "Como funciona o Split de Pagamentos?",

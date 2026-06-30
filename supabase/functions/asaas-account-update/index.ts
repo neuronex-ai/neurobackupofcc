@@ -40,6 +40,8 @@ import {
     getAsaasAccountStatus,
     buildAsaasRequirementSnapshot,
     syncFinancialAccountFromAsaas,
+    recordFinancialOnboardingAcceptances,
+    requireFinancialOnboardingAcceptance,
 } from '../_shared/asaas-client.ts';
 import {
     requireEntitlementForUser,
@@ -59,10 +61,13 @@ Deno.serve(async (req: Request) => {
 
         // 1. Get financial account
         const financialAccount = await getFinancialAccount(user.id);
-        const subApiKey = getFinancialAccountAsaasApiKey(financialAccount);
+        const subApiKey = await getFinancialAccountAsaasApiKey(financialAccount);
         if (!financialAccount || !subApiKey) {
             return errorResponse('Conta financeira não configurada.', 403);
         }
+        const acceptance = !financialAccount.tos_accepted_at || body.tos?.accepted === true
+            ? requireFinancialOnboardingAcceptance(body, 'neurofinance_account_update')
+            : null;
 
         const profile = body.profile || {};
         const businessProfile = body.business_profile || {};
@@ -164,6 +169,17 @@ Deno.serve(async (req: Request) => {
             .eq('id', financialAccount.id);
 
         if (snapshotError) throw snapshotError;
+        if (acceptance) {
+            await recordFinancialOnboardingAcceptances({
+                userId: user.id,
+                financialAccountId: financialAccount.id,
+                flowOrigin: acceptance.flowOrigin,
+                metadata: {
+                    endpoint: 'asaas-account-update',
+                    reason: financialAccount.tos_accepted_at ? 'refresh' : 'missing_previous_acceptance',
+                },
+            });
+        }
 
         const warnings: string[] = [];
         let commercialResult = null;
