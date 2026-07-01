@@ -1,84 +1,93 @@
-# NeuroNex Architecture
+# Arquitetura NeuroNex
 
-Last updated: 2026-06-29
+Última atualização: 2026-06-30
 
-This document is the current source of truth for agents and maintainers. Older provider experiments are legacy and must not be reintroduced unless the product direction changes explicitly.
+Este documento é a fonte pública sanitizada de arquitetura para agentes e mantenedores. Experimentos antigos de provedores são legado e não devem ser reintroduzidos sem decisão explícita de produto, gestão e segurança.
 
-## Current Stack
+## Stack Atual
 
-| Layer | Current choice |
+| Camada | Escolha atual |
 | --- | --- |
 | Frontend | React 18, TypeScript, Vite, React Router |
 | UI | Tailwind CSS, Radix UI, shadcn/ui, lucide-react |
-| State/data | TanStack Query, Supabase JS |
-| Database/Auth/RLS | Supabase Cloud |
-| Edge backend | Supabase Edge Functions |
-| Private object storage | Cloudflare R2 |
-| Financial provider | Asaas BaaS v3, identified in financial flows as the payment-services provider |
-| Financial product surface | NeuroFinance, the NeuroNex product/interface for financial workflows |
-| NFS-e provider | Asaas fiscal/NFS-e flows presented with clear provider attribution |
-| AI | Gemini/Synapse Edge Functions |
-| Calendar/document integrations | Google Calendar/Drive/Docs where still connected |
-| Teleconsulta | Current Jitsi/JaaS flow plus hidden legacy evaluation route |
-| WhatsApp/NeuroZap | Hidden route `/neurozap`, not in navbar |
+| Estado/dados | TanStack Query, Supabase JS |
+| Banco/Auth/RLS | Supabase Cloud |
+| Backend edge | Supabase Edge Functions |
+| Object storage privado | Cloudflare R2 |
+| Provedor financeiro | Asaas BaaS v3, identificado nos fluxos financeiros como prestador dos serviços |
+| Superfície financeira | NeuroFinance, produto/interface da NeuroNex para workflows financeiros |
+| Provedor fiscal/NFS-e | Fluxos fiscais/NFS-e do Asaas com atribuição clara ao provedor |
+| IA | Edge Functions Gemini/Synapse |
+| Integrações calendário/documentos | Google Calendar/Drive/Docs onde ainda conectados |
+| Teleconsulta | Fluxo atual Jitsi/JaaS mais rota legada oculta de avaliação |
+| WhatsApp/NeuroZap | Rota oculta `/neurozap`, fora da navbar |
 
-## Architecture Rules
+## Regras de Arquitetura
 
-- NeuroFinance is the only financial product surface, but it must not hide the provider role. It uses Asaas BaaS v3 for psychologist subscriptions, subaccounts, patient charges, Pix/boletos/cards, payouts, fiscal data, and NFS-e.
-- NeuroNex is the technology platform. It must not be described as a bank, payment institution, or holder of client funds.
-- Asaas must be clearly identified in onboarding, financial screens, terms, contracts, Pix/boleto/card flows, payouts, receipts, and patient billing as the provider responsible for contracted financial services.
-- Supabase stores relational metadata, Auth, RLS, realtime, and Edge Functions. It is not the primary document store.
-- Cloudflare R2 stores private document bytes. Supabase stores metadata and authorizes uploads/downloads through Edge Functions and short-lived signed URLs.
-- Documents, notes attachments, AI chat files, portal patient files, and backfilled legacy objects must use R2 unless explicitly marked public and non-sensitive.
-- Patient accounts and professional accounts are separate roles. Patients must land in `/portal`; professionals must not enter patient portal without an explicit patient relationship.
-- Clinic/multi-professional product surfaces are postponed. Do not keep or add Plano Clínica dashboards, team management, clinic reports, or organization settings in the active product.
+- NeuroFinance é a única superfície financeira ativa, mas não deve ocultar o papel do provedor. Usa Asaas BaaS v3 para assinaturas de psicólogos, subcontas, cobranças de pacientes, Pix/boletos/cartões, saques, dados fiscais e NFS-e.
+- NeuroNex é a plataforma tecnológica. Não deve ser descrita como banco, instituição de pagamento ou detentora de recursos de clientes.
+- Asaas deve ser claramente identificado em onboarding, telas financeiras, termos, contratos, fluxos Pix/boleto/cartão, saques, comprovantes e cobrança de pacientes como prestador responsável pelos serviços financeiros contratados.
+- Supabase armazena metadados relacionais, Auth, RLS, realtime e Edge Functions. Ele não é o object store primário de documentos.
+- Cloudflare R2 armazena bytes privados de documentos. Supabase armazena metadados e autoriza uploads/downloads por Edge Functions e URLs assinadas de curta duração.
+- Documentos, anexos de notas, arquivos de chat IA, arquivos do portal do paciente e objetos legados migrados devem usar R2, salvo item explicitamente público e não sensível.
+- Contas de pacientes e profissionais são papéis separados. Pacientes devem entrar em `/portal`; profissionais não devem entrar no portal do paciente sem relacionamento explícito com aquele paciente.
+- Superfícies de clínica/multi-profissional estão adiadas. Não manter nem adicionar dashboards de Plano Clínica, gestão de equipe, relatórios de clínica ou configurações de organização no produto ativo.
 
-## Active Route Families
+## Ambientes e Release
 
-| Family | Route examples | Status |
+- Produção, homologação/sandbox e desenvolvimento local são ambientes separados. O frontend não deve fixar URLs, project refs, chaves ou fallbacks de produção; workflows e scripts operacionais devem deixar o ambiente explícito e não misturar refs de produção e homologação no mesmo fluxo.
+- O frontend recebe apenas variáveis públicas necessárias, como URL e chave anon/publishable do Supabase, sempre por ambiente externo.
+- `service_role`, chaves Asaas, segredos R2, segredos de webhook e segredos OAuth ficam somente em Edge Functions, jobs administrativos ou secret stores server-side.
+- Homologação deve usar Asaas Sandbox ou mocks. Operações financeiras reais não devem ser executadas em homologação ou desenvolvimento.
+- Mudanças em banco e Edge Functions exigem PR, checks, revisão do diff e etapa explícita de aplicação/deploy. Migration aprovada no Git não significa aplicação automática em Cloud.
+- Evidências privadas de segurança, contratos, MFA, painel Asaas, painel Supabase e inventário de fornecedores devem ser mantidas fora do repositório público.
+
+## Famílias de Rotas Ativas
+
+| Família | Exemplos de rotas | Status |
 | --- | --- | --- |
-| Auth | `/auth`, `/reset-password`, `/email-confirmed` | Active |
-| Professional app | `/dashboard`, `/agenda`, `/pacientes`, `/notas`, `/financeiro/*`, `/ajustes`, `/teleconsulta` | Active |
-| Patient portal | `/portal/*`, `/portal/convite/:token`, `/portal/ativar` | Active |
-| Public/semi-public workflows | `/confirmar-agendamento/:token`, `/join/:appointmentId`, `/payment/callback`, `/anamnese-externa/:id`, `/help` | Active |
-| Hidden evaluation | `/neurozap`, `/teleconsulta-antiga`, `/notas-mobile-antiga` | Kept intentionally, no navbar entry |
+| Auth | `/auth`, `/reset-password`, `/email-confirmed` | Ativo |
+| App profissional | `/dashboard`, `/agenda`, `/pacientes`, `/notas`, `/financeiro/*`, `/ajustes`, `/teleconsulta` | Ativo |
+| Portal do paciente | `/portal/*`, `/portal/convite/:token`, `/portal/ativar` | Ativo |
+| Fluxos públicos/semi-públicos | `/confirmar-agendamento/:token`, `/join/:appointmentId`, `/payment/callback`, `/anamnese-externa/:id`, `/help` | Ativo |
+| Avaliação oculta | `/neurozap`, `/teleconsulta-antiga`, `/notas-mobile-antiga` | Mantido intencionalmente, sem entrada na navbar |
 
-## Legacy To Remove Or Keep Removed
+## Legado a Remover ou Manter Removido
 
-These are definitive legacy surfaces in this project:
+Estas superfícies são legado definitivo neste projeto:
 
-- Stripe, Stripe Connect, Stripe Checkout, Stripe webhooks, Stripe payout/account functions, and Stripe post-payment assumptions.
-- C6 Bank and any C6 payment/Pix/boleto/account schema.
-- Focus NFe and Focus-specific API keys, fields, functions, or UI.
+- Stripe, Stripe Connect, Stripe Checkout, webhooks Stripe, funções Stripe de payout/conta e premissas pós-pagamento Stripe.
+- C6 Bank e qualquer schema de pagamento/Pix/boleto/conta C6.
+- Focus NFe e campos, funções, chaves de API ou UI específicos da Focus.
 - Twilio SMS.
 - ElevenLabs.
-- MoltBook and Synapse Heartbeat.
-- Google Sheets export/sync. Google Calendar/Drive/Docs may remain when used by current integrations.
-- Public institutional pages/routes: `/about`, `/blog`, `/careers`, `/neurobank`.
-- Clinic plan routes and modules: `/clinic-dashboard`, `/relatorios`, `reports/`, organization/team management, clinic performance reports, monthly clinical report automation.
+- MoltBook e Synapse Heartbeat.
+- Exportação/sync Google Sheets. Google Calendar/Drive/Docs podem permanecer quando usados por integrações atuais.
+- Páginas/rotas institucionais públicas: `/about`, `/blog`, `/careers`, `/neurobank`.
+- Rotas e módulos de plano clínica: `/clinic-dashboard`, `/relatorios`, `reports/`, gestão de organização/equipe, relatórios de performance de clínica, automação mensal de relatório clínico.
 
-Historical migrations may still mention old providers because migration history is append-only. Active source code, Edge Functions, config, and product docs should not depend on them.
+Migrations históricas ainda podem mencionar provedores antigos porque o histórico de migrations é append-only. Código ativo, Edge Functions, config e documentação de produto não devem depender deles.
 
-## Supabase And R2 Contracts
+## Contratos Supabase e R2
 
-- R2 credentials are server-only Edge Function secrets. They must never appear in Vite/browser env vars or frontend bundles.
-- R2 object access uses authenticated Edge Functions such as upload confirmation, download URL creation, and deletion.
-- Supabase Storage is not used for private documents. The remaining active Storage bucket is `avatars` for profile images; legacy sandbox buckets such as `files_psico`, `chat_attachments`, and `downloads` were removed after R2 validation/backfill.
-- Edge Functions must default to `verify_jwt = true`. Exceptions must be explicitly classified as webhook, OAuth callback, public invite/availability endpoint, or maintenance endpoint with its own shared secret.
-- Security-definer functions must not be public accidental APIs. Prefer owner checks, restricted grants, and advisor verification.
+- Credenciais R2 são secrets server-side de Edge Functions. Nunca devem aparecer em variáveis Vite/browser ou bundles frontend.
+- Acesso a objetos R2 usa Edge Functions autenticadas para confirmação de upload, criação de URL de download e exclusão.
+- Supabase Storage não é usado para documentos privados. O bucket ativo remanescente é `avatars` para imagens de perfil; buckets legados de sandbox, como `files_psico`, `chat_attachments` e `downloads`, foram removidos após validação/backfill R2.
+- Edge Functions devem usar `verify_jwt = true` por padrão. Exceções devem ser classificadas explicitamente como webhook, callback OAuth, endpoint público de convite/disponibilidade ou endpoint de manutenção com segredo compartilhado próprio.
+- Funções security-definer não devem virar APIs públicas acidentais. Preferir checagens de proprietário, grants restritos e validação por advisors.
 
-## Finance And Fiscal Contracts
+## Contratos Financeiros e Fiscais
 
-- Professional subscriptions to NeuroNex use Asaas checkout/subscription records through `create-checkout-session`, `verify-checkout-session`, `asaas-webhook`, and entitlement sync.
-- Psychologist financial accounts/subaccounts use Asaas BaaS v3 through NeuroFinance onboarding and account sync functions.
-- Patient charges use NeuroFinance payment creation/actions and `nb_payments` as the financial source of truth for provider-backed payments.
-- Financial UI, receipts, and patient billing must make the Asaas role unambiguous. Use official Asaas marks only from approved assets and keep NeuroFinance as product branding, not as a substitute for provider attribution.
-- Operational webhooks are not evidence of payout/withdrawal validation by themselves. Payout validation must be confirmed by the Asaas-specific withdrawal webhook configuration or by API IP allowlisting.
-- NFS-e issuance uses `asaas-invoices` plus shared Asaas NFS-e helpers. Provider-neutral columns should use `nfse_*`; Focus-specific columns are legacy.
-- Financial management reports inside `/financeiro` are current psychologist cashflow views and are not the old Plano Clínica reports.
+- Assinaturas profissionais da NeuroNex usam registros de checkout/subscription Asaas por `create-checkout-session`, `verify-checkout-session`, `asaas-webhook` e sync de entitlement.
+- Contas/subcontas financeiras de psicólogos usam Asaas BaaS v3 por onboarding NeuroFinance e funções de sync de conta.
+- Cobranças de pacientes usam criação/ações de pagamento NeuroFinance e `nb_payments` como fonte de verdade financeira para pagamentos respaldados pelo provedor.
+- UI financeira, comprovantes e cobrança de pacientes devem tornar inequívoco o papel do Asaas. Usar marcas oficiais Asaas somente a partir de assets aprovados e manter NeuroFinance como marca de produto, não como substituto da atribuição ao provedor.
+- Webhooks operacionais não são evidência de validação de saque por si só. Validação de saque deve ser confirmada pela configuração Asaas específica de webhook de saque ou por allowlist de IP da API.
+- Emissão de NFS-e usa `asaas-invoices` e helpers Asaas NFS-e compartilhados. Colunas neutras de provedor devem usar `nfse_*`; colunas específicas Focus são legado.
+- Relatórios de gestão financeira dentro de `/financeiro` são visões atuais de cashflow do psicólogo e não os antigos relatórios de Plano Clínica.
 
-## Current Cleanup Notes
+## Notas Atuais de Limpeza
 
-- Clinic/team UI has been removed from active settings. Any future clinic product should be rebuilt from a new design/schema.
-- Monthly clinical report automation has been removed from active UI/functions. Patient clinical notes, prontuario, summaries, and documents remain core product.
-- Some financial tables may still keep dormant `clinic_id` scope columns while RLS and reconciliation are simplified in a dedicated future migration. Do not use those fields for new features.
+- UI de clínica/equipe foi removida das configurações ativas. Qualquer produto futuro de clínica deve ser reconstruído a partir de novo design/schema.
+- Automação mensal de relatório clínico foi removida da UI/functions ativas. Notas clínicas, prontuário, resumos e documentos de paciente continuam sendo produto central.
+- Algumas tabelas financeiras ainda podem manter colunas dormentes de escopo `clinic_id` enquanto RLS e conciliação são simplificadas em migration futura dedicada. Não usar esses campos para novas features.
