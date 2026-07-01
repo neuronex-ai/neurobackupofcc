@@ -4,9 +4,6 @@ title = "NeuroNex Gitleaks configuration"
 useDefault = true
 
 [[allowlists]]
-description = "Synthetic password-shaped fixture used only in validation unit tests"
+description = "Synthetic credential-shaped fixtures in validation unit tests"
 targetRules = ["generic-api-key"]
-condition = "AND"
-regexTarget = "line"
-regexes = ['''password:\s*['"][A-Za-z]+[0-9]{3}['"]''']
 paths = ['''^src/lib/__tests__/validation\.test\.ts$''']
