@@ -1,0 +1,4 @@
+# Reviewed false positives: synthetic password fixtures in validation tests.
+# These fingerprints are intentionally narrow and do not suppress future findings.
+c2eed8d6b064b7cd7bb5fec29958fc3f7500168a:src/lib/__tests__/validation.test.ts:generic-api-key:207
+c2eed8d6b064b7cd7bb5fec29958fc3f7500168a:src/lib/__tests__/validation.test.ts:generic-api-key:215
