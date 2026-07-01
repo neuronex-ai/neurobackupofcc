@@ -200,7 +200,7 @@ const sendAccessLink = async (params: {
     ctaLabel: params.ctaLabel || "Acessar Portal",
     actionUrl: actionLink,
     helper: params.inviteToken
-      ? "Este link mantém você no fluxo do convite. Se ele não abrir corretamente, entre em /portal/acesso e informe o código recebido."
+      ? "Este link mantém você no fluxo do convite. Se ele não abrir corretamente, entre em /portal/ativar e informe o código recebido."
       : "Se você recebeu um código de ativação, use-o em /portal/ativar após entrar.",
     psychologistUserId: params.invite?.psychologist_user_id,
   });
@@ -331,13 +331,14 @@ const handleSendAccessLink = async (body: Record<string, unknown>) => {
 const handleResetPassword = async (body: Record<string, unknown>) => {
   const email = normalizeEmail(body.email);
   const inviteToken = String(body.inviteToken || "").trim();
+  if (!isValidEmail(email)) return errorResponse("Informe um e-mail válido.", 400);
+
   let invite: any = null;
   if (inviteToken) {
     const validated = await assertInviteUsableForEmail(inviteToken, email);
     if (validated.response) return validated.response;
     invite = validated.invite;
   }
-  if (!isValidEmail(email)) return errorResponse("Informe um e-mail válido.", 400);
 
   const user = await findAuthUserByEmail(email);
   if (user) {
