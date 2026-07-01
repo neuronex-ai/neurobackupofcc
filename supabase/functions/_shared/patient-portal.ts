@@ -11,11 +11,18 @@ export const PORTAL_MAX_ATTEMPTS = 5;
 const encoder = new TextEncoder();
 
 export function appBaseUrl() {
-  return (
+  const raw = (
     Deno.env.get("PUBLIC_APP_URL") ||
     Deno.env.get("FRONTEND_URL") ||
-    "https://neuronexai.com.br"
+    "https://www.neuronexai.com.br"
   ).replace(/\/+$/, "");
+  const isLocalUrl = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(raw);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const isLocalSupabase = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(supabaseUrl);
+
+  if (isLocalUrl && !isLocalSupabase) return "https://www.neuronexai.com.br";
+  if (raw === "https://neuronexai.com.br") return "https://www.neuronexai.com.br";
+  return raw;
 }
 
 function bytesToBase64Url(bytes: Uint8Array) {

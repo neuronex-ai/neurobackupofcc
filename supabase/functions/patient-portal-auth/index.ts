@@ -330,11 +330,19 @@ const handleSendAccessLink = async (body: Record<string, unknown>) => {
 
 const handleResetPassword = async (body: Record<string, unknown>) => {
   const email = normalizeEmail(body.email);
+  const inviteToken = String(body.inviteToken || "").trim();
+  let invite: any = null;
+  if (inviteToken) {
+    const validated = await assertInviteUsableForEmail(inviteToken, email);
+    if (validated.response) return validated.response;
+    invite = validated.invite;
+  }
   if (!isValidEmail(email)) return errorResponse("Informe um e-mail válido.", 400);
 
   const user = await findAuthUserByEmail(email);
   if (user) {
-    const redirectTo = `${appBaseUrl()}/reset-password?next=portal`;
+    const tokenSuffix = inviteToken ? `&token=${encodeURIComponent(inviteToken)}` : "";
+    const redirectTo = `${appBaseUrl()}/reset-password?next=portal${tokenSuffix}`;
     const actionLink = await getActionLink({ type: "recovery", email, redirectTo });
     await sendPortalEmail({
       to: email,
@@ -349,7 +357,10 @@ const handleResetPassword = async (body: Record<string, unknown>) => {
     await auditPortal({
       actor_type: "patient",
       actor_user_id: user.id,
+      psychologist_user_id: invite?.psychologist_user_id || null,
       patient_user_id: user.id,
+      patient_id: invite?.patient_id || null,
+      invite_id: invite?.id || null,
       action: "portal_password_reset_sent",
       metadata: { email, redirectTo },
     });
