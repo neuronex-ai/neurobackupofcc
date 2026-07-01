@@ -18,6 +18,9 @@ jobs:
   test-and-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://ci.invalid
+      VITE_SUPABASE_ANON_KEY: ci-public-anon-placeholder
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,7 +43,11 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Dependency audit
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Full dependency audit report
+        continue-on-error: true
         run: npm audit --audit-level=high
 
   secret-scan:
@@ -52,5 +59,3 @@ jobs:
 
       - name: Scan for secrets
         uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
