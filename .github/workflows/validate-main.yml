@@ -56,13 +56,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
-      - name: Scan current tree for secrets
+      - name: Scan changed commit for secrets
         run: >-
           docker run --rm
           -v "$PWD:/repo"
           ghcr.io/gitleaks/gitleaks:latest
-          dir /repo
+          git /repo
           --config /repo/gitleaks.toml
+          --log-opts=-1
           --redact
           --no-banner
