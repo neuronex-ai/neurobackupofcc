@@ -57,7 +57,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Scan for secrets
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITLEAKS_CONFIG: gitleaks.toml
+      - name: Scan current tree for secrets
+        run: >-
+          docker run --rm
+          -v "$PWD:/repo"
+          ghcr.io/gitleaks/gitleaks:latest
+          dir /repo
+          --config /repo/gitleaks.toml
+          --redact
+          --no-banner
