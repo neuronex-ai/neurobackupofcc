@@ -90,13 +90,35 @@ export async function auditPortal(values: Record<string, unknown>) {
   if (error) console.warn("[patient-portal] audit failed:", error);
 }
 
-export async function readProfessionalPortalEntitlement(psychologistUserId: string) {
+type PortalEntitlementOptions = {
+  allowLegacyFallback?: boolean;
+};
+
+function legacyPortalEntitlement() {
+  return {
+    status: "legacy_fallback",
+    accessState: "continuity",
+    planCode: "legacy",
+    hasPortal: true,
+    hasPaidAccess: true,
+    canInvite: true,
+  };
+}
+
+export async function readProfessionalPortalEntitlement(
+  psychologistUserId: string,
+  options: PortalEntitlementOptions = {},
+) {
   const { data, error } = await supabaseAdmin
     .from("current_subscription_entitlements")
     .select("*")
     .eq("user_id", psychologistUserId)
     .maybeSingle();
-  if (error) throw error;
+  if (error) {
+    console.warn("[patient-portal] entitlement lookup failed:", error);
+    if (options.allowLegacyFallback) return legacyPortalEntitlement();
+    throw error;
+  }
 
   const status = String(data?.effective_status || data?.status || "inactive");
   const accessState = String(data?.effective_access_state || data?.access_state || "blocked");
@@ -160,15 +182,15 @@ export async function getPatientPortalContext(patientUser: {
   const [patientResult, profileResult, entitlement] = await Promise.all([
     supabaseAdmin
       .from("patients")
-      .select("id,name,email,phone,mobile_phone,status,avatar_url,gender_identity")
+      .select("id,name,email,phone,status")
       .eq("id", preferred.patient_id)
       .maybeSingle(),
     supabaseAdmin
       .from("profiles")
-      .select("id,first_name,last_name,full_name,name,clinic_name,avatar_url")
+      .select("id,first_name,last_name")
       .eq("id", preferred.psychologist_user_id)
       .maybeSingle(),
-    readProfessionalPortalEntitlement(preferred.psychologist_user_id),
+    readProfessionalPortalEntitlement(preferred.psychologist_user_id, { allowLegacyFallback: true }),
   ]);
 
   if (patientResult.error) throw patientResult.error;
@@ -187,7 +209,7 @@ export async function getPatientPortalContext(patientUser: {
     links.map(async (link: any) => {
       const { data: profile } = await supabaseAdmin
         .from("profiles")
-        .select("id,first_name,last_name,full_name,name,clinic_name,avatar_url")
+        .select("id,first_name,last_name")
         .eq("id", link.psychologist_user_id)
         .maybeSingle();
       return {
@@ -197,8 +219,8 @@ export async function getPatientPortalContext(patientUser: {
         professional: {
           id: profile?.id || link.psychologist_user_id,
           name: publicProfessionalName(profile),
-          clinicName: profile?.clinic_name || null,
-          avatarUrl: profile?.avatar_url || null,
+          clinicName: null,
+          avatarUrl: null,
         },
       };
     }),
@@ -217,17 +239,17 @@ export async function getPatientPortalContext(patientUser: {
           id: patientResult.data.id,
           name: patientResult.data.name,
           email: patientResult.data.email,
-          phone: patientResult.data.mobile_phone || patientResult.data.phone,
-          avatarUrl: patientResult.data.avatar_url || null,
-          genderIdentity: patientResult.data.gender_identity || null,
+          phone: patientResult.data.phone || null,
+          avatarUrl: null,
+          genderIdentity: null,
         }
       : null,
     professional: profileResult.data
       ? {
           id: profileResult.data.id,
           name: publicProfessionalName(profileResult.data),
-          clinicName: profileResult.data.clinic_name || null,
-          avatarUrl: profileResult.data.avatar_url || null,
+          clinicName: null,
+          avatarUrl: null,
         }
       : null,
     features: {

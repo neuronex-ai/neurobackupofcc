@@ -121,6 +121,16 @@ describe("Edge Function schema selects", () => {
     expect(source).not.toContain("/portal/acesso");
   });
 
+  it("keeps patient portal current context compatible with the legacy patients schema", () => {
+    const source = readFileSync(
+      resolve(repoRoot, "supabase/functions/_shared/patient-portal.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain('.select("id,name,email,phone,status")');
+    expect(source).not.toContain("mobile_phone,status,avatar_url,gender_identity");
+  });
+
   it("blocks activation takeover when a patient-professional link belongs to another user", () => {
     const source = readFileSync(
       resolve(repoRoot, "supabase/functions/patient-portal-activate/index.ts"),
