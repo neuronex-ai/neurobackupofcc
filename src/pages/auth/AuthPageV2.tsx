@@ -25,6 +25,10 @@ import {
   type BiometricStatus,
   type StoredBiometricAccount,
 } from '@/lib/native-mobile-security';
+import {
+  clearPatientPortalInviteToken,
+  readPatientPortalInviteToken,
+} from '@/lib/patient-portal-flow';
 import { readSupabaseFunctionError } from '@/lib/read-supabase-function-error';
 import { cn } from '@/lib/utils';
 import type { Session } from '@supabase/supabase-js';
@@ -163,15 +167,15 @@ const AuthPageV2 = () => {
       throw new Error(await readSupabaseFunctionError(error, 'Nao foi possivel carregar o Portal do Paciente.'));
     }
 
-    const inviteToken = window.localStorage.getItem('neuronex_patient_portal_invite_token');
+    readPatientPortalInviteToken();
     if (data?.status === 'active') {
-      window.localStorage.removeItem('neuronex_patient_portal_invite_token');
+      clearPatientPortalInviteToken();
       navigate('/portal', { replace: true });
       return;
     }
 
     if (data?.status === 'needs_activation') {
-      navigate(inviteToken ? `/portal/ativar?token=${encodeURIComponent(inviteToken)}` : '/portal/ativar', { replace: true });
+      navigate('/portal/ativar', { replace: true });
       return;
     }
 
@@ -535,6 +539,7 @@ const AuthPageV2 = () => {
         onOpenChange={setForgotOpen}
         context={role === 'patient' ? 'patient' : 'professional'}
         redirectTo={role === 'patient' ? `${window.location.origin}/reset-password?next=portal` : undefined}
+        inviteToken={role === 'patient' ? readPatientPortalInviteToken() : undefined}
       />
       <TotpMfaDialog open={mfaOpen} mode="challenge" onOpenChange={setMfaOpen} onSuccess={finishAuthenticatedSession} onCancel={cancelMfa} />
       <BiometricPromptDialog
