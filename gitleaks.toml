@@ -1,0 +1,12 @@
+title = "NeuroNex Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Synthetic login password used only in validation unit tests"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = ['''password:\s*['"]senhaSegura123['"]''']
+paths = ['''^src/lib/__tests__/validation\.test\.ts$''']
